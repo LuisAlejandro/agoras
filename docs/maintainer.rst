@@ -1,0 +1,1 @@
+.. include:: ../MAINTAINER.rst

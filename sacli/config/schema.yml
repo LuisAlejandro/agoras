@@ -1,0 +1,19 @@
+version: int(min=1, max=1)
+managers: 
+  debian: include('manager', required=False)
+  alpine: include('manager', required=False)
+  arch: include('manager', required=False)
+  centos: include('manager', required=False)
+  fedora: include('manager', required=False)
+  gentoo: include('manager', required=False)
+  npm: include('manager', required=False)
+  yarn: include('manager', required=False)
+  bundler: include('manager', required=False)
+  pip: include('manager', required=False)
+  custom: include('script', required=False)
+---
+manager:
+  dependencies: list(include('package'), min=1)
+  postinstall: include('script', required=False)
+script: regex('.*', multiline=True, dotall=True)
+package: str(matches='^\S*$')

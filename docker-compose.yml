@@ -1,0 +1,9 @@
+version: "3"
+services:
+  sacli:
+    image: luisalejandro/sacli:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/home/luisalejandro/app
