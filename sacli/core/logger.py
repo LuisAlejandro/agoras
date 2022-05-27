@@ -23,8 +23,8 @@ until the logger is started.
 """
 
 import sys
-import types
 import logging
+from typing import cast
 
 levelNames = {
     'CRITICAL': 50,
@@ -58,14 +58,8 @@ class ControlableLogger(logging.Logger):
 
         .. versionadded:: 0.1.0
         """
-        # Initializing according to old-style or new-style clases
-        if hasattr(types, 'ClassType') and \
-           isinstance(logging.Logger, types.ClassType):
-            logging.Logger.__init__(self, name)
-        if (hasattr(types, 'TypeType') and
-           isinstance(logging.Logger, types.TypeType)) or \
-           isinstance(logging.Logger, type):
-            super(ControlableLogger, self).__init__(name)
+        # Initializing parent class
+        super(ControlableLogger, self).__init__(name)
 
         self.parent = logging.root
 
@@ -151,4 +145,4 @@ class ControlableLogger(logging.Logger):
 
 
 logging.setLoggerClass(ControlableLogger)
-logger = logging.getLogger(__name__.split('.')[0])
+logger = cast(ControlableLogger, logging.getLogger(__name__.split('.')[0]))

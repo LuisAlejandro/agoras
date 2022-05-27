@@ -24,31 +24,3 @@ sacli.common.utils
 This module contains common and low level functions to all modules in sacli.
 
 """
-from collections.abc import Iterable
-
-
-# Taken from: http://stackoverflow.com/a/2158532
-def flatten_list(array=[]):
-    """
-
-    Convert a nested list into one combined list.
-
-    :param array: a list object with (optionally) nested list.
-    :return: a generator with all nested lists combined.
-    :rtype: a generator.
-
-    .. versionadded:: 0.1
-
-    >>> array = [[['1'], [[2, 3, 4], [5, 6, [7]], [8]]], [9, 10, 11, 12]]
-    >>> list(flatten_list(array))
-    ['1', 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-    >>> array = []
-    >>> list(flatten_list(array))
-    []
-
-    """
-    for el in array:
-        if isinstance(el, Iterable) and not isinstance(el, (str, bytes)):
-            yield from flatten_list(el)
-        else:
-            yield el

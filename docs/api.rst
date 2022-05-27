@@ -18,14 +18,6 @@ sacli.api submodule
     :private-members:
     :special-members:
 
-sacli.config submodule
------------------------
-
-.. automodule:: sacli.config
-    :members:
-    :private-members:
-    :special-members:
-
 sacli.core submodule
 ---------------------
 

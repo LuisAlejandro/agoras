@@ -22,11 +22,13 @@ This module handles the commands for using sacli. It also parses
 parameters, show help, version and controls the logging level.
 """
 
+import re
+import sys
 from argparse import ArgumentParser
 
 from . import __version__, __description__
 from .core.logger import logger
-from .api.install import main as install
+from .api.publish import main as publish
 
 
 def commandline(argv=None):
@@ -56,22 +58,34 @@ def commandline(argv=None):
         '-h', '--help', action='help', help='Show this help message and exit.')
     subparsers = parser.add_subparsers(title='Commands', metavar='')
 
-    install_parser = subparsers.add_parser(
-        'install', prog='sacli', usage='%(prog)s install [options]',
-        help='Install dependencies defined in .sacli.yml', add_help=False)
-    install_parser.set_defaults(command=install)
-    install_gen_options = install_parser.add_argument_group('General Options')
-    install_gen_options.add_argument(
+    publish_parser = subparsers.add_parser(
+        'publish', prog='sacli', usage='%(prog)s publish [options]',
+        help='Publish posts to different social networks', add_help=False)
+    publish_parser.set_defaults(command=publish)
+    publish_gen_options = publish_parser.add_argument_group('General Options')
+    publish_gen_options.add_argument(
         '-V', '--version', action='version',
         version='sacli {0}'.format(__version__),
         help='Print version and exit.')
-    install_gen_options.add_argument(
+    publish_gen_options.add_argument(
         '-h', '--help', action='help', help='Show this help message and exit.')
-    install_options = install_parser.add_argument_group('Install Options')
-    install_options.add_argument(
-        '-c', '--conffile', metavar='<path>',
-        help='A path pointing to a .spice.yml file.')
-    install_options.add_argument(
+
+    publish_options = publish_parser.add_argument_group('Publish Options')
+    publish_options.add_argument(
+        '-n', '--network', default='', metavar='<social network>',
+        choices=['twitter', 'facebook', 'instagram', 'linkedin'],
+        help=('Social network to use for publishing (default: ""). '
+              'Must be one of: '
+              'twitter, facebook, instagram or linkedin.'))
+    publish_options.add_argument(
+        '-a', '--action', default='', metavar='<action>',
+        choices=['like', 'share', 'last-from-feed', 'random-from-feed',
+                 'schedule', 'post'],
+        help=('Action to execute (default: ""). '
+              'Must be one of: '
+              'like, share, last-from-feed, random-from-feed'
+              'schedule, post'))
+    publish_options.add_argument(
         '-l', '--loglevel', default='INFO', metavar='<level>',
         choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
         help=('Logger verbosity level (default: INFO). Must be one of: '
@@ -122,7 +136,5 @@ def main(argv=None):
 
 
 if __name__ == '__main__':
-    import re
-    import sys
     sys.argv[0] = re.sub(r'(-script\.pyw?|\.exe)?$', '', sys.argv[0])
     sys.exit(main())
