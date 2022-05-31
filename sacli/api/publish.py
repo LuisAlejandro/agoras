@@ -36,5 +36,5 @@ def main(**kwargs):
         linkedin(kwargs)
     elif network == '':
         raise Exception('--network is a required argument.')
-
-    raise Exception(f'"{network}" network not supported.')
+    else:
+        raise Exception(f'"{network}" network not supported.')

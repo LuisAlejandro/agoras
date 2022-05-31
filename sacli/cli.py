@@ -72,6 +72,11 @@ def commandline(argv=None):
 
     publish_options = publish_parser.add_argument_group('Publish Options')
     publish_options.add_argument(
+        '-l', '--loglevel', default='INFO', metavar='<level>',
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+        help=('Logger verbosity level (default: INFO). Must be one of: '
+              'DEBUG, INFO, WARNING, ERROR or CRITICAL.'))
+    publish_options.add_argument(
         '-n', '--network', default='', metavar='<social network>',
         choices=['twitter', 'facebook', 'instagram', 'linkedin'],
         help=('Social network to use for publishing (default: ""). '
@@ -86,10 +91,74 @@ def commandline(argv=None):
               'like, share, last-from-feed, random-from-feed'
               'schedule, post'))
     publish_options.add_argument(
-        '-l', '--loglevel', default='INFO', metavar='<level>',
-        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-        help=('Logger verbosity level (default: INFO). Must be one of: '
-              'DEBUG, INFO, WARNING, ERROR or CRITICAL.'))
+        '-tk', '--twitter-consumer-key', metavar='<>',
+        help=(''))
+    publish_options.add_argument(
+        '-ts', '--twitter-consumer-secret', metavar='<>',
+        help=(''))
+    publish_options.add_argument(
+        '-tot', '--twitter-oauth-token', metavar='<>',
+        help=(''))
+    publish_options.add_argument(
+        '-tos', '--twitter-oauth-secret', metavar='<>',
+        help=(''))
+    publish_options.add_argument(
+        '-ft', '--facebook-access-token', metavar='<>',
+        help=(''))
+    publish_options.add_argument(
+        '-fo', '--facebook-object-id', metavar='<>',
+        help=(''))
+    publish_options.add_argument(
+        '-fp', '--facebook-post-id', metavar='<>',
+        help=(''))
+    publish_options.add_argument(
+        '-it', '--instagram-access-token', metavar='<>',
+        help=(''))
+    publish_options.add_argument(
+        '-io', '--instagram-object-id', metavar='<>',
+        help=(''))
+    publish_options.add_argument(
+        '-ip', '--instagram-post-id', metavar='<>',
+        help=(''))
+    publish_options.add_argument(
+        '-st', '--status-text', metavar='<>',
+        help=(''))
+    publish_options.add_argument(
+        '-i1', '--status-image-url-1', metavar='<>',
+        help=(''))
+    publish_options.add_argument(
+        '-i2', '--status-image-url-2', metavar='<>',
+        help=(''))
+    publish_options.add_argument(
+        '-i3', '--status-image-url-3', metavar='<>',
+        help=(''))
+    publish_options.add_argument(
+        '-i4', '--status-image-url-4', metavar='<>',
+        help=(''))
+    publish_options.add_argument(
+        '-fu', '--feed-url', metavar='<>',
+        help=(''))
+    publish_options.add_argument(
+        '-mc', '--max-count', metavar='<>',
+        help=(''))
+    publish_options.add_argument(
+        '-pl', '--post-lookback', metavar='<>',
+        help=(''))
+    publish_options.add_argument(
+        '-ma', '--max-post-age', metavar='<>',
+        help=(''))
+    publish_options.add_argument(
+        '-ge', '--google-sheets-client-email', metavar='<>',
+        help=(''))
+    publish_options.add_argument(
+        '-gi', '--google-sheets-id', metavar='<>',
+        help=(''))
+    publish_options.add_argument(
+        '-gn', '--google-sheets-name', metavar='<>',
+        help=(''))
+    publish_options.add_argument(
+        '-gk', '--google-sheets-private-key', metavar='<>',
+        help=(''))
 
     return parser, parser.parse_args(argv)
 
