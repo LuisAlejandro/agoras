@@ -3,4 +3,4 @@ tweepy==4.8.0
 python-facebook-api==0.13.1
 gspread==5.1.1
 google-auth==2.6.6
-linkedin-api~=2.0.0a
+linkedin-api~=2.0.0a5
