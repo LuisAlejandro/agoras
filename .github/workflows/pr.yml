@@ -15,17 +15,22 @@ jobs:
     name: Build
     runs-on: ubuntu-22.04
     if: github.repository == 'LuisAlejandro/sacli'
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
       matrix:
         include:
           - python-version: "3.8"
             toxenv: "py38"
+            experimental: false
           - python-version: "3.9"
             toxenv: "py39"
+            experimental: false
           - python-version: "3.10"
             toxenv: "py310"
+            experimental: false
           - python-version: "3.11.0-beta.1"
             toxenv: "py311"
+            experimental: true
     steps:
       - name: Checkout repo
         uses: actions/checkout@v2
