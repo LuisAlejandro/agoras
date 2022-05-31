@@ -7,13 +7,11 @@ on:
 jobs:
   build:
     name: Generating code quality report
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: github.repository == 'LuisAlejandro/sacli'
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
-        with:
-          ref: develop
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v1
         with:

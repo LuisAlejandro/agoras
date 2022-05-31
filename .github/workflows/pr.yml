@@ -13,7 +13,7 @@ on:
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: github.repository == 'LuisAlejandro/sacli'
     strategy:
       matrix:
@@ -24,14 +24,11 @@ jobs:
             toxenv: "py39"
           - python-version: "3.10"
             toxenv: "py310"
-          - python-version: "3.11.0-alpha.5"
+          - python-version: "3.11.0-beta.1"
             toxenv: "py311"
     steps:
       - name: Checkout repo
         uses: actions/checkout@v2
-        with:
-          ref: develop
-          fetch-depth: 0
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v3
         with:
@@ -54,25 +51,10 @@ jobs:
           flag-name: run-py${{ matrix.python-version }}
           path-to-lcov: ./.lcov
           parallel: true
-      - name: Functional test
-        env:
-          TOXENV: ${{ matrix.toxenv }}
-          PYTHON_VERSION: ${{ matrix.python-version }}
-        run: |
-          if [ "${TOXENV}" == "py311" ]; then
-            PYTHON_VERSION="3.11"
-          fi
-          docker run \
-              -v ${PWD}:${PWD} \
-              -w ${PWD} \
-              dockershelf/python:${PYTHON_VERSION} \
-              bash -c "pip install . && \
-                       cd ${PWD}/tests/cases/debian && \
-                       sacli install"
 
   finish:
     name: Finish
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: github.repository == 'LuisAlejandro/sacli'
     needs: build
     steps:
@@ -84,7 +66,7 @@ jobs:
 
   approve:
     name: Approve pull request
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: github.repository == 'LuisAlejandro/sacli'
     needs: finish
     steps:
@@ -92,7 +74,7 @@ jobs:
         uses: hmarr/auto-approve-action@v2.2.1
         if: github.actor == 'dependabot[bot]' || github.actor == 'dependabot-preview[bot]'
         with:
-          github-token: "${{ secrets.PERSONAL_ACCESS_TOKEN }}"
+          github-token: "${{ secrets.REPO_PERSONAL_ACCESS_TOKEN }}"
       - name: Approve
         uses: hmarr/auto-approve-action@v2.2.1
         if: github.actor == 'LuisAlejandro'
@@ -101,7 +83,7 @@ jobs:
 
   merge:
     name: Merge pull request
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: github.repository == 'LuisAlejandro/sacli'
     needs: approve
     steps:
@@ -109,7 +91,7 @@ jobs:
         uses: actions/github-script@v6
         if: github.actor == 'dependabot[bot]' || github.actor == 'dependabot-preview[bot]'
         with:
-          github-token: "${{ secrets.PERSONAL_ACCESS_TOKEN }}"
+          github-token: "${{ secrets.REPO_PERSONAL_ACCESS_TOKEN }}"
           script: |
             await github.rest.pulls.merge({
               owner: context.repo.owner,

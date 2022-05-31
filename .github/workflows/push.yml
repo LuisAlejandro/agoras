@@ -9,31 +9,24 @@ on:
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: github.repository == 'LuisAlejandro/sacli'
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11.0-alpha.5"]
-        distro:
-          - alpine
-          - arch
-          - centos
-          - debian
-          - fedora
-          - gentoo
-        npm: [true, false]
-        yarn: [true, false]
-        bundler: [true, false]
-        pip: [true, false]
         include:
           - python-version: "3.8"
             toxenv: "py38"
+            experimental: false
           - python-version: "3.9"
             toxenv: "py39"
+            experimental: false
           - python-version: "3.10"
             toxenv: "py310"
-          - python-version: "3.11.0-alpha.5"
+            experimental: false
+          - python-version: "3.11.0-beta.1"
             toxenv: "py311"
+            experimental: true
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -52,18 +45,3 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tox -e ${TOXENV}
-      - name: Functional test
-        env:
-          TOXENV: ${{ matrix.toxenv }}
-          PYTHON_VERSION: ${{ matrix.python-version }}
-        run: |
-          if [ "${TOXENV}" == "py311" ]; then
-            PYTHON_VERSION="3.11"
-          fi
-          docker run \
-              -v ${PWD}:${PWD} \
-              -w ${PWD} \
-              dockershelf/python:${PYTHON_VERSION} \
-              bash -c "pip install . && \
-                       cd ${PWD}/tests/cases/debian && \
-                       sacli install"
