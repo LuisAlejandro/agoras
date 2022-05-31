@@ -1,6 +1,6 @@
 atoma==0.0.17
 tweepy==4.10.0
 python-facebook-api==0.13.1
-gspread==5.1.1
+gspread==5.3.2
 google-auth==2.6.6
 linkedin-api~=2.0.0a5
