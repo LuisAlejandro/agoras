@@ -65,6 +65,11 @@ def like(client, tweet_id):
     client.create_favorite(tweet_id)
 
 
+def delete(client, tweet_id):
+    time.sleep(random.randrange(15))
+    client.destroy_status(tweet_id)
+
+
 def share(client, tweet_id):
     time.sleep(random.randrange(15))
     client.retweet(tweet_id)
@@ -245,6 +250,8 @@ def main(kwargs):
         like(client, tweet_id)
     elif action == 'share':
         share(client, tweet_id)
+    elif action == 'delete':
+        delete(client, tweet_id)
     elif action == 'last-from-feed':
         last_from_feed(client, feed_url, int(max_count), int(post_lookback))
     elif action == 'random-from-feed':

@@ -22,7 +22,7 @@ import doctest
 
 
 def load_tests(loader, tests, pattern):
-    tests.addTests(doctest.DocTestSuite('sacli.core.utils'))
+    tests.addTests(doctest.DocTestSuite('agora.core.utils'))
     return tests
 
 

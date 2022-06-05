@@ -14,7 +14,6 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-22.04
-    if: github.repository == 'LuisAlejandro/sacli'
     continue-on-error: ${{ matrix.experimental }}
     strategy:
       matrix:
@@ -40,7 +39,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Installing dependencies
         run: |
-          sudo apt-get install libxml2-dev libxslt-dev
+          apt-get install libxml2-dev libxslt-dev
           pip install -r requirements.txt -r requirements-dev.txt
       - name: Measuring coverage
         env:
@@ -60,7 +59,6 @@ jobs:
   finish:
     name: Finish
     runs-on: ubuntu-22.04
-    if: github.repository == 'LuisAlejandro/sacli'
     needs: build
     steps:
     - name: Coveralls Finished
@@ -72,12 +70,11 @@ jobs:
   approve:
     name: Approve pull request
     runs-on: ubuntu-22.04
-    if: github.repository == 'LuisAlejandro/sacli'
     needs: finish
     steps:
       - name: Approve
         uses: hmarr/auto-approve-action@v2.2.1
-        if: github.actor == 'dependabot[bot]' || github.actor == 'dependabot-preview[bot]'
+        if: github.actor == 'dependabot[bot]'
         with:
           github-token: "${{ secrets.REPO_PERSONAL_ACCESS_TOKEN }}"
       - name: Approve
@@ -89,12 +86,11 @@ jobs:
   merge:
     name: Merge pull request
     runs-on: ubuntu-22.04
-    if: github.repository == 'LuisAlejandro/sacli'
     needs: approve
     steps:
       - name: Merge
         uses: actions/github-script@v6
-        if: github.actor == 'dependabot[bot]' || github.actor == 'dependabot-preview[bot]'
+        if: github.actor == 'dependabot[bot]'
         with:
           github-token: "${{ secrets.REPO_PERSONAL_ACCESS_TOKEN }}"
           script: |

@@ -20,7 +20,7 @@ import sys
 import doctest
 import unittest
 
-from sacli.core.logger import logger
+from agora.core.logger import logger
 
 
 class TestLogger(unittest.TestCase):
@@ -33,7 +33,7 @@ class TestLogger(unittest.TestCase):
 
 
 def load_tests(loader, tests, pattern):
-    tests.addTests(doctest.DocTestSuite('sacli.core.logger'))
+    tests.addTests(doctest.DocTestSuite('agora.core.logger'))
     return tests
 
 

@@ -73,15 +73,15 @@ def post(client, status_text,
     )
 
 
-def like(client, facebook_post_id):
-    # client.post_object(object_id=facebook_post_id,
+def like(client, linkedin_post_id):
+    # client.post_object(object_id=linkedin_post_id,
     #                    connection='likes')
-    raise Exception('Like not implemented for facebook')
+    raise Exception('Like not implemented for linkedin')
 
 
-def share(client, facebook_post_id):
-    # client.retweet(facebook_post_id)
-    raise Exception('Share not implemented for facebook')
+def share(client, linkedin_post_id):
+    # client.retweet(linkedin_post_id)
+    raise Exception('Share not implemented for linkedin')
 
 
 def last_from_feed(client, facebook_object_id, feed_url,

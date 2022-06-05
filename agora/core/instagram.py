@@ -81,6 +81,11 @@ def like(client, instagram_post_id):
     raise Exception('like not implemented for instagram')
 
 
+def delete(client, instagram_post_id):
+    # client.retweet(instagram_post_id)
+    raise Exception('share not implemented for instagram')
+
+
 def share(client, instagram_post_id):
     # client.retweet(instagram_post_id)
     raise Exception('share not implemented for instagram')
@@ -271,6 +276,8 @@ def main(kwargs):
              status_image_url_3, status_image_url_4)
     elif action == 'like':
         like(client, instagram_post_id)
+    elif action == 'delete':
+        delete(client, instagram_post_id)
     elif action == 'share':
         share(client, instagram_post_id)
     elif action == 'last-from-feed':

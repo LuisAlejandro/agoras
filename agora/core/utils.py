@@ -18,9 +18,9 @@
 
 """
 
-The sacli.common package contains all the basic functions and modules.
+agora.common.utils
+===================
 
-This package contains all the functions and modules that can be reused
-throughout the entire project.
+This module contains common and low level functions to all modules in agora.
 
 """

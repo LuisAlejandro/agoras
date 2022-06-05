@@ -16,9 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-``sacli`` is just black magic.
+``agora`` is just black magic.
 
-sacli is a package that studies the codebase of your project in search
+agora is a package that studies the codebase of your project in search
 for internal and external imports. It then discards the imports that are
 satisfied with internal code or with the standard library and finally
 searches the `PyPIContents`_ index to list which packages satisfy your imports.
@@ -31,5 +31,5 @@ searches the `PyPIContents`_ index to list which packages satisfy your imports.
 __author__ = 'Luis Alejandro Martínez Faneyth'
 __email__ = 'luis@collagelabs.org'
 __version__ = '0.1.0'
-__url__ = 'https://github.com/LuisAlejandro/sacli'
+__url__ = 'https://github.com/LuisAlejandro/agora'
 __description__ = ('')

@@ -5,7 +5,7 @@ import re
 
 from setuptools import setup
 
-from sacli import (__author__, __email__, __version__, __url__,
+from agora import (__author__, __email__, __version__, __url__,
                    __description__)
 
 
@@ -20,19 +20,19 @@ tests_require = read_requirements('requirements.txt') + \
     read_requirements('requirements-dev.txt')
 
 setup(
-    name='sacli',
+    name='agora',
     version=__version__,
     author=__author__,
     author_email=__email__,
     url=__url__,
     description=__description__,
     long_description=open('README.short.rst').read(),
-    packages=['sacli', 'sacli.api', 'sacli.core'],
-    package_dir={'sacli': 'sacli'},
+    packages=['agora', 'agora.api', 'agora.core'],
+    package_dir={'agora': 'agora'},
     include_package_data=True,
     install_requires=install_requires,
     entry_points={
-        'console_scripts': ('sacli = sacli.cli:main',),
+        'console_scripts': ('agora = agora.cli:main',),
     },
     # license='GPLv3',
     zip_safe=False,

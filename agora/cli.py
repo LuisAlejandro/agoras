@@ -16,9 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-``sacli.cli`` is a module for handling the command line interface.
+``agora.cli`` is a module for handling the command line interface.
 
-This module handles the commands for using sacli. It also parses
+This module handles the commands for using agora. It also parses
 parameters, show help, version and controls the logging level.
 """
 
@@ -47,25 +47,25 @@ def commandline(argv=None):
     assert isinstance(argv, (list, type(None)))
 
     parser = ArgumentParser(
-        prog='sacli', description=__description__, add_help=False,
+        prog='agora', description=__description__, add_help=False,
         usage='\t%(prog)s [options]\n\t%(prog)s <command> [options]')
     gen_options = parser.add_argument_group('General Options')
     gen_options.add_argument(
         '-V', '--version', action='version',
-        version='sacli {0}'.format(__version__),
+        version='agora {0}'.format(__version__),
         help='Print version and exit.')
     gen_options.add_argument(
         '-h', '--help', action='help', help='Show this help message and exit.')
     subparsers = parser.add_subparsers(title='Commands', metavar='')
 
     publish_parser = subparsers.add_parser(
-        'publish', prog='sacli', usage='%(prog)s publish [options]',
+        'publish', prog='agora', usage='%(prog)s publish [options]',
         help='Publish posts to different social networks', add_help=False)
     publish_parser.set_defaults(command=publish)
     publish_gen_options = publish_parser.add_argument_group('General Options')
     publish_gen_options.add_argument(
         '-V', '--version', action='version',
-        version='sacli {0}'.format(__version__),
+        version='agora {0}'.format(__version__),
         help='Print version and exit.')
     publish_gen_options.add_argument(
         '-h', '--help', action='help', help='Show this help message and exit.')
@@ -85,11 +85,11 @@ def commandline(argv=None):
     publish_options.add_argument(
         '-a', '--action', default='', metavar='<action>',
         choices=['like', 'share', 'last-from-feed', 'random-from-feed',
-                 'schedule', 'post'],
+                 'schedule', 'post', 'delete'],
         help=('Action to execute (default: ""). '
               'Must be one of: '
               'like, share, last-from-feed, random-from-feed'
-              'schedule, post'))
+              'schedule, post, delete'))
     publish_options.add_argument(
         '-tk', '--twitter-consumer-key', metavar='<>',
         help=(''))

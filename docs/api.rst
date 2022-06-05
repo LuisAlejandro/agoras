@@ -2,26 +2,26 @@
 Internal API
 ============
 
-sacli package
+agora package
 --------------
 
-.. automodule:: sacli
+.. automodule:: agora
     :members:
     :private-members:
     :special-members:
 
-sacli.api submodule
+agora.api submodule
 --------------------
 
-.. automodule:: sacli.api
+.. automodule:: agora.api
     :members:
     :private-members:
     :special-members:
 
-sacli.core submodule
+agora.core submodule
 ---------------------
 
-.. automodule:: sacli.core
+.. automodule:: agora.core
     :members:
     :private-members:
     :special-members:

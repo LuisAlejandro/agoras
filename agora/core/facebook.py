@@ -54,6 +54,10 @@ def like(client, facebook_post_id):
     raise Exception('Like not implemented for facebook')
 
 
+def delete(client, facebook_post_id):
+    client.delete_object(object_id=facebook_post_id)
+
+
 def share(client, facebook_post_id):
     # client.retweet(facebook_post_id)
     raise Exception('Share not implemented for facebook')
@@ -245,6 +249,8 @@ def main(kwargs):
              status_image_url_3, status_image_url_4)
     elif action == 'like':
         like(client, facebook_post_id)
+    elif action == 'delete':
+        delete(client, facebook_post_id)
     elif action == 'share':
         share(client, facebook_post_id)
     elif action == 'last-from-feed':

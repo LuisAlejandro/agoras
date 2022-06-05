@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-``sacli.core.logger`` is the global application logging module.
+``agora.core.logger`` is the global application logging module.
 
 All modules use the same global logging object. No messages will be emitted
 until the logger is started.
