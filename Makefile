@@ -49,76 +49,77 @@ clean-docs:
 	rm -fr docs/_build
 
 lint: start
-	@docker-compose -p agora -f docker-compose.yml exec \
-		--user luisalejandro agora flake8 agora
+	@docker-compose -p agoras -f docker-compose.yml exec \
+		--user luisalejandro agoras flake8 agoras
 
 test: start
-	@docker-compose -p agora -f docker-compose.yml exec \
-		--user luisalejandro agora python3 -m unittest -v -f
+	@docker-compose -p agoras -f docker-compose.yml exec \
+		--user luisalejandro agoras python3 -m unittest -v -f
 
 test-all: start
-	@docker-compose -p agora -f docker-compose.yml exec \
-		--user luisalejandro agora tox
+	@docker-compose -p agoras -f docker-compose.yml exec \
+		--user luisalejandro agoras tox
 
 coverage: start
-	@docker-compose -p agora -f docker-compose.yml exec \
-		--user luisalejandro agora coverage run --source agora -m unittest -v -f
-	@docker-compose -p agora -f docker-compose.yml exec \
-		--user luisalejandro agora coverage report -m
-	@docker-compose -p agora -f docker-compose.yml exec \
-		--user luisalejandro agora coverage html
+	@docker-compose -p agoras -f docker-compose.yml exec \
+		--user luisalejandro agoras coverage run --source agoras -m unittest -v -f
+	@docker-compose -p agoras -f docker-compose.yml exec \
+		--user luisalejandro agoras coverage report -m
+	@docker-compose -p agoras -f docker-compose.yml exec \
+		--user luisalejandro agoras coverage html
 	$(BROWSER) htmlcov/index.html
 
 docs:
-	@docker-compose -p agora -f docker-compose.yml exec \
-		--user luisalejandro agora make -C docs clean
-	@docker-compose -p agora -f docker-compose.yml exec \
-		--user luisalejandro agora make -C docs html
+	@docker-compose -p agoras -f docker-compose.yml exec \
+		--user luisalejandro agoras make -C docs clean
+	@docker-compose -p agoras -f docker-compose.yml exec \
+		--user luisalejandro agoras make -C docs html
 	$(BROWSER) docs/_build/html/index.html
 
 servedocs: docs start
-	@docker-compose -p agora -f docker-compose.yml exec \
-		--user luisalejandro agora watchmedo shell-command -p '*.rst' -c 'make -C docs html' -R -D .
+	@docker-compose -p agoras -f docker-compose.yml exec \
+		--user luisalejandro agoras watchmedo shell-command -p '*.rst' -c 'make -C docs html' -R -D .
 
 release: clean start dist
-	twine upload -s -i luis@luisalejandro.org dist/*
+	@docker-compose -p agoras -f docker-compose.yml exec \
+		--user luisalejandro agoras twine upload -s -i luis@luisalejandro.org dist/*
 
 dist: clean start
-	@docker-compose -p agora -f docker-compose.yml exec \
-		--user luisalejandro agora python3 -m build
+	@docker-compose -p agoras -f docker-compose.yml exec \
+		--user luisalejandro agoras python3 -m build
 	ls -l dist
 
 install: clean start
-	@docker-compose -p agora -f docker-compose.yml exec \
-		--user luisalejandro agora pip3 install .
+	@docker-compose -p agoras -f docker-compose.yml exec \
+		--user luisalejandro agoras pip3 install .
 
 image:
-	@docker-compose -p agora -f docker-compose.yml build \
+	@docker-compose -p agoras -f docker-compose.yml build \
 		--force-rm --pull
 
 start:
-	@docker-compose -p agora -f docker-compose.yml up \
+	@docker-compose -p agoras -f docker-compose.yml up \
 		--remove-orphans -d
 
 console: start
-	@docker-compose -p agora -f docker-compose.yml exec \
-		--user luisalejandro agora bash
+	@docker-compose -p agoras -f docker-compose.yml exec \
+		--user luisalejandro agoras bash
 
 stop:
-	@docker-compose -p agora -f docker-compose.yml stop
+	@docker-compose -p agoras -f docker-compose.yml stop
 
 down:
-	@docker-compose -p agora -f docker-compose.yml down \
+	@docker-compose -p agoras -f docker-compose.yml down \
 		--remove-orphans
 
 destroy:
-	@docker-compose -p agora -f docker-compose.yml down \
+	@docker-compose -p agoras -f docker-compose.yml down \
 		--rmi all --remove-orphans -v
 
 virtualenv: start
-	@docker-compose -p agora -f docker-compose.yml exec \
-		--user luisalejandro agora python3 -m venv --clear --copies ./virtualenv
-	@docker-compose -p agora -f docker-compose.yml exec \
-		--user luisalejandro agora ./virtualenv/bin/pip install -U wheel setuptools
-	@docker-compose -p agora -f docker-compose.yml exec \
-		--user luisalejandro agora ./virtualenv/bin/pip install -r requirements.txt -r requirements-dev.txt
+	@docker-compose -p agoras -f docker-compose.yml exec \
+		--user luisalejandro agoras python3 -m venv --clear --copies ./virtualenv
+	@docker-compose -p agoras -f docker-compose.yml exec \
+		--user luisalejandro agoras ./virtualenv/bin/pip install -U wheel setuptools
+	@docker-compose -p agoras -f docker-compose.yml exec \
+		--user luisalejandro agoras ./virtualenv/bin/pip install -r requirements.txt -r requirements-dev.txt

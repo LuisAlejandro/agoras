@@ -40,8 +40,7 @@ def post(client, instagram_object_id, status_text,
         if not is_carousel_item:
             image_data['caption'] = status_text
 
-        time.sleep(random.randrange(15))
-
+        time.sleep(random.randrange(5))
         media = client.post_object(object_id=instagram_object_id,
                                    connection='media',
                                    data=image_data)
@@ -54,8 +53,7 @@ def post(client, instagram_object_id, status_text,
             'caption': status_text
         }
 
-        time.sleep(random.randrange(15))
-
+        time.sleep(random.randrange(5))
         carousel = client.post_object(object_id=instagram_object_id,
                                       connection='media',
                                       data=carousel_data)
@@ -68,8 +66,7 @@ def post(client, instagram_object_id, status_text,
         'creation_id': creation_id,
     }
 
-    time.sleep(random.randrange(15))
-
+    time.sleep(random.randrange(5))
     client.post_object(object_id=instagram_object_id,
                        connection='media_publish',
                        data=data)
@@ -209,8 +206,7 @@ def schedule(client, instagram_object_id, google_sheets_id,
            currdate.strftime('%H') != hour) or state == 'published':
             continue
 
-        time.sleep(random.randrange(15))
-
+        time.sleep(random.randrange(5))
         post(client, instagram_object_id, status_text,
              status_image_url_1, status_image_url_2,
              status_image_url_3, status_image_url_4)

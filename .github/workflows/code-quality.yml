@@ -2,13 +2,12 @@ name: Code Quality
 
 on:
   schedule:
-    - cron: '00 6 * * 5'
+    - cron: '00 6 * * 2'
 
 jobs:
   build:
     name: Generating code quality report
     runs-on: ubuntu-22.04
-    if: github.repository == 'LuisAlejandro/agora'
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3

@@ -2,23 +2,22 @@ import os
 import json
 import datetime
 import random
-import tempfile
 import time
 from urllib.request import urlopen
 from html import unescape
-from random import choice
 
 import gspread
-from linkedin_api import Linkedin
+from pyfacebook import GraphAPI
 from atoma import parse_rss_bytes
 from google.oauth2.service_account import Credentials
 
-api_url_host = 'https://www.linkedin.com/voyager'
 
-
-def post(client, status_text,
+def post(client, facebook_object_id, status_text,
          status_image_url_1=None, status_image_url_2=None,
          status_image_url_3=None, status_image_url_4=None):
+
+    if not facebook_object_id:
+        raise Exception('No FACEBOOK_OBJECT_ID provided.')
 
     attached_media = []
     source_media = filter(None, [
@@ -28,60 +27,46 @@ def post(client, status_text,
 
     for imgurl in source_media:
 
-        _, tmpimg = tempfile.mkstemp(prefix='status-image-url-',
-                                     suffix='.bin')
+        time.sleep(random.randrange(5))
 
-        with open(tmpimg, 'wb') as i:
-            i.write(urlopen(imgurl).read())
+        imgdata = {'url': imgurl, 'published': False}
+        media = client.post_object(object_id=facebook_object_id,
+                                   connection='photos',
+                                   data=imgdata)
+        attached_media.append({'media_fbid': media['id']})
 
-        media = client.client.session.put(
-            f'{api_url_host}/api/voyagerMediaUploadMetadata?action=upload',
-            json.dumps({
-                'mediaUploadType': 'IMAGE_SHARING',
-                'fileSize': os.stat(tmpimg).st_size,
-                'filename': tmpimg
-            })
-        )
+    data = {
+        'message': status_text,
+        'published': True,
+        'attached_media': json.dumps(attached_media)
+    }
 
-        time.sleep(random.randrange(15))
-
-        with open(tmpimg, 'rb') as i:
-            client.client.session.put(media['value']['singleUploadUrl'], i)
-
-        attached_media.append({
-            'category': 'IMAGE',
-            'mediaUrn': media['value']['urn'],
-            'tapTargets': []
-        })
-
-    time.sleep(random.randrange(15))
-
-    client.client.session.put(
-        f'{api_url_host}/api/contentcreation/normShares',
-        json.dumps({
-            'visibleToConnectionsOnly': False,
-            'commentsDisabled': False,
-            'externalAudienceProviders': [],
-            'commentaryV2': {
-                'text': status_text,
-                'attributes': []
-            },
-            'origin': 'FEED',
-            'allowedCommentersScope': 'ALL',
-            'media': attached_media
-        })
-    )
+    time.sleep(random.randrange(5))
+    client.post_object(object_id=facebook_object_id,
+                       connection='feed',
+                       data=data)
 
 
-def like(client, linkedin_post_id):
-    # client.post_object(object_id=linkedin_post_id,
-    #                    connection='likes')
-    raise Exception('Like not implemented for linkedin')
+def like(client, facebook_object_id, facebook_post_id):
+    time.sleep(random.randrange(5))
+    client.post_object(object_id=f'{facebook_object_id}_{facebook_post_id}',
+                       connection='likes')
 
 
-def share(client, linkedin_post_id):
-    # client.retweet(linkedin_post_id)
-    raise Exception('Share not implemented for linkedin')
+def delete(client, facebook_object_id, facebook_post_id):
+    time.sleep(random.randrange(5))
+    client.delete_object(object_id=f'{facebook_object_id}_{facebook_post_id}')
+
+
+def share(client, facebook_profile_id, facebook_object_id, facebook_post_id):
+    time.sleep(random.randrange(5))
+    host = 'https://www.facebook.com'
+    data = {
+        'link': f'{host}/{facebook_object_id}/posts/{facebook_post_id}'
+    }
+    client.post_object(object_id=facebook_profile_id,
+                       connection='feed',
+                       data=data)
 
 
 def last_from_feed(client, facebook_object_id, feed_url,
@@ -113,6 +98,7 @@ def last_from_feed(client, facebook_object_id, feed_url,
 
         if item_timestamp > last_timestamp:
             count += 1
+            time.sleep(random.randrange(5))
             client.post_object(object_id=facebook_object_id,
                                connection='feed',
                                data=data)
@@ -148,7 +134,7 @@ def random_from_feed(client, facebook_object_id, feed_url, max_post_age):
                 'date': post.pub_date
             }
 
-    random_post_id = choice(list(json_index_content.keys()))
+    random_post_id = random.choice(list(json_index_content.keys()))
     random_post_title = json_index_content[random_post_id]['title']
     status_link = '{0}#{1}'.format(
         json_index_content[random_post_id]['url'],
@@ -158,6 +144,7 @@ def random_from_feed(client, facebook_object_id, feed_url, max_post_age):
         'link': status_link
     }
 
+    time.sleep(random.randrange(5))
     client.post_object(object_id=facebook_object_id,
                        connection='feed',
                        data=data)
@@ -200,6 +187,7 @@ def schedule(client, facebook_object_id, google_sheets_id,
            currdate.strftime('%H') != hour) or state == 'published':
             continue
 
+        time.sleep(random.randrange(5))
         post(client, facebook_object_id, status_text,
              status_image_url_1, status_image_url_2,
              status_image_url_3, status_image_url_4)
@@ -213,14 +201,17 @@ def schedule(client, facebook_object_id, google_sheets_id,
 def main(kwargs):
 
     action = kwargs.get('action')
-    linkedin_username = kwargs.get(
-        'linkedin_username',
-        os.environ.get('LINKEDIN_USERNAME', None))
-    linkedin_password = kwargs.get(
-        'linkedin_password',
-        os.environ.get('LINKEDIN_PASSWORD', None))
+    facebook_access_token = kwargs.get(
+        'facebook_access_token',
+        os.environ.get('FACEBOOK_ACCESS_TOKEN', None))
+    facebook_object_id = kwargs.get(
+        'facebook_object_id',
+        os.environ.get('FACEBOOK_OBJECT_ID', None))
     facebook_post_id = kwargs.get('facebook_post_id', None) or \
         os.environ.get('FACEBOOK_POST_ID', None)
+    facebook_profile_id = kwargs.get(
+        'facebook_profile_id',
+        os.environ.get('FACEBOOK_PROFILE_ID', None))
     status_text = kwargs.get('status_text', None) or \
         os.environ.get('STATUS_TEXT', None)
     status_image_url_1 = kwargs.get('status_image_url_1', None) or \
@@ -257,16 +248,19 @@ def main(kwargs):
         google_sheets_private_key.replace('\\n', '\n') \
         if google_sheets_private_key else ''
 
-    client = Linkedin(linkedin_username, linkedin_password)
+    client = GraphAPI(access_token=facebook_access_token, version="13.0")
 
     if action == 'post':
-        post(client, status_text,
+        post(client, facebook_object_id, status_text,
              status_image_url_1, status_image_url_2,
              status_image_url_3, status_image_url_4)
     elif action == 'like':
-        like(client, facebook_post_id)
+        like(client, facebook_object_id, facebook_post_id)
+    elif action == 'delete':
+        delete(client, facebook_object_id, facebook_post_id)
     elif action == 'share':
-        share(client, facebook_post_id)
+        share(client, facebook_profile_id, facebook_object_id,
+              facebook_post_id)
     elif action == 'last-from-feed':
         last_from_feed(client, facebook_object_id, feed_url,
                        max_count, post_lookback)

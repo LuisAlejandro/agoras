@@ -35,8 +35,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Installing dependencies
         run: |
-          apt-get install libxml2-dev libxslt-dev
-          pip install -r requirements.txt -r requirements-dev.txt
+          sudo apt-get install libxml2-dev libxslt-dev
+          sudo pip install -r requirements.txt -r requirements-dev.txt
       - name: Measuring coverage
         env:
           TOXENV: ${{ matrix.toxenv }}

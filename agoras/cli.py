@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2016-2022, Social Actions CLI Developers.
+# Copyright (C) 2016-2022, Agora Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,9 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-``agora.cli`` is a module for handling the command line interface.
+``agoras.cli`` is a module for handling the command line interface.
 
-This module handles the commands for using agora. It also parses
+This module handles the commands for using agoras. It also parses
 parameters, show help, version and controls the logging level.
 """
 
@@ -47,25 +47,25 @@ def commandline(argv=None):
     assert isinstance(argv, (list, type(None)))
 
     parser = ArgumentParser(
-        prog='agora', description=__description__, add_help=False,
+        prog='agoras', description=__description__, add_help=False,
         usage='\t%(prog)s [options]\n\t%(prog)s <command> [options]')
     gen_options = parser.add_argument_group('General Options')
     gen_options.add_argument(
         '-V', '--version', action='version',
-        version='agora {0}'.format(__version__),
+        version='agoras {0}'.format(__version__),
         help='Print version and exit.')
     gen_options.add_argument(
         '-h', '--help', action='help', help='Show this help message and exit.')
     subparsers = parser.add_subparsers(title='Commands', metavar='')
 
     publish_parser = subparsers.add_parser(
-        'publish', prog='agora', usage='%(prog)s publish [options]',
+        'publish', prog='agoras', usage='%(prog)s publish [options]',
         help='Publish posts to different social networks', add_help=False)
     publish_parser.set_defaults(command=publish)
     publish_gen_options = publish_parser.add_argument_group('General Options')
     publish_gen_options.add_argument(
         '-V', '--version', action='version',
-        version='agora {0}'.format(__version__),
+        version='agoras {0}'.format(__version__),
         help='Print version and exit.')
     publish_gen_options.add_argument(
         '-h', '--help', action='help', help='Show this help message and exit.')
@@ -91,74 +91,84 @@ def commandline(argv=None):
               'like, share, last-from-feed, random-from-feed'
               'schedule, post, delete'))
     publish_options.add_argument(
-        '-tk', '--twitter-consumer-key', metavar='<>',
-        help=(''))
+        '-tk', '--twitter-consumer-key', metavar='<consumer key>',
+        help=('Twitter consumer key from twitter developer app.'))
     publish_options.add_argument(
-        '-ts', '--twitter-consumer-secret', metavar='<>',
-        help=(''))
+        '-ts', '--twitter-consumer-secret', metavar='<consumer secret>',
+        help=('Twitter consumer secret from twitter developer app.'))
     publish_options.add_argument(
-        '-tot', '--twitter-oauth-token', metavar='<>',
-        help=(''))
+        '-tot', '--twitter-oauth-token', metavar='<oauth token>',
+        help=('Twitter OAuth token from twitter developer app.'))
     publish_options.add_argument(
-        '-tos', '--twitter-oauth-secret', metavar='<>',
-        help=(''))
+        '-tos', '--twitter-oauth-secret', metavar='<oauth secret>',
+        help=('Twitter OAuth secret from twitter developer app.'))
     publish_options.add_argument(
-        '-ft', '--facebook-access-token', metavar='<>',
-        help=(''))
+        '-ti', '--tweet-id', metavar='<id>',
+        help=('Twitter post ID to like, retweet or delete.'))
     publish_options.add_argument(
-        '-fo', '--facebook-object-id', metavar='<>',
-        help=(''))
+        '-ft', '--facebook-access-token', metavar='<access token>',
+        help=('Facebook access token from facebook app.'))
     publish_options.add_argument(
-        '-fp', '--facebook-post-id', metavar='<>',
-        help=(''))
+        '-fo', '--facebook-object-id', metavar='<id>',
+        help=('Facebook ID of object where the post is going '
+              'to be published.'))
     publish_options.add_argument(
-        '-it', '--instagram-access-token', metavar='<>',
-        help=(''))
+        '-fp', '--facebook-post-id', metavar='<id>',
+        help=('Facebook ID of post to be liked, shared or deleted.'))
     publish_options.add_argument(
-        '-io', '--instagram-object-id', metavar='<>',
-        help=(''))
+        '-fr', '--facebook-profile-id', metavar='<id>',
+        help=('Facebook ID of profile where a post will be shared.'))
     publish_options.add_argument(
-        '-ip', '--instagram-post-id', metavar='<>',
-        help=(''))
+        '-it', '--instagram-access-token', metavar='<access token>',
+        help=('Facebook access token from facebook app.'))
     publish_options.add_argument(
-        '-st', '--status-text', metavar='<>',
-        help=(''))
+        '-io', '--instagram-object-id', metavar='<id>',
+        help=('Instagram ID of profile where the post is going '
+              'to be published.'))
     publish_options.add_argument(
-        '-i1', '--status-image-url-1', metavar='<>',
-        help=(''))
+        '-ip', '--instagram-post-id', metavar='<id>',
+        help=('Instagram ID of post to be liked, shared or deleted.'))
     publish_options.add_argument(
-        '-i2', '--status-image-url-2', metavar='<>',
-        help=(''))
+        '-st', '--status-text', metavar='<text>',
+        help=('Text to be published.'))
     publish_options.add_argument(
-        '-i3', '--status-image-url-3', metavar='<>',
-        help=(''))
+        '-i1', '--status-image-url-1', metavar='<image url>',
+        help=('First image URL to be published.'))
     publish_options.add_argument(
-        '-i4', '--status-image-url-4', metavar='<>',
-        help=(''))
+        '-i2', '--status-image-url-2', metavar='<image url>',
+        help=('Second image URL to be published.'))
     publish_options.add_argument(
-        '-fu', '--feed-url', metavar='<>',
-        help=(''))
+        '-i3', '--status-image-url-3', metavar='<image url>',
+        help=('Third image URL to be published.'))
     publish_options.add_argument(
-        '-mc', '--max-count', metavar='<>',
-        help=(''))
+        '-i4', '--status-image-url-4', metavar='<image url>',
+        help=('Fourth image URL to be published.'))
     publish_options.add_argument(
-        '-pl', '--post-lookback', metavar='<>',
-        help=(''))
+        '-fu', '--feed-url', metavar='<feed url>',
+        help=('URL of public Atom feed to be parsed.'))
     publish_options.add_argument(
-        '-ma', '--max-post-age', metavar='<>',
-        help=(''))
+        '-mc', '--max-count', metavar='<number>',
+        help=('Max number of new posts to be published at once.'))
     publish_options.add_argument(
-        '-ge', '--google-sheets-client-email', metavar='<>',
-        help=(''))
+        '-pl', '--post-lookback', metavar='<seconds>',
+        help=('Only allow posts published '))
     publish_options.add_argument(
-        '-gi', '--google-sheets-id', metavar='<>',
-        help=(''))
+        '-ma', '--max-post-age', metavar='<days>',
+        help=('Dont allow publishing of posts older than this '
+              'number of days.'))
     publish_options.add_argument(
-        '-gn', '--google-sheets-name', metavar='<>',
-        help=(''))
+        '-ge', '--google-sheets-client-email', metavar='<email>',
+        help=('A google console project client email corresponding'
+              ' to the private key.'))
     publish_options.add_argument(
-        '-gk', '--google-sheets-private-key', metavar='<>',
-        help=(''))
+        '-gk', '--google-sheets-private-key', metavar='<private key>',
+        help=('A google console project private key.'))
+    publish_options.add_argument(
+        '-gi', '--google-sheets-id', metavar='<id>',
+        help=('The google sheets ID to read schedule entries.'))
+    publish_options.add_argument(
+        '-gn', '--google-sheets-name', metavar='<name>',
+        help=('The name of the sheet where the schedule is.'))
 
     return parser, parser.parse_args(argv)
 

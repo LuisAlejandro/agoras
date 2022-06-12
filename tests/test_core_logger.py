@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2016-2022, Social Actions CLI Developers.
+# Copyright (C) 2016-2022, Agora Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@ import sys
 import doctest
 import unittest
 
-from agora.core.logger import logger
+from agoras.core.logger import logger
 
 
 class TestLogger(unittest.TestCase):
@@ -33,7 +33,7 @@ class TestLogger(unittest.TestCase):
 
 
 def load_tests(loader, tests, pattern):
-    tests.addTests(doctest.DocTestSuite('agora.core.logger'))
+    tests.addTests(doctest.DocTestSuite('agoras.core.logger'))
     return tests
 
 

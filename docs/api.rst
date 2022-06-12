@@ -2,26 +2,26 @@
 Internal API
 ============
 
-agora package
+agoras package
 --------------
 
-.. automodule:: agora
+.. automodule:: agoras
     :members:
     :private-members:
     :special-members:
 
-agora.api submodule
+agoras.api submodule
 --------------------
 
-.. automodule:: agora.api
+.. automodule:: agoras.api
     :members:
     :private-members:
     :special-members:
 
-agora.core submodule
+agoras.core submodule
 ---------------------
 
-.. automodule:: agora.core
+.. automodule:: agoras.core
     :members:
     :private-members:
     :special-members:

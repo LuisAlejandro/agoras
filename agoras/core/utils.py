@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2016-2022, Social Actions CLI Developers.
+# Copyright (C) 2016-2022, Agora Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,9 +18,9 @@
 
 """
 
-The agora.common package contains all the basic functions and modules.
+agoras.common.utils
+===================
 
-This package contains all the functions and modules that can be reused
-throughout the entire project.
+This module contains common and low level functions to all modules in agoras.
 
 """

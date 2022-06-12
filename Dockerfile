@@ -1,5 +1,5 @@
 FROM dockershelf/python:3.10
-LABEL maintainer "Luis Alejandro Martínez Faneyth <luis@collagelabs.org>"
+LABEL maintainer "Luis Alejandro Martínez Faneyth <luis@luisalejandro.org>"
 
 RUN apt-get update && \
     apt-get install sudo python3.10-venv git make libyaml-dev
