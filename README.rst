@@ -28,8 +28,8 @@
    :target: https://cla-assistant.io/LuisAlejandro/agoras
    :alt: Contributor License Agreement
 
-.. image:: https://readthedocs.org/projects/agorasdocs/badge/?version=latest
-   :target: https://readthedocs.org/projects/agorasdocs/?badge=latest
+.. image:: https://readthedocs.org/projects/agoras/badge/?version=latest
+   :target: https://readthedocs.org/projects/agoras/?badge=latest
    :alt: Read The Docs
 
 .. image:: https://img.shields.io/discord/809504357359157288.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2
@@ -40,7 +40,7 @@
 |
 
 .. _GitHub actions: https://github.com/LuisAlejandro/agoras-actions
-.. _full documentation: https://agorasdocs.readthedocs.org
+.. _full documentation: https://agoras.readthedocs.org
 
 Current version: 0.1.0
 

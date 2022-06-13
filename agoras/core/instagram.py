@@ -264,7 +264,7 @@ def main(kwargs):
         google_sheets_private_key.replace('\\n', '\n') \
         if google_sheets_private_key else ''
 
-    client = GraphAPI(access_token=instagram_access_token, version="13.0")
+    client = GraphAPI(access_token=instagram_access_token, version="14.0")
 
     if action == 'post':
         post(client, instagram_object_id, status_text,
