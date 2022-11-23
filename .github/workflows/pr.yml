@@ -27,9 +27,9 @@ jobs:
             toxenv: "py311"
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4.3.0
         with:
           python-version: ${{ matrix.python-version }}
       - name: Installing dependencies
@@ -68,7 +68,7 @@ jobs:
     needs: build
     steps:
       - name: Approve
-        uses: hmarr/auto-approve-action@v2.2.1
+        uses: hmarr/auto-approve-action@v3.1.0
         with:
           github-token: "${{ github.actor == 'LuisAlejandro' && secrets.GITHUB_TOKEN || secrets.REPO_PERSONAL_ACCESS_TOKEN }}"
 
