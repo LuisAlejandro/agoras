@@ -57,7 +57,8 @@ def post(client, status_text,
         media_ids.append(media.media_id)
 
     time.sleep(random.randrange(5))
-    client.update_status(status_text, media_ids=media_ids)
+    status = client.update_status(status_text, media_ids=media_ids)
+    print(status.id)
 
 
 def like(client, tweet_id):
@@ -158,8 +159,8 @@ def schedule(client, google_sheets_id, google_sheets_name,
     }
     creds = Credentials.from_service_account_info(account_info,
                                                   scopes=gspread_scope)
-    client = gspread.authorize(creds)
-    spreadsheet = client.open_by_key(google_sheets_id)
+    gclient = gspread.authorize(creds)
+    spreadsheet = gclient.open_by_key(google_sheets_id)
 
     worksheet = spreadsheet.worksheet(google_sheets_name)
     currdate = datetime.datetime.now()

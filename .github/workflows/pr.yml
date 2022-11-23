@@ -14,22 +14,17 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-22.04
-    continue-on-error: ${{ matrix.experimental }}
     strategy:
       matrix:
         include:
           - python-version: "3.8"
             toxenv: "py38"
-            experimental: false
           - python-version: "3.9"
             toxenv: "py39"
-            experimental: false
           - python-version: "3.10"
             toxenv: "py310"
-            experimental: false
-          - python-version: "3.11.0-beta.1"
+          - python-version: "3.11"
             toxenv: "py311"
-            experimental: true
     steps:
       - name: Checkout repo
         uses: actions/checkout@v2
@@ -70,18 +65,12 @@ jobs:
   approve:
     name: Approve pull request
     runs-on: ubuntu-22.04
-    needs: finish
+    needs: build
     steps:
       - name: Approve
         uses: hmarr/auto-approve-action@v2.2.1
-        if: github.actor == 'dependabot[bot]'
         with:
-          github-token: "${{ secrets.REPO_PERSONAL_ACCESS_TOKEN }}"
-      - name: Approve
-        uses: hmarr/auto-approve-action@v2.2.1
-        if: github.actor == 'LuisAlejandro'
-        with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          github-token: "${{ github.actor == 'LuisAlejandro' && secrets.GITHUB_TOKEN || secrets.REPO_PERSONAL_ACCESS_TOKEN }}"
 
   merge:
     name: Merge pull request
@@ -90,20 +79,8 @@ jobs:
     steps:
       - name: Merge
         uses: actions/github-script@v6
-        if: github.actor == 'dependabot[bot]'
         with:
-          github-token: "${{ secrets.REPO_PERSONAL_ACCESS_TOKEN }}"
-          script: |
-            await github.rest.pulls.merge({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.payload.pull_request.number
-            })
-      - name: Merge
-        uses: actions/github-script@v6
-        if: github.actor == 'LuisAlejandro'
-        with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          github-token: "${{ github.actor == 'LuisAlejandro' && secrets.GITHUB_TOKEN || secrets.REPO_PERSONAL_ACCESS_TOKEN }}"
           script: |
             await github.rest.pulls.merge({
               owner: context.repo.owner,

@@ -45,7 +45,7 @@ class ControlableLogger(logging.Logger):
     The stop method halts output.
     """
 
-    def __init__(self, name=None):
+    def __init__(self, name=''):
         """
         Initialize this ``ControlableLogger``.
 
@@ -128,20 +128,6 @@ class ControlableLogger(logging.Logger):
         """
         if not self.disabled:
             self.setLevel(levelNames[level])
-
-    def configpkg(self, name=None):
-
-        if name:
-            formatstring = '[%(levelname)s] ({0}) %(message)s'.format(name)
-            for h in list(self.handlers):
-                h.setFormatter(logging.Formatter(formatstring))
-                self.removeHandler(h)
-                self.addHandler(h)
-        else:
-            for h in list(self.handlers):
-                h.setFormatter(logging.Formatter(self.formatstring))
-                self.removeHandler(h)
-                self.addHandler(h)
 
 
 logging.setLoggerClass(ControlableLogger)

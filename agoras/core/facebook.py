@@ -42,9 +42,10 @@ def post(client, facebook_object_id, status_text,
     }
 
     time.sleep(random.randrange(5))
-    client.post_object(object_id=facebook_object_id,
-                       connection='feed',
-                       data=data)
+    status = client.post_object(object_id=facebook_object_id,
+                                connection='feed',
+                                data=data)
+    print(status)
 
 
 def like(client, facebook_object_id, facebook_post_id):
@@ -163,8 +164,8 @@ def schedule(client, facebook_object_id, google_sheets_id,
     }
     creds = Credentials.from_service_account_info(account_info,
                                                   scopes=gspread_scope)
-    client = gspread.authorize(creds)
-    spreadsheet = client.open_by_key(google_sheets_id)
+    gclient = gspread.authorize(creds)
+    spreadsheet = gclient.open_by_key(google_sheets_id)
 
     worksheet = spreadsheet.worksheet(google_sheets_name)
     currdate = datetime.datetime.now()

@@ -1,10 +1,11 @@
 version: "3"
 services:
-  agoras:
+  app:
     image: luisalejandro/agoras:latest
     build:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - .:/home/luisalejandro/app
-      - /home/luisalejandro/.pypirc:/home/luisalejandro/.pypirc
+      - .:/home/agoras/app
+    env_file:
+      - .env

@@ -1,3 +1,13 @@
+#!/usr/bin/env make -f
+# -*- makefile -*-
+
+SHELL = bash -e
+all_ps_hashes = $(shell docker ps -q)
+img_hash = $(shell docker images -q luisalejandro/agoras:latest)
+exec_on_docker = docker compose \
+	-p agoras -f docker-compose.yml exec \
+	--user agoras app
+
 .PHONY: clean-pyc clean-build docs clean
 define BROWSER_PYSCRIPT
 import os, webbrowser, sys
@@ -49,77 +59,83 @@ clean-docs:
 	rm -fr docs/_build
 
 lint: start
-	@docker-compose -p agoras -f docker-compose.yml exec \
-		--user luisalejandro agoras flake8 agoras
+	@$(exec_on_docker) flake8 agoras
 
 test: start
-	@docker-compose -p agoras -f docker-compose.yml exec \
-		--user luisalejandro agoras python3 -m unittest -v -f
+	@$(exec_on_docker) python3 -m unittest -v -f
 
 test-all: start
-	@docker-compose -p agoras -f docker-compose.yml exec \
-		--user luisalejandro agoras tox
+	@$(exec_on_docker) tox
 
 coverage: start
-	@docker-compose -p agoras -f docker-compose.yml exec \
-		--user luisalejandro agoras coverage run --source agoras -m unittest -v -f
-	@docker-compose -p agoras -f docker-compose.yml exec \
-		--user luisalejandro agoras coverage report -m
-	@docker-compose -p agoras -f docker-compose.yml exec \
-		--user luisalejandro agoras coverage html
-	$(BROWSER) htmlcov/index.html
+	@$(exec_on_docker) coverage run --source agoras -m unittest -v -f
+	@$(exec_on_docker) coverage report -m
+	@$(exec_on_docker) coverage html
+	@$(BROWSER) htmlcov/index.html
 
 docs:
-	@docker-compose -p agoras -f docker-compose.yml exec \
-		--user luisalejandro agoras make -C docs clean
-	@docker-compose -p agoras -f docker-compose.yml exec \
-		--user luisalejandro agoras make -C docs html
-	$(BROWSER) docs/_build/html/index.html
+	@$(exec_on_docker) make -C docs clean
+	@$(exec_on_docker) make -C docs html
+	@$(BROWSER) docs/_build/html/index.html
 
 servedocs: docs start
-	@docker-compose -p agoras -f docker-compose.yml exec \
-		--user luisalejandro agoras watchmedo shell-command -p '*.rst' -c 'make -C docs html' -R -D .
+	@$(exec_on_docker) watchmedo shell-command -p '*.rst' -c 'make -C docs html' -R -D .
 
 release: clean start dist
-	@docker-compose -p agoras -f docker-compose.yml exec \
-		--user luisalejandro agoras twine upload -s -i luis@luisalejandro.org dist/*
+	@$(exec_on_docker) twine upload -s -i luis@luisalejandro.org dist/*
 
 dist: clean start
-	@docker-compose -p agoras -f docker-compose.yml exec \
-		--user luisalejandro agoras python3 -m build
-	ls -l dist
+	@$(exec_on_docker) python3 -m build
+	@ls -l dist
 
 install: clean start
-	@docker-compose -p agoras -f docker-compose.yml exec \
-		--user luisalejandro agoras pip3 install .
+	@$(exec_on_docker) pip3 install .
 
 image:
-	@docker-compose -p agoras -f docker-compose.yml build \
-		--force-rm --pull
+	@docker compose -p agoras -f docker-compose.yml build \
+		--build-arg UID=$(shell id -u) \
+		--build-arg GID=$(shell id -g)
 
 start:
-	@docker-compose -p agoras -f docker-compose.yml up \
-		--remove-orphans -d
+	@if [ -z "$(img_hash)" ]; then\
+		make image;\
+	fi
+	@docker compose -p agoras -f docker-compose.yml up \
+		--remove-orphans --no-build --detach
 
 console: start
-	@docker-compose -p agoras -f docker-compose.yml exec \
-		--user luisalejandro agoras bash
+	@$(exec_on_docker) bash
+
+virtualenv: start
+	@python3 -m venv --clear --copies ./virtualenv
+	@./virtualenv/bin/pip install -U wheel setuptools
+	@./virtualenv/bin/pip install -r requirements.txt -r requirements-dev.txt
 
 stop:
-	@docker-compose -p agoras -f docker-compose.yml stop
+	@docker-compose -p agoras -f docker-compose.yml stop app
 
 down:
 	@docker-compose -p agoras -f docker-compose.yml down \
 		--remove-orphans
 
 destroy:
-	@docker-compose -p agoras -f docker-compose.yml down \
-		--rmi all --remove-orphans -v
+	@echo
+	@echo "WARNING!!!"
+	@echo "This will stop and delete all containers, images and volumes related to this project."
+	@echo
+	@read -p "Press ctrl+c to abort or enter to continue." -n 1 -r
+	@docker compose -p agoras -f docker-compose.yml down \
+		--rmi all --remove-orphans --volumes
 
-virtualenv: start
-	@docker-compose -p agoras -f docker-compose.yml exec \
-		--user luisalejandro agoras python3 -m venv --clear --copies ./virtualenv
-	@docker-compose -p agoras -f docker-compose.yml exec \
-		--user luisalejandro agoras ./virtualenv/bin/pip install -U wheel setuptools
-	@docker-compose -p agoras -f docker-compose.yml exec \
-		--user luisalejandro agoras ./virtualenv/bin/pip install -r requirements.txt -r requirements-dev.txt
+cataplum:
+	@echo
+	@echo "WARNING!!!"
+	@echo "This will stop and delete all containers, images and volumes present in your system."
+	@echo
+	@read -p "Press ctrl+c to abort or enter to continue." -n 1 -r
+	@if [ -n "$(all_ps_hashes)" ]; then\
+		docker kill $(shell docker ps -q);\
+	fi
+	@docker compose -p agoras -f docker-compose.yml down \
+		--rmi all --remove-orphans --volumes
+	@docker system prune -a -f --volumes

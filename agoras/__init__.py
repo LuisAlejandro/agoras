@@ -16,15 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-``agoras`` is just black magic.
-
-agoras is a package that studies the codebase of your project in search
-for internal and external imports. It then discards the imports that are
-satisfied with internal code or with the standard library and finally
-searches the `PyPIContents`_ index to list which packages satisfy your imports.
-
-.. _PyPIContents: https://github.com/LuisAlejandro/pypicontents
-
 """
 
 

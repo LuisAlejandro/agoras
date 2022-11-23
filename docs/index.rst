@@ -3,7 +3,7 @@
 -----
 
 .. image:: https://img.shields.io/pypi/v/agoras.svg
-   :target: https://pypi.org/project/agoras
+   :target: https://pypi.org/project/agoras/
    :alt: PyPI Package
 
 .. image:: https://img.shields.io/github/release/LuisAlejandro/agoras.svg
@@ -18,34 +18,32 @@
    :target: https://github.com/LuisAlejandro/agoras/actions?query=workflow%3APush
    :alt: Push
 
+.. image:: https://coveralls.io/repos/github/LuisAlejandro/agoras/badge.svg?branch=develop
+   :target: https://coveralls.io/github/LuisAlejandro/agoras?branch=develop
+   :alt: Coverage
+
+.. image:: https://cla-assistant.io/readme/badge/LuisAlejandro/agoras
+   :target: https://cla-assistant.io/LuisAlejandro/agoras
+   :alt: Contributor License Agreement
+
 .. image:: https://readthedocs.org/projects/agoras/badge/?version=latest
    :target: https://readthedocs.org/projects/agoras/?badge=latest
    :alt: Read The Docs
 
 .. image:: https://img.shields.io/discord/809504357359157288.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2
-   :target: https://discord.gg/M36s8tTnYS
+   :target: https://discord.gg/GRnq3qQ9SB
    :alt: Discord Channel
 
-.. _different repository: https://github.com/LuisAlejandro/agoras-build
-.. _agoras: https://github.com/LuisAlejandro/agoras
-.. _Contents: https://www.debian.org/distrib/packages#search_contents
+.. _GitHub actions: https://github.com/LuisAlejandro/agoras-actions
+.. _full documentation: https://agoras.readthedocs.org
 
-agoras is an application that generates a Module Index from the
-Python Package Index (PyPI) and also from various versions of
-the Python Standard Library.
+Agora is a python utility that helps publish and delete posts on the most 
+popular social networks (twitter, facebook, instagram and linkedin).
 
-agoras generates a configurable index written in ``JSON`` format that
-serves as a database for applications like `agoras`_. It can be configured
-to process only a range of packages (by initial letter) and to have
-memory, time or log size limits. It basically aims to mimic what the
-`Contents`_ file means for a Debian based package repository, but for the
-Python Package Index.
+This repository stores the application. There's also `GitHub actions`_
+that you can incorporate into your workflows.
 
-This repository stores the application. The actual index lives in a `different
-repository`_ and is rebuilt weekly via Github Actions.
-
-* Free software: GPL-3
-* Documentation: https://agoras.readthedocs.org
+For more information, please read the `full documentation`_.
 
 Table of Contents
 -----------------
@@ -55,6 +53,10 @@ Table of Contents
 
    installation
    usage
+   twitter
+   facebook
+   instagram
+   linkedin
    api
    contributing
    authors
@@ -64,7 +66,7 @@ Table of Contents
 Made with 💖 and 🍔
 ====================
 
-.. image:: https://raw.githubusercontent.com/LuisAlejandro/agoras/develop/docs/_static/author-banner.svg
+.. image:: https://raw.githubusercontent.com/LuisAlejandro/LuisAlejandro/master/images/author-banner.svg
 
 .. _LuisAlejandroTwitter: https://twitter.com/LuisAlejandro
 .. _LuisAlejandroGitHub: https://github.com/LuisAlejandro
