@@ -1,108 +1,89 @@
-
-
-
-
-Like a Facebook post
+Facebook credentials
 ===================
 
-::
-  
-python -m agoras.cli publish \
-      --network "facebook" \
-      --action "like" \
-      --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
-      --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-      --facebook-post-id "${FACEBOOK_POST_ID}"
 
+👥 How to get a Facebook permanent access token
+-----------------------------------------------
 
+.. _extending page tokens documentation: https://developers.facebook.com/docs/facebook-login/access-tokens#extendingpagetokens
+.. _Graph API Explorer: https://developers.facebook.com/tools/explorer
 
-Share a Facebook post
-====================
+Following the instructions laid out in Facebook's `extending page tokens documentation`_ I was able to get a page access token that does not expire.
 
-::
-  
-python -m agoras.cli publish \
-      --network "facebook" \
-      --action "share" \
-      --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
-      --facebook-profile-id "${FACEBOOK_PROFILE_ID}" \
-      --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-      --facebook-post-id "${FACEBOOK_POST_ID}"
+I suggest using the `Graph API Explorer`_ for all of these steps except where otherwise stated.
 
+0. Create Facebook App
+-----------------------------------
 
+.. _My Apps: https://developers.facebook.com/apps/
 
-Delete a Facebook post
-=====================
+**If you already have an app**, skip to step 1.
 
-::
-  
-python -m agoras.cli publish \
-      --network "facebook" \
-      --action "delete" \
-      --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
-      --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-      --facebook-post-id "${FACEBOOK_POST_ID}"
+1. Go to `My Apps`_.
+2. Click "+ Add a New App".
+3. Setup a website app.
 
+You don't need to change its permissions or anything. You just need an app that wont go away before you're done with your access token.
 
+1. Get User Short-Lived Access Token
+-----------------------------------
 
-Post the last URL from an atom feed into Facebook
-================================================
+.. _Graph API Explorer: https://developers.facebook.com/tools/explorer
 
-::
-  
-python -m agoras.cli publish \
-      --network "facebook" \
-      --action "last-from-feed" \
-      --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
-      --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-      --feed-url "${FEED_URL}"
+1. Go to the `Graph API Explorer`_.
+2. Select the application you want to get the access token for (in the "Facebook App" drop-down menu, not the "My Apps" menu).
+3. In the "Add a Permission" drop-down, search and check "pages_manage_posts" and "pages_read_engagement".
+4. Click "Generate Access Token".
+5. Grant access from a Facebook account that has access to manage the target page. Note that if this user loses access the final, never-expiring access token will likely stop working.
 
+The token that appears in the "Access Token" field is your short-lived access token.
 
+2. Generate Long-Lived Access Token
+-----------------------------------
 
-Post a random URL from an atom feed into Facebook
-================================================
+.. _these instructions: https://developers.facebook.com/docs/facebook-login/access-tokens#extending
+.. _Access Token Debugger: https://developers.facebook.com/tools/debug/accesstoken
 
-::
-  
-python -m agoras.cli publish \
-      --network "facebook" \
-      --action "random-from-feed" \
-      --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
-      --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-      --feed-url "${FEED_URL}"
+Following `these instructions`_ from the Facebook docs, make a GET request to
 
+> https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id={app_id}&client_secret={app_secret}&fb_exchange_token={short_lived_token}
 
+entering in your app's ID and secret and the short-lived token generated in the previous step.
 
-Publish a Facebook post
-======================
+You **cannot use the Graph API Explorer**. For some reason it gets stuck on this request. I think it's because the response isn't JSON, but a query string. Since it's a GET request, you can just go to the URL in your browser.
 
-::
-  
-python -m agoras.cli publish \
-      --network "facebook" \
-      --action "post" \
-      --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
-      --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-      --status-text "${STATUS_TEXT}" \
-      --status-image-url-1 "${STATUS_IMAGE_URL_1}" \
-      --status-image-url-2 "${STATUS_IMAGE_URL_2}" \
-      --status-image-url-3 "${STATUS_IMAGE_URL_3}" \
-      --status-image-url-4 "${STATUS_IMAGE_URL_4}"
+The response should look like this::
 
+      {"access_token":"**ABC123**","token_type":"bearer","expires_in":5183791}
 
+"ABC123" will be your long-lived access token. You can put it into the `Access Token Debugger`_ to verify. Under "Expires" it should have something like "2 months".
 
-Schedule a Facebook post
-=======================
+3. Get User ID
+-----------------------------------
 
-::
-  
-python -m agoras.cli publish \
-      --network "facebook" \
-      --action "schedule" \
-      --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
-      --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-      --google-sheets-id "${GOOGLE_SHEETS_ID}" \
-      --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
-      --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-      --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
+Using the long-lived access token, make a GET request to::
 
+      https://graph.facebook.com/me?access_token={long_lived_access_token}
+
+The `id` field is your account ID. You'll need it for the next step.
+
+4. Get Permanent Page Access Token
+-----------------------------------
+
+.. _Access Token Debugger: https://developers.facebook.com/tools/debug/accesstoken
+
+Make a GET request to::
+
+      https://graph.facebook.com/{account_id}/accounts?access_token={long_lived_access_token}
+
+The JSON response should have a `data` field under which is an array of items the user has access to. Find the item for the page you want the permanent access token from. The `access_token` field should have your permanent access token. Copy it and test it in the `Access Token Debugger`_. Under "Expires" it should say "Never".
+
+👥 How to get a Facebook page ID
+-----------------------------------------------
+
+To find your Page ID:
+
+1. From News Feed, click Pages in the left side menu.
+2. Click your Page name to go to your Page.
+3. Click About in the left column. If you don't see About in the left column, click See More.
+4. Scroll down to find your Page ID below More Info.
