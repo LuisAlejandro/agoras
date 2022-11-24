@@ -43,7 +43,7 @@ You don't need to change its permissions or anything. You just need an app that 
 
 1. Go to the `Graph API Explorer`_.
 2. Select the application you want to get the access token for (in the "Meta App" drop-down menu).
-3. In the "Add a Permission" drop-down, search and check `pages_manage_posts` and `pages_read_engagement`.
+3. In the "Add a Permission" drop-down, search and check ``pages_manage_posts`` and ``pages_read_engagement``.
 4. Click "Generate Access Token".
 5. Grant access from a Facebook account that has access to manage the target page. Note that if this user loses access the final, never-expiring access token will likely stop working.
 
