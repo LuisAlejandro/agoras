@@ -10,8 +10,7 @@ Agoras needs the following credentials from twitter to be able to access its API
 
 For that, we'll need to create a Twitter App.
 
-Create a twitter app
-~~~~~~~~~~~~~~~~~~~~
+---
 
 You can create a twitter app for your twitter account at https://developer.twitter.com/en/apps.
 
@@ -53,32 +52,33 @@ What to do if you dont qualify
 ------------------------------
 
 .. image:: images/twitter-5.png
+.. _Agoras command line app: https://github.com/LuisAlejandro/agoras
 
 If you dont qualify for a developer account, you'll be asked to fill a more detailed application to request "Elevated access" to APIs. It consists of 4 pages, the first asking some basic information about you.
 
 .. image:: images/twitter-6.png
 
-### Describe in your own words what you are building
+The second page will ask detailed information about your use of the app.
 
 1. In your words
 
-This app will be used to publish tweets using the [twitter-together](https://github.com/gr2m/twitter-together/) GitHub Action. It allows to use a GitHub repository and pull request reviews as a workflow to collaboratively tweet from a shared twitter account.
+This app will be used to publish tweets using the `Agoras command line app`_. It allows to use a GitHub repository and pull request reviews as a workflow to collaboratively tweet from a shared twitter account.
 
 2. Are you planning to analyze Twitter data?
 
-No
+No.
 
 3. Will your app use Tweet, Retweet, like, follow, or Direct Message functionality?
 
-Yes. This app will be used to publish tweets for this account. It might be used for retweeting in future. There are no plans for liking.
+Yes. This app will be used to publish tweets for this account.
 
 4. Do you plan to display Tweets or aggregate data about Twitter content outside of Twitter?
 
-No twitter data will be displayed. The `twitter-together` GitHub action shows a preview of the tweet before it is published and becomes twitter data.
+No.
 
 5. Will your product, service, or analysis make Twitter content or derived information available to a government entity?
 
-No
+No.
 
 ---
 
@@ -86,47 +86,26 @@ You will receive an email to verify your developer account. After that you can c
 
 .. _create-an-app:
 
-## Create an app
+Create an app
+-------------
 
-.. image:: twitter-03-create-app.png
+.. image:: images/twitter-7.png
 
-Only 4 questions are required. Here are my answers for reference
+The only thing you need is the name of your app. You can use something like: `<your twitter account name>-agoras`, e.g. `luisalejandro-agoras`
 
-### App name (required)
+.. image:: images/twitter-8.png
 
-`<your twitter account name>-twitter-together`, e.g. `probot-twitter-together`
+Save credentials
+----------------
 
-### Application description (required)
+.. image:: images/twitter-9.png
 
-Collaboratively tweet using GitHub’s pull request review process by utilizing the twitter-together GitHub Action.
+Click regenerate on "API Key and Secret" and take note of:
 
-### Website URL (required)
+- API key
+- API secret key
 
-https://github.com/gr2m/twitter-together
+Then click regenerate on Access Token and Secret and take note of:
 
-### Tell us how this app will be used (required)
-
-This app will be used to create tweets that have previously been reviewed and accepted on our GitHub repository. It allows everyone to submit a tweet draft that we can discuss prior publishing.
-
-## Save credentials
-
-"read and write" permissions are required. When you have created your app, open `app settings` and set app permissions to "Read & Write". If you change the permission you must re-generate tokens for the change to take effect.
-
-Open your app’s "Keys and tokens" tab. In the "Access token & access token secret" section, press the "Create" button. After that you will see all four credentials required for `twitter-together`.
-
-.. image:: twitter-04-keys-and-tokens.png
-
-Now save the credentials into your repository’s "Secrets" settings as follows
-
-| Twitter Credential name | GitHub Secret name            |
-| ----------------------- | ----------------------------- |
-| API key                 | `TWITTER_API_KEY`             |
-| API secret key          | `TWITTER_API_SECRET_KEY`      |
-| Access token            | `TWITTER_ACCESS_TOKEN`        |
-| Access token secret     | `TWITTER_ACCESS_TOKEN_SECRET` |
-
-.. image:: twitter-05-repository-secrets.png
-
----
-
-next: [Create a `.github/workflows/twitter-together.yml` file](02-create-twitter-together-workflow.md)
+- Access token
+- Access token secret
