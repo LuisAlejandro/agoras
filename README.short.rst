@@ -44,84 +44,10 @@
 
 Current version: 0.1.0
 
-Agora is a python utility that helps publish and delete posts on the most 
+Agoras is a python utility that helps publish and delete posts on the most 
 popular social networks (twitter, facebook, instagram and linkedin).
 
 This repository stores the application. There's also `GitHub actions`_ that you can
 incorporate into your workflows.
 
 For more information, please read the `full documentation`_.
-
-Getting started
-===============
-
-Installation
-------------
-
-.. _PyPI: https://pypi.org/project/agoras
-
-The ``agoras`` program is written in python and hosted on PyPI_.
-Therefore, you can use pip to install the stable version::
-
-    $ pip install --upgrade agoras
-
-If you want to install the development version (not recomended), you can
-install directlty from GitHub like this::
-
-    $ pip install --upgrade https://github.com/LuisAlejandro/agoras/archive/master.tar.gz
-
-Usage
------
-
-.. _USAGE: USAGE.rst
-
-See USAGE_ for details.
-
-Getting help
-============
-
-.. _Discord server: https://discord.gg/GRnq3qQ9SB
-.. _StackOverflow: http://stackoverflow.com/questions/ask
-
-If you have any doubts or problems, suscribe to our `Discord server`_ and ask for help. You can also
-ask your question on StackOverflow_ (tag it ``agoras``) or drop me an email at luis@luisalejandro.org.
-
-Contributing
-============
-
-.. _CONTRIBUTING: CONTRIBUTING.rst
-
-See CONTRIBUTING_ for details.
-
-Release history
-===============
-
-.. _HISTORY: HISTORY.rst
-
-See HISTORY_ for details.
-
-License
-=======
-
-.. _AUTHORS: AUTHORS.rst
-.. _GPL-3 License: LICENSE
-
-Copyright 2016-2022, agoras Developers (read AUTHORS_ for a full list of copyright holders).
-
-Released under a `GPL-3 License`_.
-
-Made with 💖 and 🍔
-====================
-
-.. image:: https://raw.githubusercontent.com/LuisAlejandro/LuisAlejandro/master/images/author-banner.svg
-
-.. _LuisAlejandroTwitter: https://twitter.com/LuisAlejandro
-.. _LuisAlejandroGitHub: https://github.com/LuisAlejandro
-.. _luisalejandro.org: https://luisalejandro.org
-
-|
-
-    Web luisalejandro.org_ · GitHub `@LuisAlejandro`__ · Twitter `@LuisAlejandro`__
-
-__ LuisAlejandroGitHub_
-__ LuisAlejandroTwitter_

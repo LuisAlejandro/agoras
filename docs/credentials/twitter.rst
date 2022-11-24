@@ -15,20 +15,21 @@ Create a twitter app
 
 You can create a twitter app for your twitter account at https://developer.twitter.com/en/apps.
 
-[![](images/twitter-1.png)](https://developer.twitter.com/en/apps)
+.. image:: images/twitter-1.png
 
-If you haven't yet, you will be asked to apply for a Twitter developer account. See my answers below for reference. If you've done that before, skip the next section and continue at [Create an app](#create-an-app).
+If you haven't yet, you will be asked to apply for a Twitter developer account. See my answers below for reference. If you've done that before, skip the next section and continue at `Create an app <create-an-app_>`_.
 
 Apply for a developer account
 -----------------------------
 
-![](images/twitter-2.png)
+.. image:: images/twitter-2.png
+.. _email settings: https://twitter.com/settings/email
 
 You might be asked to add a phone number to your twitter account before proceeding. If the phone number is used in another account, it won't let you use it again. But you can remove the phone number from the other account. You can change it back once your developer account was approved.
 
-Your twitter account will also need to be associated with an email address. If it isn't yet, set the email address in your twitter account [email settings](https://twitter.com/settings/email).
+Your twitter account will also need to be associated with an email address. If it isn't yet, set the email address in your twitter account `email settings`_.
 
-![](images/twitter-3.png)
+.. image:: images/twitter-3.png
 
 Answer the following questions:
 
@@ -42,40 +43,40 @@ Select Building customized solutions in-house or Making a bot.
 
 - Will you make Twitter content or derived information available to a government entity or a government affiliated enitity?
 
+Answer no.
 
-
-![](images/twitter-4.png)
+.. image:: images/twitter-4.png
 
 Now accept the terms and conditions.
 
 What to do if you dont qualify
 ------------------------------
 
-![](images/twitter-5.png)
+.. image:: images/twitter-5.png
 
-If you dont qualify for a developer account, you'll be asked to fill a more detailed application to request "Elevated access" to APIs.
+If you dont qualify for a developer account, you'll be asked to fill a more detailed application to request "Elevated access" to APIs. It consists of 4 pages, the first asking some basic information about you.
 
-![](images/twitter-6.png)
+.. image:: images/twitter-6.png
 
 ### Describe in your own words what you are building
 
-#### 1. In your words
+1. In your words
 
 This app will be used to publish tweets using the [twitter-together](https://github.com/gr2m/twitter-together/) GitHub Action. It allows to use a GitHub repository and pull request reviews as a workflow to collaboratively tweet from a shared twitter account.
 
-#### 2. Are you planning to analyze Twitter data?
+2. Are you planning to analyze Twitter data?
 
 No
 
-#### 3. Will your app use Tweet, Retweet, like, follow, or Direct Message functionality?
+3. Will your app use Tweet, Retweet, like, follow, or Direct Message functionality?
 
 Yes. This app will be used to publish tweets for this account. It might be used for retweeting in future. There are no plans for liking.
 
-#### 4. Do you plan to display Tweets or aggregate data about Twitter content outside of Twitter?
+4. Do you plan to display Tweets or aggregate data about Twitter content outside of Twitter?
 
 No twitter data will be displayed. The `twitter-together` GitHub action shows a preview of the tweet before it is published and becomes twitter data.
 
-### Will your product, service, or analysis make Twitter content or derived information available to a government entity?
+5. Will your product, service, or analysis make Twitter content or derived information available to a government entity?
 
 No
 
@@ -83,9 +84,11 @@ No
 
 You will receive an email to verify your developer account. After that you can create an app at https://developer.twitter.com/en/portal/apps/new.
 
+.. _create-an-app:
+
 ## Create an app
 
-![](twitter-03-create-app.png)
+.. image:: twitter-03-create-app.png
 
 Only 4 questions are required. Here are my answers for reference
 
@@ -111,7 +114,7 @@ This app will be used to create tweets that have previously been reviewed and ac
 
 Open your app’s "Keys and tokens" tab. In the "Access token & access token secret" section, press the "Create" button. After that you will see all four credentials required for `twitter-together`.
 
-![](twitter-04-keys-and-tokens.png)
+.. image:: twitter-04-keys-and-tokens.png
 
 Now save the credentials into your repository’s "Secrets" settings as follows
 
@@ -122,7 +125,7 @@ Now save the credentials into your repository’s "Secrets" settings as follows
 | Access token            | `TWITTER_ACCESS_TOKEN`        |
 | Access token secret     | `TWITTER_ACCESS_TOKEN_SECRET` |
 
-![](twitter-05-repository-secrets.png)
+.. image:: twitter-05-repository-secrets.png
 
 ---
 

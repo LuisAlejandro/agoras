@@ -44,7 +44,7 @@
 
 Current version: 0.1.0
 
-Agora is a python utility that helps publish and delete posts on the most 
+Agoras is a python utility that helps publish and delete posts on the most 
 popular social networks (twitter, facebook, instagram and linkedin).
 
 This repository stores the application. There's also `GitHub actions`_
