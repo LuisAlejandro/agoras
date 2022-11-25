@@ -118,3 +118,19 @@ Then click regenerate on Access Token and Secret and take note of:
 
 - Access token
 - Access token secret
+
+Agoras parameters
+-----------------
+
++---------------------+----------------------------+
+| Twitter credential  | Agoras parameter           |
++=====================+============================+
+| API key             | --twitter-consumer-key     |
++---------------------+----------------------------+
+| API secret key      | --twitter-consumer-secret  |
++---------------------+----------------------------+
+| Access token        | --twitter-oauth-token      |
++---------------------+----------------------------+
+| Access token secret | --twitter-oauth-secret     |
++---------------------+----------------------------+
+

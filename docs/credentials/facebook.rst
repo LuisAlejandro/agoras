@@ -117,11 +117,12 @@ Make a GET request to the following URL, you'll need the account ID from the pre
 The JSON response should have a `data` field under which is an array of items the user has access to. Find the item for the page you want the permanent access token from. The `access_token` field should have your permanent access token. Copy it and test it in the `Access Token Debugger`_. Under "Expires" it should say "Never".
 
 👥 Agoras parameters
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 +------------------------------+--------------------------+
 | Facebook credential          | Agoras parameter         |
 +==============================+==========================+
 | Permanent Page Access Token  | --facebook-access-token  |
++------------------------------+--------------------------+
 | Page ID                      | --facebook-object-id     |
 +------------------------------+--------------------------+
