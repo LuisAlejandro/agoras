@@ -95,6 +95,15 @@ The only thing you need is the name of your app. You can use something like: `<y
 
 .. image:: images/twitter-8.png
 
+Activate user authentication
+----------------------------
+
+.. image:: images/twitter-10.png
+
+Go to user authentication settings and click edit, then select "Read and write" in App permissions, "Web app, automated app or bot" in Type of app and put a valid URL in Callback URI/Website URL. Save.
+
+.. image:: images/twitter-11.png
+
 Save credentials
 ----------------
 

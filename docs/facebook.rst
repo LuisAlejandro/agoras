@@ -2,6 +2,24 @@
 
 
 
+Publish a Facebook post
+======================
+
+::
+  
+python -m agoras.cli publish \
+      --network "facebook" \
+      --action "post" \
+      --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
+      --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
+      --status-text "${STATUS_TEXT}" \
+      --status-image-url-1 "${STATUS_IMAGE_URL_1}" \
+      --status-image-url-2 "${STATUS_IMAGE_URL_2}" \
+      --status-image-url-3 "${STATUS_IMAGE_URL_3}" \
+      --status-image-url-4 "${STATUS_IMAGE_URL_4}"
+
+
+
 Like a Facebook post
 ===================
 
@@ -70,24 +88,6 @@ python -m agoras.cli publish \
       --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
       --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
       --feed-url "${FEED_URL}"
-
-
-
-Publish a Facebook post
-======================
-
-::
-  
-python -m agoras.cli publish \
-      --network "facebook" \
-      --action "post" \
-      --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
-      --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-      --status-text "${STATUS_TEXT}" \
-      --status-image-url-1 "${STATUS_IMAGE_URL_1}" \
-      --status-image-url-2 "${STATUS_IMAGE_URL_2}" \
-      --status-image-url-3 "${STATUS_IMAGE_URL_3}" \
-      --status-image-url-4 "${STATUS_IMAGE_URL_4}"
 
 
 

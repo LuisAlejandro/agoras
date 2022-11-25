@@ -1,4 +1,27 @@
 
+
+
+
+Publish a Twitter post
+======================
+
+::
+  
+python -m agoras.cli publish \
+      --network "twitter" \
+      --action "post" \
+      --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \
+      --twitter-consumer-secret "${TWITTER_CONSUMER_SECRET}" \
+      --twitter-oauth-token "${TWITTER_OAUTH_TOKEN}" \
+      --twitter-oauth-secret "${TWITTER_OAUTH_SECRET}" \
+      --status-text "${STATUS_TEXT}" \
+      --status-image-url-1 "${STATUS_IMAGE_URL_1}" \
+      --status-image-url-2 "${STATUS_IMAGE_URL_2}" \
+      --status-image-url-3 "${STATUS_IMAGE_URL_3}" \
+      --status-image-url-4 "${STATUS_IMAGE_URL_4}"
+
+
+
 Like a Twitter post
 ===================
 
@@ -76,26 +99,6 @@ python -m agoras.cli publish \
       --twitter-oauth-token "${TWITTER_OAUTH_TOKEN}" \
       --twitter-oauth-secret "${TWITTER_OAUTH_SECRET}" \
       --feed-url "${FEED_URL}"
-
-
-
-Publish a Twitter post
-======================
-
-::
-  
-python -m agoras.cli publish \
-      --network "twitter" \
-      --action "post" \
-      --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \
-      --twitter-consumer-secret "${TWITTER_CONSUMER_SECRET}" \
-      --twitter-oauth-token "${TWITTER_OAUTH_TOKEN}" \
-      --twitter-oauth-secret "${TWITTER_OAUTH_SECRET}" \
-      --status-text "${STATUS_TEXT}" \
-      --status-image-url-1 "${STATUS_IMAGE_URL_1}" \
-      --status-image-url-2 "${STATUS_IMAGE_URL_2}" \
-      --status-image-url-3 "${STATUS_IMAGE_URL_3}" \
-      --status-image-url-4 "${STATUS_IMAGE_URL_4}"
 
 
 

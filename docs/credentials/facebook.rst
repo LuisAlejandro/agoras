@@ -11,7 +11,20 @@ For that, we'll need to create a Twitter App.
 👥 How to get a Facebook page ID
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To find your Page ID use a page like https://lookup-id.com to get it.
+To find your Page ID go to the following URL, replacing ``{page_name}`` with the pretty name of your page url. For example, in https://www.facebook.com/LuisDevelops, the ``{page_name}`` is ``LuisDevelops``.::
+
+      https://developers.facebook.com/tools/explorer/?method=GET&path={page_name}
+
+Then click on submit and you'll see a response like this::
+
+      {
+            "name": "Luis Develops",
+            "id": "ZZZZZZZ"
+      }
+
+"ZZZZZZZ" is your page ID.
+
+.. image:: images/facebook-6.png
 
 👥 How to get a Facebook permanent access token
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -30,9 +43,15 @@ I suggest using the `Graph API Explorer`_ for all of these steps except where ot
 
 **If you already have an app**, skip to step 1.
 
+.. image:: images/facebook-1.png
+
 1. Go to `My Apps`_.
 2. Click "Create App".
 3. Setup a website app. This step will ask you to fill the type of app (select "None"), and then fill the app name.
+
+.. image:: images/facebook-2.png
+
+.. image:: images/facebook-3.png
 
 You don't need to change its permissions or anything. You just need an app that wont go away before you're done with your access token.
 
@@ -49,10 +68,14 @@ You don't need to change its permissions or anything. You just need an app that 
 
 The token that appears in the "Access Token" field is your short-lived access token. Take note of it.
 
+.. image:: images/facebook-4.png
+
 2. Generate Long-Lived Access Token
 -----------------------------------
 
 .. _Access Token Debugger: https://developers.facebook.com/tools/debug/accesstoken
+
+.. image:: images/facebook-5.png
 
 To get a long-lived access token (60 days), you'll need the short-lived access token from the previous step, your app ID and your app secret::
 
@@ -92,3 +115,13 @@ Make a GET request to the following URL, you'll need the account ID from the pre
       https://graph.facebook.com/{account_id}/accounts?access_token={long_lived_access_token}
 
 The JSON response should have a `data` field under which is an array of items the user has access to. Find the item for the page you want the permanent access token from. The `access_token` field should have your permanent access token. Copy it and test it in the `Access Token Debugger`_. Under "Expires" it should say "Never".
+
+👥 Agoras parameters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++------------------------------+--------------------------+
+| Facebook credential          | Agoras parameter         |
++==============================+==========================+
+| Permanent Page Access Token  | --facebook-access-token  |
+| Page ID                      | --facebook-object-id     |
++------------------------------+--------------------------+
