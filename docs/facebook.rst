@@ -12,6 +12,7 @@ How to get ``--facebook-object-id`` parameter
 With Agoras you can use the facebook network to post to pages, profiles and groups, but for simplicity sake we're going to only explain how to get the object ID of a page.
 
 To find your Page ID go to the following URL, replacing ``{page_name}`` with the pretty name of your page url. For example, in https://www.facebook.com/LuisDevelops, the ``{page_name}`` is ``LuisDevelops``.
+::
 
       https://developers.facebook.com/tools/explorer/?method=GET&path={page_name}
 
@@ -38,6 +39,7 @@ Publish a Facebook post
 -----------------------
 
 This command will publish a post on the ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``. ``--status-text`` is the text of your post and can contain URLs that are going to be formatted into clickable links. In facebook post can have a maximum of 63206 characters, so be careful not to exceed it. You can also add up to 4 images in your post using ``--status-image-url-1``, ``--status-image-url-2``, ``--status-image-url-3`` and ``--status-image-url-4``, which must be URLs that point to downloadable images.
+::
 
       python -m agoras.cli publish \
             --network "facebook" \
