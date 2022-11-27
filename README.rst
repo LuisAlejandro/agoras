@@ -68,7 +68,7 @@ Therefore, you can use pip to install the stable version::
 If you want to install the development version (not recomended), you can
 install directlty from GitHub like this::
 
-    $ pip install --upgrade https://github.com/LuisAlejandro/agoras/archive/master.tar.gz
+    $ pip install --upgrade https://github.com/LuisAlejandro/agoras/archive/develop.tar.gz
 
 Usage
 -----

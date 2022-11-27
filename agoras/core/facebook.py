@@ -26,7 +26,7 @@ from html import unescape
 
 import gspread
 from pyfacebook import GraphAPI
-from atoma import parse_rss_bytes
+from atoma import parse_atom_bytes
 from google.oauth2.service_account import Credentials
 
 
@@ -45,13 +45,18 @@ def post(client, facebook_object_id, status_text,
 
     for imgurl in source_media:
 
-        time.sleep(random.randrange(5))
+        imgdata = {
+            'url': imgurl,
+            'published': False
+        }
 
-        imgdata = {'url': imgurl, 'published': False}
+        time.sleep(random.randrange(5))
         media = client.post_object(object_id=facebook_object_id,
                                    connection='photos',
                                    data=imgdata)
-        attached_media.append({'media_fbid': media['id']})
+        attached_media.append({
+            'media_fbid': media['id']
+        })
 
     data = {
         'message': status_text,
@@ -59,11 +64,12 @@ def post(client, facebook_object_id, status_text,
         'attached_media': json.dumps(attached_media)
     }
 
-    time.sleep(random.randrange(5))
-    status = client.post_object(object_id=facebook_object_id,
-                                connection='feed',
-                                data=data)
-    print(status)
+    print(data)
+    # time.sleep(random.randrange(5))
+    # status = client.post_object(object_id=facebook_object_id,
+    #                             connection='feed',
+    #                             data=data)
+    # print(status)
 
 
 def like(client, facebook_object_id, facebook_post_id):
@@ -85,7 +91,8 @@ def share(client, facebook_profile_id, facebook_object_id, facebook_post_id):
     time.sleep(random.randrange(5))
     host = 'https://www.facebook.com'
     data = {
-        'link': f'{host}/{facebook_object_id}/posts/{facebook_post_id}'
+        'link': f'{host}/{facebook_object_id}/posts/{facebook_post_id}',
+        'published': True
     }
     status = client.post_object(object_id=facebook_profile_id,
                                 connection='feed',
@@ -104,29 +111,38 @@ def last_from_feed(client, facebook_object_id, feed_url,
     if not facebook_object_id:
         raise Exception('No FACEBOOK_OBJECT_ID provided.')
 
-    feed_data = parse_rss_bytes(urlopen(feed_url).read())
+    feed_data = parse_atom_bytes(urlopen(feed_url).read())
     today = datetime.datetime.now()
     last_run = today - datetime.timedelta(seconds=post_lookback)
     last_timestamp = int(last_run.strftime('%Y%m%d%H%M%S'))
 
-    for post in feed_data.items:
+    for post in feed_data.entries:
+
+        data = {}
 
         if count >= max_count:
             break
 
-        if not post.pub_date or not post.title:
+        if not post.updated:
             continue
 
-        item_timestamp = int(post.pub_date.strftime('%Y%m%d%H%M%S'))
-        data = {'message': unescape(post.title), 'link': post.guid}
+        item_timestamp = int(post.updated.strftime('%Y%m%d%H%M%S'))
 
-        if item_timestamp > last_timestamp:
+        if post.title:
+            data['message'] = unescape(post.title.value)
+
+        if post.links:
+            data['link'] = post.links[0].href
+
+        if item_timestamp > last_timestamp and data:
             count += 1
-            time.sleep(random.randrange(5))
-            status = client.post_object(object_id=facebook_object_id,
-                                        connection='feed',
-                                        data=data)
-            print(status)
+            data['published'] = True
+            print(data)
+            # time.sleep(random.randrange(5))
+            # status = client.post_object(object_id=facebook_object_id,
+            #                             connection='feed',
+            #                             data=data)
+            # print(status)
 
 
 def random_from_feed(client, facebook_object_id, feed_url, max_post_age):
@@ -139,41 +155,54 @@ def random_from_feed(client, facebook_object_id, feed_url, max_post_age):
     if not facebook_object_id:
         raise Exception('No FACEBOOK_OBJECT_ID provided.')
 
-    feed_data = parse_rss_bytes(urlopen(feed_url).read())
+    feed_data = parse_atom_bytes(urlopen(feed_url).read())
     today = datetime.datetime.now()
     max_age_delta = today - datetime.timedelta(days=max_post_age)
     max_age_timestamp = int(max_age_delta.strftime('%Y%m%d%H%M%S'))
 
-    for post in feed_data.items:
+    for post in feed_data.entries:
 
-        if not post.pub_date:
+        if not post.updated:
             continue
 
-        item_timestamp = int(post.pub_date.strftime('%Y%m%d%H%M%S'))
+        item_timestamp = int(post.updated.strftime('%Y%m%d%H%M%S'))
 
         if int(item_timestamp) >= max_age_timestamp:
 
-            json_index_content[str(item_timestamp)] = {
-                'title': post.title,
-                'url': post.guid,
-                'date': post.pub_date
-            }
+            index = {}
+
+            if post.title:
+                index['title'] = post.title.value
+
+            if post.links:
+                index['url'] = post.links[0].href
+
+            if not index:
+                continue
+
+            index['date'] = post.updated
+            json_index_content[str(item_timestamp)] = index
+
+    data = {}
 
     random_post_id = random.choice(list(json_index_content.keys()))
     random_post_title = json_index_content[random_post_id]['title']
-    status_link = '{0}#{1}'.format(
-        json_index_content[random_post_id]['url'],
-        today.strftime('%Y%m%d%H%M%S'))
-    data = {
-        'message': unescape(random_post_title),
-        'link': status_link
-    }
+    random_post_url = json_index_content[random_post_id]['url']
 
-    time.sleep(random.randrange(5))
-    status = client.post_object(object_id=facebook_object_id,
-                                connection='feed',
-                                data=data)
-    print(status)
+    if random_post_title:
+        data['message'] = unescape(random_post_title)
+
+    if random_post_url:
+        data['link'] = '{0}#{1}'.format(random_post_url,
+                                        today.strftime('%Y%m%d%H%M%S'))
+
+    data['published'] = True
+    print(data)
+    # time.sleep(random.randrange(5))
+    # status = client.post_object(object_id=facebook_object_id,
+    #                             connection='feed',
+    #                             data=data)
+    # print(status)
 
 
 def schedule(client, facebook_object_id, google_sheets_id,

@@ -4,9 +4,7 @@ Agoras usage for Facebook network
 How to get ``--facebook-access-token`` parameter
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. _here: credentials/facebook.rst
-
-We'll need a permanent access token with appropiate permissions to be able to use de Facebook Graph API. Read the tutorial here_.
+We'll need a permanent access token with appropiate permissions to be able to use de Facebook Graph API. Read the tutorial `here <credentials/facebook.rst>`_.
 
 How to get ``--facebook-object-id`` parameter
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -28,107 +26,118 @@ Then click on submit and you'll see a response like this::
 
 .. image:: credentials/images/facebook-6.png
 
+How to get google spreadsheets credentials
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+We'll need a google spreadsheet for the schedule action. Read how to create one and obtain credentials `here <credentials/google.rst>`_.
+
+Actions
+~~~~~~~
+
 Publish a Facebook post
 -----------------------
 
-::
-  
-python -m agoras.cli publish \
-      --network "facebook" \
-      --action "post" \
-      --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
-      --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-      --status-text "${STATUS_TEXT}" \
-      --status-image-url-1 "${STATUS_IMAGE_URL_1}" \
-      --status-image-url-2 "${STATUS_IMAGE_URL_2}" \
-      --status-image-url-3 "${STATUS_IMAGE_URL_3}" \
-      --status-image-url-4 "${STATUS_IMAGE_URL_4}"
+This command will publish a post on the ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``. ``--status-text`` is the text of your post and can contain URLs that are going to be formatted into clickable links. In facebook post can have a maximum of 63206 characters, so be careful not to exceed it. You can also add up to 4 images in your post using ``--status-image-url-1``, ``--status-image-url-2``, ``--status-image-url-3`` and ``--status-image-url-4``, which must be URLs that point to downloadable images.::
+
+      python -m agoras.cli publish \
+            --network "facebook" \
+            --action "post" \
+            --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
+            --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
+            --status-text "${STATUS_TEXT}" \
+            --status-image-url-1 "${STATUS_IMAGE_URL_1}" \
+            --status-image-url-2 "${STATUS_IMAGE_URL_2}" \
+            --status-image-url-3 "${STATUS_IMAGE_URL_3}" \
+            --status-image-url-4 "${STATUS_IMAGE_URL_4}"
 
 
 
 Like a Facebook post
 --------------------
 
-::
-  
-python -m agoras.cli publish \
-      --network "facebook" \
-      --action "like" \
-      --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
-      --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-      --facebook-post-id "${FACEBOOK_POST_ID}"
+This command will "like" a post identified by ``--facebook-post-id`` as a page or profile identified by ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``.::
+
+      python -m agoras.cli publish \
+            --network "facebook" \
+            --action "like" \
+            --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
+            --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
+            --facebook-post-id "${FACEBOOK_POST_ID}"
 
 
 
 Share a Facebook post
 ---------------------
 
-::
-  
-python -m agoras.cli publish \
-      --network "facebook" \
-      --action "share" \
-      --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
-      --facebook-profile-id "${FACEBOOK_PROFILE_ID}" \
-      --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-      --facebook-post-id "${FACEBOOK_POST_ID}"
+This command will grab a post identified by ``--facebook-post-id`` that is currently published on ``--facebook-object-id``, and share it on a ``--facebook-profile-id`` which must be authorized by ``--facebook-access-token``.::
+
+      python -m agoras.cli publish \
+            --network "facebook" \
+            --action "share" \
+            --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
+            --facebook-profile-id "${FACEBOOK_PROFILE_ID}" \
+            --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
+            --facebook-post-id "${FACEBOOK_POST_ID}"
 
 
 
 Delete a Facebook post
 ----------------------
 
-::
-  
-python -m agoras.cli publish \
-      --network "facebook" \
-      --action "delete" \
-      --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
-      --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-      --facebook-post-id "${FACEBOOK_POST_ID}"
+This command will delete a post identified by ``--facebook-post-id`` that is currently published on ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``.::
+
+      python -m agoras.cli publish \
+            --network "facebook" \
+            --action "delete" \
+            --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
+            --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
+            --facebook-post-id "${FACEBOOK_POST_ID}"
 
 
 
 Post the last URL from an atom feed into Facebook
 -------------------------------------------------
 
-::
-  
-python -m agoras.cli publish \
-      --network "facebook" \
-      --action "last-from-feed" \
-      --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
-      --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-      --feed-url "${FEED_URL}"
+This command will parse an atom feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published on ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``.::
+
+      python -m agoras.cli publish \
+            --network "facebook" \
+            --action "last-from-feed" \
+            --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
+            --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
+            --feed-url "${FEED_URL}" \
+            --max-count "${MAX_COUNT}" \
+            --post-lookback "${POST_LOOKBACK}"
 
 
 
 Post a random URL from an atom feed into Facebook
 -------------------------------------------------
 
-::
-  
-python -m agoras.cli publish \
-      --network "facebook" \
-      --action "random-from-feed" \
-      --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
-      --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-      --feed-url "${FEED_URL}"
+This command will parse an atom feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published on ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``.::
+
+      python -m agoras.cli publish \
+            --network "facebook" \
+            --action "random-from-feed" \
+            --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
+            --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
+            --feed-url "${FEED_URL}" \
+            --max-post-age "${MAX_POST_AGE}"
 
 
 
 Schedule a Facebook post
 ------------------------
 
-::
-  
-python -m agoras.cli publish \
-      --network "facebook" \
-      --action "schedule" \
-      --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
-      --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-      --google-sheets-id "${GOOGLE_SHEETS_ID}" \
-      --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
-      --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-      --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
+This command will scan a google spreadsheet of id ``--facebook-object-id``::
+
+      python -m agoras.cli publish \
+            --network "facebook" \
+            --action "schedule" \
+            --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
+            --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
+            --google-sheets-id "${GOOGLE_SHEETS_ID}" \
+            --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
+            --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
+            --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
 
