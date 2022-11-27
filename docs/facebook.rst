@@ -58,6 +58,7 @@ Like a Facebook post
 --------------------
 
 This command will "like" a post identified by ``--facebook-post-id`` that is currently published on ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``.
+::
 
       python -m agoras.cli publish \
             --network "facebook" \
@@ -72,6 +73,7 @@ Share a Facebook post
 ---------------------
 
 This command will grab a post identified by ``--facebook-post-id`` that is currently published on ``--facebook-object-id``, and share it on a ``--facebook-profile-id`` which must be authorized by ``--facebook-access-token``.
+::
 
       python -m agoras.cli publish \
             --network "facebook" \
@@ -87,6 +89,7 @@ Delete a Facebook post
 ----------------------
 
 This command will delete a post identified by ``--facebook-post-id`` that is currently published on ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``.
+::
 
       python -m agoras.cli publish \
             --network "facebook" \
@@ -101,6 +104,7 @@ Post the last URL from an atom feed into Facebook
 -------------------------------------------------
 
 This command will parse an atom feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published on ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``.
+::
 
       python -m agoras.cli publish \
             --network "facebook" \
@@ -117,6 +121,7 @@ Post a random URL from an atom feed into Facebook
 -------------------------------------------------
 
 This command will parse an atom feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published on ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``.
+::
 
       python -m agoras.cli publish \
             --network "facebook" \
@@ -131,7 +136,15 @@ This command will parse an atom feed at ``--feed-url`` and publish one random en
 Schedule a Facebook post
 ------------------------
 
-This command will scan a google spreadsheet of id ``--facebook-object-id``::
+This command will scan a sheet ``--google-sheets-name`` of a google spreadsheet of id ``--google-sheets-id``, thats authorized by ``--google-sheets-client-email`` and ``--google-sheets-private-key``. The post will be published on ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``.
+
+The order of the columns of the spreadsheet is crucial to the correct functioning of the command. Here's how the information should be organized:
+
++--------------------+---------------------------+---------------------------+---------------------------+---------------------------+-------------------------+-------------------+------------------------------+
+| ``--status-text``  | ``--status-image-url-1``  | ``--status-image-url-2``  | ``--status-image-url-3``  | ``--status-image-url-4``  | date (%d-%m-%Y format)  | time (%H format)  | status (blank or published)  |
++--------------------+---------------------------+---------------------------+---------------------------+---------------------------+-------------------------+-------------------+------------------------------+
+
+::
 
       python -m agoras.cli publish \
             --network "facebook" \
@@ -142,4 +155,3 @@ This command will scan a google spreadsheet of id ``--facebook-object-id``::
             --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
             --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
             --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
-
