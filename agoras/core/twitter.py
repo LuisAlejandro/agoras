@@ -58,22 +58,25 @@ def post(client, status_text,
 
     time.sleep(random.randrange(5))
     status = client.update_status(status_text, media_ids=media_ids)
-    print(status.id)
+    print(status)
 
 
 def like(client, tweet_id):
     time.sleep(random.randrange(5))
-    client.create_favorite(tweet_id)
+    status = client.create_favorite(tweet_id)
+    print(status)
 
 
 def delete(client, tweet_id):
     time.sleep(random.randrange(5))
-    client.destroy_status(tweet_id)
+    status = client.destroy_status(tweet_id)
+    print(status)
 
 
 def share(client, tweet_id):
     time.sleep(random.randrange(5))
-    client.retweet(tweet_id)
+    status = client.retweet(tweet_id)
+    print(status)
 
 
 def last_from_feed(client, feed_url, max_count, post_lookback):
@@ -101,7 +104,6 @@ def last_from_feed(client, feed_url, max_count, post_lookback):
 
         if item_timestamp > last_timestamp:
             count += 1
-            time.sleep(random.randrange(5))
             post(client, status_text)
 
 
@@ -140,8 +142,6 @@ def random_from_feed(client, feed_url, max_post_age):
     status_text = '{0} {1}'.format(
         unescape(random_post_title),
         status_link)
-
-    time.sleep(random.randrange(5))
     post(client, status_text)
 
 
@@ -183,7 +183,6 @@ def schedule(client, google_sheets_id, google_sheets_name,
            currdate.strftime('%H') != hour) or state == 'published':
             continue
 
-        time.sleep(random.randrange(5))
         post(client, status_text,
              status_image_url_1, status_image_url_2,
              status_image_url_3, status_image_url_4)

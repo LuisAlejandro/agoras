@@ -1,9 +1,35 @@
+Agoras usage for Facebook network
+=================================
 
+How to get ``--facebook-access-token`` parameter
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+.. _here: credentials/facebook.rst
 
+We'll need a permanent access token with appropiate permissions to be able to use de Facebook Graph API. Read the tutorial here_.
+
+How to get ``--facebook-object-id`` parameter
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+With Agoras you can use the facebook network to post to pages, profiles and groups, but for simplicity sake we're going to only explain how to get the object ID of a page.
+
+To find your Page ID go to the following URL, replacing ``{page_name}`` with the pretty name of your page url. For example, in https://www.facebook.com/LuisDevelops, the ``{page_name}`` is ``LuisDevelops``.::
+
+      https://developers.facebook.com/tools/explorer/?method=GET&path={page_name}
+
+Then click on submit and you'll see a response like this::
+
+      {
+            "name": "Luis Develops",
+            "id": "ZZZZZZZ"
+      }
+
+"ZZZZZZZ" is your page ID.
+
+.. image:: credentials/images/facebook-6.png
 
 Publish a Facebook post
-======================
+-----------------------
 
 ::
   
@@ -21,7 +47,7 @@ python -m agoras.cli publish \
 
 
 Like a Facebook post
-===================
+--------------------
 
 ::
   
@@ -35,7 +61,7 @@ python -m agoras.cli publish \
 
 
 Share a Facebook post
-====================
+---------------------
 
 ::
   
@@ -50,7 +76,7 @@ python -m agoras.cli publish \
 
 
 Delete a Facebook post
-=====================
+----------------------
 
 ::
   
@@ -64,7 +90,7 @@ python -m agoras.cli publish \
 
 
 Post the last URL from an atom feed into Facebook
-================================================
+-------------------------------------------------
 
 ::
   
@@ -78,7 +104,7 @@ python -m agoras.cli publish \
 
 
 Post a random URL from an atom feed into Facebook
-================================================
+-------------------------------------------------
 
 ::
   
@@ -92,7 +118,7 @@ python -m agoras.cli publish \
 
 
 Schedule a Facebook post
-=======================
+------------------------
 
 ::
   

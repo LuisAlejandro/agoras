@@ -1,3 +1,21 @@
+# -*- coding: utf-8 -*-
+#
+# Please refer to AUTHORS.md for a complete list of Copyright holders.
+# Copyright (C) 2016-2022, Agoras Developers.
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import os
 import json
 import datetime
@@ -50,13 +68,17 @@ def post(client, facebook_object_id, status_text,
 
 def like(client, facebook_object_id, facebook_post_id):
     time.sleep(random.randrange(5))
-    client.post_object(object_id=f'{facebook_object_id}_{facebook_post_id}',
-                       connection='likes')
+    status = client.post_object(
+        object_id=f'{facebook_object_id}_{facebook_post_id}',
+        connection='likes')
+    print(status)
 
 
 def delete(client, facebook_object_id, facebook_post_id):
     time.sleep(random.randrange(5))
-    client.delete_object(object_id=f'{facebook_object_id}_{facebook_post_id}')
+    status = client.delete_object(
+        object_id=f'{facebook_object_id}_{facebook_post_id}')
+    print(status)
 
 
 def share(client, facebook_profile_id, facebook_object_id, facebook_post_id):
@@ -65,9 +87,10 @@ def share(client, facebook_profile_id, facebook_object_id, facebook_post_id):
     data = {
         'link': f'{host}/{facebook_object_id}/posts/{facebook_post_id}'
     }
-    client.post_object(object_id=facebook_profile_id,
-                       connection='feed',
-                       data=data)
+    status = client.post_object(object_id=facebook_profile_id,
+                                connection='feed',
+                                data=data)
+    print(status)
 
 
 def last_from_feed(client, facebook_object_id, feed_url,
@@ -79,7 +102,7 @@ def last_from_feed(client, facebook_object_id, feed_url,
         raise Exception('No FEED_URL provided.')
 
     if not facebook_object_id:
-        raise Exception('No FACEBOOK_PAGE_ID provided.')
+        raise Exception('No FACEBOOK_OBJECT_ID provided.')
 
     feed_data = parse_rss_bytes(urlopen(feed_url).read())
     today = datetime.datetime.now()
@@ -100,9 +123,10 @@ def last_from_feed(client, facebook_object_id, feed_url,
         if item_timestamp > last_timestamp:
             count += 1
             time.sleep(random.randrange(5))
-            client.post_object(object_id=facebook_object_id,
-                               connection='feed',
-                               data=data)
+            status = client.post_object(object_id=facebook_object_id,
+                                        connection='feed',
+                                        data=data)
+            print(status)
 
 
 def random_from_feed(client, facebook_object_id, feed_url, max_post_age):
@@ -113,7 +137,7 @@ def random_from_feed(client, facebook_object_id, feed_url, max_post_age):
         raise Exception('No FEED_URL provided.')
 
     if not facebook_object_id:
-        raise Exception('No FACEBOOK_PAGE_ID provided.')
+        raise Exception('No FACEBOOK_OBJECT_ID provided.')
 
     feed_data = parse_rss_bytes(urlopen(feed_url).read())
     today = datetime.datetime.now()
@@ -146,9 +170,10 @@ def random_from_feed(client, facebook_object_id, feed_url, max_post_age):
     }
 
     time.sleep(random.randrange(5))
-    client.post_object(object_id=facebook_object_id,
-                       connection='feed',
-                       data=data)
+    status = client.post_object(object_id=facebook_object_id,
+                                connection='feed',
+                                data=data)
+    print(status)
 
 
 def schedule(client, facebook_object_id, google_sheets_id,
@@ -188,7 +213,6 @@ def schedule(client, facebook_object_id, google_sheets_id,
            currdate.strftime('%H') != hour) or state == 'published':
             continue
 
-        time.sleep(random.randrange(5))
         post(client, facebook_object_id, status_text,
              status_image_url_1, status_image_url_2,
              status_image_url_3, status_image_url_4)
@@ -257,11 +281,11 @@ def main(kwargs):
              status_image_url_3, status_image_url_4)
     elif action == 'like':
         like(client, facebook_object_id, facebook_post_id)
-    elif action == 'delete':
-        delete(client, facebook_object_id, facebook_post_id)
     elif action == 'share':
         share(client, facebook_profile_id, facebook_object_id,
               facebook_post_id)
+    elif action == 'delete':
+        delete(client, facebook_object_id, facebook_post_id)
     elif action == 'last-from-feed':
         last_from_feed(client, facebook_object_id, feed_url,
                        max_count, post_lookback)

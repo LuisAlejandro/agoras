@@ -129,6 +129,15 @@ def commandline(argv=None):
         '-ip', '--instagram-post-id', metavar='<id>',
         help=('Instagram ID of post to be liked, shared or deleted.'))
     publish_options.add_argument(
+        '-lu', '--linkedin-username', metavar='<username>',
+        help=(''))
+    publish_options.add_argument(
+        '-lw', '--linkedin-password', metavar='<password>',
+        help=(''))
+    publish_options.add_argument(
+        '-lp', '--linkedin-post-id', metavar='<id>',
+        help=(''))
+    publish_options.add_argument(
         '-st', '--status-text', metavar='<text>',
         help=('Text to be published.'))
     publish_options.add_argument(

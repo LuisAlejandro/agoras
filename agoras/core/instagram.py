@@ -1,14 +1,31 @@
+# -*- coding: utf-8 -*-
+#
+# Please refer to AUTHORS.md for a complete list of Copyright holders.
+# Copyright (C) 2016-2022, Agoras Developers.
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import os
 import datetime
 import random
 import time
-# from urllib.request import urlopen
-# from html import unescape
-# from random import choice
+from urllib.request import urlopen
+from html import unescape
 
 import gspread
 from pyfacebook import GraphAPI
-# from atoma import parse_rss_bytes
+from atoma import parse_rss_bytes
 from google.oauth2.service_account import Credentials
 
 
@@ -20,15 +37,15 @@ def post(client, instagram_object_id, status_text,
         raise Exception('No INSTAGRAM_OBJECT_ID provided.')
 
     attached_media = []
-    source_media = filter(None, [
+    source_media = list(filter(None, [
         status_image_url_1, status_image_url_2,
         status_image_url_3, status_image_url_4
-    ])
+    ]))
 
-    if len(list(source_media)) == 0:
+    if len(source_media) == 0:
         raise Exception('Instagram requires at least one status image.')
 
-    is_carousel_item = False if len(list(source_media)) == 1 else True
+    is_carousel_item = False if len(source_media) == 1 else True
 
     for image_url in source_media:
 
@@ -49,10 +66,9 @@ def post(client, instagram_object_id, status_text,
     if is_carousel_item:
         carousel_data = {
             'media_type': 'CAROUSEL',
-            'children': attached_media,
+            'children': ','.join(attached_media),
             'caption': status_text
         }
-
         time.sleep(random.randrange(5))
         carousel = client.post_object(object_id=instagram_object_id,
                                       connection='media',
@@ -67,106 +83,93 @@ def post(client, instagram_object_id, status_text,
     }
 
     time.sleep(random.randrange(5))
-    client.post_object(object_id=instagram_object_id,
-                       connection='media_publish',
-                       data=data)
+    status = client.post_object(object_id=instagram_object_id,
+                                connection='media_publish',
+                                data=data)
+    print(status)
 
 
 def like(client, instagram_post_id):
-    # client.post_object(object_id=instagram_post_id,
-    #                    connection='likes')
-    raise Exception('like not implemented for instagram')
+    raise Exception('like not supported for instagram')
 
 
 def delete(client, instagram_post_id):
-    # client.retweet(instagram_post_id)
-    raise Exception('share not implemented for instagram')
+    raise Exception('delete not supported for instagram')
 
 
 def share(client, instagram_post_id):
-    # client.retweet(instagram_post_id)
-    raise Exception('share not implemented for instagram')
+    raise Exception('share not supported for instagram')
 
 
 def last_from_feed(client, instagram_object_id, feed_url,
                    max_count, post_lookback):
 
-    # count = 0
+    count = 0
 
-    # if not feed_url:
-    #     raise Exception('No FEED_URL provided.')
+    if not feed_url:
+        raise Exception('No FEED_URL provided.')
 
-    # if not instagram_object_id:
-    #     raise Exception('No INSTAGRAM_OBJECT_ID provided.')
+    if not instagram_object_id:
+        raise Exception('No INSTAGRAM_OBJECT_ID provided.')
 
-    # feed_data = parse_rss_bytes(urlopen(feed_url).read())
-    # today = datetime.datetime.now()
-    # last_run = today - datetime.timedelta(seconds=post_lookback)
-    # last_timestamp = int(last_run.strftime('%Y%m%d%H%M%S'))
+    feed_data = parse_rss_bytes(urlopen(feed_url).read())
+    today = datetime.datetime.now()
+    last_run = today - datetime.timedelta(seconds=post_lookback)
+    last_timestamp = int(last_run.strftime('%Y%m%d%H%M%S'))
 
-    # for post in feed_data.items:
+    for item in feed_data.items:
 
-    #     if count >= max_count:
-    #         break
+        if count >= max_count:
+            break
 
-    #     if not post.pub_date or not post.title:
-    #         continue
+        if not item.pub_date or not item.title:
+            continue
 
-    #     item_timestamp = int(post.pub_date.strftime('%Y%m%d%H%M%S'))
-    #     data = {'message': unescape(post.title), 'link': post.guid}
+        item_timestamp = int(item.pub_date.strftime('%Y%m%d%H%M%S'))
 
-    #     if item_timestamp > last_timestamp:
-    #         count += 1
-    #         client.post_object(object_id=instagram_object_id,
-    #                            connection='feed',
-    #                            data=data)
-    raise Exception('last_from_feed not implemented for instagram')
+        if item_timestamp > last_timestamp:
+            count += 1
+            post(client, instagram_object_id, unescape(item.title),
+                 item.guid)
 
 
 def random_from_feed(client, instagram_object_id, feed_url, max_post_age):
 
-    # json_index_content = {}
+    json_index_content = {}
 
-    # if not feed_url:
-    #     raise Exception('No FEED_URL provided.')
+    if not feed_url:
+        raise Exception('No FEED_URL provided.')
 
-    # if not instagram_object_id:
-    #     raise Exception('No INSTAGRAM_OBJECT_ID provided.')
+    if not instagram_object_id:
+        raise Exception('No INSTAGRAM_OBJECT_ID provided.')
 
-    # feed_data = parse_rss_bytes(urlopen(feed_url).read())
-    # today = datetime.datetime.now()
-    # max_age_delta = today - datetime.timedelta(days=max_post_age)
-    # max_age_timestamp = int(max_age_delta.strftime('%Y%m%d%H%M%S'))
+    feed_data = parse_rss_bytes(urlopen(feed_url).read())
+    today = datetime.datetime.now()
+    max_age_delta = today - datetime.timedelta(days=max_post_age)
+    max_age_timestamp = int(max_age_delta.strftime('%Y%m%d%H%M%S'))
 
-    # for post in feed_data.items:
+    for item in feed_data.items:
 
-    #     if not post.pub_date:
-    #         continue
+        if not item.pub_date:
+            continue
 
-    #     item_timestamp = int(post.pub_date.strftime('%Y%m%d%H%M%S'))
+        item_timestamp = int(item.pub_date.strftime('%Y%m%d%H%M%S'))
 
-    #     if int(item_timestamp) >= max_age_timestamp:
+        if int(item_timestamp) >= max_age_timestamp:
 
-    #         json_index_content[str(item_timestamp)] = {
-    #             'title': post.title,
-    #             'url': post.guid,
-    #             'date': post.pub_date
-    #         }
+            json_index_content[str(item_timestamp)] = {
+                'title': item.title,
+                'url': item.guid,
+                'date': item.pub_date
+            }
 
-    # random_post_id = choice(list(json_index_content.keys()))
-    # random_post_title = json_index_content[random_post_id]['title']
-    # status_link = '{0}#{1}'.format(
-    #     json_index_content[random_post_id]['url'],
-    #     today.strftime('%Y%m%d%H%M%S'))
-    # data = {
-    #     'message': unescape(random_post_title),
-    #     'link': status_link
-    # }
-
-    # client.post_object(object_id=instagram_object_id,
-    #                    connection='feed',
-    #                    data=data)
-    raise Exception('random_from_feed not implemented for instagram')
+    random_post_id = random.choice(list(json_index_content.keys()))
+    random_post_title = json_index_content[random_post_id]['title']
+    status_link = '{0}#{1}'.format(
+        json_index_content[random_post_id]['url'],
+        today.strftime('%Y%m%d%H%M%S'))
+    post(client, instagram_object_id, unescape(random_post_title),
+         status_link)
 
 
 def schedule(client, instagram_object_id, google_sheets_id,
@@ -206,7 +209,6 @@ def schedule(client, instagram_object_id, google_sheets_id,
            currdate.strftime('%H') != hour) or state == 'published':
             continue
 
-        time.sleep(random.randrange(5))
         post(client, instagram_object_id, status_text,
              status_image_url_1, status_image_url_2,
              status_image_url_3, status_image_url_4)

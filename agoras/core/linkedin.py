@@ -1,3 +1,21 @@
+# -*- coding: utf-8 -*-
+#
+# Please refer to AUTHORS.md for a complete list of Copyright holders.
+# Copyright (C) 2016-2022, Agoras Developers.
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import os
 import json
 import datetime
@@ -5,15 +23,26 @@ import random
 import tempfile
 import time
 from urllib.request import urlopen
+from urllib.parse import quote
 from html import unescape
-from random import choice
 
 import gspread
 from linkedin_api import Linkedin
 from atoma import parse_rss_bytes
 from google.oauth2.service_account import Credentials
 
+
 api_url_host = 'https://www.linkedin.com/voyager'
+media_upload_endpoint = (
+    f'{api_url_host}'
+    '/api/voyagerVideoDashMediaUploadMetadata?action=upload')
+content_creation_endpoint = (
+    f'{api_url_host}/api/contentcreation/normShares')
+social_reactions_endpoint = (
+    f'{api_url_host}/api/voyagerSocialDashReactions')
+updates_endpoint = (
+    f'{api_url_host}/api/feed/updatesV2?commentsCount=0'
+    '&likesCount=0&q=backendUrnOrNss')
 
 
 def post(client, status_text,
@@ -34,8 +63,8 @@ def post(client, status_text,
         with open(tmpimg, 'wb') as i:
             i.write(urlopen(imgurl).read())
 
-        media = client.client.session.put(
-            f'{api_url_host}/api/voyagerMediaUploadMetadata?action=upload',
+        media = client.client.session.post(
+            media_upload_endpoint,
             json.dumps({
                 'mediaUploadType': 'IMAGE_SHARING',
                 'fileSize': os.stat(tmpimg).st_size,
@@ -43,21 +72,25 @@ def post(client, status_text,
             })
         )
 
+        media_response = media.json()
+        media_upload_url = media_response['value']['singleUploadUrl']
+        media_urn = media_response['value']['urn']
+
         time.sleep(random.randrange(5))
 
         with open(tmpimg, 'rb') as i:
-            client.client.session.put(media['value']['singleUploadUrl'], i)
+            client.client.session.put(media_upload_url, i)
 
         attached_media.append({
             'category': 'IMAGE',
-            'mediaUrn': media['value']['urn'],
+            'mediaUrn': media_urn,
             'tapTargets': []
         })
 
     time.sleep(random.randrange(5))
 
-    client.client.session.put(
-        f'{api_url_host}/api/contentcreation/normShares',
+    status = client.client.session.post(
+        content_creation_endpoint,
         json.dumps({
             'visibleToConnectionsOnly': False,
             'commentsDisabled': False,
@@ -71,99 +104,119 @@ def post(client, status_text,
             'media': attached_media
         })
     )
+    print(status.json())
 
 
 def like(client, linkedin_post_id):
-    # client.post_object(object_id=linkedin_post_id,
-    #                    connection='likes')
-    raise Exception('Like not implemented for linkedin')
+    time.sleep(random.randrange(5))
+    media_urn = quote(f'urn:li:activity:{linkedin_post_id}')
+    client.client.session.post(
+        f'{social_reactions_endpoint}?threadUrn={media_urn}',
+        json.dumps({'reactionType': 'LIKE'})
+    )
 
 
 def share(client, linkedin_post_id):
-    # client.retweet(linkedin_post_id)
-    raise Exception('Share not implemented for linkedin')
+    time.sleep(random.randrange(5))
+    media_urn = quote(f'urn:li:activity:{linkedin_post_id}')
+    metadata = client.client.session.get(
+        f'{updates_endpoint}&urnOrNss={media_urn}'
+    )
+    metadata_response = metadata.json()
+    share_urn = metadata_response['elements'][0]['updateMetadata']['shareUrn']
+    status = client.client.session.post(
+        content_creation_endpoint,
+        json.dumps({
+            "visibleToConnectionsOnly": False,
+            "externalAudienceProviders": [],
+            "commentaryV2": {
+                "text": "",
+                "attributes": []
+            },
+            "origin": "SHARE_AS_IS",
+            "allowedCommentersScope": "NONE",
+            "postState": "PUBLISHED",
+            "parentUrn": share_urn})
+    )
+    print(status.json())
 
 
-def last_from_feed(client, facebook_object_id, feed_url,
-                   max_count, post_lookback):
+def delete(client, linkedin_post_id):
+    time.sleep(random.randrange(5))
+    media_urn = quote(f'urn:li:activity:{linkedin_post_id}')
+    metadata = client.client.session.get(
+        f'{updates_endpoint}&urnOrNss={media_urn}'
+    )
+    metadata_response = metadata.json()
+    share_urn = metadata_response['elements'][0]['updateMetadata']['shareUrn']
+    client.client.session.delete(
+        f'{content_creation_endpoint}/{share_urn}'
+    )
+
+
+def last_from_feed(client, feed_url, max_count, post_lookback):
 
     count = 0
 
     if not feed_url:
         raise Exception('No FEED_URL provided.')
 
-    if not facebook_object_id:
-        raise Exception('No FACEBOOK_PAGE_ID provided.')
-
     feed_data = parse_rss_bytes(urlopen(feed_url).read())
     today = datetime.datetime.now()
     last_run = today - datetime.timedelta(seconds=post_lookback)
     last_timestamp = int(last_run.strftime('%Y%m%d%H%M%S'))
 
-    for post in feed_data.items:
+    for item in feed_data.items:
 
         if count >= max_count:
             break
 
-        if not post.pub_date or not post.title:
+        if not item.pub_date or not item.title:
             continue
 
-        item_timestamp = int(post.pub_date.strftime('%Y%m%d%H%M%S'))
-        data = {'message': unescape(post.title), 'link': post.guid}
+        item_timestamp = int(item.pub_date.strftime('%Y%m%d%H%M%S'))
 
         if item_timestamp > last_timestamp:
             count += 1
-            client.post_object(object_id=facebook_object_id,
-                               connection='feed',
-                               data=data)
+            post(client, unescape(item.title), item.guid)
 
 
-def random_from_feed(client, facebook_object_id, feed_url, max_post_age):
+def random_from_feed(client, feed_url, max_post_age):
 
     json_index_content = {}
 
     if not feed_url:
         raise Exception('No FEED_URL provided.')
 
-    if not facebook_object_id:
-        raise Exception('No FACEBOOK_PAGE_ID provided.')
-
     feed_data = parse_rss_bytes(urlopen(feed_url).read())
     today = datetime.datetime.now()
     max_age_delta = today - datetime.timedelta(days=max_post_age)
     max_age_timestamp = int(max_age_delta.strftime('%Y%m%d%H%M%S'))
 
-    for post in feed_data.items:
+    for item in feed_data.items:
 
-        if not post.pub_date:
+        if not item.pub_date:
             continue
 
-        item_timestamp = int(post.pub_date.strftime('%Y%m%d%H%M%S'))
+        item_timestamp = int(item.pub_date.strftime('%Y%m%d%H%M%S'))
 
         if int(item_timestamp) >= max_age_timestamp:
 
             json_index_content[str(item_timestamp)] = {
-                'title': post.title,
-                'url': post.guid,
-                'date': post.pub_date
+                'title': item.title,
+                'url': item.guid,
+                'date': item.pub_date
             }
 
-    random_post_id = choice(list(json_index_content.keys()))
+    random_post_id = random.choice(list(json_index_content.keys()))
     random_post_title = json_index_content[random_post_id]['title']
     status_link = '{0}#{1}'.format(
         json_index_content[random_post_id]['url'],
         today.strftime('%Y%m%d%H%M%S'))
-    data = {
-        'message': unescape(random_post_title),
-        'link': status_link
-    }
-
-    client.post_object(object_id=facebook_object_id,
-                       connection='feed',
-                       data=data)
+    post(client, unescape(random_post_title), status_link)
 
 
-def schedule(client, facebook_object_id, google_sheets_id,
+def schedule(client, google_sheets_id,
              google_sheets_name, google_sheets_client_email,
              google_sheets_private_key):
 
@@ -200,7 +253,7 @@ def schedule(client, facebook_object_id, google_sheets_id,
            currdate.strftime('%H') != hour) or state == 'published':
             continue
 
-        post(client, facebook_object_id, status_text,
+        post(client, status_text,
              status_image_url_1, status_image_url_2,
              status_image_url_3, status_image_url_4)
 
@@ -219,8 +272,8 @@ def main(kwargs):
     linkedin_password = kwargs.get(
         'linkedin_password',
         os.environ.get('LINKEDIN_PASSWORD', None))
-    facebook_post_id = kwargs.get('facebook_post_id', None) or \
-        os.environ.get('FACEBOOK_POST_ID', None)
+    linkedin_post_id = kwargs.get('linkedin_post_id', None) or \
+        os.environ.get('LINKEDIN_POST_ID', None)
     status_text = kwargs.get('status_text', None) or \
         os.environ.get('STATUS_TEXT', None)
     status_image_url_1 = kwargs.get('status_image_url_1', None) or \
@@ -264,16 +317,18 @@ def main(kwargs):
              status_image_url_1, status_image_url_2,
              status_image_url_3, status_image_url_4)
     elif action == 'like':
-        like(client, facebook_post_id)
+        like(client, linkedin_post_id)
     elif action == 'share':
-        share(client, facebook_post_id)
+        share(client, linkedin_post_id)
+    elif action == 'delete':
+        delete(client, linkedin_post_id)
     elif action == 'last-from-feed':
-        last_from_feed(client, facebook_object_id, feed_url,
+        last_from_feed(client, feed_url,
                        max_count, post_lookback)
     elif action == 'random-from-feed':
-        random_from_feed(client, facebook_object_id, feed_url, max_post_age)
+        random_from_feed(client, feed_url, max_post_age)
     elif action == 'schedule':
-        schedule(client, facebook_object_id, google_sheets_id,
+        schedule(client, google_sheets_id,
                  google_sheets_name, google_sheets_client_email,
                  google_sheets_private_key)
     elif action == '':
