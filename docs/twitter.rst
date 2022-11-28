@@ -29,7 +29,7 @@ Publish a Twitter post
 This command will publish a post on the account thats authorized by the provided credentials. ``--status-text`` is the text of your post and can contain URLs that are going to be formatted into clickable links. A twitter post can have a maximum of 280 characters, so be careful not to exceed it. You can also add up to 4 images in your post using ``--status-image-url-1``, ``--status-image-url-2``, ``--status-image-url-3`` and ``--status-image-url-4``, which must be URLs that point to downloadable images.
 ::
 
-      python -m agoras.cli publish \
+      agoras publish \
             --network "twitter" \
             --action "post" \
             --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \
@@ -50,7 +50,7 @@ Like a Twitter post
 This command will "like" a post identified by ``--tweet-id`` using the twitter account thats authorized by the provided credentials.
 ::
 
-      python -m agoras.cli publish \
+      agoras publish \
             --network "twitter" \
             --action "like" \
             --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \
@@ -67,7 +67,7 @@ Share a Twitter post
 This command will retweet (share) a post identified by ``--tweet-id`` using the twitter account thats authorized by the provided credentials.
 ::
 
-      python -m agoras.cli publish \
+      agoras publish \
             --network "twitter" \
             --action "share" \
             --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \
@@ -84,7 +84,7 @@ Delete a Twitter post
 This command will delete a post identified by ``--tweet-id`` using the twitter account thats authorized by the provided credentials. The tweet must have been posted by the same account that is deleting it.
 ::
 
-      python -m agoras.cli publish \
+      agoras publish \
             --network "twitter" \
             --action "delete" \
             --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \
@@ -101,7 +101,7 @@ Post the last URL from an atom feed into Twitter
 This command will parse an atom feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published using the twitter account thats authorized by the provided credentials.
 ::
 
-      python -m agoras.cli publish \
+      agoras publish \
             --network "twitter" \
             --action "last-from-feed" \
             --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \
@@ -120,7 +120,7 @@ Post a random URL from an atom feed into Twitter
 This command will parse an atom feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published using the twitter account thats authorized by the provided credentials.
 ::
 
-      python -m agoras.cli publish \
+      agoras publish \
             --network "twitter" \
             --action "random-from-feed" \
             --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \
@@ -155,7 +155,7 @@ For this command to work, it should be executed hourly by a cron script.
 
 ::
 
-      python -m agoras.cli publish \
+      agoras publish \
             --network "twitter" \
             --action "schedule" \
             --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \

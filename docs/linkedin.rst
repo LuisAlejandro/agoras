@@ -24,7 +24,7 @@ Publish a LinkedIn post
 This command will publish a post on the account identified by ``--linkedin-username`` and ``--linkedin-password``. ``--status-text`` is the text of your post and can contain URLs that are going to be formatted into clickable links. A instagram post can have a maximum of 3000 characters, so be careful not to exceed it. You can also add up to 4 images in your post using ``--status-image-url-1``, ``--status-image-url-2``, ``--status-image-url-3`` and ``--status-image-url-4``, which must be URLs that point to downloadable images.
 ::
 
-      python -m agoras.cli publish \
+      agoras publish \
             --network "linkedin" \
             --action "post" \
             --linkedin-username "${LINKEDIN_USERNAME}" \
@@ -43,7 +43,7 @@ Like a LinkedIn post
 This command will "like" a post identified by ``--linkedin-post-id`` with your account identified by ``--linkedin-username`` and ``--linkedin-password``.
 ::
 
-      python -m agoras.cli publish \
+      agoras publish \
             --network "linkedin" \
             --action "like" \
             --linkedin-username "${LINKEDIN_USERNAME}" \
@@ -58,7 +58,7 @@ Share a LinkedIn post
 This command will grab a post identified by ``--linkedin-post-id`` and share it with your account identified by ``--linkedin-username`` and ``--linkedin-password``.
 ::
 
-      python -m agoras.cli publish \
+      agoras publish \
             --network "linkedin" \
             --action "share" \
             --linkedin-username "${LINKEDIN_USERNAME}" \
@@ -73,7 +73,7 @@ Delete a LinkedIn post
 This command will delete a post identified by ``--linkedin-post-id`` with your account identified by ``--linkedin-username`` and ``--linkedin-password``.
 ::
 
-      python -m agoras.cli publish \
+      agoras publish \
             --network "linkedin" \
             --action "delete" \
             --linkedin-username "${LINKEDIN_USERNAME}" \
@@ -88,7 +88,7 @@ Post the last URL from an atom feed into LinkedIn
 This command will parse an atom feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published with your account identified by ``--linkedin-username`` and ``--linkedin-password``.
 ::
 
-      python -m agoras.cli publish \
+      agoras publish \
             --network "linkedin" \
             --action "last-from-feed" \
             --linkedin-username "${LINKEDIN_USERNAME}" \
@@ -105,7 +105,7 @@ Post a random URL from an atom feed into LinkedIn
 This command will parse an atom feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published with your account identified by ``--linkedin-username`` and ``--linkedin-password``.
 ::
 
-      python -m agoras.cli publish \
+      agoras publish \
             --network "linkedin" \
             --action "random-from-feed" \
             --linkedin-username "${LINKEDIN_USERNAME}" \
@@ -137,7 +137,7 @@ This schedule entry would be published at 17:00h of 21-11-2022 with text "This i
 For this command to work, it should be executed hourly by a cron script.
 ::
 
-      python -m agoras.cli publish \
+      agoras publish \
             --network "linkedin" \
             --action "schedule" \
             --linkedin-username "${LINKEDIN_USERNAME}" \

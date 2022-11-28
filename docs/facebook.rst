@@ -41,7 +41,7 @@ Publish a Facebook post
 This command will publish a post on the ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``. ``--status-text`` is the text of your post and can contain URLs that are going to be formatted into clickable links. A facebook post can have a maximum of 63206 characters, so be careful not to exceed it. You can also add up to 4 images in your post using ``--status-image-url-1``, ``--status-image-url-2``, ``--status-image-url-3`` and ``--status-image-url-4``, which must be URLs that point to downloadable images.
 ::
 
-      python -m agoras.cli publish \
+      agoras publish \
             --network "facebook" \
             --action "post" \
             --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
@@ -60,7 +60,7 @@ Like a Facebook post
 This command will "like" a post identified by ``--facebook-post-id`` that is currently published on ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``.
 ::
 
-      python -m agoras.cli publish \
+      agoras publish \
             --network "facebook" \
             --action "like" \
             --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
@@ -75,7 +75,7 @@ Share a Facebook post
 This command will grab a post identified by ``--facebook-post-id`` that is currently published on ``--facebook-object-id``, and share it on a ``--facebook-profile-id`` which must be authorized by ``--facebook-access-token``.
 ::
 
-      python -m agoras.cli publish \
+      agoras publish \
             --network "facebook" \
             --action "share" \
             --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
@@ -91,7 +91,7 @@ Delete a Facebook post
 This command will delete a post identified by ``--facebook-post-id`` that is currently published on ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``.
 ::
 
-      python -m agoras.cli publish \
+      agoras publish \
             --network "facebook" \
             --action "delete" \
             --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
@@ -106,7 +106,7 @@ Post the last URL from an atom feed into Facebook
 This command will parse an atom feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published on ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``.
 ::
 
-      python -m agoras.cli publish \
+      agoras publish \
             --network "facebook" \
             --action "last-from-feed" \
             --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
@@ -123,7 +123,7 @@ Post a random URL from an atom feed into Facebook
 This command will parse an atom feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published on ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``.
 ::
 
-      python -m agoras.cli publish \
+      agoras publish \
             --network "facebook" \
             --action "random-from-feed" \
             --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
@@ -155,7 +155,7 @@ This schedule entry would be published at 17:00h of 21-11-2022 with text "This i
 For this command to work, it should be executed hourly by a cron script.
 ::
 
-      python -m agoras.cli publish \
+      agoras publish \
             --network "facebook" \
             --action "schedule" \
             --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
