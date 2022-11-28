@@ -44,6 +44,12 @@ This command allows you to publish a post in different social network.::
                             Instagram ID of profile where the post is going to be published.
       -ip <id>, --instagram-post-id <id>
                             Instagram ID of post to be liked, shared or deleted.
+      -lu <username>, --linkedin-username <username>
+                            Your LinkedIn username.
+      -lw <password>, --linkedin-password <password>
+                            Your LinkedIn password.
+      -lp <id>, --linkedin-post-id <id>
+                            LinkedIn post ID to like, retweet or delete.
       -st <text>, --status-text <text>
                             Text to be published.
       -i1 <image url>, --status-image-url-1 <image url>
@@ -93,8 +99,10 @@ Credentials
 .. _How to get credentials for Facebook: docs/credentials/facebook.rst
 .. _How to get credentials for Instagram: docs/credentials/instagram.rst
 .. _How to get credentials for LinkedIn: docs/credentials/linkedin.rst
+.. _How to get credentials for Google spreadsheets: docs/credentials/google.rst
 
 - `How to get credentials for Twitter`_
 - `How to get credentials for Facebook`_
 - `How to get credentials for Instagram`_
 - `How to get credentials for LinkedIn`_
+- `How to get credentials for Google spreadsheets`_

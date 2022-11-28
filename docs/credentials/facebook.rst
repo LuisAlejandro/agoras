@@ -6,17 +6,10 @@ Agoras needs the following credentials from facebook to be able to access its AP
 - Access token
 - Page ID
 
-For that, we'll need to create a Twitter App.
+For that, we'll need to create a Facebook App.
 
 How to get a Facebook permanent access token
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. _extending page tokens documentation: https://developers.facebook.com/docs/facebook-login/access-tokens#extendingpagetokens
-.. _Graph API Explorer: https://developers.facebook.com/tools/explorer
-
-Following the instructions laid out in Facebook's `extending page tokens documentation`_ I was able to get a page access token that does not expire.
-
-I suggest using the `Graph API Explorer`_ for all of these steps except where otherwise stated.
 
 0. Create a Facebook App
 ------------------------

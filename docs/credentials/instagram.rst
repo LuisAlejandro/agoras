@@ -1,40 +1,19 @@
-Facebook credentials
-====================
+Instagram credentials
+=====================
 
-Agoras needs the following credentials from facebook to be able to access its API.
+Agoras needs the following credentials from facebook to be able to access the Instagram Graph API.
 
 - Access token
 - Page ID
 
-For that, we'll need to create a Twitter App.
+For that, we'll need to create a Facebook App.
 
-How to get a Facebook page ID
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Also, you need to connect a Facebook page with the Instagram account that you wish to use. For that, on Facebook, switch to the profile of the page thats going to manage the Instagram account, then click Settings & privacy > Settings > Linked Accounts and then click Connect.
 
-To find your Page ID go to the following URL, replacing ``{page_name}`` with the pretty name of your page url. For example, in https://www.facebook.com/LuisDevelops, the ``{page_name}`` is ``LuisDevelops``.::
-
-      https://developers.facebook.com/tools/explorer/?method=GET&path={page_name}
-
-Then click on submit and you'll see a response like this::
-
-      {
-            "name": "Luis Develops",
-            "id": "ZZZZZZZ"
-      }
-
-"ZZZZZZZ" is your page ID.
-
-.. image:: images/facebook-6.png
+.. image:: images/instagram-1.png
 
 How to get a Facebook permanent access token
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. _extending page tokens documentation: https://developers.facebook.com/docs/facebook-login/access-tokens#extendingpagetokens
-.. _Graph API Explorer: https://developers.facebook.com/tools/explorer
-
-Following the instructions laid out in Facebook's `extending page tokens documentation`_ I was able to get a page access token that does not expire.
-
-I suggest using the `Graph API Explorer`_ for all of these steps except where otherwise stated.
 
 0. Create a Facebook App
 ------------------------
@@ -64,7 +43,7 @@ You don't need to change its permissions or anything. You just need an app that 
 2. Select the application you want to get the access token for (in the "Meta App" drop-down menu).
 3. In the "Add a Permission" drop-down, search and check ``pages_show_list``, ``pages_read_user_content``, ``pages_read_engagement``, ``pages_manage_engagement``, ``instagram_basic`` and ``instagram_content_publish``.
 4. Click "Generate Access Token".
-5. Grant access from a Facebook account that has access to manage the target page. Note that if this user loses access the final, never-expiring access token will likely stop working.
+5. Grant access from a Facebook account that has access to manage the page thats linked with the Instagram account. Note that if this user loses access the final, never-expiring access token will likely stop working.
 
 The token that appears in the "Access Token" field is your short-lived access token. Take note of it.
 
@@ -120,9 +99,9 @@ Agoras parameters
 ~~~~~~~~~~~~~~~~~
 
 +------------------------------+--------------------------+
-| Facebook credential          | Agoras parameter         |
+| Instagram credential         | Agoras parameter         |
 +==============================+==========================+
-| Permanent Page Access Token  | --facebook-access-token  |
+| Permanent Page Access Token  | --instagram-access-token |
 +------------------------------+--------------------------+
-| Page ID                      | --facebook-object-id     |
+| Page ID                      | --instagram-object-id    |
 +------------------------------+--------------------------+

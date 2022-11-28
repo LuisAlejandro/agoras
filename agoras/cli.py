@@ -130,13 +130,13 @@ def commandline(argv=None):
         help=('Instagram ID of post to be liked, shared or deleted.'))
     publish_options.add_argument(
         '-lu', '--linkedin-username', metavar='<username>',
-        help=(''))
+        help=('Your LinkedIn username.'))
     publish_options.add_argument(
         '-lw', '--linkedin-password', metavar='<password>',
-        help=(''))
+        help=('Your LinkedIn password.'))
     publish_options.add_argument(
         '-lp', '--linkedin-post-id', metavar='<id>',
-        help=(''))
+        help=('LinkedIn post ID to like, retweet or delete.'))
     publish_options.add_argument(
         '-st', '--status-text', metavar='<text>',
         help=('Text to be published.'))
