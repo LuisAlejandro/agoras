@@ -70,12 +70,7 @@ install directlty from GitHub like this::
 
     $ pip install --upgrade https://github.com/LuisAlejandro/agoras/archive/develop.tar.gz
 
-Usage
------
-
-.. _USAGE: USAGE.rst
-
-See USAGE_ for details.
+.. include:: USAGE.rst
 
 Getting help
 ============

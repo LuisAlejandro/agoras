@@ -19,7 +19,7 @@ This command allows you to publish a post in different social network.::
       -n <social network>, --network <social network>
                             Social network to use for publishing (default: ""). Must be one of: twitter, facebook, instagram or linkedin.
       -a <action>, --action <action>
-                            Action to execute (default: ""). Must be one of: like, share, last-from-feed, random-from-feedschedule, post, delete
+                            Action to execute (default: ""). Must be one of: like, share, last-from-feed, random-from-feed, schedule, post, delete
       -tk <consumer key>, --twitter-consumer-key <consumer key>
                             Twitter consumer key from twitter developer app.
       -ts <consumer secret>, --twitter-consumer-secret <consumer secret>

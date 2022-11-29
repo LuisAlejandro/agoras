@@ -88,7 +88,7 @@ def commandline(argv=None):
                  'schedule', 'post', 'delete'],
         help=('Action to execute (default: ""). '
               'Must be one of: '
-              'like, share, last-from-feed, random-from-feed'
+              'like, share, last-from-feed, random-from-feed, '
               'schedule, post, delete'))
     publish_options.add_argument(
         '-tk', '--twitter-consumer-key', metavar='<consumer key>',
