@@ -49,7 +49,10 @@ setup(
         'console_scripts': ('agoras = agoras.cli:main',),
     },
     zip_safe=False,
-    keywords=['odoo', 'requirements'],
+    keywords=[
+        'social networks', 'twitter', 'facebook',
+        'instagram', 'linkedin'
+    ],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
