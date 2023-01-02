@@ -1,6 +1,6 @@
 build==0.9.0
 bumpversion==0.6.0
-coverage==6.5.0
+coverage==7.0.0
 coveralls==3.3.1
 flake8==6.0.0
 gitchangelog==3.0.4
@@ -9,9 +9,9 @@ pip==22.3.1
 pydocstyle==6.1.1
 setuptools==65.6.3
 sphinx==5.3.0
-tox==3.27.1
-twine==4.0.1
-virtualenv==20.17.0
-watchdog==2.1.9
+tox==4.0.15
+twine==4.0.2
+virtualenv==20.17.1
+watchdog==2.2.0
 wheel==0.38.4
-autopep8==2.0.0
+autopep8==2.0.1
