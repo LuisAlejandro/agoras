@@ -11,8 +11,8 @@ on:
       - develop
 
 jobs:
-  build:
-    name: Build
+  unit:
+    name: Unit tests
     runs-on: ubuntu-22.04
     strategy:
       matrix:
@@ -54,7 +54,7 @@ jobs:
   finish:
     name: Finish
     runs-on: ubuntu-22.04
-    needs: build
+    needs: unit
     steps:
     - name: Coveralls Finished
       uses: coverallsapp/github-action@master
@@ -65,7 +65,7 @@ jobs:
   approve:
     name: Approve pull request
     runs-on: ubuntu-22.04
-    needs: build
+    needs: finish
     steps:
       - name: Approve
         uses: hmarr/auto-approve-action@v3.1.0

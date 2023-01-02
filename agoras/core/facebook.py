@@ -64,12 +64,11 @@ def post(client, facebook_object_id, status_text,
         'attached_media': json.dumps(attached_media)
     }
 
-    print(data)
-    # time.sleep(random.randrange(5))
-    # status = client.post_object(object_id=facebook_object_id,
-    #                             connection='feed',
-    #                             data=data)
-    # print(status)
+    time.sleep(random.randrange(5))
+    status = client.post_object(object_id=facebook_object_id,
+                                connection='feed',
+                                data=data)
+    print(status)
 
 
 def like(client, facebook_object_id, facebook_post_id):
@@ -137,12 +136,11 @@ def last_from_feed(client, facebook_object_id, feed_url,
         if item_timestamp > last_timestamp and data:
             count += 1
             data['published'] = True
-            print(data)
-            # time.sleep(random.randrange(5))
-            # status = client.post_object(object_id=facebook_object_id,
-            #                             connection='feed',
-            #                             data=data)
-            # print(status)
+            time.sleep(random.randrange(5))
+            status = client.post_object(object_id=facebook_object_id,
+                                        connection='feed',
+                                        data=data)
+            print(status)
 
 
 def random_from_feed(client, facebook_object_id, feed_url, max_post_age):
@@ -197,12 +195,11 @@ def random_from_feed(client, facebook_object_id, feed_url, max_post_age):
                                         today.strftime('%Y%m%d%H%M%S'))
 
     data['published'] = True
-    print(data)
-    # time.sleep(random.randrange(5))
-    # status = client.post_object(object_id=facebook_object_id,
-    #                             connection='feed',
-    #                             data=data)
-    # print(status)
+    time.sleep(random.randrange(5))
+    status = client.post_object(object_id=facebook_object_id,
+                                connection='feed',
+                                data=data)
+    print(status)
 
 
 def schedule(client, facebook_object_id, google_sheets_id,

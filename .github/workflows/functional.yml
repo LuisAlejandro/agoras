@@ -1,0 +1,29 @@
+name: Functional tests
+
+on:
+  schedule:
+    - cron: '00 6 * * 2'
+
+jobs:
+  functional:
+    name: Functional tests
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        network:
+          - twitter
+          - facebook
+          - instagram
+          - linkedin
+        action:
+          - post
+          - like
+          - share
+          - last-from-feed
+          - random-from-feed
+          - schedule
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+      - run: |
+          PAYLOAD=$( bash test.sh "${{ matrix.network }}-${{ matrix.action }}" )

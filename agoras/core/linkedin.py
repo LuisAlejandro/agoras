@@ -114,6 +114,7 @@ def like(client, linkedin_post_id):
         f'{social_reactions_endpoint}?threadUrn={media_urn}',
         json.dumps({'reactionType': 'LIKE'})
     )
+    print(linkedin_post_id)
 
 
 def share(client, linkedin_post_id):
@@ -152,6 +153,7 @@ def delete(client, linkedin_post_id):
     client.client.session.delete(
         f'{content_creation_endpoint}/{share_urn}'
     )
+    print(linkedin_post_id)
 
 
 def last_from_feed(client, feed_url, max_count, post_lookback):
