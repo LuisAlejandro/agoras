@@ -7,7 +7,7 @@ gitchangelog==3.0.4
 mako==1.2.4
 pip==22.3.1
 pydocstyle==6.2.3
-setuptools==65.6.3
+setuptools==66.0.0
 sphinx==6.1.2
 tox==4.2.6
 twine==4.0.2
