@@ -1,5 +1,5 @@
 atoma==0.0.17
-tweepy==4.12.1
+tweepy==4.13.0
 python-facebook-api==0.15.0
 gspread==5.7.2
 google-auth==2.16.2
