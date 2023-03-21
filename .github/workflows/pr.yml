@@ -68,7 +68,7 @@ jobs:
     needs: finish
     steps:
       - name: Approve
-        uses: hmarr/auto-approve-action@v3.2.0
+        uses: hmarr/auto-approve-action@v3.2.1
         with:
           github-token: "${{ github.actor == 'LuisAlejandro' && secrets.GITHUB_TOKEN || secrets.REPO_PERSONAL_ACCESS_TOKEN }}"
 
