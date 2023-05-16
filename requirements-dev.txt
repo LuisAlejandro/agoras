@@ -8,7 +8,7 @@ mako==1.2.4
 pip==23.1.2
 pydocstyle==6.3.0
 setuptools==67.7.2
-sphinx==7.0.0
+sphinx==7.0.1
 tox==4.5.1
 twine==4.0.2
 virtualenv==20.23.0
