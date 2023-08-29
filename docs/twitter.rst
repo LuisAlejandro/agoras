@@ -20,7 +20,7 @@ The tweet ID parameter is necessary to like, retweet (share) and delete tweets. 
 How to get google spreadsheets credentials
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-We'll need a google spreadsheet for the schedule action. Read how to create one and obtain credentials `here <credentials/google.rst>`_.
+We'll need a google spreadsheet for the schedule action. Read how to create one and obtain credentials `here <credentials/google>`_.
 
 
 How to get google spreadsheets credentials
