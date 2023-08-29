@@ -16,18 +16,24 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import os
-import json
 import datetime
+import json
+import os
 import random
+import tempfile
 import time
-from urllib.request import urlopen
 from html import unescape
+from urllib.request import Request, urlopen
 
+import filetype
 import gspread
-from pyfacebook import GraphAPI
-from atoma import parse_atom_bytes
+from atoma import parse_rss_bytes
+from dateutil import parser
 from google.oauth2.service_account import Credentials
+from pyfacebook import GraphAPI
+
+from agoras import __version__
+from agoras.core.utils import add_url_timestamp
 
 
 def post(client, facebook_object_id, status_text,
@@ -35,7 +41,7 @@ def post(client, facebook_object_id, status_text,
          status_image_url_3=None, status_image_url_4=None):
 
     if not facebook_object_id:
-        raise Exception('No FACEBOOK_OBJECT_ID provided.')
+        raise Exception('No --facebook-object-id provided.')
 
     attached_media = []
     source_media = filter(None, [
@@ -43,17 +49,33 @@ def post(client, facebook_object_id, status_text,
         status_image_url_3, status_image_url_4
     ])
 
+    if not list(source_media) and not status_text:
+        raise Exception('No --status-text or --status-image-url-1 provided.')
+
     for imgurl in source_media:
 
-        imgdata = {
-            'url': imgurl,
-            'published': False
-        }
+        _, tmpimg = tempfile.mkstemp(prefix='status-image-url-',
+                                     suffix='.bin')
+
+        with open(tmpimg, 'wb') as i:
+            request = Request(url=imgurl, headers={'User-Agent': f'Agoras/{__version__}'})
+            i.write(urlopen(request).read())
+
+        kind = filetype.guess(tmpimg)
+
+        if not kind:
+            raise Exception(f'Invalid image type for {imgurl}')
+
+        if kind.mime not in ['image/jpeg', 'image/png', 'image/gif']:
+            raise Exception(f'Invalid image type: {kind.mime}')
 
         time.sleep(random.randrange(5))
         media = client.post_object(object_id=facebook_object_id,
                                    connection='photos',
-                                   data=imgdata)
+                                   data={
+                                       'url': imgurl,
+                                       'published': False
+                                   })
         attached_media.append({
             'media_fbid': media['id']
         })
@@ -61,14 +83,16 @@ def post(client, facebook_object_id, status_text,
     data = {
         'message': status_text,
         'published': True,
-        'attached_media': json.dumps(attached_media)
     }
+
+    if attached_media:
+        data['attached_media'] = json.dumps(attached_media)
 
     time.sleep(random.randrange(5))
     status = client.post_object(object_id=facebook_object_id,
                                 connection='feed',
                                 data=data)
-    print(status)
+    print(json.dumps(status, separators=(',', ':')))
 
 
 def like(client, facebook_object_id, facebook_post_id):
@@ -76,14 +100,14 @@ def like(client, facebook_object_id, facebook_post_id):
     status = client.post_object(
         object_id=f'{facebook_object_id}_{facebook_post_id}',
         connection='likes')
-    print(status)
+    print(json.dumps(status, separators=(',', ':')))
 
 
 def delete(client, facebook_object_id, facebook_post_id):
     time.sleep(random.randrange(5))
     status = client.delete_object(
         object_id=f'{facebook_object_id}_{facebook_post_id}')
-    print(status)
+    print(json.dumps(status, separators=(',', ':')))
 
 
 def share(client, facebook_profile_id, facebook_object_id, facebook_post_id):
@@ -96,7 +120,7 @@ def share(client, facebook_profile_id, facebook_object_id, facebook_post_id):
     status = client.post_object(object_id=facebook_profile_id,
                                 connection='feed',
                                 data=data)
-    print(status)
+    print(json.dumps(status, separators=(',', ':')))
 
 
 def last_from_feed(client, facebook_object_id, feed_url,
@@ -105,42 +129,44 @@ def last_from_feed(client, facebook_object_id, feed_url,
     count = 0
 
     if not feed_url:
-        raise Exception('No FEED_URL provided.')
+        raise Exception('No --feed-url provided.')
 
     if not facebook_object_id:
-        raise Exception('No FACEBOOK_OBJECT_ID provided.')
+        raise Exception('No --facebook-object-id provided.')
 
-    feed_data = parse_atom_bytes(urlopen(feed_url).read())
+    request = Request(url=feed_url, headers={'User-Agent': f'Agoras/{__version__}'})
+    feed_data = parse_rss_bytes(urlopen(request).read())
     today = datetime.datetime.now()
     last_run = today - datetime.timedelta(seconds=post_lookback)
     last_timestamp = int(last_run.strftime('%Y%m%d%H%M%S'))
 
-    for post in feed_data.entries:
-
-        data = {}
+    for item in feed_data.items:
 
         if count >= max_count:
             break
 
-        if not post.updated:
+        if not item.pub_date:
             continue
 
-        item_timestamp = int(post.updated.strftime('%Y%m%d%H%M%S'))
+        item_timestamp = int(item.pub_date.strftime('%Y%m%d%H%M%S'))
 
-        if post.title:
-            data['message'] = unescape(post.title.value)
+        if item_timestamp < last_timestamp:
+            continue
 
-        if post.links:
-            data['link'] = post.links[0].href
+        link = item.link or item.guid or ''
+        title = item.title or ''
 
-        if item_timestamp > last_timestamp and data:
-            count += 1
-            data['published'] = True
-            time.sleep(random.randrange(5))
-            status = client.post_object(object_id=facebook_object_id,
-                                        connection='feed',
-                                        data=data)
-            print(status)
+        status_link = add_url_timestamp(link, today.strftime('%Y%m%d%H%M%S')) if link else ''
+        status_title = unescape(title) if title else ''
+        status_text = '{0} {1}'.format(status_title, status_link)
+
+        try:
+            status_image = item.enclosures[0].url
+        except Exception:
+            status_image = ''
+
+        count += 1
+        post(client, facebook_object_id, status_text, status_image)
 
 
 def random_from_feed(client, facebook_object_id, feed_url, max_post_age):
@@ -148,64 +174,55 @@ def random_from_feed(client, facebook_object_id, feed_url, max_post_age):
     json_index_content = {}
 
     if not feed_url:
-        raise Exception('No FEED_URL provided.')
+        raise Exception('No --feed-url provided.')
 
     if not facebook_object_id:
-        raise Exception('No FACEBOOK_OBJECT_ID provided.')
+        raise Exception('No --facebook-object-id provided.')
 
-    feed_data = parse_atom_bytes(urlopen(feed_url).read())
+    request = Request(url=feed_url, headers={'User-Agent': f'Agoras/{__version__}'})
+    feed_data = parse_rss_bytes(urlopen(request).read())
     today = datetime.datetime.now()
     max_age_delta = today - datetime.timedelta(days=max_post_age)
     max_age_timestamp = int(max_age_delta.strftime('%Y%m%d%H%M%S'))
 
-    for post in feed_data.entries:
+    for item in feed_data.items:
 
-        if not post.updated:
+        if not item.pub_date:
             continue
 
-        item_timestamp = int(post.updated.strftime('%Y%m%d%H%M%S'))
+        item_timestamp = int(item.pub_date.strftime('%Y%m%d%H%M%S'))
 
-        if int(item_timestamp) >= max_age_timestamp:
+        if item_timestamp < max_age_timestamp:
+            continue
 
-            index = {}
+        json_index_content[str(item_timestamp)] = {
+            'title': item.title or '',
+            'url': item.link or item.guid or '',
+            'date': item.pub_date
+        }
 
-            if post.title:
-                index['title'] = post.title.value
+        try:
+            json_index_content[str(item_timestamp)]['image'] = item.enclosures[0].url
+        except Exception:
+            json_index_content[str(item_timestamp)]['image'] = ''
 
-            if post.links:
-                index['url'] = post.links[0].href
+    random_status_id = random.choice(list(json_index_content.keys()))
+    random_status_title = json_index_content[random_status_id]['title']
+    random_status_image = json_index_content[random_status_id]['image']
+    random_status_link = json_index_content[random_status_id]['url']
 
-            if not index:
-                continue
+    status_link = add_url_timestamp(random_status_link, today.strftime('%Y%m%d%H%M%S')) if random_status_link else ''
+    status_title = unescape(random_status_title) if random_status_title else ''
+    status_text = '{0} {1}'.format(status_title, status_link)
 
-            index['date'] = post.updated
-            json_index_content[str(item_timestamp)] = index
-
-    data = {}
-
-    random_post_id = random.choice(list(json_index_content.keys()))
-    random_post_title = json_index_content[random_post_id]['title']
-    random_post_url = json_index_content[random_post_id]['url']
-
-    if random_post_title:
-        data['message'] = unescape(random_post_title)
-
-    if random_post_url:
-        data['link'] = '{0}#{1}'.format(random_post_url,
-                                        today.strftime('%Y%m%d%H%M%S'))
-
-    data['published'] = True
-    time.sleep(random.randrange(5))
-    status = client.post_object(object_id=facebook_object_id,
-                                connection='feed',
-                                data=data)
-    print(status)
+    post(client, facebook_object_id, status_text, random_status_image)
 
 
 def schedule(client, facebook_object_id, google_sheets_id,
              google_sheets_name, google_sheets_client_email,
-             google_sheets_private_key):
+             google_sheets_private_key, max_count):
 
+    count = 0
     newcontent = []
     gspread_scope = ['https://spreadsheets.google.com/feeds']
     account_info = {
@@ -232,13 +249,28 @@ def schedule(client, facebook_object_id, google_sheets_id,
         newcontent.append([
             status_text, status_image_url_1, status_image_url_2,
             status_image_url_3, status_image_url_4,
-            date, hour, 'published'
+            date, hour, state
         ])
 
-        if (currdate.strftime('%d-%m-%Y') != date and
-           currdate.strftime('%H') != hour) or state == 'published':
+        rowdate = parser.parse(date)
+        normalized_currdate = parser.parse(currdate.strftime('%d-%m-%Y'))
+        normalized_rowdate = parser.parse(rowdate.strftime('%d-%m-%Y'))
+
+        if count >= max_count:
+            break
+
+        if state == 'published':
             continue
 
+        if normalized_rowdate < normalized_currdate:
+            continue
+
+        if currdate.strftime('%d-%m-%Y') == rowdate.strftime('%d-%m-%Y') and \
+           currdate.strftime('%H') != hour:
+            continue
+
+        count += 1
+        newcontent[-1][-1] = 'published'
         post(client, facebook_object_id, status_text,
              status_image_url_1, status_image_url_2,
              status_image_url_3, status_image_url_4)
@@ -320,7 +352,7 @@ def main(kwargs):
     elif action == 'schedule':
         schedule(client, facebook_object_id, google_sheets_id,
                  google_sheets_name, google_sheets_client_email,
-                 google_sheets_private_key)
+                 google_sheets_private_key, max_count)
     elif action == '':
         raise Exception('--action is a required argument.')
     else:

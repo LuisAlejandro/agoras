@@ -5,9 +5,7 @@ ARG UID=1000
 ARG GID=1000
 
 RUN apt-get update && \
-    apt-get install sudo python3.10-venv git make libyaml-dev
-
-RUN ln -s /usr/bin/python3.10 /usr/bin/python
+    apt-get install sudo python3.10-venv git make jq
 
 ADD requirements.txt requirements-dev.txt /root/
 RUN pip3 install -r /root/requirements.txt -r /root/requirements-dev.txt

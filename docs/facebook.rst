@@ -100,10 +100,12 @@ This command will delete a post identified by ``--facebook-post-id`` that is cur
 
 
 
-Post the last URL from an atom feed into Facebook
+Post the last URL from an RSS feed into Facebook
 -------------------------------------------------
 
-This command will parse an atom feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published on ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``.
+This command will parse an RSS feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published on ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``.
+
+Please read about how the RSS feed should be structured in the `RSS feed section <rss.rst>`_. This ensures that the feed is correctly parsed and that the post content is properly formatted.
 ::
 
       agoras publish \
@@ -117,10 +119,12 @@ This command will parse an atom feed located at ``--feed-url``, and publish the 
 
 
 
-Post a random URL from an atom feed into Facebook
+Post a random URL from an RSS feed into Facebook
 -------------------------------------------------
 
-This command will parse an atom feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published on ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``.
+This command will parse an RSS feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published on ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``.
+
+Please read about how the RSS feed should be structured in the `RSS feed section <rss.rst>`_. This ensures that the feed is correctly parsed and that the post content is properly formatted.
 ::
 
       agoras publish \

@@ -10,6 +10,8 @@ Agoras needs the following credentials from twitter to be able to access its API
 
 For that, we'll need to create a Twitter App.
 
+**Important**: Twitter now requires a paid subscription for certain parts of the API. The free tier will let you publish and delete twitter posts, but will not allow likes or retweets.
+
 ---
 
 You can create a twitter app for your twitter account at https://developer.twitter.com/en/apps.

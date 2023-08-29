@@ -16,21 +16,25 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import os
-import json
 import datetime
+import json
+import os
 import random
 import tempfile
 import time
-from urllib.request import urlopen
-from urllib.parse import quote
 from html import unescape
+from urllib.parse import quote
+from urllib.request import Request, urlopen
 
+import filetype
 import gspread
-from linkedin_api import Linkedin
 from atoma import parse_rss_bytes
+from dateutil import parser
 from google.oauth2.service_account import Credentials
+from linkedin_api import Linkedin
 
+from agoras import __version__
+from agoras.core.utils import add_url_timestamp
 
 api_url_host = 'https://www.linkedin.com/voyager'
 media_upload_endpoint = (
@@ -55,13 +59,25 @@ def post(client, status_text,
         status_image_url_3, status_image_url_4
     ])
 
+    if not list(source_media) and not status_text:
+        raise Exception('No --status-text or --status-image-url-1 provided.')
+
     for imgurl in source_media:
 
         _, tmpimg = tempfile.mkstemp(prefix='status-image-url-',
                                      suffix='.bin')
 
         with open(tmpimg, 'wb') as i:
-            i.write(urlopen(imgurl).read())
+            request = Request(url=imgurl, headers={'User-Agent': f'Agoras/{__version__}'})
+            i.write(urlopen(request).read())
+
+        kind = filetype.guess(tmpimg)
+
+        if not kind:
+            raise Exception(f'Invalid image type for {imgurl}')
+
+        if kind.mime not in ['image/jpeg', 'image/png', 'image/gif']:
+            raise Exception(f'Invalid image type "{kind.mime}" for {imgurl}')
 
         media = client.client.session.post(
             media_upload_endpoint,
@@ -87,24 +103,28 @@ def post(client, status_text,
             'tapTargets': []
         })
 
-    time.sleep(random.randrange(5))
+    data = {
+        'visibleToConnectionsOnly': False,
+        'commentsDisabled': False,
+        'externalAudienceProviders': [],
+        'commentaryV2': {
+            'text': status_text,
+            'attributes': []
+        },
+        'origin': 'FEED',
+        'allowedCommentersScope': 'ALL',
+    }
 
-    status = client.client.session.post(
-        content_creation_endpoint,
-        json.dumps({
-            'visibleToConnectionsOnly': False,
-            'commentsDisabled': False,
-            'externalAudienceProviders': [],
-            'commentaryV2': {
-                'text': status_text,
-                'attributes': []
-            },
-            'origin': 'FEED',
-            'allowedCommentersScope': 'ALL',
-            'media': attached_media
-        })
-    )
-    print(status.json())
+    if attached_media:
+        data['media'] = attached_media
+
+    time.sleep(random.randrange(5))
+    response = client.client.session.post(content_creation_endpoint, json.dumps(data))
+    payload = response.json()
+    status = {
+        'id': payload['status']['updateV2']['updateMetadata']['urn'].replace('urn:li:activity:', '')
+    }
+    print(json.dumps(status, separators=(',', ':')))
 
 
 def like(client, linkedin_post_id):
@@ -114,7 +134,10 @@ def like(client, linkedin_post_id):
         f'{social_reactions_endpoint}?threadUrn={media_urn}',
         json.dumps({'reactionType': 'LIKE'})
     )
-    print(linkedin_post_id)
+    status = {
+        'id': linkedin_post_id
+    }
+    print(json.dumps(status, separators=(',', ':')))
 
 
 def share(client, linkedin_post_id):
@@ -125,7 +148,7 @@ def share(client, linkedin_post_id):
     )
     metadata_response = metadata.json()
     share_urn = metadata_response['elements'][0]['updateMetadata']['shareUrn']
-    status = client.client.session.post(
+    response = client.client.session.post(
         content_creation_endpoint,
         json.dumps({
             "visibleToConnectionsOnly": False,
@@ -139,7 +162,11 @@ def share(client, linkedin_post_id):
             "postState": "PUBLISHED",
             "parentUrn": share_urn})
     )
-    print(status.json())
+    payload = response.json()
+    status = {
+        'id': payload['status']['updateV2']['updateMetadata']['urn'].replace('urn:li:activity:', '')
+    }
+    print(json.dumps(status, separators=(',', ':')))
 
 
 def delete(client, linkedin_post_id):
@@ -149,11 +176,14 @@ def delete(client, linkedin_post_id):
         f'{updates_endpoint}&urnOrNss={media_urn}'
     )
     metadata_response = metadata.json()
-    share_urn = metadata_response['elements'][0]['updateMetadata']['shareUrn']
+    share_urn = metadata_response['elements'][0]['updateMetadata']['urn']
     client.client.session.delete(
         f'{content_creation_endpoint}/{share_urn}'
     )
-    print(linkedin_post_id)
+    status = {
+        'id': linkedin_post_id
+    }
+    print(json.dumps(status, separators=(',', ':')))
 
 
 def last_from_feed(client, feed_url, max_count, post_lookback):
@@ -161,9 +191,10 @@ def last_from_feed(client, feed_url, max_count, post_lookback):
     count = 0
 
     if not feed_url:
-        raise Exception('No FEED_URL provided.')
+        raise Exception('No --feed-url provided.')
 
-    feed_data = parse_rss_bytes(urlopen(feed_url).read())
+    request = Request(url=feed_url, headers={'User-Agent': f'Agoras/{__version__}'})
+    feed_data = parse_rss_bytes(urlopen(request).read())
     today = datetime.datetime.now()
     last_run = today - datetime.timedelta(seconds=post_lookback)
     last_timestamp = int(last_run.strftime('%Y%m%d%H%M%S'))
@@ -173,14 +204,28 @@ def last_from_feed(client, feed_url, max_count, post_lookback):
         if count >= max_count:
             break
 
-        if not item.pub_date or not item.title:
+        if not item.pub_date:
             continue
 
         item_timestamp = int(item.pub_date.strftime('%Y%m%d%H%M%S'))
 
-        if item_timestamp > last_timestamp:
-            count += 1
-            post(client, unescape(item.title), item.guid)
+        if item_timestamp < last_timestamp:
+            continue
+
+        link = item.link or item.guid or ''
+        title = item.title or ''
+
+        status_link = add_url_timestamp(link, today.strftime('%Y%m%d%H%M%S')) if link else ''
+        status_title = unescape(title) if title else ''
+        status_text = '{0} {1}'.format(status_title, status_link)
+
+        try:
+            status_image = item.enclosures[0].url
+        except Exception:
+            status_image = ''
+
+        count += 1
+        post(client, status_text, status_image)
 
 
 def random_from_feed(client, feed_url, max_post_age):
@@ -188,9 +233,10 @@ def random_from_feed(client, feed_url, max_post_age):
     json_index_content = {}
 
     if not feed_url:
-        raise Exception('No FEED_URL provided.')
+        raise Exception('No --feed-url provided.')
 
-    feed_data = parse_rss_bytes(urlopen(feed_url).read())
+    request = Request(url=feed_url, headers={'User-Agent': f'Agoras/{__version__}'})
+    feed_data = parse_rss_bytes(urlopen(request).read())
     today = datetime.datetime.now()
     max_age_delta = today - datetime.timedelta(days=max_post_age)
     max_age_timestamp = int(max_age_delta.strftime('%Y%m%d%H%M%S'))
@@ -202,26 +248,37 @@ def random_from_feed(client, feed_url, max_post_age):
 
         item_timestamp = int(item.pub_date.strftime('%Y%m%d%H%M%S'))
 
-        if int(item_timestamp) >= max_age_timestamp:
+        if item_timestamp < max_age_timestamp:
+            continue
 
-            json_index_content[str(item_timestamp)] = {
-                'title': item.title,
-                'url': item.guid,
-                'date': item.pub_date
-            }
+        json_index_content[str(item_timestamp)] = {
+            'title': item.title or '',
+            'url': item.link or item.guid or '',
+            'date': item.pub_date
+        }
 
-    random_post_id = random.choice(list(json_index_content.keys()))
-    random_post_title = json_index_content[random_post_id]['title']
-    status_link = '{0}#{1}'.format(
-        json_index_content[random_post_id]['url'],
-        today.strftime('%Y%m%d%H%M%S'))
-    post(client, unescape(random_post_title), status_link)
+        try:
+            json_index_content[str(item_timestamp)]['image'] = item.enclosures[0].url
+        except Exception:
+            json_index_content[str(item_timestamp)]['image'] = ''
+
+    random_status_id = random.choice(list(json_index_content.keys()))
+    random_status_title = json_index_content[random_status_id]['title']
+    random_status_image = json_index_content[random_status_id]['image']
+    random_status_link = json_index_content[random_status_id]['url']
+
+    status_link = add_url_timestamp(random_status_link, today.strftime('%Y%m%d%H%M%S')) if random_status_link else ''
+    status_title = unescape(random_status_title) if random_status_title else ''
+    status_text = '{0} {1}'.format(status_title, status_link)
+
+    post(client, status_text, random_status_image)
 
 
 def schedule(client, google_sheets_id,
              google_sheets_name, google_sheets_client_email,
-             google_sheets_private_key):
+             google_sheets_private_key, max_count):
 
+    count = 0
     newcontent = []
     gspread_scope = ['https://spreadsheets.google.com/feeds']
     account_info = {
@@ -231,8 +288,8 @@ def schedule(client, google_sheets_id,
     }
     creds = Credentials.from_service_account_info(account_info,
                                                   scopes=gspread_scope)
-    client = gspread.authorize(creds)
-    spreadsheet = client.open_by_key(google_sheets_id)
+    gclient = gspread.authorize(creds)
+    spreadsheet = gclient.open_by_key(google_sheets_id)
 
     worksheet = spreadsheet.worksheet(google_sheets_name)
     currdate = datetime.datetime.now()
@@ -248,13 +305,28 @@ def schedule(client, google_sheets_id,
         newcontent.append([
             status_text, status_image_url_1, status_image_url_2,
             status_image_url_3, status_image_url_4,
-            date, hour, 'published'
+            date, hour, state
         ])
 
-        if (currdate.strftime('%d-%m-%Y') != date and
-           currdate.strftime('%H') != hour) or state == 'published':
+        rowdate = parser.parse(date)
+        normalized_currdate = parser.parse(currdate.strftime('%d-%m-%Y'))
+        normalized_rowdate = parser.parse(rowdate.strftime('%d-%m-%Y'))
+
+        if count >= max_count:
+            break
+
+        if state == 'published':
             continue
 
+        if normalized_rowdate < normalized_currdate:
+            continue
+
+        if currdate.strftime('%d-%m-%Y') == rowdate.strftime('%d-%m-%Y') and \
+           currdate.strftime('%H') != hour:
+            continue
+
+        count += 1
+        newcontent[-1][-1] = 'published'
         post(client, status_text,
              status_image_url_1, status_image_url_2,
              status_image_url_3, status_image_url_4)
@@ -332,7 +404,7 @@ def main(kwargs):
     elif action == 'schedule':
         schedule(client, google_sheets_id,
                  google_sheets_name, google_sheets_client_email,
-                 google_sheets_private_key)
+                 google_sheets_private_key, max_count)
     elif action == '':
         raise Exception('--action is a required argument.')
     else:

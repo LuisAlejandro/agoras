@@ -24,3 +24,14 @@ agoras.common.utils
 This module contains common and low level functions to all modules in agoras.
 
 """
+
+
+from urllib.parse import parse_qs, urlencode, urlparse
+
+
+def add_url_timestamp(url, timestamp):
+    parsed = urlparse(url)
+    query = dict(parse_qs(str(parsed.query)))
+    query['t'] = timestamp
+    parsed = parsed._replace(query=urlencode(query))
+    return parsed.geturl()

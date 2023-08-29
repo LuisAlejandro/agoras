@@ -16,77 +16,102 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import os
 import datetime
+import json
+import os
 import random
 import tempfile
 import time
-from urllib.request import urlopen
 from html import unescape
+from urllib.request import Request, urlopen
 
+import filetype
 import gspread
 from atoma import parse_rss_bytes
-from tweepy import OAuth1UserHandler, API
+from dateutil import parser
 from google.oauth2.service_account import Credentials
+from tweepy import API, Client, OAuth1UserHandler
+
+from agoras import __version__
+from agoras.core.utils import add_url_timestamp
 
 
-def post(client, status_text,
+def post(client, clientv1, status_text,
          status_image_url_1=None, status_image_url_2=None,
          status_image_url_3=None, status_image_url_4=None):
 
     if not status_text:
-        raise Exception('No STATUS_TEXT provided.')
+        raise Exception('No --status-text provided.')
 
     media_ids = []
-    source_media = filter(None, [
+    source_media = list(filter(None, [
         status_image_url_1, status_image_url_2,
         status_image_url_3, status_image_url_4
-    ])
+    ]))
+
+    if not source_media and not status_text:
+        raise Exception('No --status-text or --status-image-url-1 provided.')
 
     for imgurl in source_media:
-
         _, tmpimg = tempfile.mkstemp(prefix='status-image-url-',
                                      suffix='.bin')
 
         with open(tmpimg, 'wb') as i:
-            i.write(urlopen(imgurl).read())
+            request = Request(url=imgurl, headers={'User-Agent': f'Agoras/{__version__}'})
+            i.write(urlopen(request).read())
+
+        kind = filetype.guess(tmpimg)
+
+        if not kind:
+            raise Exception(f'Invalid image type for {imgurl}')
+
+        if kind.mime not in ['image/jpeg', 'image/png', 'image/gif']:
+            raise Exception(f'Invalid image type "{kind.mime}" for {imgurl}')
 
         time.sleep(random.randrange(5))
 
-        media = client.media_upload(tmpimg)
+        media = clientv1.media_upload(tmpimg)
         media_ids.append(media.media_id)
 
+    data = {
+        'text': status_text
+    }
+
+    if media_ids:
+        data['media_ids'] = media_ids
+
     time.sleep(random.randrange(5))
-    status = client.update_status(status_text, media_ids=media_ids)
-    print(status)
+    status = client.create_tweet(**data)
+    print(json.dumps(status.data, separators=(',', ':')))
 
 
-def like(client, tweet_id):
+def like(client, clientv1, tweet_id):
     time.sleep(random.randrange(5))
-    status = client.create_favorite(tweet_id)
-    print(status)
+    status = client.like(tweet_id)
+    print(json.dumps(status.data, separators=(',', ':')))
 
 
-def delete(client, tweet_id):
+def delete(client, clientv1, tweet_id):
     time.sleep(random.randrange(5))
-    status = client.destroy_status(tweet_id)
-    print(status)
+    status = client.delete_tweet(tweet_id)
+    print(json.dumps(status.data, separators=(',', ':')))
 
 
-def share(client, tweet_id):
+def share(client, clientv1, tweet_id):
     time.sleep(random.randrange(5))
     status = client.retweet(tweet_id)
-    print(status)
+    print(json.dumps(status.data, separators=(',', ':')))
 
 
-def last_from_feed(client, feed_url, max_count, post_lookback):
+def last_from_feed(client, clientv1, feed_url, max_count, post_lookback):
 
     count = 0
 
     if not feed_url:
-        raise Exception('No FEED_URL provided.')
+        raise Exception('No --feed-url provided.')
 
-    feed_data = parse_rss_bytes(urlopen(feed_url).read())
+    request = Request(url=feed_url, headers={'User-Agent': f'Agoras/{__version__}'})
+    feed_data = parse_rss_bytes(urlopen(request).read())
     today = datetime.datetime.now()
     last_run = today - datetime.timedelta(seconds=post_lookback)
     last_timestamp = int(last_run.strftime('%Y%m%d%H%M%S'))
@@ -96,25 +121,39 @@ def last_from_feed(client, feed_url, max_count, post_lookback):
         if count >= max_count:
             break
 
-        if not item.pub_date or not item.title:
+        if not item.pub_date:
             continue
 
         item_timestamp = int(item.pub_date.strftime('%Y%m%d%H%M%S'))
-        status_text = '{0} {1}'.format(unescape(item.title), item.guid)
 
-        if item_timestamp > last_timestamp:
-            count += 1
-            post(client, status_text)
+        if item_timestamp < last_timestamp:
+            continue
+
+        link = item.link or item.guid or ''
+        title = item.title or ''
+
+        status_link = add_url_timestamp(link, today.strftime('%Y%m%d%H%M%S')) if link else ''
+        status_title = unescape(title) if title else ''
+        status_text = '{0} {1}'.format(status_title, status_link)
+
+        try:
+            status_image = item.enclosures[0].url
+        except Exception:
+            status_image = ''
+
+        count += 1
+        post(client, clientv1, status_text, status_image)
 
 
-def random_from_feed(client, feed_url, max_post_age):
+def random_from_feed(client, clientv1, feed_url, max_post_age):
 
     json_index_content = {}
 
     if not feed_url:
-        raise Exception('No FEED_URL provided.')
+        raise Exception('No --feed-url provided.')
 
-    feed_data = parse_rss_bytes(urlopen(feed_url).read())
+    request = Request(url=feed_url, headers={'User-Agent': f'Agoras/{__version__}'})
+    feed_data = parse_rss_bytes(urlopen(request).read())
     today = datetime.datetime.now()
     max_age_delta = today - datetime.timedelta(days=max_post_age)
     max_age_timestamp = int(max_age_delta.strftime('%Y%m%d%H%M%S'))
@@ -126,28 +165,36 @@ def random_from_feed(client, feed_url, max_post_age):
 
         item_timestamp = int(item.pub_date.strftime('%Y%m%d%H%M%S'))
 
-        if int(item_timestamp) >= max_age_timestamp:
+        if item_timestamp < max_age_timestamp:
+            continue
 
-            json_index_content[str(item_timestamp)] = {
-                'title': item.title,
-                'url': item.guid,
-                'date': item.pub_date
-            }
+        json_index_content[str(item_timestamp)] = {
+            'title': item.title or '',
+            'url': item.link or item.guid or '',
+            'date': item.pub_date
+        }
 
-    random_post_id = random.choice(list(json_index_content.keys()))
-    random_post_title = json_index_content[random_post_id]['title']
-    status_link = '{0}#{1}'.format(
-        json_index_content[random_post_id]['url'],
-        today.strftime('%Y%m%d%H%M%S'))
-    status_text = '{0} {1}'.format(
-        unescape(random_post_title),
-        status_link)
-    post(client, status_text)
+        try:
+            json_index_content[str(item_timestamp)]['image'] = item.enclosures[0].url
+        except Exception:
+            json_index_content[str(item_timestamp)]['image'] = ''
+
+    random_status_id = random.choice(list(json_index_content.keys()))
+    random_status_title = json_index_content[random_status_id]['title']
+    random_status_image = json_index_content[random_status_id]['image']
+    random_status_link = json_index_content[random_status_id]['url']
+
+    status_link = add_url_timestamp(random_status_link, today.strftime('%Y%m%d%H%M%S')) if random_status_link else ''
+    status_title = unescape(random_status_title) if random_status_title else ''
+    status_text = '{0} {1}'.format(status_title, status_link)
+
+    post(client, clientv1, status_text, random_status_image)
 
 
-def schedule(client, google_sheets_id, google_sheets_name,
-             google_sheets_client_email, google_sheets_private_key):
+def schedule(client, clientv1, google_sheets_id, google_sheets_name,
+             google_sheets_client_email, google_sheets_private_key, max_count):
 
+    count = 0
     newcontent = []
     gspread_scope = [
         'https://spreadsheets.google.com/feeds'
@@ -176,14 +223,29 @@ def schedule(client, google_sheets_id, google_sheets_name,
         newcontent.append([
             status_text, status_image_url_1, status_image_url_2,
             status_image_url_3, status_image_url_4,
-            date, hour, 'published'
+            date, hour, state
         ])
 
-        if (currdate.strftime('%d-%m-%Y') != date and
-           currdate.strftime('%H') != hour) or state == 'published':
+        rowdate = parser.parse(date)
+        normalized_currdate = parser.parse(currdate.strftime('%d-%m-%Y'))
+        normalized_rowdate = parser.parse(rowdate.strftime('%d-%m-%Y'))
+
+        if count >= max_count:
+            break
+
+        if state == 'published':
             continue
 
-        post(client, status_text,
+        if normalized_rowdate < normalized_currdate:
+            continue
+
+        if currdate.strftime('%d-%m-%Y') == rowdate.strftime('%d-%m-%Y') and \
+           currdate.strftime('%H') != hour:
+            continue
+
+        count += 1
+        newcontent[-1][-1] = 'published'
+        post(client, clientv1, status_text,
              status_image_url_1, status_image_url_2,
              status_image_url_3, status_image_url_4)
 
@@ -242,25 +304,30 @@ def main(kwargs):
         google_sheets_private_key.replace('\\n', '\n') \
         if google_sheets_private_key else ''
 
-    auth = OAuth1UserHandler(twitter_consumer_key, twitter_consumer_secret,
-                             twitter_oauth_token, twitter_oauth_secret)
-    client = API(auth, wait_on_rate_limit=True)
+    authv1 = OAuth1UserHandler(twitter_consumer_key, twitter_consumer_secret,
+                               twitter_oauth_token, twitter_oauth_secret)
+    clientv1 = API(authv1, wait_on_rate_limit=True)
+    client = Client(consumer_key=twitter_consumer_key,
+                    consumer_secret=twitter_consumer_secret,
+                    access_token=twitter_oauth_token,
+                    access_token_secret=twitter_oauth_secret,
+                    wait_on_rate_limit=True)
 
     if action == 'like':
-        like(client, tweet_id)
+        like(client, clientv1, tweet_id)
     elif action == 'share':
-        share(client, tweet_id)
+        share(client, clientv1, tweet_id)
     elif action == 'delete':
-        delete(client, tweet_id)
+        delete(client, clientv1, tweet_id)
     elif action == 'last-from-feed':
-        last_from_feed(client, feed_url, int(max_count), int(post_lookback))
+        last_from_feed(client, clientv1, feed_url, int(max_count), int(post_lookback))
     elif action == 'random-from-feed':
-        random_from_feed(client, feed_url, int(max_post_age))
+        random_from_feed(client, clientv1, feed_url, int(max_post_age))
     elif action == 'schedule':
-        schedule(client, google_sheets_id, google_sheets_name,
-                 google_sheets_client_email, google_sheets_private_key)
+        schedule(client, clientv1, google_sheets_id, google_sheets_name,
+                 google_sheets_client_email, google_sheets_private_key, max_count)
     elif action == 'post':
-        post(client, status_text,
+        post(client, clientv1, status_text,
              status_image_url_1, status_image_url_2,
              status_image_url_3, status_image_url_4)
     elif action == '':

@@ -107,9 +107,11 @@ console: start
 	@$(exec_on_docker) bash
 
 virtualenv: start
-	@python3 -m venv --clear --copies ./virtualenv
-	@./virtualenv/bin/pip install -U wheel setuptools
-	@./virtualenv/bin/pip install -r requirements.txt -r requirements-dev.txt
+	@python3 -m venv --clear ./virtualenv
+	@./virtualenv/bin/python3 -m pip install --upgrade pip
+	@./virtualenv/bin/python3 -m pip install --upgrade setuptools
+	@./virtualenv/bin/python3 -m pip install --upgrade wheel
+	@./virtualenv/bin/python3 -m pip install -r requirements.txt -r requirements-dev.txt
 
 stop:
 	@docker-compose -p agoras -f docker-compose.yml stop app

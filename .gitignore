@@ -62,4 +62,4 @@ target/
 .vscode/
 
 virtualenv/
-.env
+*.env

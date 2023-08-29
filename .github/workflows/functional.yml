@@ -15,15 +15,15 @@ jobs:
           - facebook
           - instagram
           - linkedin
-        action:
-          - post
-          - like
-          - share
-          - last-from-feed
-          - random-from-feed
-          - schedule
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4.3.0
+        with:
+          python-version: 3.10
+      - name: Installing dependencies
+        run: |
+          sudo pip install -r requirements.txt -r requirements-dev.txt
       - run: |
-          PAYLOAD=$( bash test.sh "${{ matrix.network }}-${{ matrix.action }}" )
+          bash test.sh ${{ matrix.network }}

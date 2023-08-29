@@ -6,6 +6,8 @@ How to get Twitter credentials
 
 We'll need to get appropiate credentials to be able to use the Twitter credentials. Read the tutorial `here <credentials/twitter.rst>`_.
 
+**Important**: Twitter now requires a paid subscription for certain parts of the API. The free tier will let you publish and delete twitter posts, but will not allow likes or retweets.
+
 How to get ``--tweet-id`` parameter
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -19,6 +21,10 @@ How to get google spreadsheets credentials
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 We'll need a google spreadsheet for the schedule action. Read how to create one and obtain credentials `here <credentials/google.rst>`_.
+
+
+How to get google spreadsheets credentials
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Actions
 ~~~~~~~
@@ -95,10 +101,12 @@ This command will delete a post identified by ``--tweet-id`` using the twitter a
 
 
 
-Post the last URL from an atom feed into Twitter
+Post the last URL from an RSS feed into Twitter
 ------------------------------------------------
 
-This command will parse an atom feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published using the twitter account thats authorized by the provided credentials.
+This command will parse an RSS feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published using the twitter account thats authorized by the provided credentials.
+
+Please read about how the RSS feed should be structured in the `RSS feed section <rss.rst>`_. This ensures that the feed is correctly parsed and that the post content is properly formatted.
 ::
 
       agoras publish \
@@ -114,10 +122,12 @@ This command will parse an atom feed located at ``--feed-url``, and publish the 
 
 
 
-Post a random URL from an atom feed into Twitter
+Post a random URL from an RSS feed into Twitter
 ------------------------------------------------
 
-This command will parse an atom feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published using the twitter account thats authorized by the provided credentials.
+This command will parse an RSS feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published using the twitter account thats authorized by the provided credentials.
+
+Please read about how the RSS feed should be structured in the `RSS feed section <rss.rst>`_. This ensures that the feed is correctly parsed and that the post content is properly formatted.
 ::
 
       agoras publish \

@@ -82,10 +82,12 @@ This command will delete a post identified by ``--linkedin-post-id`` with your a
 
 
 
-Post the last URL from an atom feed into LinkedIn
+Post the last URL from an RSS feed into LinkedIn
 -------------------------------------------------
 
-This command will parse an atom feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published with your account identified by ``--linkedin-username`` and ``--linkedin-password``.
+This command will parse an RSS feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published with your account identified by ``--linkedin-username`` and ``--linkedin-password``.
+
+Please read about how the RSS feed should be structured in the `RSS feed section <rss.rst>`_. This ensures that the feed is correctly parsed and that the post content is properly formatted.
 ::
 
       agoras publish \
@@ -99,10 +101,12 @@ This command will parse an atom feed located at ``--feed-url``, and publish the 
 
 
 
-Post a random URL from an atom feed into LinkedIn
+Post a random URL from an RSS feed into LinkedIn
 -------------------------------------------------
 
-This command will parse an atom feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published with your account identified by ``--linkedin-username`` and ``--linkedin-password``.
+This command will parse an RSS feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published with your account identified by ``--linkedin-username`` and ``--linkedin-password``.
+
+Please read about how the RSS feed should be structured in the `RSS feed section <rss.rst>`_. This ensures that the feed is correctly parsed and that the post content is properly formatted.
 ::
 
       agoras publish \
