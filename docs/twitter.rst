@@ -4,7 +4,7 @@ Usage for Twitter
 How to get Twitter credentials
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-We'll need to get appropiate credentials to be able to use the Twitter credentials. Read the tutorial `here <credentials/twitter.rst>`_.
+We'll need to get appropiate credentials to be able to use the Twitter credentials. Read the tutorial :doc:`here <credentials/twitter>`.
 
 **Important**: Twitter now requires a paid subscription for certain parts of the API. The free tier will let you publish and delete twitter posts, but will not allow likes or retweets.
 
@@ -106,7 +106,7 @@ Post the last URL from an RSS feed into Twitter
 
 This command will parse an RSS feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published using the twitter account thats authorized by the provided credentials.
 
-Please read about how the RSS feed should be structured in the `RSS feed section <rss.rst>`_. This ensures that the feed is correctly parsed and that the post content is properly formatted.
+Please read about how the RSS feed should be structured in the :doc:`RSS feed section <rss>`. This ensures that the feed is correctly parsed and that the post content is properly formatted.
 ::
 
       agoras publish \
@@ -127,7 +127,7 @@ Post a random URL from an RSS feed into Twitter
 
 This command will parse an RSS feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published using the twitter account thats authorized by the provided credentials.
 
-Please read about how the RSS feed should be structured in the `RSS feed section <rss.rst>`_. This ensures that the feed is correctly parsed and that the post content is properly formatted.
+Please read about how the RSS feed should be structured in the :doc:`RSS feed section <rss>`. This ensures that the feed is correctly parsed and that the post content is properly formatted.
 ::
 
       agoras publish \

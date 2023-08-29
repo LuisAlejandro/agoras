@@ -4,7 +4,7 @@ Usage for Instagram
 How to get ``--instagram-access-token`` parameter
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-We'll need a permanent access token with appropiate permissions to be able to use de Instagram Graph API. Read the tutorial `here <credentials/instagram.rst>`_.
+We'll need a permanent access token with appropiate permissions to be able to use de Instagram Graph API. Read the tutorial :doc:`here <credentials/instagram>`.
 
 How to get ``--instagram-object-id`` parameter
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -29,7 +29,7 @@ Then click on submit and you'll see a response like this::
 How to get google spreadsheets credentials
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-We'll need a google spreadsheet for the schedule action. Read how to create one and obtain credentials `here <credentials/google.rst>`_.
+We'll need a google spreadsheet for the schedule action. Read how to create one and obtain credentials :doc:`here <credentials/google>`.
 
 Actions
 ~~~~~~~
@@ -73,7 +73,7 @@ Post the last URL from an RSS feed into Instagram
 
 This command will parse an RSS feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published on ``--instagram-object-id``, which must be authorized by ``--instagram-access-token``.
 
-Please read about how the RSS feed should be structured in the `RSS feed section <rss.rst>`_. This ensures that the feed is correctly parsed and that the post content is properly formatted.
+Please read about how the RSS feed should be structured in the :doc:`RSS feed section <rss>`. This ensures that the feed is correctly parsed and that the post content is properly formatted.
 ::
   
       agoras publish \
@@ -92,7 +92,7 @@ Post a random URL from an RSS feed into Instagram
 
 This command will parse an RSS feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published on ``--instagram-object-id``, which must be authorized by ``--instagram-access-token``.
 
-Please read about how the RSS feed should be structured in the `RSS feed section <rss.rst>`_. This ensures that the feed is correctly parsed and that the post content is properly formatted.
+Please read about how the RSS feed should be structured in the :doc:`RSS feed section <rss>`. This ensures that the feed is correctly parsed and that the post content is properly formatted.
 ::
   
       agoras publish \

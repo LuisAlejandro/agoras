@@ -1,7 +1,7 @@
 How the RSS feed should be structured
 =====================================
 
-Every item of the feed should have the following structure:
+Every item of the feed should have the following structure::
 
       <item>
             <title>

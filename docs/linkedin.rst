@@ -13,7 +13,7 @@ The LinkedIn post ID parameter is necessary to like, share and delete posts. You
 How to get google spreadsheets credentials
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-We'll need a google spreadsheet for the schedule action. Read how to create one and obtain credentials `here <credentials/google.rst>`_.
+We'll need a google spreadsheet for the schedule action. Read how to create one and obtain credentials :doc:`here <credentials/google>`.
 
 Actions
 ~~~~~~~
@@ -87,7 +87,7 @@ Post the last URL from an RSS feed into LinkedIn
 
 This command will parse an RSS feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published with your account identified by ``--linkedin-username`` and ``--linkedin-password``.
 
-Please read about how the RSS feed should be structured in the `RSS feed section <rss.rst>`_. This ensures that the feed is correctly parsed and that the post content is properly formatted.
+Please read about how the RSS feed should be structured in the :doc:`RSS feed section <rss>`. This ensures that the feed is correctly parsed and that the post content is properly formatted.
 ::
 
       agoras publish \
@@ -106,7 +106,7 @@ Post a random URL from an RSS feed into LinkedIn
 
 This command will parse an RSS feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published with your account identified by ``--linkedin-username`` and ``--linkedin-password``.
 
-Please read about how the RSS feed should be structured in the `RSS feed section <rss.rst>`_. This ensures that the feed is correctly parsed and that the post content is properly formatted.
+Please read about how the RSS feed should be structured in the :doc:`RSS feed section <rss>`. This ensures that the feed is correctly parsed and that the post content is properly formatted.
 ::
 
       agoras publish \
