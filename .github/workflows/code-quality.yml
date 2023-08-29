@@ -2,22 +2,19 @@ name: Code Quality
 
 on:
   schedule:
-    - cron: '00 6 * * 5'
+    - cron: '00 6 * * 2'
 
 jobs:
   build:
     name: Generating code quality report
-    runs-on: ubuntu-20.04
-    if: github.repository == 'LuisAlejandro/sacli'
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
-        with:
-          ref: develop
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v1
+        uses: github/codeql-action/init@v2
         with:
           languages: python
           config-file: ./.github/codeql-config.yml
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v1
+        uses: github/codeql-action/analyze@v2

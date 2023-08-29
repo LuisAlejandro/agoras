@@ -1,132 +1,108 @@
 Using the application
 ---------------------
 
-sacli is divided in several commands.
+agoras publish
+~~~~~~~~~~~~~~
 
-sacli pypi
+This command allows you to publish a post in different social network.::
+
+    $ agoras publish --help
+    usage: agoras publish [options]
+
+    General Options:
+      -V, --version         Print version and exit.
+      -h, --help            Show this help message and exit.
+
+    Publish Options:
+      -l <level>, --loglevel <level>
+                            Logger verbosity level (default: INFO). Must be one of: DEBUG, INFO, WARNING, ERROR or CRITICAL.
+      -n <social network>, --network <social network>
+                            Social network to use for publishing (default: ""). Must be one of: twitter, facebook, instagram or linkedin.
+      -a <action>, --action <action>
+                            Action to execute (default: ""). Must be one of: like, share, last-from-feed, random-from-feed, schedule, post, delete
+      -tk <consumer key>, --twitter-consumer-key <consumer key>
+                            Twitter consumer key from twitter developer app.
+      -ts <consumer secret>, --twitter-consumer-secret <consumer secret>
+                            Twitter consumer secret from twitter developer app.
+      -tot <oauth token>, --twitter-oauth-token <oauth token>
+                            Twitter OAuth token from twitter developer app.
+      -tos <oauth secret>, --twitter-oauth-secret <oauth secret>
+                            Twitter OAuth secret from twitter developer app.
+      -ti <id>, --tweet-id <id>
+                            Twitter post ID to like, retweet or delete.
+      -ft <access token>, --facebook-access-token <access token>
+                            Facebook access token from facebook app.
+      -fo <id>, --facebook-object-id <id>
+                            Facebook ID of object where the post is going to be published.
+      -fp <id>, --facebook-post-id <id>
+                            Facebook ID of post to be liked, shared or deleted.
+      -fr <id>, --facebook-profile-id <id>
+                            Facebook ID of profile where a post will be shared.
+      -it <access token>, --instagram-access-token <access token>
+                            Facebook access token from facebook app.
+      -io <id>, --instagram-object-id <id>
+                            Instagram ID of profile where the post is going to be published.
+      -ip <id>, --instagram-post-id <id>
+                            Instagram ID of post to be liked, shared or deleted.
+      -lu <username>, --linkedin-username <username>
+                            Your LinkedIn username.
+      -lw <password>, --linkedin-password <password>
+                            Your LinkedIn password.
+      -lp <id>, --linkedin-post-id <id>
+                            LinkedIn post ID to like, retweet or delete.
+      -st <text>, --status-text <text>
+                            Text to be published.
+      -i1 <image url>, --status-image-url-1 <image url>
+                            First image URL to be published.
+      -i2 <image url>, --status-image-url-2 <image url>
+                            Second image URL to be published.
+      -i3 <image url>, --status-image-url-3 <image url>
+                            Third image URL to be published.
+      -i4 <image url>, --status-image-url-4 <image url>
+                            Fourth image URL to be published.
+      -fu <feed url>, --feed-url <feed url>
+                            URL of public Atom feed to be parsed.
+      -mc <number>, --max-count <number>
+                            Max number of new posts to be published at once.
+      -pl <seconds>, --post-lookback <seconds>
+                            Only allow posts published
+      -ma <days>, --max-post-age <days>
+                            Dont allow publishing of posts older than this number of days.
+      -ge <email>, --google-sheets-client-email <email>
+                            A google console project client email corresponding to the private key.
+      -gk <private key>, --google-sheets-private-key <private key>
+                            A google console project private key.
+      -gi <id>, --google-sheets-id <id>
+                            The google sheets ID to read schedule entries.
+      -gn <name>, --google-sheets-name <name>
+                            The name of the sheet where the schedule is.
+
+
+Examples of usage
 ~~~~~~~~~~~~~~~~~
 
-This command generates a JSON module index with information from PyPI. Read
-below for more information on how to use it::
+.. _Using Agoras with Twitter: docs/twitter.rst
+.. _Using Agoras with Facebook: docs/facebook.rst
+.. _Using Agoras with Instagram: docs/instagram.rst
+.. _Using Agoras with LinkedIn: docs/linkedin.rst
 
-    $ sacli pypi --help
+- `Using Agoras with Twitter`_
+- `Using Agoras with Facebook`_
+- `Using Agoras with Instagram`_
+- `Using Agoras with LinkedIn`_
 
-    usage: sacli pypi [options]
 
-    General Options:
-      -V, --version         Print version and exit.
-      -h, --help            Show this help message and exit.
+Credentials
+~~~~~~~~~~~
 
-    Pypi Options:
-      -l <level>, --loglevel <level>
-                            Logger verbosity level (default: INFO). Must be one
-                            of: DEBUG, INFO, WARNING, ERROR or CRITICAL.
-      -f <path>, --logfile <path>
-                            A path pointing to a file to be used to store logs.
-      -o <path>, --outputfile <path>
-                            A path pointing to a file that will be used to store
-                            the JSON Module Index (required).
-      -R <letter/number>, --letter-range <letter/number>
-                            An expression representing an alphanumeric range to be
-                            used to filter packages from PyPI (default: 0-z). You
-                            can use a single alphanumeric character like "0" to
-                            process only packages beginning with "0". You can use
-                            commas use as a list o dashes to use as an interval.
-      -L <size>, --limit-log-size <size>
-                            Stop processing if log size exceeds <size> (default:
-                            3M).
-      -M <size>, --limit-mem <size>
-                            Stop processing if process memory exceeds <size>
-                            (default: 2G).
-      -T <sec>, --limit-time <sec>
-                            Stop processing if process time exceeds <sec>
-                            (default: 2100).
+.. _How to get credentials for Twitter: docs/credentials/twitter.rst
+.. _How to get credentials for Facebook: docs/credentials/facebook.rst
+.. _How to get credentials for Instagram: docs/credentials/instagram.rst
+.. _How to get credentials for LinkedIn: docs/credentials/linkedin.rst
+.. _How to get credentials for Google spreadsheets: docs/credentials/google.rst
 
-sacli stdlib
-~~~~~~~~~~~~~~~~~~~
-
-This command generates a JSON Module Index from the Python Standard Library.
-Read below for more information on how to use it::
-
-    $ sacli stdlib --help
-
-    usage: sacli stdlib [options]
-
-    General Options:
-      -V, --version         Print version and exit.
-      -h, --help            Show this help message and exit.
-
-    Stdlib Options:
-      -o <path>, --outputfile <path>
-                            A path pointing to a file that will be used to store
-                            the JSON Module Index (required).
-      -p <version>, --pyver <version>
-                            Python version to be used for the Standard Library
-                            (default: 2.7).
-
-sacli stats
-~~~~~~~~~~~~~~~~~~
-
-This command gathers statistics from the logs generated by the ``pypi``
-command. Read below for more information on how to use it::
-
-    $ sacli stats --help
-
-    usage: sacli stats [options]
-
-    General Options:
-      -V, --version         Print version and exit.
-      -h, --help            Show this help message and exit.
-
-    Stats Options:
-      -i <path>, --inputdir <path>
-                            A path pointing to a directory containing JSON files
-                            generated by the pypi command (required).
-      -o <path>, --outputfile <path>
-                            A path pointing to a file that will be used to store
-                            the statistics (required).
-
-sacli errors
-~~~~~~~~~~~~~~~~~~~
-
-This command summarizes errors found in the logs generated by the ``pypi``
-command. Read below for more information on how to use it::
-
-    $ sacli errors --help
-
-    usage: sacli errors [options]
-
-    General Options:
-      -V, --version         Print version and exit.
-      -h, --help            Show this help message and exit.
-
-    Errors Options:
-      -i <path>, --inputdir <path>
-                            A path pointing to a directory containing JSON files
-                            generated by the pypi command (required).
-      -o <path>, --outputfile <path>
-                            A path pointing to a file that will be used to store
-                            the errors (required).
-
-sacli merge
-~~~~~~~~~~~~~~~~~~
-
-This command searches for JSON files generated by the ``pypi`` or ``stdlib``
-commands and combines them into one. Read below for more information on how to
-use it::
-
-    $ sacli merge --help
-
-    usage: sacli merge [options]
-
-    General Options:
-      -V, --version         Print version and exit.
-      -h, --help            Show this help message and exit.
-
-    Merge Options:
-      -i <path>, --inputdir <path>
-                            A path pointing to a directory containing JSON files
-                            generated by pypi or stdlib commands (required).
-      -o <path>, --outputfile <path>
-                            A path pointing to a file that will be used to store
-                            the merged JSON files (required).
+- `How to get credentials for Twitter`_
+- `How to get credentials for Facebook`_
+- `How to get credentials for Instagram`_
+- `How to get credentials for LinkedIn`_
+- `How to get credentials for Google spreadsheets`_

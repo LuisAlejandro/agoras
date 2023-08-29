@@ -4,24 +4,13 @@ updates:
   directory: "/"
   schedule:
     interval: weekly
-    day: wednesday
+    day: tuesday
     time: "01:00"
-  open-pull-requests-limit: 99
+  ignore:
+    - dependency-name: coverage
 - package-ecosystem: github-actions
   directory: "/"
   schedule:
     interval: weekly
-    day: wednesday
+    day: tuesday
     time: "01:00"
-  open-pull-requests-limit: 99
-- package-ecosystem: docker
-  directory: "/"
-  schedule:
-    interval: weekly
-    day: wednesday
-    time: "01:00"
-  open-pull-requests-limit: 99
-  ignore:
-  - dependency-name: dockershelf/python
-    versions:
-    - "> 3.10"

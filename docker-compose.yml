@@ -1,9 +1,12 @@
 version: "3"
 services:
-  sacli:
-    image: luisalejandro/sacli:latest
+  app:
+    image: luisalejandro/agoras:latest
     build:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - .:/home/luisalejandro/app
+      - .:/home/agoras/app
+      - ~/Library/Caches/pip:/home/agoras/.cache/pip
+    env_file:
+      - .env

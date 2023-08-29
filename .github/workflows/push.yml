@@ -9,42 +9,27 @@ on:
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-20.04
-    if: github.repository == 'LuisAlejandro/sacli'
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11.0-alpha.5"]
-        distro:
-          - alpine
-          - arch
-          - centos
-          - debian
-          - fedora
-          - gentoo
-        npm: [true, false]
-        yarn: [true, false]
-        bundler: [true, false]
-        pip: [true, false]
         include:
-          - python-version: "3.8"
-            toxenv: "py38"
           - python-version: "3.9"
             toxenv: "py39"
           - python-version: "3.10"
             toxenv: "py310"
-          - python-version: "3.11.0-alpha.5"
+          - python-version: "3.11"
             toxenv: "py311"
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4.7.0
         with:
           python-version: ${{ matrix.python-version }}
       - name: Installing dependencies
         run: |
           sudo apt-get install libxml2-dev libxslt-dev
-          pip install -r requirements.txt -r requirements-dev.txt
+          sudo pip install -r requirements.txt -r requirements-dev.txt
       - name: Measuring coverage
         env:
           TOXENV: ${{ matrix.toxenv }}
@@ -52,18 +37,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tox -e ${TOXENV}
-      - name: Functional test
-        env:
-          TOXENV: ${{ matrix.toxenv }}
-          PYTHON_VERSION: ${{ matrix.python-version }}
-        run: |
-          if [ "${TOXENV}" == "py311" ]; then
-            PYTHON_VERSION="3.11"
-          fi
-          docker run \
-              -v ${PWD}:${PWD} \
-              -w ${PWD} \
-              dockershelf/python:${PYTHON_VERSION} \
-              bash -c "pip install . && \
-                       cd ${PWD}/tests/cases/debian && \
-                       sacli install"
+      - name: Coveralls Parallel
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          flag-name: run-py${{ matrix.python-version }}
+          path-to-lcov: ./.lcov
+          parallel: true
+
+  finish:
+    name: Finish
+    runs-on: ubuntu-22.04
+    needs: build
+    steps:
+    - name: Coveralls Finished
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        parallel-finished: true

@@ -2,34 +2,26 @@
 Internal API
 ============
 
-sacli package
+agoras package
 --------------
 
-.. automodule:: sacli
+.. automodule:: agoras
     :members:
     :private-members:
     :special-members:
 
-sacli.api submodule
+agoras.api submodule
 --------------------
 
-.. automodule:: sacli.api
+.. automodule:: agoras.api
     :members:
     :private-members:
     :special-members:
 
-sacli.config submodule
------------------------
-
-.. automodule:: sacli.config
-    :members:
-    :private-members:
-    :special-members:
-
-sacli.core submodule
+agoras.core submodule
 ---------------------
 
-.. automodule:: sacli.core
+.. automodule:: agoras.core
     :members:
     :private-members:
     :special-members:
