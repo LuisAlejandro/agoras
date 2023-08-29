@@ -153,10 +153,10 @@ This command allows you to publish a post in different social network.::
 Examples of usage
 ~~~~~~~~~~~~~~~~~
 
-.. _Using Agoras with Twitter: docs/twitter.rst
-.. _Using Agoras with Facebook: docs/facebook.rst
-.. _Using Agoras with Instagram: docs/instagram.rst
-.. _Using Agoras with LinkedIn: docs/linkedin.rst
+.. _Using Agoras with Twitter: https://github.com/LuisAlejandro/agoras/blob/develop/docs/twitter.rst
+.. _Using Agoras with Facebook: https://github.com/LuisAlejandro/agoras/blob/develop/docs/facebook.rst
+.. _Using Agoras with Instagram: https://github.com/LuisAlejandro/agoras/blob/develop/docs/instagram.rst
+.. _Using Agoras with LinkedIn: https://github.com/LuisAlejandro/agoras/blob/develop/docs/linkedin.rst
 
 - `Using Agoras with Twitter`_
 - `Using Agoras with Facebook`_
@@ -167,11 +167,11 @@ Examples of usage
 Credentials
 ~~~~~~~~~~~
 
-.. _How to get credentials for Twitter: docs/credentials/twitter.rst
-.. _How to get credentials for Facebook: docs/credentials/facebook.rst
-.. _How to get credentials for Instagram: docs/credentials/instagram.rst
-.. _How to get credentials for LinkedIn: docs/credentials/linkedin.rst
-.. _How to get credentials for Google spreadsheets: docs/credentials/google.rst
+.. _How to get credentials for Twitter: https://github.com/LuisAlejandro/agoras/blob/develop/docs/credentials/twitter.rst
+.. _How to get credentials for Facebook: https://github.com/LuisAlejandro/agoras/blob/develop/docs/credentials/facebook.rst
+.. _How to get credentials for Instagram: https://github.com/LuisAlejandro/agoras/blob/develop/docs/credentials/instagram.rst
+.. _How to get credentials for LinkedIn: https://github.com/LuisAlejandro/agoras/blob/develop/docs/credentials/linkedin.rst
+.. _How to get credentials for Google spreadsheets: https://github.com/LuisAlejandro/agoras/blob/develop/docs/credentials/google.rst
 
 - `How to get credentials for Twitter`_
 - `How to get credentials for Facebook`_
