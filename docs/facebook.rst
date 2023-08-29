@@ -1,5 +1,5 @@
-Agoras usage for Facebook network
-=================================
+Usage for Facebook
+==================
 
 How to get ``--facebook-access-token`` parameter
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

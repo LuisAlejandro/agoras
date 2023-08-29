@@ -1,5 +1,5 @@
-Steps
-=====
+Google credentials
+==================
 
 Creating JSON file with credentials to access Google Sheets API is fast
 and easy. It can be summarized with the following steps.

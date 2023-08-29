@@ -57,6 +57,12 @@ Table of Contents
    facebook
    instagram
    linkedin
+   credentials/twitter
+   credentials/facebook
+   credentials/instagram
+   credentials/linkedin
+   credentials/google
+   rss
    api
    contributing
    authors

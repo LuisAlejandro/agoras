@@ -1,5 +1,5 @@
-Agoras usage for LinkedIn network
-=================================
+Usage for LinkedIn
+==================
 
 How to get ``--linkedin-post-id`` parameter
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

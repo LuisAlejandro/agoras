@@ -15,6 +15,7 @@ Making a new release
 
 3. Create a new milestone in GitHub. Plan the features of your new release. Assign
 existing bugs to your new milestone.
+
 4. Start a new feature::
 
     git flow feature start <feature name>
@@ -22,6 +23,7 @@ existing bugs to your new milestone.
 5. Code, code and code. More coding. Mess it up several times. Push to feature
 branch. Watch Travis go red. Write unit tests. Watch Travis go red again. Don't
 leave uncommitted changes.
+
 6. Finish your feature::
 
     git flow feature finish <feature name>

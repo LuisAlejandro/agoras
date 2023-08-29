@@ -1,5 +1,5 @@
-Agoras usage for Instagram network
-==================================
+Usage for Instagram
+===================
 
 How to get ``--instagram-access-token`` parameter
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

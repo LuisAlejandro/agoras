@@ -1,5 +1,5 @@
 LinkedIn credentials
-===================
+====================
 
 Agoras needs the following credentials from LinkedIn to be able to access its API.
 

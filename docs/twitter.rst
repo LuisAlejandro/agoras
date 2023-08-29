@@ -1,5 +1,5 @@
-Agoras usage for Twitter network
-================================
+Usage for Twitter
+=================
 
 How to get Twitter credentials
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
