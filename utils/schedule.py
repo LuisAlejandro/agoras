@@ -37,4 +37,4 @@ worksheet.append_row([msg,
                       '',
                       currdate,
                       currhour,
-                      'draft'])
+                      'draft'], table_range='A1')

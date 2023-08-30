@@ -22,14 +22,17 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4.7.0
         with:
           python-version: ${{ matrix.python-version }}
+
       - name: Installing dependencies
         run: |
           sudo apt-get install libxml2-dev libxslt-dev
           sudo pip install -r requirements.txt -r requirements-dev.txt
+
       - name: Measuring coverage
         env:
           TOXENV: ${{ matrix.toxenv }}
@@ -37,6 +40,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tox -e ${TOXENV}
+
       - name: Coveralls Parallel
         uses: coverallsapp/github-action@master
         with:
@@ -50,8 +54,8 @@ jobs:
     runs-on: ubuntu-22.04
     needs: build
     steps:
-    - name: Coveralls Finished
-      uses: coverallsapp/github-action@master
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        parallel-finished: true
+      - name: Coveralls Finished
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          parallel-finished: true

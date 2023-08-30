@@ -23,20 +23,37 @@ import random
 import tempfile
 import time
 from html import unescape
+from typing import cast
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 import filetype
 import gspread
+import requests
 from atoma import parse_rss_bytes
+from bs4 import BeautifulSoup
+from bs4.element import Tag
 from dateutil import parser
 from google.oauth2.service_account import Credentials
 from linkedin_api import Linkedin
+from linkedin_api.client import ChallengeException
 
 from agoras import __version__
 from agoras.core.utils import add_url_timestamp
 
-api_url_host = 'https://www.linkedin.com/voyager'
+
+ui_url_host = 'https://www.linkedin.com'
+api_url_host = f'{ui_url_host}/voyager'
+
+ui_login_endpoint = (
+    f'{ui_url_host}'
+    '/checkpoint/lg/login-submit'
+)
+ui_seed_endpoint = (
+    f'{ui_url_host}'
+    '/uas/login'
+)
+
 media_upload_endpoint = (
     f'{api_url_host}'
     '/api/voyagerVideoDashMediaUploadMetadata?action=upload')
@@ -334,7 +351,24 @@ def schedule(client, google_sheets_id,
     worksheet.clear()
 
     for row in newcontent:
-        worksheet.append_row(row)
+        worksheet.append_row(row, table_range='A1')
+
+
+def prime_linkedin_login(linkedin_username, linkedin_password):
+
+    session = requests.Session()
+
+    login_session = session.get(ui_seed_endpoint)
+    soup = BeautifulSoup(login_session.text, 'html.parser')
+    csrf = cast(Tag, soup.find('input', {'name': 'loginCsrfParam'}))
+
+    payload = {
+        'session_key': linkedin_username,
+        'session_password': linkedin_password,
+        'loginCsrfParam': csrf.get('value')
+    }
+
+    session.post(ui_login_endpoint, data=payload)
 
 
 def main(kwargs):
@@ -384,7 +418,19 @@ def main(kwargs):
         google_sheets_private_key.replace('\\n', '\n') \
         if google_sheets_private_key else ''
 
-    client = Linkedin(linkedin_username, linkedin_password)
+    try:
+        client = Linkedin(linkedin_username, linkedin_password)
+    except ChallengeException:
+        try:
+            prime_linkedin_login(linkedin_username, linkedin_password)
+        except Exception:
+            pass
+        try:
+            client = Linkedin(linkedin_username, linkedin_password)
+        except ChallengeException:
+            raise Exception('LinkedIn ChallengeException: '
+                            'This is a known issue. Please login to '
+                            'your LinkedIn account and try again.')
 
     if action == 'post':
         post(client, status_text,
