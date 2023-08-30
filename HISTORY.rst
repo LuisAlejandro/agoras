@@ -2,6 +2,17 @@ Changelog
 ============
 
 
+1.0.1 (2023-08-30)
+------------
+
+Other
+~~~~~~~~~~~~
+
+* `[REF]` Improving linkedin authentication. [Luis Alejandro Martínez Faneyth]
+
+* `[REF]` Fixing test. [Luis Alejandro Martínez Faneyth]
+
+
 1.0.0 (2023-08-29)
 ------------
 
