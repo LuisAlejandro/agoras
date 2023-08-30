@@ -3,7 +3,6 @@
 # Exit early if there are errors and be verbose
 set -exuo pipefail
 
-# source assert.sh
 source secrets.env
 
 python3 -m utils.schedule
@@ -233,8 +232,8 @@ elif [ "${1}" == "instagram" ]; then
         --action post \
         --instagram-access-token "${INSTAGRAM_ACCESS_TOKEN}" \
         --instagram-object-id "${INSTAGRAM_OBJECT_ID}" \
-        --status-text "${STATUS_TEXT}" \
-        --status-image-url-1 "${STATUS_IMAGE_URL_1}"
+        --status-text "${INSTAGRAM_STATUS_TEXT}" \
+        --status-image-url-1 "${INSTAGRAM_STATUS_IMAGE_URL_1}"
 
     sleep 5
 

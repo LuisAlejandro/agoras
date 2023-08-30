@@ -252,7 +252,7 @@ def schedule(client, clientv1, google_sheets_id, google_sheets_name,
     worksheet.clear()
 
     for row in newcontent:
-        worksheet.append_row(row)
+        worksheet.append_row(row, table_range='A1')
 
 
 def main(kwargs):

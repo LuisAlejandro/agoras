@@ -278,7 +278,7 @@ def schedule(client, instagram_object_id, google_sheets_id,
     worksheet.clear()
 
     for row in newcontent:
-        worksheet.append_row(row)
+        worksheet.append_row(row, table_range='A1')
 
 
 def main(kwargs):
