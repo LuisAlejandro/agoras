@@ -24,7 +24,7 @@ Then click on submit and you'll see a response like this::
 
 "ZZZZZZZ" is your Instagram aacount ID.
 
-.. image:: images/instagram-2.png
+.. image:: credentials/images/instagram-2.png
 
 How to get google spreadsheets credentials
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

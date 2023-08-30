@@ -3,7 +3,6 @@
 # Exit early if there are errors and be verbose
 set -exuo pipefail
 
-# source assert.sh
 source secrets.env
 
 python3 -m utils.schedule
