@@ -421,10 +421,8 @@ def main(kwargs):
     try:
         client = Linkedin(linkedin_username, linkedin_password)
     except ChallengeException:
-        try:
-            prime_linkedin_login(linkedin_username, linkedin_password)
-        except Exception:
-            pass
+        prime_linkedin_login(linkedin_username, linkedin_password)
+
         try:
             client = Linkedin(linkedin_username, linkedin_password)
         except ChallengeException:
