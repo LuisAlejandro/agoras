@@ -44,12 +44,12 @@ def post(client, facebook_object_id, status_text,
         raise Exception('No --facebook-object-id provided.')
 
     attached_media = []
-    source_media = filter(None, [
+    source_media = list(filter(None, [
         status_image_url_1, status_image_url_2,
         status_image_url_3, status_image_url_4
-    ])
+    ]))
 
-    if not list(source_media) and not status_text:
+    if not source_media and not status_text:
         raise Exception('No --status-text or --status-image-url-1 provided.')
 
     for imgurl in source_media:

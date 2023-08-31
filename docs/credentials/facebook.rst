@@ -11,8 +11,8 @@ For that, we'll need to create a Facebook App.
 How to get a Facebook permanent access token
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-0. Create a Facebook App
-------------------------
+Create a Facebook App
+---------------------
 
 .. _My Apps: https://developers.facebook.com/apps/
 
@@ -30,8 +30,8 @@ How to get a Facebook permanent access token
 
 You don't need to change its permissions or anything. You just need an app that wont go away before you're done with your access token.
 
-1. Get User Short-Lived Access Token
-------------------------------------
+Get User Short-Lived Access Token
+---------------------------------
 
 .. _Graph API Explorer: https://developers.facebook.com/tools/explorer
 
@@ -45,7 +45,7 @@ The token that appears in the "Access Token" field is your short-lived access to
 
 .. image:: images/facebook-4.png
 
-2. Generate Long-Lived Access Token
+Generate Long-Lived Access Token
 -----------------------------------
 
 .. _Access Token Debugger: https://developers.facebook.com/tools/debug/accesstoken
@@ -64,8 +64,8 @@ The response should look like this::
 
 "YYYYY" will be your long-lived access token. You can put it into the `Access Token Debugger`_ to verify. Under "Expires" it should have something like "2 months".
 
-3. Get User ID
---------------
+Get User ID
+-----------
 
 Using the long-lived access token, make a GET request to::
 
@@ -80,8 +80,8 @@ The response should look like this::
 
 The "XXXXX" field is your account ID. You'll need it for the next step.
 
-4. Get Permanent Page Access Token
------------------------------------
+Get Permanent Page Access Token
+-------------------------------
 
 .. _Access Token Debugger: https://developers.facebook.com/tools/debug/accesstoken
 

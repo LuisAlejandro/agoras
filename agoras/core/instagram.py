@@ -49,7 +49,7 @@ def post(client, instagram_object_id, status_text,
         status_image_url_3, status_image_url_4
     ]))
 
-    if len(source_media) == 0:
+    if not source_media:
         raise Exception('Instagram requires at least one status image.')
 
     is_carousel_item = False if len(source_media) == 1 else True

@@ -9,14 +9,17 @@ Making a new release
 --------------------
 
 1. Start your project with a cookiecutter template.
-2. Start your git flow workflow::
+
+2. Start your git flow workflow.
+::
 
     git flow init
 
 3. Create a new milestone in GitHub. Plan the features of your new release. Assign
 existing bugs to your new milestone.
 
-4. Start a new feature::
+4. Start a new feature.
+::
 
     git flow feature start <feature name>
 
@@ -24,32 +27,40 @@ existing bugs to your new milestone.
 branch. Watch Travis go red. Write unit tests. Watch Travis go red again. Don't
 leave uncommitted changes.
 
-6. Finish your feature::
+6. Finish your feature.
+::
 
     git flow feature finish <feature name>
 
 7. Repeat 4-6 for every other feature you have planned for this release.
-8. When you're done with the features and ready to publish, start a new release::
+
+8. When you're done with the features and ready to publish, start a new release.
+::
 
     git flow release start <release number>
 
-9. Bump your version (check everything before next step)::
+9. Bump your version (check everything before next step).
+::
 
     bumpversion --no-commit <major, minor or patch>
 
-10. Update your changelog (edit HISTORY.rst after to customize)::
+10. Update your changelog (edit HISTORY.rst after to customize).
+::
 
     gitchangelog > HISTORY.rst
 
-11. Commit your changes to version files and changelog::
+11. Commit your changes to version files and changelog.
+::
 
     git commit -aS -m "Updating Changelog and version."
 
-12. Delete the tag made by bumpversion::
+12. Delete the tag made by bumpversion.
+::
 
     git tag -d <release number>
 
-13. Finish your release::
+13. Finish your release.
+::
 
     git flow release finish -s -p <release number>
 
@@ -58,7 +69,8 @@ a description. Also pick a codename because it makes you cool.
 
 16. Close the milestone in GitHub.
 
-17. Publish your new version to PyPI::
+17. Publish your new version to PyPI.
+::
 
     make release
 
@@ -68,28 +80,34 @@ Making a new hotfix
 -------------------
 
 1. Create a new milestone in GitHub. Assign existing bugs to your new milestone.
-2. Start a new hotfix::
+2. Start a new hotfix.
+::
 
     git flow hotfix start <new version>
 
 3. Code your hotfix.
-4. Bump your version (check everything before next step)::
+4. Bump your version (check everything before next step).
+::
 
     bumpversion --no-commit <major, minor or patch>
 
-5. Update your changelog (edit HISTORY.rst after to customize)::
+5. Update your changelog (edit HISTORY.rst after to customize).
+::
 
     gitchangelog > HISTORY.rst
 
-6. Commit your changes to version files and changelog::
+6. Commit your changes to version files and changelog.
+::
 
     git commit -aS -m "Updating Changelog and version."
 
-7. Delete the tag made by bumpversion::
+7. Delete the tag made by bumpversion.
+::
 
     git tag -d <new version>
 
-8. Finish your hotfix::
+8. Finish your hotfix.
+::
 
     git flow hotfix finish -s -p <new version>
 
@@ -98,7 +116,8 @@ a description. Don't change the codename if it is a hotfix.
 
 11. Close the milestone in GitHub.
 
-12. Publish your new version to PyPI::
+12. Publish your new version to PyPI.
+::
 
     make release
 
