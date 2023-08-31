@@ -2,6 +2,19 @@ Changelog
 ============
 
 
+1.1.0 (2023-08-31)
+------------
+
+Other
+~~~~~~~~~~~~
+
+* `[REF]` Improving documentation. [Luis Alejandro Martínez Faneyth]
+
+* `[REF]` Rewriting linkedin module to use official api. [Luis Alejandro Martínez Faneyth]
+
+* Test. [Luis Alejandro Martínez Faneyth]
+
+
 1.0.1 (2023-08-30)
 ------------
 
