@@ -21,7 +21,7 @@ Create a LinkedIn App
 
 4. You will need to associate your app with a LinkedIn page. If you don't have any pages, `create one <https://www.linkedin.com/company/setup/new/>`_.
 
-5. Request App Verification From the Company Page: go to the Settings tab and press the "Verify" button to receive a verification link. Open this link if you're the company's page administrator or send it to administrator(s) of the company page you previously selected. When you/the administrator opens the link, you/they will be prompted to confirm their responsibility for your app. If you/they confirm, you will receive a notification that your app has been verified and you can continue with other settings.
+5. Request App Verification From the Company Page: go to the Settings tab and press the "Verify" button to receive a verification link. Open this link and confirm responsability for the app.
 
 .. image:: images/linkedin-3.png
 

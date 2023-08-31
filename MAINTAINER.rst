@@ -80,12 +80,14 @@ Making a new hotfix
 -------------------
 
 1. Create a new milestone in GitHub. Assign existing bugs to your new milestone.
+
 2. Start a new hotfix.
 ::
 
     git flow hotfix start <new version>
 
 3. Code your hotfix.
+
 4. Bump your version (check everything before next step).
 ::
 
