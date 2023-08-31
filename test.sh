@@ -274,8 +274,7 @@ elif [ "${1}" == "linkedin" ]; then
         python3 -m agoras.cli publish \
             --network linkedin \
             --action post \
-            --linkedin-username "${LINKEDIN_USERNAME}" \
-            --linkedin-password "${LINKEDIN_PASSWORD}" \
+            --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
             --status-text "${LINKEDIN_STATUS_TEXT}" \
             --status-image-url-1 "${LINKEDIN_STATUS_IMAGE_URL_1}" | jq -r '.id'
     )
@@ -285,8 +284,7 @@ elif [ "${1}" == "linkedin" ]; then
     python3 -m agoras.cli publish \
         --network linkedin \
         --action like \
-        --linkedin-username "${LINKEDIN_USERNAME}" \
-        --linkedin-password "${LINKEDIN_PASSWORD}" \
+        --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
         --linkedin-post-id "${POST_LINKEDIN_ID}"
 
     sleep 5
@@ -295,8 +293,7 @@ elif [ "${1}" == "linkedin" ]; then
         python3 -m agoras.cli publish \
             --network linkedin \
             --action share \
-            --linkedin-username "${LINKEDIN_USERNAME}" \
-            --linkedin-password "${LINKEDIN_PASSWORD}" \
+            --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
             --linkedin-post-id "${POST_LINKEDIN_ID}" | jq -r '.id'
     )
 
@@ -306,8 +303,7 @@ elif [ "${1}" == "linkedin" ]; then
         python3 -m agoras.cli publish \
             --network linkedin \
             --action last-from-feed \
-            --linkedin-username "${LINKEDIN_USERNAME}" \
-            --linkedin-password "${LINKEDIN_PASSWORD}" \
+            --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
             --feed-url "${FEED_URL}" \
             --max-count "${MAX_COUNT}" \
             --post-lookback "${POST_LOOKBACK}" | jq -r '.id'
@@ -319,8 +315,7 @@ elif [ "${1}" == "linkedin" ]; then
         python3 -m agoras.cli publish \
             --network linkedin \
             --action random-from-feed \
-            --linkedin-username "${LINKEDIN_USERNAME}" \
-            --linkedin-password "${LINKEDIN_PASSWORD}" \
+            --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
             --feed-url "${FEED_URL}" \
             --max-post-age "${MAX_POST_AGE}" | jq -r '.id'
     )
@@ -331,8 +326,7 @@ elif [ "${1}" == "linkedin" ]; then
         python3 -m agoras.cli publish \
             --network linkedin \
             --action schedule \
-            --linkedin-username "${LINKEDIN_USERNAME}" \
-            --linkedin-password "${LINKEDIN_PASSWORD}" \
+            --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
             --max-count "${MAX_COUNT}" \
             --google-sheets-id "${GOOGLE_SHEETS_ID}" \
             --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
@@ -340,49 +334,44 @@ elif [ "${1}" == "linkedin" ]; then
             --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" | jq -r '.id'
     )
 
-    sleep 10
+    sleep 5
 
     python3 -m agoras.cli publish \
         --network linkedin \
         --action delete \
-        --linkedin-username "${LINKEDIN_USERNAME}" \
-        --linkedin-password "${LINKEDIN_PASSWORD}" \
+        --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
         --linkedin-post-id "${POST_LINKEDIN_ID}"
 
-    sleep 10
+    sleep 5
 
     python3 -m agoras.cli publish \
         --network linkedin \
         --action delete \
-        --linkedin-username "${LINKEDIN_USERNAME}" \
-        --linkedin-password "${LINKEDIN_PASSWORD}" \
+        --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
         --linkedin-post-id "${SHARED_POST_LINKEDIN_ID}"
 
-    sleep 10
+    sleep 5
 
     python3 -m agoras.cli publish \
         --network linkedin \
         --action delete \
-        --linkedin-username "${LINKEDIN_USERNAME}" \
-        --linkedin-password "${LINKEDIN_PASSWORD}" \
+        --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
         --linkedin-post-id "${LAST_FROM_FEED_LINKEDIN_ID}"
 
-    sleep 10
+    sleep 5
 
     python3 -m agoras.cli publish \
         --network linkedin \
         --action delete \
-        --linkedin-username "${LINKEDIN_USERNAME}" \
-        --linkedin-password "${LINKEDIN_PASSWORD}" \
+        --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
         --linkedin-post-id "${RANDOM_FROM_FEED_LINKEDIN_ID}"
 
-    sleep 10
+    sleep 5
 
     python3 -m agoras.cli publish \
         --network linkedin \
         --action delete \
-        --linkedin-username "${LINKEDIN_USERNAME}" \
-        --linkedin-password "${LINKEDIN_PASSWORD}" \
+        --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
         --linkedin-post-id "${SCHEDULE_LINKEDIN_ID}"
 
 else

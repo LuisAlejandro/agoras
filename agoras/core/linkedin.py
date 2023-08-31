@@ -23,60 +23,34 @@ import random
 import tempfile
 import time
 from html import unescape
-from typing import cast
-from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 import filetype
 import gspread
-import requests
 from atoma import parse_rss_bytes
-from bs4 import BeautifulSoup
-from bs4.element import Tag
 from dateutil import parser
 from google.oauth2.service_account import Credentials
-from linkedin_api import Linkedin
-from linkedin_api.client import ChallengeException
+from linkedin_api.clients.restli.client import RestliClient
+import requests
 
 from agoras import __version__
 from agoras.core.utils import add_url_timestamp
 
 
-ui_url_host = 'https://www.linkedin.com'
-api_url_host = f'{ui_url_host}/voyager'
-
-ui_login_endpoint = (
-    f'{ui_url_host}'
-    '/checkpoint/lg/login-submit'
-)
-ui_seed_endpoint = (
-    f'{ui_url_host}'
-    '/uas/login'
-)
-
-media_upload_endpoint = (
-    f'{api_url_host}'
-    '/api/voyagerVideoDashMediaUploadMetadata?action=upload')
-content_creation_endpoint = (
-    f'{api_url_host}/api/contentcreation/normShares')
-social_reactions_endpoint = (
-    f'{api_url_host}/api/voyagerSocialDashReactions')
-updates_endpoint = (
-    f'{api_url_host}/api/feed/updatesV2?commentsCount=0'
-    '&likesCount=0&q=backendUrnOrNss')
+api_version = "202302"
 
 
-def post(client, status_text,
+def post(client, linkedin_access_token, linkedin_object_id, status_text,
          status_image_url_1=None, status_image_url_2=None,
          status_image_url_3=None, status_image_url_4=None):
 
     attached_media = []
-    source_media = filter(None, [
+    source_media = list(filter(None, [
         status_image_url_1, status_image_url_2,
         status_image_url_3, status_image_url_4
-    ])
+    ]))
 
-    if not list(source_media) and not status_text:
+    if not source_media and not status_text:
         raise Exception('No --status-text or --status-image-url-1 provided.')
 
     for imgurl in source_media:
@@ -86,7 +60,8 @@ def post(client, status_text,
 
         with open(tmpimg, 'wb') as i:
             request = Request(url=imgurl, headers={'User-Agent': f'Agoras/{__version__}'})
-            i.write(urlopen(request).read())
+            imgcontent = urlopen(request).read()
+            i.write(imgcontent)
 
         kind = filetype.guess(tmpimg)
 
@@ -96,114 +71,164 @@ def post(client, status_text,
         if kind.mime not in ['image/jpeg', 'image/png', 'image/gif']:
             raise Exception(f'Invalid image type "{kind.mime}" for {imgurl}')
 
-        media = client.client.session.post(
-            media_upload_endpoint,
-            json.dumps({
-                'mediaUploadType': 'IMAGE_SHARING',
-                'fileSize': os.stat(tmpimg).st_size,
-                'filename': tmpimg
-            })
+        request = client.action(
+            resource_path="/images",
+            action_name="initializeUpload",
+            action_params={
+                "initializeUploadRequest": {
+                    "owner": f"urn:li:person:{linkedin_object_id}",
+                }
+            },
+            version_string=api_version,
+            access_token=linkedin_access_token
         )
 
-        media_response = media.json()
-        media_upload_url = media_response['value']['singleUploadUrl']
-        media_urn = media_response['value']['urn']
+        response = request.response.json()
+        upload_url = response.get('value', {}).get('uploadUrl', '')
+        media_id = response.get('value', {}).get('image', '')
 
         time.sleep(random.randrange(5))
 
-        with open(tmpimg, 'rb') as i:
-            client.client.session.put(media_upload_url, i)
+        try:
+            response = requests.put(
+                upload_url,
+                headers={
+                    'Authorization': f'Bearer {linkedin_access_token}'},
+                data=imgcontent)
+        except Exception:
+            continue
+
+        if response.status_code != 201:
+            continue
 
         attached_media.append({
-            'category': 'IMAGE',
-            'mediaUrn': media_urn,
-            'tapTargets': []
+            "id": media_id,
         })
 
-    data = {
-        'visibleToConnectionsOnly': False,
-        'commentsDisabled': False,
-        'externalAudienceProviders': [],
-        'commentaryV2': {
-            'text': status_text,
-            'attributes': []
+    entity = {
+        "author": f"urn:li:person:{linkedin_object_id}",
+        "commentary": status_text,
+        "visibility": "PUBLIC",
+        "distribution": {
+            "feedDistribution": "MAIN_FEED",
+            "targetEntities": [],
+            "thirdPartyDistributionChannels": []
         },
-        'origin': 'FEED',
-        'allowedCommentersScope': 'ALL',
+        "lifecycleState": "PUBLISHED",
+        "isReshareDisabledByAuthor": False
     }
 
-    if attached_media:
-        data['media'] = attached_media
+    if len(attached_media) == 1:
+        entity['content'] = {
+            "media": attached_media[0]
+        }
+
+    if len(attached_media) > 1:
+        entity['content'] = {
+            "multiImage": {
+                "images": attached_media
+            }
+        }
 
     time.sleep(random.randrange(5))
-    response = client.client.session.post(content_creation_endpoint, json.dumps(data))
-    payload = response.json()
+
+    request = client.create(
+        resource_path='/posts',
+        entity=entity,
+        version_string=api_version,
+        access_token=linkedin_access_token
+    )
+
     status = {
-        'id': payload['status']['updateV2']['updateMetadata']['urn'].replace('urn:li:activity:', '')
+        'id': request.entity_id
     }
     print(json.dumps(status, separators=(',', ':')))
 
 
-def like(client, linkedin_post_id):
+def like(client, linkedin_access_token, linkedin_object_id, linkedin_post_id):
     time.sleep(random.randrange(5))
-    media_urn = quote(f'urn:li:activity:{linkedin_post_id}')
-    client.client.session.post(
-        f'{social_reactions_endpoint}?threadUrn={media_urn}',
-        json.dumps({'reactionType': 'LIKE'})
+
+    entity = {
+        "actor": f"urn:li:person:{linkedin_object_id}",
+        "object": linkedin_post_id,
+    }
+
+    request = client.create(
+        resource_path='/socialActions/{id}/likes',
+        path_keys={
+            "id": linkedin_post_id,
+        },
+        entity=entity,
+        version_string=api_version,
+        access_token=linkedin_access_token
     )
+
+    if request.status_code != 201:
+        raise Exception(f'Unable to like post {linkedin_post_id}')
+
+    status = {
+        'id': linkedin_post_id,
+    }
+    print(json.dumps(status, separators=(',', ':')))
+
+
+def share(client, linkedin_access_token, linkedin_object_id, linkedin_post_id):
+    time.sleep(random.randrange(5))
+
+    entity = {
+        "author": f"urn:li:person:{linkedin_object_id}",
+        "commentary": "",
+        "visibility": "PUBLIC",
+        "distribution": {
+            "feedDistribution": "MAIN_FEED",
+            "targetEntities": [],
+            "thirdPartyDistributionChannels": []
+        },
+        "lifecycleState": "PUBLISHED",
+        "isReshareDisabledByAuthor": False,
+        "reshareContext": {
+            "parent": linkedin_post_id
+        }
+    }
+
+    request = client.create(
+        resource_path='/posts',
+        entity=entity,
+        version_string=api_version,
+        access_token=linkedin_access_token
+    )
+
+    if request.status_code != 201:
+        raise Exception(f'Unable to share post {linkedin_post_id}')
+
+    status = {
+        'id': request.entity_id
+    }
+    print(json.dumps(status, separators=(',', ':')))
+
+
+def delete(client, linkedin_access_token, linkedin_object_id, linkedin_post_id):
+    time.sleep(random.randrange(5))
+
+    request = client.delete(
+        resource_path='/posts/{id}',
+        path_keys={
+            "id": linkedin_post_id,
+        },
+        version_string=api_version,
+        access_token=linkedin_access_token
+    )
+
+    if request.status_code != 204:
+        raise Exception(f'Unable to delete post {linkedin_post_id}')
+
     status = {
         'id': linkedin_post_id
     }
     print(json.dumps(status, separators=(',', ':')))
 
 
-def share(client, linkedin_post_id):
-    time.sleep(random.randrange(5))
-    media_urn = quote(f'urn:li:activity:{linkedin_post_id}')
-    metadata = client.client.session.get(
-        f'{updates_endpoint}&urnOrNss={media_urn}'
-    )
-    metadata_response = metadata.json()
-    share_urn = metadata_response['elements'][0]['updateMetadata']['shareUrn']
-    response = client.client.session.post(
-        content_creation_endpoint,
-        json.dumps({
-            "visibleToConnectionsOnly": False,
-            "externalAudienceProviders": [],
-            "commentaryV2": {
-                "text": "",
-                "attributes": []
-            },
-            "origin": "SHARE_AS_IS",
-            "allowedCommentersScope": "NONE",
-            "postState": "PUBLISHED",
-            "parentUrn": share_urn})
-    )
-    payload = response.json()
-    status = {
-        'id': payload['status']['updateV2']['updateMetadata']['urn'].replace('urn:li:activity:', '')
-    }
-    print(json.dumps(status, separators=(',', ':')))
-
-
-def delete(client, linkedin_post_id):
-    time.sleep(random.randrange(5))
-    media_urn = quote(f'urn:li:activity:{linkedin_post_id}')
-    metadata = client.client.session.get(
-        f'{updates_endpoint}&urnOrNss={media_urn}'
-    )
-    metadata_response = metadata.json()
-    share_urn = metadata_response['elements'][0]['updateMetadata']['urn']
-    client.client.session.delete(
-        f'{content_creation_endpoint}/{share_urn}'
-    )
-    status = {
-        'id': linkedin_post_id
-    }
-    print(json.dumps(status, separators=(',', ':')))
-
-
-def last_from_feed(client, feed_url, max_count, post_lookback):
+def last_from_feed(client, linkedin_access_token, linkedin_object_id, feed_url, max_count, post_lookback):
 
     count = 0
 
@@ -242,10 +267,10 @@ def last_from_feed(client, feed_url, max_count, post_lookback):
             status_image = ''
 
         count += 1
-        post(client, status_text, status_image)
+        post(client, linkedin_access_token, linkedin_object_id, status_text, status_image)
 
 
-def random_from_feed(client, feed_url, max_post_age):
+def random_from_feed(client, linkedin_access_token, linkedin_object_id, feed_url, max_post_age):
 
     json_index_content = {}
 
@@ -288,10 +313,10 @@ def random_from_feed(client, feed_url, max_post_age):
     status_title = unescape(random_status_title) if random_status_title else ''
     status_text = '{0} {1}'.format(status_title, status_link)
 
-    post(client, status_text, random_status_image)
+    post(client, linkedin_access_token, linkedin_object_id, status_text, random_status_image)
 
 
-def schedule(client, google_sheets_id,
+def schedule(client, linkedin_access_token, linkedin_object_id, google_sheets_id,
              google_sheets_name, google_sheets_client_email,
              google_sheets_private_key, max_count):
 
@@ -344,7 +369,7 @@ def schedule(client, google_sheets_id,
 
         count += 1
         newcontent[-1][-1] = 'published'
-        post(client, status_text,
+        post(client, linkedin_access_token, linkedin_object_id, status_text,
              status_image_url_1, status_image_url_2,
              status_image_url_3, status_image_url_4)
 
@@ -354,32 +379,12 @@ def schedule(client, google_sheets_id,
         worksheet.append_row(row, table_range='A1')
 
 
-def prime_linkedin_login(linkedin_username, linkedin_password):
-
-    session = requests.Session()
-
-    login_session = session.get(ui_seed_endpoint)
-    soup = BeautifulSoup(login_session.text, 'html.parser')
-    csrf = cast(Tag, soup.find('input', {'name': 'loginCsrfParam'}))
-
-    payload = {
-        'session_key': linkedin_username,
-        'session_password': linkedin_password,
-        'loginCsrfParam': csrf.get('value')
-    }
-
-    session.post(ui_login_endpoint, data=payload)
-
-
 def main(kwargs):
 
     action = kwargs.get('action')
-    linkedin_username = kwargs.get(
-        'linkedin_username',
-        os.environ.get('LINKEDIN_USERNAME', None))
-    linkedin_password = kwargs.get(
-        'linkedin_password',
-        os.environ.get('LINKEDIN_PASSWORD', None))
+    linkedin_access_token = kwargs.get(
+        'linkedin_access_token',
+        os.environ.get('LINKEDIN_ACCESS_TOKEN', None))
     linkedin_post_id = kwargs.get('linkedin_post_id', None) or \
         os.environ.get('LINKEDIN_POST_ID', None)
     status_text = kwargs.get('status_text', None) or \
@@ -418,37 +423,27 @@ def main(kwargs):
         google_sheets_private_key.replace('\\n', '\n') \
         if google_sheets_private_key else ''
 
-    try:
-        client = Linkedin(linkedin_username, linkedin_password)
-    except ChallengeException:
-        try:
-            prime_linkedin_login(linkedin_username, linkedin_password)
-        except Exception:
-            pass
-        try:
-            client = Linkedin(linkedin_username, linkedin_password)
-        except ChallengeException:
-            raise Exception('LinkedIn ChallengeException: '
-                            'This is a known issue. Please login to '
-                            'your LinkedIn account and try again.')
+    client = RestliClient()
+    me = client.get(resource_path='/userinfo', access_token=linkedin_access_token)
+    linkedin_object_id = me.response.json().get('sub', '')
 
     if action == 'post':
-        post(client, status_text,
+        post(client, linkedin_access_token, linkedin_object_id, status_text,
              status_image_url_1, status_image_url_2,
              status_image_url_3, status_image_url_4)
     elif action == 'like':
-        like(client, linkedin_post_id)
+        like(client, linkedin_access_token, linkedin_object_id, linkedin_post_id)
     elif action == 'share':
-        share(client, linkedin_post_id)
+        share(client, linkedin_access_token, linkedin_object_id, linkedin_post_id)
     elif action == 'delete':
-        delete(client, linkedin_post_id)
+        delete(client, linkedin_access_token, linkedin_object_id, linkedin_post_id)
     elif action == 'last-from-feed':
-        last_from_feed(client, feed_url,
+        last_from_feed(client, linkedin_access_token, linkedin_object_id, feed_url,
                        max_count, post_lookback)
     elif action == 'random-from-feed':
-        random_from_feed(client, feed_url, max_post_age)
+        random_from_feed(client, linkedin_access_token, linkedin_object_id, feed_url, max_post_age)
     elif action == 'schedule':
-        schedule(client, google_sheets_id,
+        schedule(client, linkedin_access_token, linkedin_object_id, google_sheets_id,
                  google_sheets_name, google_sheets_client_email,
                  google_sheets_private_key, max_count)
     elif action == '':
