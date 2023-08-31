@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2016-2022, Agoras Developers.
+# Copyright (C) 2022-2023, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -89,24 +89,32 @@ def post(client, facebook_object_id, status_text,
         data['attached_media'] = json.dumps(attached_media)
 
     time.sleep(random.randrange(5))
-    status = client.post_object(object_id=facebook_object_id,
-                                connection='feed',
-                                data=data)
+    request = client.post_object(object_id=facebook_object_id,
+                                 connection='feed',
+                                 data=data)
+    status = {
+        "id": request['id'].split('_')[1]
+    }
     print(json.dumps(status, separators=(',', ':')))
 
 
 def like(client, facebook_object_id, facebook_post_id):
     time.sleep(random.randrange(5))
-    status = client.post_object(
+    client.post_object(
         object_id=f'{facebook_object_id}_{facebook_post_id}',
         connection='likes')
+    status = {
+        "id": facebook_post_id
+    }
     print(json.dumps(status, separators=(',', ':')))
 
 
 def delete(client, facebook_object_id, facebook_post_id):
     time.sleep(random.randrange(5))
-    status = client.delete_object(
-        object_id=f'{facebook_object_id}_{facebook_post_id}')
+    client.delete_object(object_id=f'{facebook_object_id}_{facebook_post_id}')
+    status = {
+        "id": facebook_post_id
+    }
     print(json.dumps(status, separators=(',', ':')))
 
 
@@ -117,9 +125,12 @@ def share(client, facebook_profile_id, facebook_object_id, facebook_post_id):
         'link': f'{host}/{facebook_object_id}/posts/{facebook_post_id}',
         'published': True
     }
-    status = client.post_object(object_id=facebook_profile_id,
-                                connection='feed',
-                                data=data)
+    request = client.post_object(object_id=facebook_profile_id,
+                                 connection='feed',
+                                 data=data)
+    status = {
+        "id": request['id'].split('_')[1]
+    }
     print(json.dumps(status, separators=(',', ':')))
 
 

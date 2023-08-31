@@ -62,7 +62,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'agoras'
-copyright = u'2016-2022, agoras Developers'
+copyright = u'2022-2023, agoras Developers'
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
@@ -130,11 +130,11 @@ html_theme_options = {
     'github_user': 'LuisAlejandro',
     'github_repo': 'agoras',
     'travis_button': False,
-    'link': '#2471a3',
-    'link_hover': '#1c587f',
+    'link': '#f2545b',
+    'link_hover': '#db4d58',
     'show_powered_by': False,
-    'head_font_family': 'Montserrat, sans-serif',
-    'font_family': 'Montserrat, sans-serif',
+    'head_font_family': 'Roboto, sans-serif',
+    'font_family': 'Roboto, sans-serif',
 }
 
 html_sidebars = {
@@ -170,6 +170,10 @@ html_theme_path = [alabaster.get_path()]
 # static files, so a file named "default.css" will overwrite the builtin
 # "default.css".
 html_static_path = ['_static']
+
+html_css_files = [
+    'custom.css',
+]
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page
 # bottom, using the given strftime format.
@@ -236,7 +240,7 @@ latex_elements = {
 # [howto/manual]).
 latex_documents = [
     ('index', 'agoras.tex',
-     u'agoras Documentation',
+     u'Agoras Documentation',
      u'Luis Alejandro Martínez Faneyth', 'manual'),
 ]
 
@@ -267,7 +271,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'agoras',
-     u'agoras Documentation',
+     u'Agoras Documentation',
      [u'Luis Alejandro Martínez Faneyth'], 1)
 ]
 
@@ -282,10 +286,10 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     ('index', 'agoras',
-     u'agoras Documentation',
+     u'Agoras Documentation',
      u'Luis Alejandro Martínez Faneyth',
      'agoras',
-     'One line description of project.',
+     agoras.__description__,
      'Miscellaneous'),
 ]
 

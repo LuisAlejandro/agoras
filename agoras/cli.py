@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2016-2022, Agoras Developers.
+# Copyright (C) 2022-2023, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -104,7 +104,7 @@ def commandline(argv=None):
         help=('Twitter OAuth secret from twitter developer app.'))
     publish_options.add_argument(
         '-ti', '--tweet-id', metavar='<id>',
-        help=('Twitter post ID to like, retweet or delete.'))
+        help=('Twitter post ID to like, share or delete.'))
     publish_options.add_argument(
         '-ft', '--facebook-access-token', metavar='<access token>',
         help=('Facebook access token from facebook app.'))
@@ -133,7 +133,7 @@ def commandline(argv=None):
         help=('Your LinkedIn access token.'))
     publish_options.add_argument(
         '-lp', '--linkedin-post-id', metavar='<id>',
-        help=('LinkedIn post ID to like, retweet or delete.'))
+        help=('LinkedIn post ID to like, share or delete.'))
     publish_options.add_argument(
         '-st', '--status-text', metavar='<text>',
         help=('Text to be published.'))

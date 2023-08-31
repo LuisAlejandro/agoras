@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2016-2022, Agoras Developers.
+# Copyright (C) 2022-2023, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -81,26 +81,28 @@ def post(client, clientv1, status_text,
         data['media_ids'] = media_ids
 
     time.sleep(random.randrange(5))
-    status = client.create_tweet(**data)
-    print(json.dumps(status.data, separators=(',', ':')))
+    request = client.create_tweet(**data)
+    status = {
+        "id": request.data['id']
+    }
+    print(json.dumps(status, separators=(',', ':')))
 
 
 def like(client, clientv1, tweet_id):
-    time.sleep(random.randrange(5))
-    status = client.like(tweet_id)
-    print(json.dumps(status.data, separators=(',', ':')))
+    raise Exception('like not supported for twitter')
 
 
 def delete(client, clientv1, tweet_id):
     time.sleep(random.randrange(5))
-    status = client.delete_tweet(tweet_id)
-    print(json.dumps(status.data, separators=(',', ':')))
+    client.delete_tweet(tweet_id)
+    status = {
+        "id": tweet_id
+    }
+    print(json.dumps(status, separators=(',', ':')))
 
 
 def share(client, clientv1, tweet_id):
-    time.sleep(random.randrange(5))
-    status = client.retweet(tweet_id)
-    print(json.dumps(status.data, separators=(',', ':')))
+    raise Exception('share not supported for twitter')
 
 
 def last_from_feed(client, clientv1, feed_url, max_count, post_lookback):

@@ -117,7 +117,7 @@ elif [ "${1}" == "facebook" ]; then
             --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
             --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
             --status-text "${FACEBOOK_STATUS_TEXT}" \
-            --status-image-url-1 "${FACEBOOK_STATUS_IMAGE_URL_1}" | jq -r '.id' | awk -F '_' '{print $2}'
+            --status-image-url-1 "${FACEBOOK_STATUS_IMAGE_URL_1}" | jq -r '.id'
     )
 
     sleep 5
@@ -138,7 +138,7 @@ elif [ "${1}" == "facebook" ]; then
             --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
             --facebook-profile-id "${FACEBOOK_PROFILE_ID}" \
             --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-            --facebook-post-id "${POST_FACEBOOK_ID}" | jq -r '.id' | awk -F '_' '{print $2}'
+            --facebook-post-id "${POST_FACEBOOK_ID}" | jq -r '.id'
     )
 
     sleep 5
@@ -151,7 +151,7 @@ elif [ "${1}" == "facebook" ]; then
             --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
             --feed-url "${FEED_URL}" \
             --max-count "${MAX_COUNT}" \
-            --post-lookback "${POST_LOOKBACK}" | jq -r '.id' | awk -F '_' '{print $2}'
+            --post-lookback "${POST_LOOKBACK}" | jq -r '.id'
     )
 
     sleep 5
@@ -163,7 +163,7 @@ elif [ "${1}" == "facebook" ]; then
             --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
             --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
             --feed-url "${FEED_URL}" \
-            --max-post-age "${MAX_POST_AGE}" | jq -r '.id' | awk -F '_' '{print $2}'
+            --max-post-age "${MAX_POST_AGE}" | jq -r '.id'
     )
 
     sleep 5
@@ -178,7 +178,7 @@ elif [ "${1}" == "facebook" ]; then
             --google-sheets-id "${GOOGLE_SHEETS_ID}" \
             --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
             --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-            --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" | jq -r '.id' | awk -F '_' '{print $2}'
+            --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" | jq -r '.id'
     )
 
     sleep 5
@@ -237,37 +237,37 @@ elif [ "${1}" == "instagram" ]; then
 
     sleep 5
 
-    python3 -m agoras.cli publish \
-        --network instagram \
-        --action last-from-feed \
-        --instagram-access-token "${INSTAGRAM_ACCESS_TOKEN}" \
-        --instagram-object-id "${INSTAGRAM_OBJECT_ID}" \
-        --feed-url "${FEED_URL}" \
-        --max-count "${MAX_COUNT}" \
-        --post-lookback "${POST_LOOKBACK}"
+    # python3 -m agoras.cli publish \
+    #     --network instagram \
+    #     --action last-from-feed \
+    #     --instagram-access-token "${INSTAGRAM_ACCESS_TOKEN}" \
+    #     --instagram-object-id "${INSTAGRAM_OBJECT_ID}" \
+    #     --feed-url "${FEED_URL}" \
+    #     --max-count "${MAX_COUNT}" \
+    #     --post-lookback "${POST_LOOKBACK}"
 
-    sleep 5
+    # sleep 5
 
-    python3 -m agoras.cli publish \
-        --network instagram \
-        --action random-from-feed \
-        --instagram-access-token "${INSTAGRAM_ACCESS_TOKEN}" \
-        --instagram-object-id "${INSTAGRAM_OBJECT_ID}" \
-        --feed-url "${FEED_URL}" \
-        --max-post-age "${MAX_POST_AGE}"
+    # python3 -m agoras.cli publish \
+    #     --network instagram \
+    #     --action random-from-feed \
+    #     --instagram-access-token "${INSTAGRAM_ACCESS_TOKEN}" \
+    #     --instagram-object-id "${INSTAGRAM_OBJECT_ID}" \
+    #     --feed-url "${FEED_URL}" \
+    #     --max-post-age "${MAX_POST_AGE}"
 
-    sleep 5
+    # sleep 5
 
-    python3 -m agoras.cli publish \
-        --network instagram \
-        --action schedule \
-        --instagram-access-token "${INSTAGRAM_ACCESS_TOKEN}" \
-        --instagram-object-id "${INSTAGRAM_OBJECT_ID}" \
-        --max-count "${MAX_COUNT}" \
-        --google-sheets-id "${GOOGLE_SHEETS_ID}" \
-        --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
-        --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-        --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
+    # python3 -m agoras.cli publish \
+    #     --network instagram \
+    #     --action schedule \
+    #     --instagram-access-token "${INSTAGRAM_ACCESS_TOKEN}" \
+    #     --instagram-object-id "${INSTAGRAM_OBJECT_ID}" \
+    #     --max-count "${MAX_COUNT}" \
+    #     --google-sheets-id "${GOOGLE_SHEETS_ID}" \
+    #     --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
+    #     --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
+    #     --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
 
 elif [ "${1}" == "linkedin" ]; then
     POST_LINKEDIN_ID=$(

@@ -82,7 +82,7 @@ servedocs: docs start
 	@$(exec_on_docker) watchmedo shell-command -p '*.rst' -c 'make -C docs html' -R -D .
 
 release: clean start dist
-	@$(exec_on_docker) twine upload dist/*
+	@twine upload -s -i luis@luisalejandro.org dist/*
 
 dist: clean start
 	@$(exec_on_docker) python3 -m build
