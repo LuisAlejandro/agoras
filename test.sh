@@ -5,7 +5,7 @@ set -exuo pipefail
 
 source secrets.env
 
-python3 -m utils.schedule
+python3 -m utils.schedule "${GOOGLE_SHEETS_ID}" "${GOOGLE_SHEETS_NAME}" "${GOOGLE_SHEETS_CLIENT_EMAIL}" "${GOOGLE_SHEETS_PRIVATE_KEY}"
 
 if [ "${1}" == "twitter" ]; then
     POST_TWITTER_ID=$(
@@ -17,19 +17,8 @@ if [ "${1}" == "twitter" ]; then
             --twitter-oauth-token "${TWITTER_OAUTH_TOKEN}" \
             --twitter-oauth-secret "${TWITTER_OAUTH_SECRET}" \
             --status-text "${TWITTER_STATUS_TEXT}" \
-            --status-image-url-1 "${TWITTER_STATUS_IMAGE_URL_1}" | jq -r '.id'
+            --status-image-url-1 "${TWITTER_STATUS_IMAGE_URL_1}" | jq --unbuffered '.' | jq -r '.id'
     )
-
-    sleep 5
-
-    python3 -m agoras.cli publish \
-        --network twitter \
-        --action delete \
-        --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \
-        --twitter-consumer-secret "${TWITTER_CONSUMER_SECRET}" \
-        --twitter-oauth-token "${TWITTER_OAUTH_TOKEN}" \
-        --twitter-oauth-secret "${TWITTER_OAUTH_SECRET}" \
-        --tweet-id "${POST_TWITTER_ID}"
 
     sleep 5
 
@@ -42,8 +31,8 @@ if [ "${1}" == "twitter" ]; then
             --twitter-oauth-token "${TWITTER_OAUTH_TOKEN}" \
             --twitter-oauth-secret "${TWITTER_OAUTH_SECRET}" \
             --feed-url "${FEED_URL}" \
-            --max-count "${MAX_COUNT}" \
-            --post-lookback "${POST_LOOKBACK}" | jq -r '.id'
+            --max-count 1 \
+            --post-lookback "${POST_LOOKBACK}" | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
@@ -57,7 +46,7 @@ if [ "${1}" == "twitter" ]; then
             --twitter-oauth-token "${TWITTER_OAUTH_TOKEN}" \
             --twitter-oauth-secret "${TWITTER_OAUTH_SECRET}" \
             --feed-url "${FEED_URL}" \
-            --max-post-age "${MAX_POST_AGE}" | jq -r '.id'
+            --max-post-age 365 | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
@@ -70,44 +59,56 @@ if [ "${1}" == "twitter" ]; then
             --twitter-consumer-secret "${TWITTER_CONSUMER_SECRET}" \
             --twitter-oauth-token "${TWITTER_OAUTH_TOKEN}" \
             --twitter-oauth-secret "${TWITTER_OAUTH_SECRET}" \
-            --max-count "${MAX_COUNT}" \
+            --max-count 1 \
             --google-sheets-id "${GOOGLE_SHEETS_ID}" \
+            --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
             --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-            --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" | jq -r '.id'
+            --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
-    python3 -m agoras.cli publish \
+    [ -n "${POST_TWITTER_ID}" ] && python3 -m agoras.cli publish \
         --network twitter \
         --action delete \
         --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \
         --twitter-consumer-secret "${TWITTER_CONSUMER_SECRET}" \
         --twitter-oauth-token "${TWITTER_OAUTH_TOKEN}" \
         --twitter-oauth-secret "${TWITTER_OAUTH_SECRET}" \
-        --tweet-id "${LAST_FROM_FEED_TWEET_ID}"
+        --tweet-id "${POST_TWITTER_ID}" || true
 
     sleep 5
 
-    python3 -m agoras.cli publish \
+    [ -n "${LAST_FROM_FEED_TWEET_ID}" ] && python3 -m agoras.cli publish \
         --network twitter \
         --action delete \
         --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \
         --twitter-consumer-secret "${TWITTER_CONSUMER_SECRET}" \
         --twitter-oauth-token "${TWITTER_OAUTH_TOKEN}" \
         --twitter-oauth-secret "${TWITTER_OAUTH_SECRET}" \
-        --tweet-id "${RANDOM_FROM_FEED_TWEET_ID}"
+        --tweet-id "${LAST_FROM_FEED_TWEET_ID}" || true
 
     sleep 5
 
-    python3 -m agoras.cli publish \
+    [ -n "${RANDOM_FROM_FEED_TWEET_ID}" ] && python3 -m agoras.cli publish \
         --network twitter \
         --action delete \
         --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \
         --twitter-consumer-secret "${TWITTER_CONSUMER_SECRET}" \
         --twitter-oauth-token "${TWITTER_OAUTH_TOKEN}" \
         --twitter-oauth-secret "${TWITTER_OAUTH_SECRET}" \
-        --tweet-id "${SCHEDULE_TWEET_ID}"
+        --tweet-id "${RANDOM_FROM_FEED_TWEET_ID}" || true
+
+    sleep 5
+
+    [ -n "${SCHEDULE_TWEET_ID}" ] && python3 -m agoras.cli publish \
+        --network twitter \
+        --action delete \
+        --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \
+        --twitter-consumer-secret "${TWITTER_CONSUMER_SECRET}" \
+        --twitter-oauth-token "${TWITTER_OAUTH_TOKEN}" \
+        --twitter-oauth-secret "${TWITTER_OAUTH_SECRET}" \
+        --tweet-id "${SCHEDULE_TWEET_ID}" || true
 
 elif [ "${1}" == "facebook" ]; then
     POST_FACEBOOK_ID=$(
@@ -117,17 +118,8 @@ elif [ "${1}" == "facebook" ]; then
             --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
             --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
             --status-text "${FACEBOOK_STATUS_TEXT}" \
-            --status-image-url-1 "${FACEBOOK_STATUS_IMAGE_URL_1}" | jq -r '.id'
+            --status-image-url-1 "${FACEBOOK_STATUS_IMAGE_URL_1}" | jq --unbuffered '.' | jq -r '.id'
     )
-
-    sleep 5
-
-    python3 -m agoras.cli publish \
-        --network facebook \
-        --action like \
-        --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
-        --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-        --facebook-post-id "${POST_FACEBOOK_ID}"
 
     sleep 5
 
@@ -138,7 +130,7 @@ elif [ "${1}" == "facebook" ]; then
             --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
             --facebook-profile-id "${FACEBOOK_PROFILE_ID}" \
             --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-            --facebook-post-id "${POST_FACEBOOK_ID}" | jq -r '.id'
+            --facebook-post-id "${POST_FACEBOOK_ID}" | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
@@ -150,8 +142,8 @@ elif [ "${1}" == "facebook" ]; then
             --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
             --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
             --feed-url "${FEED_URL}" \
-            --max-count "${MAX_COUNT}" \
-            --post-lookback "${POST_LOOKBACK}" | jq -r '.id'
+            --max-count 1 \
+            --post-lookback "${POST_LOOKBACK}" | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
@@ -163,7 +155,7 @@ elif [ "${1}" == "facebook" ]; then
             --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
             --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
             --feed-url "${FEED_URL}" \
-            --max-post-age "${MAX_POST_AGE}" | jq -r '.id'
+            --max-post-age 365 | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
@@ -174,57 +166,66 @@ elif [ "${1}" == "facebook" ]; then
             --action schedule \
             --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
             --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-            --max-count "${MAX_COUNT}" \
+            --max-count 1 \
             --google-sheets-id "${GOOGLE_SHEETS_ID}" \
             --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
             --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-            --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" | jq -r '.id'
+            --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
-    python3 -m agoras.cli publish \
+    [ -n "${POST_FACEBOOK_ID}" ] && python3 -m agoras.cli publish \
         --network facebook \
-        --action delete \
+        --action like \
         --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
         --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-        --facebook-post-id "${POST_FACEBOOK_ID}"
+        --facebook-post-id "${POST_FACEBOOK_ID}" || true
 
     sleep 5
 
-    python3 -m agoras.cli publish \
+    [ -n "${SHARED_POST_FACEBOOK_ID}" ] && python3 -m agoras.cli publish \
         --network facebook \
         --action delete \
         --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
         --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-        --facebook-post-id "${LAST_FROM_FEED_FACEBOOK_ID}"
+        --facebook-post-id "${SHARED_POST_FACEBOOK_ID}" || true
 
     sleep 5
 
-    python3 -m agoras.cli publish \
+    [ -n "${POST_FACEBOOK_ID}" ] && python3 -m agoras.cli publish \
         --network facebook \
         --action delete \
         --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
         --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-        --facebook-post-id "${RANDOM_FROM_FEED_FACEBOOK_ID}"
+        --facebook-post-id "${POST_FACEBOOK_ID}" || true
 
     sleep 5
 
-    python3 -m agoras.cli publish \
+    [ -n "${LAST_FROM_FEED_FACEBOOK_ID}" ] && python3 -m agoras.cli publish \
         --network facebook \
         --action delete \
         --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
         --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-        --facebook-post-id "${SCHEDULE_FACEBOOK_ID}"
+        --facebook-post-id "${LAST_FROM_FEED_FACEBOOK_ID}" || true
 
     sleep 5
 
-    python3 -m agoras.cli publish \
+    [ -n "${RANDOM_FROM_FEED_FACEBOOK_ID}" ] && python3 -m agoras.cli publish \
         --network facebook \
         --action delete \
         --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
         --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-        --facebook-post-id "${SHARED_POST_FACEBOOK_ID}"
+        --facebook-post-id "${RANDOM_FROM_FEED_FACEBOOK_ID}" || true
+
+    sleep 5
+
+    [ -n "${SCHEDULE_FACEBOOK_ID}" ] && python3 -m agoras.cli publish \
+        --network facebook \
+        --action delete \
+        --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
+        --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
+        --facebook-post-id "${SCHEDULE_FACEBOOK_ID}" || true
 
 elif [ "${1}" == "instagram" ]; then
     python3 -m agoras.cli publish \
@@ -237,37 +238,37 @@ elif [ "${1}" == "instagram" ]; then
 
     sleep 5
 
-    # python3 -m agoras.cli publish \
-    #     --network instagram \
-    #     --action last-from-feed \
-    #     --instagram-access-token "${INSTAGRAM_ACCESS_TOKEN}" \
-    #     --instagram-object-id "${INSTAGRAM_OBJECT_ID}" \
-    #     --feed-url "${FEED_URL}" \
-    #     --max-count "${MAX_COUNT}" \
-    #     --post-lookback "${POST_LOOKBACK}"
+    python3 -m agoras.cli publish \
+        --network instagram \
+        --action last-from-feed \
+        --instagram-access-token "${INSTAGRAM_ACCESS_TOKEN}" \
+        --instagram-object-id "${INSTAGRAM_OBJECT_ID}" \
+        --feed-url "${FEED_URL}" \
+        --max-count 1 \
+        --post-lookback "${POST_LOOKBACK}"
 
-    # sleep 5
+    sleep 5
 
-    # python3 -m agoras.cli publish \
-    #     --network instagram \
-    #     --action random-from-feed \
-    #     --instagram-access-token "${INSTAGRAM_ACCESS_TOKEN}" \
-    #     --instagram-object-id "${INSTAGRAM_OBJECT_ID}" \
-    #     --feed-url "${FEED_URL}" \
-    #     --max-post-age "${MAX_POST_AGE}"
+    python3 -m agoras.cli publish \
+        --network instagram \
+        --action random-from-feed \
+        --instagram-access-token "${INSTAGRAM_ACCESS_TOKEN}" \
+        --instagram-object-id "${INSTAGRAM_OBJECT_ID}" \
+        --feed-url "${FEED_URL}" \
+        --max-post-age 365
 
-    # sleep 5
+    sleep 5
 
-    # python3 -m agoras.cli publish \
-    #     --network instagram \
-    #     --action schedule \
-    #     --instagram-access-token "${INSTAGRAM_ACCESS_TOKEN}" \
-    #     --instagram-object-id "${INSTAGRAM_OBJECT_ID}" \
-    #     --max-count "${MAX_COUNT}" \
-    #     --google-sheets-id "${GOOGLE_SHEETS_ID}" \
-    #     --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
-    #     --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-    #     --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
+    python3 -m agoras.cli publish \
+        --network instagram \
+        --action schedule \
+        --instagram-access-token "${INSTAGRAM_ACCESS_TOKEN}" \
+        --instagram-object-id "${INSTAGRAM_OBJECT_ID}" \
+        --max-count 1 \
+        --google-sheets-id "${GOOGLE_SHEETS_ID}" \
+        --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
+        --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
+        --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
 
 elif [ "${1}" == "linkedin" ]; then
     POST_LINKEDIN_ID=$(
@@ -276,16 +277,8 @@ elif [ "${1}" == "linkedin" ]; then
             --action post \
             --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
             --status-text "${LINKEDIN_STATUS_TEXT}" \
-            --status-image-url-1 "${LINKEDIN_STATUS_IMAGE_URL_1}" | jq -r '.id'
+            --status-image-url-1 "${LINKEDIN_STATUS_IMAGE_URL_1}" | jq --unbuffered '.' | jq -r '.id'
     )
-
-    sleep 5
-
-    python3 -m agoras.cli publish \
-        --network linkedin \
-        --action like \
-        --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
-        --linkedin-post-id "${POST_LINKEDIN_ID}"
 
     sleep 5
 
@@ -294,7 +287,7 @@ elif [ "${1}" == "linkedin" ]; then
             --network linkedin \
             --action share \
             --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
-            --linkedin-post-id "${POST_LINKEDIN_ID}" | jq -r '.id'
+            --linkedin-post-id "${POST_LINKEDIN_ID}" | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
@@ -305,8 +298,8 @@ elif [ "${1}" == "linkedin" ]; then
             --action last-from-feed \
             --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
             --feed-url "${FEED_URL}" \
-            --max-count "${MAX_COUNT}" \
-            --post-lookback "${POST_LOOKBACK}" | jq -r '.id'
+            --max-count 1 \
+            --post-lookback "${POST_LOOKBACK}" | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
@@ -317,7 +310,7 @@ elif [ "${1}" == "linkedin" ]; then
             --action random-from-feed \
             --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
             --feed-url "${FEED_URL}" \
-            --max-post-age "${MAX_POST_AGE}" | jq -r '.id'
+            --max-post-age 365 | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
@@ -327,52 +320,60 @@ elif [ "${1}" == "linkedin" ]; then
             --network linkedin \
             --action schedule \
             --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
-            --max-count "${MAX_COUNT}" \
+            --max-count 1 \
             --google-sheets-id "${GOOGLE_SHEETS_ID}" \
             --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
             --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-            --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" | jq -r '.id'
+            --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
-    python3 -m agoras.cli publish \
+    [ -n "${POST_LINKEDIN_ID}" ] && python3 -m agoras.cli publish \
         --network linkedin \
-        --action delete \
+        --action like \
         --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
-        --linkedin-post-id "${POST_LINKEDIN_ID}"
+        --linkedin-post-id "${POST_LINKEDIN_ID}" || true
 
     sleep 5
 
-    python3 -m agoras.cli publish \
+    [ -n "${SHARED_POST_LINKEDIN_ID}" ] && python3 -m agoras.cli publish \
         --network linkedin \
         --action delete \
         --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
-        --linkedin-post-id "${SHARED_POST_LINKEDIN_ID}"
+        --linkedin-post-id "${SHARED_POST_LINKEDIN_ID}" || true
 
     sleep 5
 
-    python3 -m agoras.cli publish \
+    [ -n "${POST_LINKEDIN_ID}" ] && python3 -m agoras.cli publish \
         --network linkedin \
         --action delete \
         --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
-        --linkedin-post-id "${LAST_FROM_FEED_LINKEDIN_ID}"
+        --linkedin-post-id "${POST_LINKEDIN_ID}" || true
 
     sleep 5
 
-    python3 -m agoras.cli publish \
+    [ -n "${LAST_FROM_FEED_LINKEDIN_ID}" ] && python3 -m agoras.cli publish \
         --network linkedin \
         --action delete \
         --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
-        --linkedin-post-id "${RANDOM_FROM_FEED_LINKEDIN_ID}"
+        --linkedin-post-id "${LAST_FROM_FEED_LINKEDIN_ID}" || true
 
     sleep 5
 
-    python3 -m agoras.cli publish \
+    [ -n "${RANDOM_FROM_FEED_LINKEDIN_ID}" ] && python3 -m agoras.cli publish \
         --network linkedin \
         --action delete \
         --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
-        --linkedin-post-id "${SCHEDULE_LINKEDIN_ID}"
+        --linkedin-post-id "${RANDOM_FROM_FEED_LINKEDIN_ID}" || true
+
+    sleep 5
+
+    [ -n "${SCHEDULE_LINKEDIN_ID}" ] && python3 -m agoras.cli publish \
+        --network linkedin \
+        --action delete \
+        --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
+        --linkedin-post-id "${SCHEDULE_LINKEDIN_ID}" || true
 
 else
     echo "Unsupported action ${1}"

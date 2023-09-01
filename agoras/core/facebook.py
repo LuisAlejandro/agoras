@@ -235,7 +235,9 @@ def schedule(client, facebook_object_id, google_sheets_id,
 
     count = 0
     newcontent = []
-    gspread_scope = ['https://spreadsheets.google.com/feeds']
+    gspread_scope = [
+        'https://spreadsheets.google.com/feeds'
+    ]
     account_info = {
         'private_key': google_sheets_private_key,
         'client_email': google_sheets_client_email,
