@@ -1,14 +1,14 @@
-import os
+import sys
 import datetime
 
 import gspread
 from google.oauth2.service_account import Credentials
 
 
-google_sheets_id = os.environ.get('GOOGLE_SHEETS_ID', '')
-google_sheets_name = os.environ.get('GOOGLE_SHEETS_NAME', '')
-google_sheets_client_email = os.environ.get('GOOGLE_SHEETS_CLIENT_EMAIL', '')
-google_sheets_private_key = os.environ.get('GOOGLE_SHEETS_PRIVATE_KEY', '')
+google_sheets_id = sys.argv[1]
+google_sheets_name = sys.argv[2]
+google_sheets_client_email = sys.argv[3]
+google_sheets_private_key = sys.argv[4]
 
 gspread_scope = ['https://spreadsheets.google.com/feeds']
 account_info = {

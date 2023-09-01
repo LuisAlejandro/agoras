@@ -1,36 +1,7 @@
 Usage for Facebook
 ==================
 
-How to get ``--facebook-access-token`` parameter
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-We'll need a permanent access token with appropiate permissions to be able to use de Facebook Graph API. Read the tutorial :doc:`here <credentials/facebook>`.
-
-How to get ``--facebook-object-id`` parameter
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-With Agoras you can use the facebook network to post to pages, profiles and groups, but for simplicity sake we're going to only explain how to get the object ID of a page.
-
-To find your Page ID go to the following URL, replacing ``{page_name}`` with the pretty name of your page url. For example, in https://www.facebook.com/LuisDevelops, the ``{page_name}`` is ``LuisDevelops``. Put the URL in your browser and hit enter.
-::
-
-      https://developers.facebook.com/tools/explorer/?method=GET&path={page_name}
-
-Then click on submit and you'll see a response like this::
-
-      {
-            "name": "Luis Develops",
-            "id": "ZZZZZZZ"
-      }
-
-"ZZZZZZZ" is your page ID.
-
-.. image:: credentials/images/facebook-6.png
-
-How to get google spreadsheets credentials
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-We'll need a google spreadsheet for the schedule action. Read how to create one and obtain credentials :doc:`here <credentials/google>`.
+Facebook is a social network that allows you to share text, images and videos with your friends, family and followers. Agoras can publish posts, like posts, share posts and delete posts on Facebook by using a popular `Facebook Graph API client <https://github.com/sns-sdks/python-facebook>`_.
 
 Actions
 ~~~~~~~
@@ -38,7 +9,7 @@ Actions
 Publish a Facebook post
 -----------------------
 
-This command will publish a post on the ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``. ``--status-text`` is the text of your post and can contain URLs that are going to be formatted into clickable links. A facebook post can have a maximum of 63206 characters, so be careful not to exceed it. You can also add up to 4 images in your post using ``--status-image-url-1``, ``--status-image-url-2``, ``--status-image-url-3`` and ``--status-image-url-4``, which must be URLs that point to downloadable images.
+This command will publish a post on the ``--facebook-object-id`` (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`), which must be authorized by ``--facebook-access-token`` (read about how to get an access token :doc:`here <credentials/facebook>`). ``--status-text`` is the text of your post and can contain URLs that are going to be formatted into clickable links. A facebook post can have a maximum of 63206 characters, so be careful not to exceed it. You can also add up to 4 images in your post using ``--status-image-url-1``, ``--status-image-url-2``, ``--status-image-url-3`` and ``--status-image-url-4``, which must be URLs that point to downloadable images.
 ::
 
       agoras publish \
@@ -57,7 +28,7 @@ This command will publish a post on the ``--facebook-object-id``, which must be 
 Like a Facebook post
 --------------------
 
-This command will "like" a post identified by ``--facebook-post-id`` that is currently published on ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``.
+This command will "like" a post identified by ``--facebook-post-id`` that is currently published on ``--facebook-object-id`` (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`), which must be authorized by ``--facebook-access-token`` (read about how to get an access token :doc:`here <credentials/facebook>`).
 ::
 
       agoras publish \
@@ -72,7 +43,7 @@ This command will "like" a post identified by ``--facebook-post-id`` that is cur
 Share a Facebook post
 ---------------------
 
-This command will grab a post identified by ``--facebook-post-id`` that is currently published on ``--facebook-object-id``, and share it on a ``--facebook-profile-id`` which must be authorized by ``--facebook-access-token``.
+This command will grab a post identified by ``--facebook-post-id`` that is currently published on ``--facebook-object-id`` (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`), and share it on a ``--facebook-profile-id`` which must be authorized by ``--facebook-access-token`` (read about how to get an access token :doc:`here <credentials/facebook>`).
 ::
 
       agoras publish \
@@ -88,7 +59,7 @@ This command will grab a post identified by ``--facebook-post-id`` that is curre
 Delete a Facebook post
 ----------------------
 
-This command will delete a post identified by ``--facebook-post-id`` that is currently published on ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``.
+This command will delete a post identified by ``--facebook-post-id`` that is currently published on ``--facebook-object-id`` (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`), which must be authorized by ``--facebook-access-token`` (read about how to get an access token :doc:`here <credentials/facebook>`).
 ::
 
       agoras publish \
@@ -103,7 +74,7 @@ This command will delete a post identified by ``--facebook-post-id`` that is cur
 Post the last URL from an RSS feed into Facebook
 -------------------------------------------------
 
-This command will parse an RSS feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published on ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``.
+This command will parse an RSS feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published on ``--facebook-object-id`` (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`), which must be authorized by ``--facebook-access-token`` (read about how to get an access token :doc:`here <credentials/facebook>`).
 
 Please read about how the RSS feed should be structured in the :doc:`RSS feed section <rss>`. This ensures that the feed is correctly parsed and that the post content is properly formatted.
 ::
@@ -122,7 +93,7 @@ Please read about how the RSS feed should be structured in the :doc:`RSS feed se
 Post a random URL from an RSS feed into Facebook
 -------------------------------------------------
 
-This command will parse an RSS feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published on ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``.
+This command will parse an RSS feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published on ``--facebook-object-id`` (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`), which must be authorized by ``--facebook-access-token`` (read about how to get an access token :doc:`here <credentials/facebook>`).
 
 Please read about how the RSS feed should be structured in the :doc:`RSS feed section <rss>`. This ensures that the feed is correctly parsed and that the post content is properly formatted.
 ::
@@ -140,7 +111,7 @@ Please read about how the RSS feed should be structured in the :doc:`RSS feed se
 Schedule a Facebook post
 ------------------------
 
-This command will scan a sheet ``--google-sheets-name`` of a google spreadsheet of id ``--google-sheets-id``, thats authorized by ``--google-sheets-client-email`` and ``--google-sheets-private-key``. The post will be published on ``--facebook-object-id``, which must be authorized by ``--facebook-access-token``.
+This command will scan a sheet ``--google-sheets-name`` of a google spreadsheet of id ``--google-sheets-id``, thats authorized by ``--google-sheets-client-email`` and ``--google-sheets-private-key``. The post will be published on ``--facebook-object-id`` (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`), which must be authorized by ``--facebook-access-token`` (read about how to get an access token :doc:`here <credentials/facebook>`).
 
 The order of the columns of the spreadsheet is crucial to the correct functioning of the command. Here's how the information should be organized:
 
@@ -168,3 +139,73 @@ For this command to work, it should be executed hourly by a cron script.
             --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
             --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
             --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
+
+
+.. _how-to-get-facebook-profile-id:
+
+How to get ``--facebook-object-id`` parameter
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+With Agoras you can use the facebook network to post to pages, profiles and groups, but for simplicity sake we're going to only explain how to get the object ID of a page.
+
+To find your Page ID go to the following URL, replacing ``{page_name}`` with the pretty name of your page url. For example, in https://www.facebook.com/LuisDevelops, the ``{page_name}`` is ``LuisDevelops``. Put the URL in your browser and hit enter.
+::
+
+      https://developers.facebook.com/tools/explorer/?method=GET&path={page_name}
+
+Then click on submit and you'll see a response like this::
+
+      {
+            "name": "Luis Develops",
+            "id": "ZZZZZZZ"
+      }
+
+`ZZZZZZZ` is your page ID.
+
+.. image:: credentials/images/facebook-6.png
+
+
+.. _how-to-get-facebook-post-id:
+
+How to get ``--facebook-post-id`` parameter
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Extracting from Facebook website
+--------------------------------
+
+The post ID parameter is necessary to like, share and delete posts. You can extract it from the post URL::
+
+      https://www.facebook.com/XXXXX/posts/NNNNNNNNNNN
+
+If ``NNNNNNNNNNN`` consists only of numbers, then that's the post ID. If it contains other characters, then it's not the post ID and you'll need to do an extra step.
+
+Copy the entire post URL and paste it in the following URL, replacing ``{post_url}`` with the URL you just copied. Put the URL in your browser and hit enter.
+
+::
+
+      https://www.facebook.com/plugins/post.php?href={post_url}
+
+You'll see a page like the one in the image:
+
+.. image:: credentials/images/facebook-7.png
+
+Click on the timestamp of the post (highlighted in red) and you'll be redirected to a page like this::
+
+      https://www.facebook.com/XXXXX/posts/NNNNNNNNNNN
+
+Now you can copy the post ID (``NNNNNNNNNNN``) from the URL.
+
+Using Agoras
+------------
+
+When you create a facebook post with Agoras, it will print the post ID (in json format) in the console. You can copy it from there and use it in other commands. For example::
+
+      $ agoras publish \
+            --network facebook \
+            --action post \
+            --facebook-access-token XXXXX \
+            --facebook-object-id XXXXX \
+            --status-text "This is a test post"
+      $ {"id":"NNNNNNNNNNN"}
+
+``NNNNNNNNNNN`` is the post ID.

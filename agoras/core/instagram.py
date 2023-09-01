@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2016-2022, Agoras Developers.
+# Copyright (C) 2022-2023, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -105,9 +105,12 @@ def post(client, instagram_object_id, status_text,
     }
 
     time.sleep(random.randrange(5))
-    status = client.post_object(object_id=instagram_object_id,
-                                connection='media_publish',
-                                data=data)
+    request = client.post_object(object_id=instagram_object_id,
+                                 connection='media_publish',
+                                 data=data)
+    status = {
+        "id": request['id']
+    }
     print(json.dumps(status, separators=(',', ':')))
 
 

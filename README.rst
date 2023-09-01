@@ -42,7 +42,7 @@
 .. _GitHub actions: https://github.com/LuisAlejandro/agoras-actions
 .. _full documentation: https://agoras.readthedocs.org
 
-Current version: 1.1.0
+Current version: 1.1.1
 
 Agoras is a python utility that helps publish and delete posts on the most 
 popular social networks (twitter, facebook, instagram and linkedin).
@@ -151,10 +151,10 @@ This command allows you to publish a post in different social network.::
 Examples of usage
 ~~~~~~~~~~~~~~~~~
 
-.. _Using Agoras with Twitter: https://github.com/LuisAlejandro/agoras/blob/develop/docs/twitter.rst
-.. _Using Agoras with Facebook: https://github.com/LuisAlejandro/agoras/blob/develop/docs/facebook.rst
-.. _Using Agoras with Instagram: https://github.com/LuisAlejandro/agoras/blob/develop/docs/instagram.rst
-.. _Using Agoras with LinkedIn: https://github.com/LuisAlejandro/agoras/blob/develop/docs/linkedin.rst
+.. _Using Agoras with Twitter: https://agoras.readthedocs.io/en/latest/twitter.html
+.. _Using Agoras with Facebook: https://agoras.readthedocs.io/en/latest/facebook.html
+.. _Using Agoras with Instagram: https://agoras.readthedocs.io/en/latest/instagram.html
+.. _Using Agoras with LinkedIn: https://agoras.readthedocs.io/en/latest/linkedin.html
 
 - `Using Agoras with Twitter`_
 - `Using Agoras with Facebook`_
@@ -165,11 +165,11 @@ Examples of usage
 Credentials
 ~~~~~~~~~~~
 
-.. _How to get credentials for Twitter: https://github.com/LuisAlejandro/agoras/blob/develop/docs/credentials/twitter.rst
-.. _How to get credentials for Facebook: https://github.com/LuisAlejandro/agoras/blob/develop/docs/credentials/facebook.rst
-.. _How to get credentials for Instagram: https://github.com/LuisAlejandro/agoras/blob/develop/docs/credentials/instagram.rst
-.. _How to get credentials for LinkedIn: https://github.com/LuisAlejandro/agoras/blob/develop/docs/credentials/linkedin.rst
-.. _How to get credentials for Google spreadsheets: https://github.com/LuisAlejandro/agoras/blob/develop/docs/credentials/google.rst
+.. _How to get credentials for Twitter: https://agoras.readthedocs.io/en/latest/credentials/twitter.html
+.. _How to get credentials for Facebook: https://agoras.readthedocs.io/en/latest/credentials/facebook.html
+.. _How to get credentials for Instagram: https://agoras.readthedocs.io/en/latest/credentials/instagram.html
+.. _How to get credentials for LinkedIn: https://agoras.readthedocs.io/en/latest/credentials/linkedin.html
+.. _How to get credentials for Google spreadsheets: https://agoras.readthedocs.io/en/latest/credentials/google.html
 
 - `How to get credentials for Twitter`_
 - `How to get credentials for Facebook`_
@@ -206,7 +206,7 @@ License
 .. _AUTHORS: AUTHORS.rst
 .. _GPL-3 License: LICENSE
 
-Copyright 2016-2022, agoras Developers (read AUTHORS_ for a full list of copyright holders).
+Copyright 2022-2023, agoras Developers (read AUTHORS_ for a full list of copyright holders).
 
 Released under a `GPL-3 License`_.
 

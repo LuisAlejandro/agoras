@@ -11,12 +11,14 @@ ${data["title"]}
 <% lbl = "%s\n~~~~~~~~~~~~" % section["label"] %>${lbl}
 
 % for commit in section["commits"]:
+% if commit["author"] != "dependabot[bot]":
 <%
 author = commit["author"].replace('_', '\_')
 subject = "%s [%s]" % (commit["subject"], author)
 entry = indent(subject, first=" * ").strip()
 %>${entry}
 
+% endif
 % endfor
 % endfor
 % endfor

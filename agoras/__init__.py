@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2016-2022, Agoras Developers.
+# Copyright (C) 2022-2023, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 
 __author__ = 'Luis Alejandro Martínez Faneyth'
 __email__ = 'luis@luisalejandro.org'
-__version__ = '1.1.0'
+__version__ = '1.1.1'
 __url__ = 'https://github.com/LuisAlejandro/agoras'
 __description__ = ('A command line python utility to manage your social'
                    ' networks (Twitter, Facebook, LinkedIn and Instagram)')

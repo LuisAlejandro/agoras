@@ -67,6 +67,12 @@ test: start
 test-all: start
 	@$(exec_on_docker) tox
 
+functional-test: start
+	@$(exec_on_docker) bash test.sh twitter
+	@$(exec_on_docker) bash test.sh facebook
+	@$(exec_on_docker) bash test.sh linkedin
+	@$(exec_on_docker) bash test.sh instagram
+
 coverage: start
 	@$(exec_on_docker) coverage run --source agoras -m unittest -v -f
 	@$(exec_on_docker) coverage report -m
@@ -82,7 +88,7 @@ servedocs: docs start
 	@$(exec_on_docker) watchmedo shell-command -p '*.rst' -c 'make -C docs html' -R -D .
 
 release: clean start dist
-	@$(exec_on_docker) twine upload dist/*
+	@twine upload -s -i luis@luisalejandro.org dist/*
 
 dist: clean start
 	@$(exec_on_docker) python3 -m build
