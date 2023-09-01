@@ -1,7 +1,7 @@
 Usage for LinkedIn
 ==================
 
-LinkedIn is a social network for professionals. It's a great place to share your content and to connect with other professionals. Agoras makes use of the official LinkedIn API to publish content on your behalf. Currently, Agoras supports the following actions: publish a post, like a post, share a post, delete a post, post the last URL from an RSS feed, post a random URL from an RSS feed and schedule a post (using a google spreadsheet).
+LinkedIn is a social network for professionals. It's a great place to share your content and to connect with other professionals. Agoras makes use of the `official LinkedIn API client <https://github.com/linkedin-developers/linkedin-api-python-client#linkedin-api-python-client>`_ to publish content on your behalf. Currently, Agoras supports the following actions: publish a post, like a post, share a post, delete a post, post the last URL from an RSS feed, post a random URL from an RSS feed and schedule a post (using a google spreadsheet).
 
 Actions
 ~~~~~~~

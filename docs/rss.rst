@@ -1,5 +1,5 @@
-How the RSS feed should be structured
-=====================================
+RSS feed format
+===============
 
 Every item of the feed should have the following structure::
 

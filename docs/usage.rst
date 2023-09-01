@@ -79,28 +79,17 @@ This command allows you to publish a post in different social network.::
 Examples of usage
 ~~~~~~~~~~~~~~~~~
 
-.. _Using Agoras with Twitter: twitter.rst
-.. _Using Agoras with Facebook: facebook.rst
-.. _Using Agoras with Instagram: instagram.rst
-.. _Using Agoras with LinkedIn: linkedin.rst
-
-- `Using Agoras with Twitter`_
-- `Using Agoras with Facebook`_
-- `Using Agoras with Instagram`_
-- `Using Agoras with LinkedIn`_
+- :doc:`Using Agoras with Twitter <twitter>`
+- :doc:`Using Agoras with Facebook <facebook>`
+- :doc:`Using Agoras with Instagram <instagram>`
+- :doc:`Using Agoras with LinkedIn <linkedin>`
 
 
 Credentials
 ~~~~~~~~~~~
 
-.. _How to get credentials for Twitter: credentials/twitter.rst
-.. _How to get credentials for Facebook: credentials/facebook.rst
-.. _How to get credentials for Instagram: credentials/instagram.rst
-.. _How to get credentials for LinkedIn: credentials/linkedin.rst
-.. _How to get credentials for Google spreadsheets: credentials/google.rst
-
-- `How to get credentials for Twitter`_
-- `How to get credentials for Facebook`_
-- `How to get credentials for Instagram`_
-- `How to get credentials for LinkedIn`_
-- `How to get credentials for Google spreadsheets`_
+- :doc:`How to get credentials for Twitter <credentials/twitter>`
+- :doc:`How to get credentials for Facebook <credentials/facebook>`
+- :doc:`How to get credentials for Instagram <credentials/instagram>`
+- :doc:`How to get credentials for LinkedIn <credentials/linkedin>`
+- :doc:`How to get credentials for Google spreadsheets <credentials/google>`

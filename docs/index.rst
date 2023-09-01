@@ -64,7 +64,6 @@ Table of Contents
    credentials/google
    rss
    api
-   actions
    contributing
    authors
    history

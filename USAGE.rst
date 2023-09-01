@@ -79,10 +79,10 @@ This command allows you to publish a post in different social network.::
 Examples of usage
 ~~~~~~~~~~~~~~~~~
 
-.. _Using Agoras with Twitter: docs/twitter.rst
-.. _Using Agoras with Facebook: docs/facebook.rst
-.. _Using Agoras with Instagram: docs/instagram.rst
-.. _Using Agoras with LinkedIn: docs/linkedin.rst
+.. _Using Agoras with Twitter: https://agoras.readthedocs.io/en/latest/twitter.html
+.. _Using Agoras with Facebook: https://agoras.readthedocs.io/en/latest/facebook.html
+.. _Using Agoras with Instagram: https://agoras.readthedocs.io/en/latest/instagram.html
+.. _Using Agoras with LinkedIn: https://agoras.readthedocs.io/en/latest/linkedin.html
 
 - `Using Agoras with Twitter`_
 - `Using Agoras with Facebook`_
@@ -93,11 +93,11 @@ Examples of usage
 Credentials
 ~~~~~~~~~~~
 
-.. _How to get credentials for Twitter: docs/credentials/twitter.rst
-.. _How to get credentials for Facebook: docs/credentials/facebook.rst
-.. _How to get credentials for Instagram: docs/credentials/instagram.rst
-.. _How to get credentials for LinkedIn: docs/credentials/linkedin.rst
-.. _How to get credentials for Google spreadsheets: docs/credentials/google.rst
+.. _How to get credentials for Twitter: https://agoras.readthedocs.io/en/latest/credentials/twitter.html
+.. _How to get credentials for Facebook: https://agoras.readthedocs.io/en/latest/credentials/facebook.html
+.. _How to get credentials for Instagram: https://agoras.readthedocs.io/en/latest/credentials/instagram.html
+.. _How to get credentials for LinkedIn: https://agoras.readthedocs.io/en/latest/credentials/linkedin.html
+.. _How to get credentials for Google spreadsheets: https://agoras.readthedocs.io/en/latest/credentials/google.html
 
 - `How to get credentials for Twitter`_
 - `How to get credentials for Facebook`_
