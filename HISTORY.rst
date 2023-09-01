@@ -1,6 +1,30 @@
 Changelog
 ============
 
+
+1.1.1 (2023-09-01)
+------------
+
+Changed
+~~~~~~~~~~~~
+
+* Improving versioning workflow. [Luis Alejandro Martínez Faneyth]
+
+* Improving pipeline. [Luis Alejandro Martínez Faneyth]
+
+* Improving documentation. [Luis Alejandro Martínez Faneyth]
+
+* Adding placeholder for github actions documentation. [Luis Alejandro Martínez Faneyth]
+
+* Improving documentation. [Luis Alejandro Martínez Faneyth]
+
+
+Fixed
+~~~~~~~~~~~~
+
+* Fixing functional tests. [Luis Alejandro Martínez Faneyth]
+
+
 1.1.0 (2023-08-31)
 ------------
 
