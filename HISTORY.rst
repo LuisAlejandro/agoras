@@ -2,6 +2,15 @@ Changelog
 ============
 
 
+1.1.2 (2023-09-03)
+------------
+
+Changed
+~~~~~~~~~~~~
+
+* Improving documentation. [Luis Alejandro Martínez Faneyth]
+
+
 1.1.1 (2023-09-01)
 ------------
 
