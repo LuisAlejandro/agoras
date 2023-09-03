@@ -141,7 +141,7 @@ For this command to work, it should be executed hourly by a cron script.
             --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
 
 
-.. _how-to-get-facebook-profile-id:
+.. _how-to-get-facebook-account-id:
 
 How to get ``--facebook-object-id`` parameter
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
