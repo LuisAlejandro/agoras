@@ -16,7 +16,7 @@ Create a Facebook App
 
 .. _My Apps: https://developers.facebook.com/apps/
 
-**If you already have an app**, skip to step 1.
+**If you already have an app**, skip to "Get User Short-Lived Access Token".
 
 .. image:: images/facebook-1.png
 
