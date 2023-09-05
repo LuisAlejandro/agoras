@@ -2,6 +2,15 @@ Changelog
 ============
 
 
+1.1.3 (2023-09-05)
+------------
+
+Changed
+~~~~~~~~~~~~
+
+* Adding support for link embed in facebook and linkedin. [Luis Alejandro Martínez Faneyth]
+
+
 1.1.2 (2023-09-03)
 ------------
 
