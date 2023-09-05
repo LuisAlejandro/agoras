@@ -21,7 +21,7 @@ now = datetime.datetime.now()
 currdate = now.strftime('%d-%m-%Y')
 currhour = now.strftime('%H')
 msg = ('Have you heard of Agoras, a command line python utility to '
-       'manage your social networks? https://github.com/LuisAlejandro/agoras')
+       'manage your social networks?')
 
 creds = Credentials.from_service_account_info(account_info,
                                               scopes=gspread_scope)
@@ -31,7 +31,8 @@ spreadsheet = gclient.open_by_key(google_sheets_id)
 worksheet = spreadsheet.worksheet(google_sheets_name)
 
 worksheet.append_row([msg,
-                      'https://imgix.cosmicjs.com/ea592bb0-3eb1-11ee-82b2-d53af1858037-Untitled.png',
+                      'https://luisalejandro.org/blog/posts/nuevo-blog',
+                      '',
                       '',
                       '',
                       '',

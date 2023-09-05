@@ -36,7 +36,7 @@ from agoras import __version__
 from agoras.core.utils import add_url_timestamp
 
 
-def post(client, facebook_object_id, status_text,
+def post(client, facebook_object_id, status_text, status_link,
          status_image_url_1=None, status_image_url_2=None,
          status_image_url_3=None, status_image_url_4=None):
 
@@ -49,8 +49,8 @@ def post(client, facebook_object_id, status_text,
         status_image_url_3, status_image_url_4
     ]))
 
-    if not source_media and not status_text:
-        raise Exception('No --status-text or --status-image-url-1 provided.')
+    if not source_media and not status_text and not status_link:
+        raise Exception('No --status-text or --status-link or --status-image-url-1 provided.')
 
     for imgurl in source_media:
 
@@ -81,12 +81,17 @@ def post(client, facebook_object_id, status_text,
         })
 
     data = {
-        'message': status_text,
         'published': True,
     }
 
+    if status_link:
+        data['link'] = status_link
+
+    if status_text:
+        data['message'] = status_text
+
     if attached_media:
-        data['attached_media'] = json.dumps(attached_media)
+        data['attached_media'] = json.dumps(attached_media)  # type: ignore
 
     time.sleep(random.randrange(5))
     request = client.post_object(object_id=facebook_object_id,
@@ -169,7 +174,6 @@ def last_from_feed(client, facebook_object_id, feed_url,
 
         status_link = add_url_timestamp(link, today.strftime('%Y%m%d%H%M%S')) if link else ''
         status_title = unescape(title) if title else ''
-        status_text = '{0} {1}'.format(status_title, status_link)
 
         try:
             status_image = item.enclosures[0].url
@@ -177,7 +181,7 @@ def last_from_feed(client, facebook_object_id, feed_url,
             status_image = ''
 
         count += 1
-        post(client, facebook_object_id, status_text, status_image)
+        post(client, facebook_object_id, status_title, status_link, status_image)
 
 
 def random_from_feed(client, facebook_object_id, feed_url, max_post_age):
@@ -224,9 +228,8 @@ def random_from_feed(client, facebook_object_id, feed_url, max_post_age):
 
     status_link = add_url_timestamp(random_status_link, today.strftime('%Y%m%d%H%M%S')) if random_status_link else ''
     status_title = unescape(random_status_title) if random_status_title else ''
-    status_text = '{0} {1}'.format(status_title, status_link)
 
-    post(client, facebook_object_id, status_text, random_status_image)
+    post(client, facebook_object_id, status_title, status_link, random_status_image)
 
 
 def schedule(client, facebook_object_id, google_sheets_id,
@@ -235,9 +238,7 @@ def schedule(client, facebook_object_id, google_sheets_id,
 
     count = 0
     newcontent = []
-    gspread_scope = [
-        'https://spreadsheets.google.com/feeds'
-    ]
+    gspread_scope = ['https://spreadsheets.google.com/feeds']
     account_info = {
         'private_key': google_sheets_private_key,
         'client_email': google_sheets_client_email,
@@ -255,12 +256,12 @@ def schedule(client, facebook_object_id, google_sheets_id,
 
     for row in content:
 
-        status_text, status_image_url_1, status_image_url_2, \
+        status_text, status_link, status_image_url_1, status_image_url_2, \
             status_image_url_3, status_image_url_4, \
             date, hour, state = row
 
         newcontent.append([
-            status_text, status_image_url_1, status_image_url_2,
+            status_text, status_link, status_image_url_1, status_image_url_2,
             status_image_url_3, status_image_url_4,
             date, hour, state
         ])
@@ -284,7 +285,7 @@ def schedule(client, facebook_object_id, google_sheets_id,
 
         count += 1
         newcontent[-1][-1] = 'published'
-        post(client, facebook_object_id, status_text,
+        post(client, facebook_object_id, status_text, status_link,
              status_image_url_1, status_image_url_2,
              status_image_url_3, status_image_url_4)
 
@@ -297,19 +298,18 @@ def schedule(client, facebook_object_id, google_sheets_id,
 def main(kwargs):
 
     action = kwargs.get('action')
-    facebook_access_token = kwargs.get(
-        'facebook_access_token',
-        os.environ.get('FACEBOOK_ACCESS_TOKEN', None))
-    facebook_object_id = kwargs.get(
-        'facebook_object_id',
-        os.environ.get('FACEBOOK_OBJECT_ID', None))
+    facebook_access_token = kwargs.get('facebook_access_token', None) or \
+        os.environ.get('FACEBOOK_ACCESS_TOKEN', None)
+    facebook_object_id = kwargs.get('facebook_object_id', None) or \
+        os.environ.get('FACEBOOK_OBJECT_ID', None)
     facebook_post_id = kwargs.get('facebook_post_id', None) or \
         os.environ.get('FACEBOOK_POST_ID', None)
-    facebook_profile_id = kwargs.get(
-        'facebook_profile_id',
-        os.environ.get('FACEBOOK_PROFILE_ID', None))
-    status_text = kwargs.get('status_text', None) or \
-        os.environ.get('STATUS_TEXT', None)
+    facebook_profile_id = kwargs.get('facebook_profile_id', None) or \
+        os.environ.get('FACEBOOK_PROFILE_ID', None)
+    status_text = kwargs.get('status_text', '') or \
+        os.environ.get('STATUS_TEXT', '')
+    status_link = kwargs.get('status_link', '') or \
+        os.environ.get('STATUS_LINK', '')
     status_image_url_1 = kwargs.get('status_image_url_1', None) or \
         os.environ.get('STATUS_IMAGE_URL_1', None)
     status_image_url_2 = kwargs.get('status_image_url_2', None) or \
@@ -347,7 +347,7 @@ def main(kwargs):
     client = GraphAPI(access_token=facebook_access_token, version="14.0")
 
     if action == 'post':
-        post(client, facebook_object_id, status_text,
+        post(client, facebook_object_id, status_text, status_link,
              status_image_url_1, status_image_url_2,
              status_image_url_3, status_image_url_4)
     elif action == 'like':

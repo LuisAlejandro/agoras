@@ -138,6 +138,9 @@ def commandline(argv=None):
         '-st', '--status-text', metavar='<text>',
         help=('Text to be published.'))
     publish_options.add_argument(
+        '-sl', '--status-link', metavar='<link>',
+        help=('Link to be published.'))
+    publish_options.add_argument(
         '-i1', '--status-image-url-1', metavar='<image url>',
         help=('First image URL to be published.'))
     publish_options.add_argument(
