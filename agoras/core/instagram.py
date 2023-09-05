@@ -36,7 +36,7 @@ from agoras import __version__
 from agoras.core.utils import add_url_timestamp
 
 
-def post(client, instagram_object_id, status_text,
+def post(client, instagram_object_id, status_text, status_link,
          status_image_url_1=None, status_image_url_2=None,
          status_image_url_3=None, status_image_url_4=None):
 
@@ -77,7 +77,7 @@ def post(client, instagram_object_id, status_text,
         }
 
         if not is_carousel_item:
-            image_data['caption'] = status_text
+            image_data['caption'] = f'{status_text} {status_link}'
 
         time.sleep(random.randrange(5))
         media = client.post_object(object_id=instagram_object_id,
@@ -89,7 +89,7 @@ def post(client, instagram_object_id, status_text,
         carousel_data = {
             'media_type': 'CAROUSEL',
             'children': ','.join(attached_media),
-            'caption': status_text
+            'caption': f'{status_text} {status_link}'
         }
         time.sleep(random.randrange(5))
         carousel = client.post_object(object_id=instagram_object_id,
@@ -161,7 +161,6 @@ def last_from_feed(client, instagram_object_id, feed_url,
 
         status_link = add_url_timestamp(link, today.strftime('%Y%m%d%H%M%S')) if link else ''
         status_title = unescape(title) if title else ''
-        status_text = '{0} {1}'.format(status_title, status_link)
 
         try:
             status_image = item.enclosures[0].url
@@ -169,7 +168,7 @@ def last_from_feed(client, instagram_object_id, feed_url,
             status_image = ''
 
         count += 1
-        post(client, instagram_object_id, status_text, status_image)
+        post(client, instagram_object_id, status_title, status_link, status_image)
 
 
 def random_from_feed(client, instagram_object_id, feed_url, max_post_age):
@@ -216,9 +215,8 @@ def random_from_feed(client, instagram_object_id, feed_url, max_post_age):
 
     status_link = add_url_timestamp(random_status_link, today.strftime('%Y%m%d%H%M%S')) if random_status_link else ''
     status_title = unescape(random_status_title) if random_status_title else ''
-    status_text = '{0} {1}'.format(status_title, status_link)
 
-    post(client, instagram_object_id, status_text, random_status_image)
+    post(client, instagram_object_id, status_title, status_link, random_status_image)
 
 
 def schedule(client, instagram_object_id, google_sheets_id,
@@ -245,12 +243,12 @@ def schedule(client, instagram_object_id, google_sheets_id,
 
     for row in content:
 
-        status_text, status_image_url_1, status_image_url_2, \
+        status_text, status_link, status_image_url_1, status_image_url_2, \
             status_image_url_3, status_image_url_4, \
             date, hour, state = row
 
         newcontent.append([
-            status_text, status_image_url_1, status_image_url_2,
+            status_text, status_link, status_image_url_1, status_image_url_2,
             status_image_url_3, status_image_url_4,
             date, hour, state
         ])
@@ -274,7 +272,7 @@ def schedule(client, instagram_object_id, google_sheets_id,
 
         count += 1
         newcontent[-1][-1] = 'published'
-        post(client, instagram_object_id, status_text,
+        post(client, instagram_object_id, status_text, status_link,
              status_image_url_1, status_image_url_2,
              status_image_url_3, status_image_url_4)
 
@@ -287,16 +285,16 @@ def schedule(client, instagram_object_id, google_sheets_id,
 def main(kwargs):
 
     action = kwargs.get('action')
-    instagram_access_token = kwargs.get(
-        'instagram_access_token',
-        os.environ.get('INSTAGRAM_ACCESS_TOKEN', None))
-    instagram_object_id = kwargs.get(
-        'instagram_object_id',
-        os.environ.get('INSTAGRAM_OBJECT_ID', None))
+    instagram_access_token = kwargs.get('instagram_access_token', None) or \
+        os.environ.get('INSTAGRAM_ACCESS_TOKEN', None)
+    instagram_object_id = kwargs.get('instagram_object_id', None) or \
+        os.environ.get('INSTAGRAM_OBJECT_ID', None)
     instagram_post_id = kwargs.get('instagram_post_id', None) or \
         os.environ.get('INSTAGRAM_POST_ID', None)
-    status_text = kwargs.get('status_text', None) or \
-        os.environ.get('STATUS_TEXT', None)
+    status_text = kwargs.get('status_text', '') or \
+        os.environ.get('STATUS_TEXT', '')
+    status_link = kwargs.get('status_link', '') or \
+        os.environ.get('STATUS_LINK', '')
     status_image_url_1 = kwargs.get('status_image_url_1', None) or \
         os.environ.get('STATUS_IMAGE_URL_1', None)
     status_image_url_2 = kwargs.get('status_image_url_2', None) or \
@@ -334,7 +332,7 @@ def main(kwargs):
     client = GraphAPI(access_token=instagram_access_token, version="14.0")
 
     if action == 'post':
-        post(client, instagram_object_id, status_text,
+        post(client, instagram_object_id, status_text, status_link,
              status_image_url_1, status_image_url_2,
              status_image_url_3, status_image_url_4)
     elif action == 'like':

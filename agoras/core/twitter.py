@@ -36,12 +36,9 @@ from agoras import __version__
 from agoras.core.utils import add_url_timestamp
 
 
-def post(client, clientv1, status_text,
+def post(client, clientv1, status_text, status_link,
          status_image_url_1=None, status_image_url_2=None,
          status_image_url_3=None, status_image_url_4=None):
-
-    if not status_text:
-        raise Exception('No --status-text provided.')
 
     media_ids = []
     source_media = list(filter(None, [
@@ -49,8 +46,8 @@ def post(client, clientv1, status_text,
         status_image_url_3, status_image_url_4
     ]))
 
-    if not source_media and not status_text:
-        raise Exception('No --status-text or --status-image-url-1 provided.')
+    if not source_media and not status_text and not status_link:
+        raise Exception('No --status-text or --status-link or --status-image-url-1 provided.')
 
     for imgurl in source_media:
         _, tmpimg = tempfile.mkstemp(prefix='status-image-url-',
@@ -74,11 +71,11 @@ def post(client, clientv1, status_text,
         media_ids.append(media.media_id)
 
     data = {
-        'text': status_text
+        'text': f'{status_text} {status_link}'
     }
 
     if media_ids:
-        data['media_ids'] = media_ids
+        data['media_ids'] = media_ids  # type: ignore
 
     time.sleep(random.randrange(5))
     request = client.create_tweet(**data)
@@ -136,7 +133,6 @@ def last_from_feed(client, clientv1, feed_url, max_count, post_lookback):
 
         status_link = add_url_timestamp(link, today.strftime('%Y%m%d%H%M%S')) if link else ''
         status_title = unescape(title) if title else ''
-        status_text = '{0} {1}'.format(status_title, status_link)
 
         try:
             status_image = item.enclosures[0].url
@@ -144,7 +140,7 @@ def last_from_feed(client, clientv1, feed_url, max_count, post_lookback):
             status_image = ''
 
         count += 1
-        post(client, clientv1, status_text, status_image)
+        post(client, clientv1, status_title, status_link, status_image)
 
 
 def random_from_feed(client, clientv1, feed_url, max_post_age):
@@ -188,9 +184,8 @@ def random_from_feed(client, clientv1, feed_url, max_post_age):
 
     status_link = add_url_timestamp(random_status_link, today.strftime('%Y%m%d%H%M%S')) if random_status_link else ''
     status_title = unescape(random_status_title) if random_status_title else ''
-    status_text = '{0} {1}'.format(status_title, status_link)
 
-    post(client, clientv1, status_text, random_status_image)
+    post(client, clientv1, status_title, status_link, random_status_image)
 
 
 def schedule(client, clientv1, google_sheets_id, google_sheets_name,
@@ -198,9 +193,7 @@ def schedule(client, clientv1, google_sheets_id, google_sheets_name,
 
     count = 0
     newcontent = []
-    gspread_scope = [
-        'https://spreadsheets.google.com/feeds'
-    ]
+    gspread_scope = ['https://spreadsheets.google.com/feeds']
     account_info = {
         'private_key': google_sheets_private_key,
         'client_email': google_sheets_client_email,
@@ -218,12 +211,12 @@ def schedule(client, clientv1, google_sheets_id, google_sheets_name,
 
     for row in content:
 
-        status_text, status_image_url_1, status_image_url_2, \
+        status_text, status_link, status_image_url_1, status_image_url_2, \
             status_image_url_3, status_image_url_4, \
             date, hour, state = row
 
         newcontent.append([
-            status_text, status_image_url_1, status_image_url_2,
+            status_text, status_link, status_image_url_1, status_image_url_2,
             status_image_url_3, status_image_url_4,
             date, hour, state
         ])
@@ -247,7 +240,7 @@ def schedule(client, clientv1, google_sheets_id, google_sheets_name,
 
         count += 1
         newcontent[-1][-1] = 'published'
-        post(client, clientv1, status_text,
+        post(client, clientv1, status_text, status_link,
              status_image_url_1, status_image_url_2,
              status_image_url_3, status_image_url_4)
 
@@ -268,8 +261,10 @@ def main(kwargs):
         os.environ.get('TWITTER_OAUTH_TOKEN', None)
     twitter_oauth_secret = kwargs.get('twitter_oauth_secret', None) or \
         os.environ.get('TWITTER_OAUTH_SECRET', None)
-    status_text = kwargs.get('status_text', None) or \
-        os.environ.get('STATUS_TEXT', None)
+    status_text = kwargs.get('status_text', '') or \
+        os.environ.get('STATUS_TEXT', '')
+    status_link = kwargs.get('status_link', '') or \
+        os.environ.get('STATUS_LINK', '')
     status_image_url_1 = kwargs.get('status_image_url_1', None) or \
         os.environ.get('STATUS_IMAGE_URL_1', None)
     status_image_url_2 = kwargs.get('status_image_url_2', None) or \
@@ -308,14 +303,17 @@ def main(kwargs):
 
     authv1 = OAuth1UserHandler(twitter_consumer_key, twitter_consumer_secret,
                                twitter_oauth_token, twitter_oauth_secret)
-    clientv1 = API(authv1, wait_on_rate_limit=True)
+    clientv1 = API(authv1)
     client = Client(consumer_key=twitter_consumer_key,
                     consumer_secret=twitter_consumer_secret,
                     access_token=twitter_oauth_token,
-                    access_token_secret=twitter_oauth_secret,
-                    wait_on_rate_limit=True)
+                    access_token_secret=twitter_oauth_secret)
 
-    if action == 'like':
+    if action == 'post':
+        post(client, clientv1, status_text, status_link,
+             status_image_url_1, status_image_url_2,
+             status_image_url_3, status_image_url_4)
+    elif action == 'like':
         like(client, clientv1, tweet_id)
     elif action == 'share':
         share(client, clientv1, tweet_id)
@@ -328,10 +326,6 @@ def main(kwargs):
     elif action == 'schedule':
         schedule(client, clientv1, google_sheets_id, google_sheets_name,
                  google_sheets_client_email, google_sheets_private_key, max_count)
-    elif action == 'post':
-        post(client, clientv1, status_text,
-             status_image_url_1, status_image_url_2,
-             status_image_url_3, status_image_url_4)
     elif action == '':
         raise Exception('--action is a required argument.')
     else:

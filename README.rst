@@ -122,6 +122,8 @@ This command allows you to publish a post in different social network.::
                             LinkedIn post ID to like, retweet or delete.
       -st <text>, --status-text <text>
                             Text to be published.
+      -sl <link>, --status-link <link>
+                            Link to be published.
       -i1 <image url>, --status-image-url-1 <image url>
                             First image URL to be published.
       -i2 <image url>, --status-image-url-2 <image url>
