@@ -23,6 +23,8 @@ jobs:
             toxenv: "py310"
           - python-version: "3.11"
             toxenv: "py311"
+          - python-version: "3.12"
+            toxenv: "py312"
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -30,7 +32,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4.7.0
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
