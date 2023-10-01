@@ -17,7 +17,7 @@ jobs:
             await github.rest.actions.disableWorkflow({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              workflow_id: 'actionsflow.yml',
+              workflow_id: 'push.yml',
             });
 
       - name: Enable workflows
@@ -28,5 +28,5 @@ jobs:
             await github.rest.actions.enableWorkflow({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              workflow_id: 'actionsflow.yml',
+              workflow_id: 'push.yml',
             });
