@@ -6,7 +6,7 @@
 #
 alabaster==0.7.13
     # via
-    #   -r docs/requirements.in
+    #   -r requirements.in
     #   sphinx
 babel==2.12.1
     # via sphinx
@@ -34,7 +34,7 @@ snowballstemmer==2.2.0
     # via sphinx
 sphinx==7.2.6
     # via
-    #   -r docs/requirements.in
+    #   -r requirements.in
     #   sphinxcontrib-applehelp
     #   sphinxcontrib-devhelp
     #   sphinxcontrib-htmlhelp
@@ -52,5 +52,5 @@ sphinxcontrib-qthelp==1.0.6
     # via sphinx
 sphinxcontrib-serializinghtml==1.1.9
     # via sphinx
-urllib3==2.0.4
+urllib3==2.0.6
     # via requests
