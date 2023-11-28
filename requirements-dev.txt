@@ -13,5 +13,5 @@ tox==4.11.3
 twine==4.0.2
 virtualenv==20.24.7
 watchdog==3.0.0
-wheel==0.41.3
+wheel==0.42.0
 autopep8==2.0.4
