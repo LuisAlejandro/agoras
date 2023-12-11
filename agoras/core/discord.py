@@ -21,26 +21,64 @@ import json
 import os
 import random
 import tempfile
-import time
 from html import unescape
 from urllib.request import Request, urlopen
 
 import filetype
 import gspread
+import discord
 from atoma import parse_rss_bytes
 from dateutil import parser
 from google.oauth2.service_account import Credentials
-from tweepy import API, Client, OAuth1UserHandler
 
 from agoras import __version__
-from agoras.core.utils import add_url_timestamp
+from agoras.core.utils import add_url_timestamp, parse_metatags
 
 
-def post(client, clientv1, status_text, status_link,
-         status_image_url_1=None, status_image_url_2=None,
-         status_image_url_3=None, status_image_url_4=None):
+def get_arguments(
+        status_text,
+        status_link,
+        status_link_title,
+        status_link_description,
+        status_link_image,
+        attached_media):
 
-    media_ids = []
+    entity = {
+        "embeds": [],
+    }
+
+    if status_text:
+        entity["content"] = status_text
+
+    if status_link:
+        embed_link = discord.Embed(
+            url=status_link,
+            type='link',
+            description=status_link_description,
+            title=status_link_title
+        )
+        if status_link_image:
+            embed_link.set_image(url=status_link_image)
+        entity["embeds"].append(embed_link)
+
+    for media in attached_media:
+        embed_media = discord.Embed(
+            type='image',
+        )
+        embed_media.set_image(url=media['url'])
+        entity["embeds"].append(embed_media)
+
+    return entity
+
+
+async def post(channel, status_text, status_link,
+               status_image_url_1=None, status_image_url_2=None,
+               status_image_url_3=None, status_image_url_4=None):
+
+    status_link_title = ''
+    status_link_description = ''
+    status_link_image = ''
+    attached_media = []
     source_media = list(filter(None, [
         status_image_url_1, status_image_url_2,
         status_image_url_3, status_image_url_4
@@ -49,13 +87,21 @@ def post(client, clientv1, status_text, status_link,
     if not source_media and not status_text and not status_link:
         raise Exception('No --status-text or --status-link or --status-image-url-1 provided.')
 
+    if status_link:
+        scraped_data = parse_metatags(status_link)
+        status_link_title = scraped_data.get('title', '')
+        status_link_description = scraped_data.get('description', '')
+        status_link_image = scraped_data.get('image', '')
+
     for imgurl in source_media:
+
         _, tmpimg = tempfile.mkstemp(prefix='status-image-url-',
                                      suffix='.bin')
 
         with open(tmpimg, 'wb') as i:
             request = Request(url=imgurl, headers={'User-Agent': f'Agoras/{__version__}'})
-            i.write(urlopen(request).read())
+            imgcontent = urlopen(request).read()
+            i.write(imgcontent)
 
         kind = filetype.guess(tmpimg)
 
@@ -65,44 +111,48 @@ def post(client, clientv1, status_text, status_link,
         if kind.mime not in ['image/jpeg', 'image/png', 'image/gif']:
             raise Exception(f'Invalid image type "{kind.mime}" for {imgurl}')
 
-        time.sleep(random.randrange(5))
+        attached_media.append({
+            'url': imgurl,
+        })
 
-        media = clientv1.media_upload(tmpimg)
-        media_ids.append(media.media_id)
+    arguments = get_arguments(
+        status_text,
+        status_link,
+        status_link_title,
+        status_link_description,
+        status_link_image,
+        attached_media)
 
-    data = {
-        'text': f'{status_text} {status_link}'
-    }
-
-    if media_ids:
-        data['media_ids'] = media_ids  # type: ignore
-
-    time.sleep(random.randrange(5))
-    request = client.create_tweet(**data)
+    request = await channel.send(**arguments)
     status = {
-        "id": request.data['id']
+        "id": request.id
     }
     print(json.dumps(status, separators=(',', ':')))
 
 
-def like():
-    raise Exception('like not supported for twitter')
-
-
-def delete(client, clientv1, tweet_id):
-    time.sleep(random.randrange(5))
-    client.delete_tweet(tweet_id)
+async def like(channel, discord_post_id):
+    message = await channel.fetch_message(discord_post_id)
+    await message.add_reaction('❤️')
     status = {
-        "id": tweet_id
+        "id": discord_post_id
     }
     print(json.dumps(status, separators=(',', ':')))
 
 
-def share():
-    raise Exception('share not supported for twitter')
+async def delete(channel, discord_post_id):
+    message = await channel.fetch_message(discord_post_id)
+    await message.delete()
+    status = {
+        "id": discord_post_id
+    }
+    print(json.dumps(status, separators=(',', ':')))
 
 
-def last_from_feed(client, clientv1, feed_url, max_count, post_lookback):
+async def share():
+    raise Exception('share not supported for discord')
+
+
+async def last_from_feed(channel, feed_url, max_count, post_lookback):
 
     count = 0
 
@@ -140,10 +190,10 @@ def last_from_feed(client, clientv1, feed_url, max_count, post_lookback):
             status_image = ''
 
         count += 1
-        post(client, clientv1, status_title, status_link, status_image)
+        await post(channel, status_title, status_link, status_image)
 
 
-def random_from_feed(client, clientv1, feed_url, max_post_age):
+async def random_from_feed(channel, feed_url, max_post_age):
 
     json_index_content = {}
 
@@ -185,11 +235,12 @@ def random_from_feed(client, clientv1, feed_url, max_post_age):
     status_link = add_url_timestamp(random_status_link, today.strftime('%Y%m%d%H%M%S')) if random_status_link else ''
     status_title = unescape(random_status_title) if random_status_title else ''
 
-    post(client, clientv1, status_title, status_link, random_status_image)
+    await post(channel, status_title, status_link, random_status_image)
 
 
-def schedule(client, clientv1, google_sheets_id, google_sheets_name,
-             google_sheets_client_email, google_sheets_private_key, max_count):
+async def schedule(channel, google_sheets_id,
+                   google_sheets_name, google_sheets_client_email,
+                   google_sheets_private_key, max_count):
 
     count = 0
     newcontent = []
@@ -240,9 +291,9 @@ def schedule(client, clientv1, google_sheets_id, google_sheets_name,
 
         count += 1
         newcontent[-1][-1] = 'published'
-        post(client, clientv1, status_text, status_link,
-             status_image_url_1, status_image_url_2,
-             status_image_url_3, status_image_url_4)
+        await post(channel, status_text, status_link,
+                   status_image_url_1, status_image_url_2,
+                   status_image_url_3, status_image_url_4)
 
     worksheet.clear()
 
@@ -250,17 +301,32 @@ def schedule(client, clientv1, google_sheets_id, google_sheets_name,
         worksheet.append_row(row, table_range='A1')
 
 
+def get_discord_guild(client, discord_server_name):
+    for guild in client.guilds:
+        if guild.name == discord_server_name:
+            return guild
+    raise Exception(f'Guild {discord_server_name} not found.')
+
+
+def get_discord_channel(client, discord_server_name, discord_channel_name):
+    guild = get_discord_guild(client, discord_server_name)
+    for channel in guild.channels:
+        if channel.name == discord_channel_name:
+            return channel
+    raise Exception(f'Channel {discord_channel_name} not found.')
+
+
 def main(kwargs):
 
     action = kwargs.get('action')
-    twitter_consumer_key = kwargs.get('twitter_consumer_key', None) or \
-        os.environ.get('TWITTER_CONSUMER_KEY', None)
-    twitter_consumer_secret = kwargs.get('twitter_consumer_secret', None) or \
-        os.environ.get('TWITTER_CONSUMER_SECRET', None)
-    twitter_oauth_token = kwargs.get('twitter_oauth_token', None) or \
-        os.environ.get('TWITTER_OAUTH_TOKEN', None)
-    twitter_oauth_secret = kwargs.get('twitter_oauth_secret', None) or \
-        os.environ.get('TWITTER_OAUTH_SECRET', None)
+    discord_bot_token = kwargs.get('discord_bot_token', '') or \
+        os.environ.get('DISCORD_BOT_TOKEN', '')
+    discord_server_name = kwargs.get('discord_server_name', '') or \
+        os.environ.get('DISCORD_SERVER_NAME', '')
+    discord_channel_name = kwargs.get('discord_channel_name', '') or \
+        os.environ.get('DISCORD_CHANNEL_NAME', '')
+    discord_post_id = kwargs.get('discord_post_id', None) or \
+        os.environ.get('DISCORD_POST_ID', None)
     status_text = kwargs.get('status_text', '') or \
         os.environ.get('STATUS_TEXT', '')
     status_link = kwargs.get('status_link', '') or \
@@ -275,14 +341,12 @@ def main(kwargs):
         os.environ.get('STATUS_IMAGE_URL_4', None)
     feed_url = kwargs.get('feed_url', None) or \
         os.environ.get('FEED_URL', None)
-    post_lookback = kwargs.get('post_lookback', '3600') or \
-        os.environ.get('POST_LOOKBACK', '3600')
-    max_count = kwargs.get('max_count', '1') or \
-        os.environ.get('MAX_COUNT', '1')
-    max_post_age = kwargs.get('max_post_age', '365') or \
-        os.environ.get('MAX_POST_AGE', '365')
-    tweet_id = kwargs.get('tweet_id', None) or \
-        os.environ.get('TWEET_ID', None)
+    post_lookback = kwargs.get('post_lookback', 1 * 60 * 60) or \
+        os.environ.get('POST_LOOKBACK', 1 * 60 * 60)
+    max_count = kwargs.get('max_count', 1) or \
+        os.environ.get('MAX_COUNT', 1)
+    max_post_age = kwargs.get('max_post_age', 365) or \
+        os.environ.get('MAX_POST_AGE', 365)
     google_sheets_id = kwargs.get('google_sheets_id', None) or \
         os.environ.get('GOOGLE_SHEETS_ID', None)
     google_sheets_name = kwargs.get('google_sheets_name', None) or \
@@ -301,32 +365,36 @@ def main(kwargs):
         google_sheets_private_key.replace('\\n', '\n') \
         if google_sheets_private_key else ''
 
-    authv1 = OAuth1UserHandler(twitter_consumer_key, twitter_consumer_secret,
-                               twitter_oauth_token, twitter_oauth_secret)
-    clientv1 = API(authv1)
-    client = Client(consumer_key=twitter_consumer_key,
-                    consumer_secret=twitter_consumer_secret,
-                    access_token=twitter_oauth_token,
-                    access_token_secret=twitter_oauth_secret)
+    client = discord.Client(intents=discord.Intents.all())
 
-    if action == 'post':
-        post(client, clientv1, status_text, status_link,
-             status_image_url_1, status_image_url_2,
-             status_image_url_3, status_image_url_4)
-    elif action == 'like':
-        like()
-    elif action == 'share':
-        share()
-    elif action == 'delete':
-        delete(client, clientv1, tweet_id)
-    elif action == 'last-from-feed':
-        last_from_feed(client, clientv1, feed_url, int(max_count), int(post_lookback))
-    elif action == 'random-from-feed':
-        random_from_feed(client, clientv1, feed_url, int(max_post_age))
-    elif action == 'schedule':
-        schedule(client, clientv1, google_sheets_id, google_sheets_name,
-                 google_sheets_client_email, google_sheets_private_key, max_count)
-    elif action == '':
-        raise Exception('--action is a required argument.')
-    else:
-        raise Exception(f'"{action}" action not supported.')
+    @client.event
+    async def on_ready():
+        channel = get_discord_channel(client, discord_server_name,
+                                      discord_channel_name)
+
+        if action == 'post':
+            await post(channel, status_text, status_link,
+                       status_image_url_1, status_image_url_2,
+                       status_image_url_3, status_image_url_4)
+        elif action == 'like':
+            await like(channel, discord_post_id)
+        elif action == 'share':
+            await share()
+        elif action == 'delete':
+            await delete(channel, discord_post_id)
+        elif action == 'last-from-feed':
+            await last_from_feed(channel, feed_url, max_count, post_lookback)
+        elif action == 'random-from-feed':
+            await random_from_feed(channel, feed_url, max_post_age)
+        elif action == 'schedule':
+            await schedule(channel, google_sheets_id,
+                           google_sheets_name, google_sheets_client_email,
+                           google_sheets_private_key, max_count)
+        elif action == '':
+            raise Exception('--action is a required argument.')
+        else:
+            raise Exception(f'"{action}" action not supported.')
+
+        await client.close()
+
+    client.run(discord_bot_token)

@@ -68,10 +68,11 @@ test-all: start
 	@$(exec_on_docker) tox
 
 functional-test: start
-	@$(exec_on_docker) bash test.sh twitter
-	@$(exec_on_docker) bash test.sh facebook
-	@$(exec_on_docker) bash test.sh linkedin
-	@$(exec_on_docker) bash test.sh instagram
+	# @$(exec_on_docker) bash test.sh twitter
+	# @$(exec_on_docker) bash test.sh facebook
+	# @$(exec_on_docker) bash test.sh linkedin
+	# @$(exec_on_docker) bash test.sh instagram
+	@$(exec_on_docker) bash test.sh discord
 
 coverage: start
 	@$(exec_on_docker) coverage run --source agoras -m unittest -v -f

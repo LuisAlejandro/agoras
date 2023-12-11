@@ -270,6 +270,111 @@ elif [ "${1}" == "instagram" ]; then
         --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
         --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
 
+elif [ "${1}" == "discord" ]; then
+    POST_DISCORD_ID=$(
+        python3 -m agoras.cli publish \
+            --network discord \
+            --action post \
+            --discord-bot-token "${DISCORD_BOT_TOKEN}" \
+            --discord-server-name "${DISCORD_SERVER_NAME}" \
+            --discord-channel-name "${DISCORD_CHANNEL_NAME}" \
+            --status-text "${DISCORD_STATUS_TEXT}" \
+            --status-image-url-1 "${DISCORD_STATUS_IMAGE_URL_1}" | jq --unbuffered '.' | jq -r '.id'
+    )
+
+    sleep 5
+
+    LAST_FROM_FEED_DISCORD_ID=$(
+        python3 -m agoras.cli publish \
+            --network discord \
+            --action last-from-feed \
+            --discord-bot-token "${DISCORD_BOT_TOKEN}" \
+            --discord-server-name "${DISCORD_SERVER_NAME}" \
+            --discord-channel-name "${DISCORD_CHANNEL_NAME}" \
+            --feed-url "${FEED_URL}" \
+            --max-count 1 \
+            --post-lookback "${POST_LOOKBACK}" | jq --unbuffered '.' | jq -r '.id'
+    )
+
+    sleep 5
+
+    RANDOM_FROM_FEED_DISCORD_ID=$(
+        python3 -m agoras.cli publish \
+            --network discord \
+            --action random-from-feed \
+            --discord-bot-token "${DISCORD_BOT_TOKEN}" \
+            --discord-server-name "${DISCORD_SERVER_NAME}" \
+            --discord-channel-name "${DISCORD_CHANNEL_NAME}" \
+            --feed-url "${FEED_URL}" \
+            --max-post-age 365 | jq --unbuffered '.' | jq -r '.id'
+    )
+
+    sleep 5
+
+    SCHEDULE_DISCORD_ID=$(
+        python3 -m agoras.cli publish \
+            --network discord \
+            --action schedule \
+            --discord-bot-token "${DISCORD_BOT_TOKEN}" \
+            --discord-server-name "${DISCORD_SERVER_NAME}" \
+            --discord-channel-name "${DISCORD_CHANNEL_NAME}" \
+            --max-count 1 \
+            --google-sheets-id "${GOOGLE_SHEETS_ID}" \
+            --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
+            --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
+            --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" | jq --unbuffered '.' | jq -r '.id'
+    )
+
+    sleep 5
+
+    [ -n "${POST_DISCORD_ID}" ] && python3 -m agoras.cli publish \
+        --network discord \
+        --action like \
+        --discord-bot-token "${DISCORD_BOT_TOKEN}" \
+        --discord-server-name "${DISCORD_SERVER_NAME}" \
+        --discord-channel-name "${DISCORD_CHANNEL_NAME}" \
+        --discord-post-id "${POST_DISCORD_ID}" || true
+
+    sleep 5
+
+    [ -n "${POST_DISCORD_ID}" ] && python3 -m agoras.cli publish \
+        --network discord \
+        --action delete \
+        --discord-bot-token "${DISCORD_BOT_TOKEN}" \
+        --discord-server-name "${DISCORD_SERVER_NAME}" \
+        --discord-channel-name "${DISCORD_CHANNEL_NAME}" \
+        --discord-post-id "${POST_DISCORD_ID}" || true
+
+    sleep 5
+
+    [ -n "${LAST_FROM_FEED_DISCORD_ID}" ] && python3 -m agoras.cli publish \
+        --network discord \
+        --action delete \
+        --discord-bot-token "${DISCORD_BOT_TOKEN}" \
+        --discord-server-name "${DISCORD_SERVER_NAME}" \
+        --discord-channel-name "${DISCORD_CHANNEL_NAME}" \
+        --discord-post-id "${LAST_FROM_FEED_DISCORD_ID}" || true
+
+    sleep 5
+
+    [ -n "${RANDOM_FROM_FEED_DISCORD_ID}" ] && python3 -m agoras.cli publish \
+        --network discord \
+        --action delete \
+        --discord-bot-token "${DISCORD_BOT_TOKEN}" \
+        --discord-server-name "${DISCORD_SERVER_NAME}" \
+        --discord-channel-name "${DISCORD_CHANNEL_NAME}" \
+        --discord-post-id "${RANDOM_FROM_FEED_DISCORD_ID}" || true
+
+    sleep 5
+
+    [ -n "${SCHEDULE_DISCORD_ID}" ] && python3 -m agoras.cli publish \
+        --network discord \
+        --action delete \
+        --discord-bot-token "${DISCORD_BOT_TOKEN}" \
+        --discord-server-name "${DISCORD_SERVER_NAME}" \
+        --discord-channel-name "${DISCORD_CHANNEL_NAME}" \
+        --discord-post-id "${SCHEDULE_DISCORD_ID}" || true
+
 elif [ "${1}" == "linkedin" ]; then
     POST_LINKEDIN_ID=$(
         python3 -m agoras.cli publish \

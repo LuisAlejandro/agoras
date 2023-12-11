@@ -8,3 +8,9 @@ filetype==1.2.0
 linkedin-api-client==0.3.0
 requests==2.31.0
 beautifulsoup4==4.12.2
+discord.py==2.3.2
+TikTokApi==6.2.0
+google-api-python-client==2.110.0
+google-auth-oauthlib==1.1.0
+google-auth-httplib2==0.1.1
+oauth2client==4.1.3

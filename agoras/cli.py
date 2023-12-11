@@ -31,6 +31,165 @@ from .core.logger import logger
 from .api.publish import main as publish
 
 
+def add_twitter_options(parser):
+    parser.add_argument(
+        '-tk', '--twitter-consumer-key', metavar='<consumer key>',
+        help=('Twitter consumer key from twitter developer app.'))
+    parser.add_argument(
+        '-ts', '--twitter-consumer-secret', metavar='<consumer secret>',
+        help=('Twitter consumer secret from twitter developer app.'))
+    parser.add_argument(
+        '-tot', '--twitter-oauth-token', metavar='<oauth token>',
+        help=('Twitter OAuth token from twitter developer app.'))
+    parser.add_argument(
+        '-tos', '--twitter-oauth-secret', metavar='<oauth secret>',
+        help=('Twitter OAuth secret from twitter developer app.'))
+    parser.add_argument(
+        '-ti', '--tweet-id', metavar='<id>',
+        help=('Twitter post ID to like, share or delete.'))
+
+
+def add_facebook_options(parser):
+    parser.add_argument(
+        '-ft', '--facebook-access-token', metavar='<access token>',
+        help=('Facebook access token from facebook app.'))
+    parser.add_argument(
+        '-fo', '--facebook-object-id', metavar='<id>',
+        help=('Facebook ID of object where the post is going '
+              'to be published.'))
+    parser.add_argument(
+        '-fp', '--facebook-post-id', metavar='<id>',
+        help=('Facebook ID of post to be liked, shared or deleted.'))
+    parser.add_argument(
+        '-fr', '--facebook-profile-id', metavar='<id>',
+        help=('Facebook ID of profile where a post will be shared.'))
+
+
+def add_discord_options(parser):
+    parser.add_argument(
+        '-dt', '--discord-bot-token', metavar='<bot token>',
+        help=('Discord bot token.'))
+    parser.add_argument(
+        '-ds', '--discord-server-name', metavar='<name>',
+        help=('Discord server name.'))
+    parser.add_argument(
+        '-dc', '--discord-channel-name', metavar='<name>',
+        help=('Discord channel name.'))
+    parser.add_argument(
+        '-dp', '--discord-post-id', metavar='<id>',
+        help=('Discord ID of post to be liked or deleted.'))
+
+
+def add_youtube_options(parser):
+    parser.add_argument(
+        '-yp', '--youtube-project-id', metavar='<name>',
+        help=('YouTube project ID.'))
+    parser.add_argument(
+        '-yc', '--youtube-client-id', metavar='<name>',
+        help=('YouTube client ID.'))
+    parser.add_argument(
+        '-ys', '--youtube-client-secret', metavar='<name>',
+        help=('YouTube client secret.'))
+    parser.add_argument(
+        '-yi', '--youtube-video-id', metavar='<name>',
+        help=('YouTube video ID to be liked or deleted.'))
+    parser.add_argument(
+        '-yt', '--youtube-title', metavar='<name>',
+        help=('YouTube video title.'))
+    parser.add_argument(
+        '-yd', '--youtube-description', metavar='<name>',
+        help=('YouTube video description.'))
+    parser.add_argument(
+        '-yr', '--youtube-category-id', metavar='<name>',
+        help=('YouTube video category ID.'))
+    parser.add_argument(
+        '-yy', '--youtube-privacy-status', default='private', metavar='<name>',
+        choices=["public", "private", "unlisted"],
+        help=('YouTube video privacy status.'))
+    parser.add_argument(
+        '-yv', '--youtube-video', metavar='<name>',
+        help=('YouTube video file URL.'))
+    parser.add_argument(
+        '-yk', '--youtube-keywords', metavar='<name>',
+        help=('YouTube video keywords separated by comma.'))
+
+
+def add_google_sheets_options(parser):
+    parser.add_argument(
+        '-ge', '--google-sheets-client-email', metavar='<email>',
+        help=('A google console project client email corresponding'
+              ' to the private key.'))
+    parser.add_argument(
+        '-gk', '--google-sheets-private-key', metavar='<private key>',
+        help=('A google console project private key.'))
+    parser.add_argument(
+        '-gi', '--google-sheets-id', metavar='<id>',
+        help=('The google sheets ID to read schedule entries.'))
+    parser.add_argument(
+        '-gn', '--google-sheets-name', metavar='<name>',
+        help=('The name of the sheet where the schedule is.'))
+
+
+def add_instagram_options(parser):
+    parser.add_argument(
+        '-it', '--instagram-access-token', metavar='<access token>',
+        help=('Facebook access token from facebook app.'))
+    parser.add_argument(
+        '-io', '--instagram-object-id', metavar='<id>',
+        help=('Instagram ID of profile where the post is going '
+              'to be published.'))
+    parser.add_argument(
+        '-ip', '--instagram-post-id', metavar='<id>',
+        help=('Instagram ID of post to be liked, shared or deleted.'))
+
+
+def add_linkedin_options(parser):
+    parser.add_argument(
+        '-lw', '--linkedin-access-token', metavar='<access token>',
+        help=('Your LinkedIn access token.'))
+    parser.add_argument(
+        '-lp', '--linkedin-post-id', metavar='<id>',
+        help=('LinkedIn post ID to like, share or delete.'))
+
+
+def add_tiktok_options(parser):
+    pass
+
+
+def add_common_options(parser):
+    parser.add_argument(
+        '-st', '--status-text', metavar='<text>',
+        help=('Text to be published.'))
+    parser.add_argument(
+        '-sl', '--status-link', metavar='<link>',
+        help=('Link to be published.'))
+    parser.add_argument(
+        '-i1', '--status-image-url-1', metavar='<image url>',
+        help=('First image URL to be published.'))
+    parser.add_argument(
+        '-i2', '--status-image-url-2', metavar='<image url>',
+        help=('Second image URL to be published.'))
+    parser.add_argument(
+        '-i3', '--status-image-url-3', metavar='<image url>',
+        help=('Third image URL to be published.'))
+    parser.add_argument(
+        '-i4', '--status-image-url-4', metavar='<image url>',
+        help=('Fourth image URL to be published.'))
+    parser.add_argument(
+        '-fu', '--feed-url', metavar='<feed url>',
+        help=('URL of public Atom feed to be parsed.'))
+    parser.add_argument(
+        '-mc', '--max-count', metavar='<number>',
+        help=('Max number of new posts to be published at once.'))
+    parser.add_argument(
+        '-pl', '--post-lookback', metavar='<seconds>',
+        help=('Only allow posts published within the last <seconds>.'))
+    parser.add_argument(
+        '-ma', '--max-post-age', metavar='<days>',
+        help=('Dont allow publishing of posts older than this '
+              'number of days.'))
+
+
 def commandline(argv=None):
     """
     Configure ``ArgumentParser`` to accept custom arguments and commands.
@@ -78,10 +237,11 @@ def commandline(argv=None):
               'DEBUG, INFO, WARNING, ERROR or CRITICAL.'))
     publish_options.add_argument(
         '-n', '--network', default='', metavar='<social network>',
-        choices=['twitter', 'facebook', 'instagram', 'linkedin'],
+        choices=['twitter', 'facebook', 'instagram', 'linkedin',
+                 'discord', 'youtube', 'tiktok'],
         help=('Social network to use for publishing (default: ""). '
               'Must be one of: '
-              'twitter, facebook, instagram or linkedin.'))
+              'twitter, facebook, instagram, discord, youtube, tiktok or linkedin.'))
     publish_options.add_argument(
         '-a', '--action', default='', metavar='<action>',
         choices=['like', 'share', 'last-from-feed', 'random-from-feed',
@@ -90,94 +250,16 @@ def commandline(argv=None):
               'Must be one of: '
               'like, share, last-from-feed, random-from-feed, '
               'schedule, post, delete'))
-    publish_options.add_argument(
-        '-tk', '--twitter-consumer-key', metavar='<consumer key>',
-        help=('Twitter consumer key from twitter developer app.'))
-    publish_options.add_argument(
-        '-ts', '--twitter-consumer-secret', metavar='<consumer secret>',
-        help=('Twitter consumer secret from twitter developer app.'))
-    publish_options.add_argument(
-        '-tot', '--twitter-oauth-token', metavar='<oauth token>',
-        help=('Twitter OAuth token from twitter developer app.'))
-    publish_options.add_argument(
-        '-tos', '--twitter-oauth-secret', metavar='<oauth secret>',
-        help=('Twitter OAuth secret from twitter developer app.'))
-    publish_options.add_argument(
-        '-ti', '--tweet-id', metavar='<id>',
-        help=('Twitter post ID to like, share or delete.'))
-    publish_options.add_argument(
-        '-ft', '--facebook-access-token', metavar='<access token>',
-        help=('Facebook access token from facebook app.'))
-    publish_options.add_argument(
-        '-fo', '--facebook-object-id', metavar='<id>',
-        help=('Facebook ID of object where the post is going '
-              'to be published.'))
-    publish_options.add_argument(
-        '-fp', '--facebook-post-id', metavar='<id>',
-        help=('Facebook ID of post to be liked, shared or deleted.'))
-    publish_options.add_argument(
-        '-fr', '--facebook-profile-id', metavar='<id>',
-        help=('Facebook ID of profile where a post will be shared.'))
-    publish_options.add_argument(
-        '-it', '--instagram-access-token', metavar='<access token>',
-        help=('Facebook access token from facebook app.'))
-    publish_options.add_argument(
-        '-io', '--instagram-object-id', metavar='<id>',
-        help=('Instagram ID of profile where the post is going '
-              'to be published.'))
-    publish_options.add_argument(
-        '-ip', '--instagram-post-id', metavar='<id>',
-        help=('Instagram ID of post to be liked, shared or deleted.'))
-    publish_options.add_argument(
-        '-lw', '--linkedin-access-token', metavar='<access token>',
-        help=('Your LinkedIn access token.'))
-    publish_options.add_argument(
-        '-lp', '--linkedin-post-id', metavar='<id>',
-        help=('LinkedIn post ID to like, share or delete.'))
-    publish_options.add_argument(
-        '-st', '--status-text', metavar='<text>',
-        help=('Text to be published.'))
-    publish_options.add_argument(
-        '-sl', '--status-link', metavar='<link>',
-        help=('Link to be published.'))
-    publish_options.add_argument(
-        '-i1', '--status-image-url-1', metavar='<image url>',
-        help=('First image URL to be published.'))
-    publish_options.add_argument(
-        '-i2', '--status-image-url-2', metavar='<image url>',
-        help=('Second image URL to be published.'))
-    publish_options.add_argument(
-        '-i3', '--status-image-url-3', metavar='<image url>',
-        help=('Third image URL to be published.'))
-    publish_options.add_argument(
-        '-i4', '--status-image-url-4', metavar='<image url>',
-        help=('Fourth image URL to be published.'))
-    publish_options.add_argument(
-        '-fu', '--feed-url', metavar='<feed url>',
-        help=('URL of public Atom feed to be parsed.'))
-    publish_options.add_argument(
-        '-mc', '--max-count', metavar='<number>',
-        help=('Max number of new posts to be published at once.'))
-    publish_options.add_argument(
-        '-pl', '--post-lookback', metavar='<seconds>',
-        help=('Only allow posts published '))
-    publish_options.add_argument(
-        '-ma', '--max-post-age', metavar='<days>',
-        help=('Dont allow publishing of posts older than this '
-              'number of days.'))
-    publish_options.add_argument(
-        '-ge', '--google-sheets-client-email', metavar='<email>',
-        help=('A google console project client email corresponding'
-              ' to the private key.'))
-    publish_options.add_argument(
-        '-gk', '--google-sheets-private-key', metavar='<private key>',
-        help=('A google console project private key.'))
-    publish_options.add_argument(
-        '-gi', '--google-sheets-id', metavar='<id>',
-        help=('The google sheets ID to read schedule entries.'))
-    publish_options.add_argument(
-        '-gn', '--google-sheets-name', metavar='<name>',
-        help=('The name of the sheet where the schedule is.'))
+
+    add_common_options(publish_options)
+    add_twitter_options(publish_options)
+    add_facebook_options(publish_options)
+    add_instagram_options(publish_options)
+    add_linkedin_options(publish_options)
+    add_discord_options(publish_options)
+    add_youtube_options(publish_options)
+    add_tiktok_options(publish_options)
+    add_google_sheets_options(publish_options)
 
     return parser, parser.parse_args(argv)
 

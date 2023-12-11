@@ -20,6 +20,9 @@ from ..core.twitter import main as twitter
 from ..core.facebook import main as facebook
 from ..core.instagram import main as instagram
 from ..core.linkedin import main as linkedin
+from ..core.discord import main as discord
+from ..core.youtube import main as youtube
+from ..core.tiktok import main as tiktok
 
 
 def main(**kwargs):
@@ -34,6 +37,12 @@ def main(**kwargs):
         instagram(kwargs)
     elif network == 'linkedin':
         linkedin(kwargs)
+    elif network == 'discord':
+        discord(kwargs)
+    elif network == 'youtube':
+        youtube(kwargs)
+    elif network == 'tiktok':
+        tiktok(kwargs)
     elif network == '':
         raise Exception('--network is a required argument.')
     else:

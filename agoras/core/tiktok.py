@@ -21,121 +21,148 @@ import json
 import os
 import random
 import tempfile
-import time
 from html import unescape
 from urllib.request import Request, urlopen
 
 import filetype
+import requests
 import gspread
 from atoma import parse_rss_bytes
 from dateutil import parser
 from google.oauth2.service_account import Credentials
-from pyfacebook import GraphAPI
 
 from agoras import __version__
-from agoras.core.utils import add_url_timestamp
 
 
-def post(client, instagram_object_id, status_text, status_link,
-         status_image_url_1=None, status_image_url_2=None,
-         status_image_url_3=None, status_image_url_4=None):
+CREATOR_INFO_URL = "https://open.tiktokapis.com/v2/post/publish/creator_info/query/"
+DIRECT_POST_URL = "https://open.tiktokapis.com/v2/post/publish/video/init/"
+GET_VIDEO_STATUS_URL = "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
 
-    if not instagram_object_id:
-        raise Exception('No --instagram-object-id provided.')
+CHUNK_SIZE = 2 * 1024 * 1024  # 2MB
 
-    attached_media = []
-    source_media = list(filter(None, [
-        status_image_url_1, status_image_url_2,
-        status_image_url_3, status_image_url_4
-    ]))
+RESPONSE_OK = 200
+RESPONSE_PARTIAL_CONTENT = 206
+RESPONSE_CREATED = 201
 
-    if not source_media:
-        raise Exception('Instagram requires at least one status image.')
 
-    is_carousel_item = False if len(source_media) == 1 else True
+def get_max_video_duration(access_token):
+    response = requests.post(url=CREATOR_INFO_URL, headers={
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json; charset=UTF-8",
+    })
+    return response.json()["data"]["max_video_post_duration_sec"]
 
-    for imgurl in source_media:
 
-        _, tmpimg = tempfile.mkstemp(prefix='status-image-url-',
-                                     suffix='.bin')
+def upload_video(tiktok_access_token, max_video_duration, tiktok_title, videotmpfile, tiktok_privacy_status, mime):
+    """Posts video with caption."""
 
-        with open(tmpimg, 'wb') as i:
-            request = Request(url=imgurl, headers={'User-Agent': f'Agoras/{__version__}'})
-            i.write(urlopen(request).read())
-
-        kind = filetype.guess(tmpimg)
-
-        if not kind:
-            raise Exception(f'Invalid image type for {imgurl}')
-
-        if kind.mime not in ['image/jpeg', 'image/png', 'image/gif']:
-            raise Exception(f'Invalid image type "{kind.mime}" for {imgurl}')
-
-        image_data = {
-            'image_url': imgurl,
-            'is_carousel_item': is_carousel_item,
-        }
-
-        if not is_carousel_item:
-            image_data['caption'] = f'{status_text} {status_link}'
-
-        time.sleep(random.randrange(5))
-        media = client.post_object(object_id=instagram_object_id,
-                                   connection='media',
-                                   data=image_data)
-        attached_media.append(media['id'])
-
-    if is_carousel_item:
-        carousel_data = {
-            'media_type': 'CAROUSEL',
-            'children': ','.join(attached_media),
-            'caption': f'{status_text} {status_link}'
-        }
-        time.sleep(random.randrange(5))
-        carousel = client.post_object(object_id=instagram_object_id,
-                                      connection='media',
-                                      data=carousel_data)
-        creation_id = carousel['id']
-
-    else:
-        creation_id = attached_media[0]
-
+    video_size = os.path.getsize(videotmpfile)
     data = {
-        'creation_id': creation_id,
+        "post_info": {
+            "title": tiktok_title,
+            "privacy_level": tiktok_privacy_status,
+            "disable_duet": False,
+            "disable_comment": False,
+            "disable_stitch": False,
+            "video_cover_timestamp_ms": 0,
+        },
+        "source_info": {
+            "source": "FILE_UPLOAD",
+            "video_size": video_size,
+            "chunk_size": CHUNK_SIZE,
+            "total_chunk_count": max(video_size // CHUNK_SIZE, 1),
+        },
     }
 
-    time.sleep(random.randrange(5))
-    request = client.post_object(object_id=instagram_object_id,
-                                 connection='media_publish',
-                                 data=data)
+    response = requests.post(
+        url=DIRECT_POST_URL,
+        headers={
+            "Authorization": f"Bearer {tiktok_access_token}",
+            "Content-Type": "application/json; charset=UTF-8",
+        },
+        data=data
+    )
+
+    upload_url = response.json()["data"]["upload_url"]
+    publish_id = response.json()["data"]["publish_id"]
+
+    first_byte = 0
+    while first_byte < video_size:
+        end_byte = min(first_byte + CHUNK_SIZE - 1, video_size)
+
+        uploads = requests.put(
+            url=upload_url,
+            headers={
+                "Content-Range": f"bytes {first_byte}-{end_byte}/{video_size}",
+                "Content-Length": f"{video_size}",
+                "Content-Type": f"{mime}",
+            },
+            data=videotmpfile
+        )
+
+        if uploads.status_code not in [RESPONSE_PARTIAL_CONTENT, RESPONSE_CREATED]:
+            break
+
+        first_byte = end_byte
+
+    status = requests.post(
+        url=GET_VIDEO_STATUS_URL,
+        headers={
+            "Authorization": f"Bearer {tiktok_access_token}",
+            "Content-Type": "application/json; charset=UTF-8",
+        },
+        data={"publish_id": publish_id},
+    )
+    return status.json()["data"]
+
+
+def post(tiktok_access_token, max_video_duration, tiktok_video, tiktok_title, tiktok_privacy_status):
+
+    if not tiktok_video or not tiktok_title:
+        raise Exception('No --tiktok-video or --tiktok-title provided.')
+
+    _, videotmpfile = tempfile.mkstemp(prefix='status-video-url-', suffix='.bin')
+
+    with open(videotmpfile, 'wb') as i:
+        request = Request(url=tiktok_video, headers={'User-Agent': f'Agoras/{__version__}'})
+        imgcontent = urlopen(request).read()
+        i.write(imgcontent)
+
+    kind = filetype.guess(videotmpfile)
+
+    if not kind:
+        raise Exception(f'Invalid image type for {tiktok_video}')
+
+    if kind.mime not in ['video/quicktime', 'video/mp4', 'video/webm']:
+        raise Exception(f'Invalid video type "{kind.mime}" for {tiktok_video}')
+
+    response = upload_video(tiktok_access_token, max_video_duration, tiktok_title, videotmpfile,
+                            tiktok_privacy_status, kind.mime)
     status = {
-        "id": request['id']
+        "id": response.id
     }
     print(json.dumps(status, separators=(',', ':')))
 
 
 def like():
-    raise Exception('like not supported for instagram')
+    raise Exception('like not supported for tiktok')
 
 
 def delete():
-    raise Exception('delete not supported for instagram')
+    raise Exception('delete not supported for tiktok')
 
 
 def share():
-    raise Exception('share not supported for instagram')
+    raise Exception('share not supported for tiktok')
 
 
-def last_from_feed(client, instagram_object_id, feed_url,
-                   max_count, post_lookback):
+def last_from_feed(tiktok_access_token, max_video_duration, tiktok_privacy_status,
+                   feed_url, max_count, post_lookback):
 
     count = 0
 
     if not feed_url:
         raise Exception('No --feed-url provided.')
-
-    if not instagram_object_id:
-        raise Exception('No --instagram-object-id provided.')
 
     request = Request(url=feed_url, headers={'User-Agent': f'Agoras/{__version__}'})
     feed_data = parse_rss_bytes(urlopen(request).read())
@@ -156,30 +183,27 @@ def last_from_feed(client, instagram_object_id, feed_url,
         if item_timestamp < last_timestamp:
             continue
 
-        link = item.link or item.guid or ''
         title = item.title or ''
 
-        status_link = add_url_timestamp(link, today.strftime('%Y%m%d%H%M%S')) if link else ''
-        status_title = unescape(title) if title else ''
+        tiktok_title = unescape(title) if title else ''
 
         try:
-            status_image = item.enclosures[0].url
+            tiktok_video = item.enclosures[0].url
         except Exception:
-            status_image = ''
+            tiktok_video = ''
 
         count += 1
-        post(client, instagram_object_id, status_title, status_link, status_image)
+        post(tiktok_access_token, max_video_duration, tiktok_video,
+             tiktok_title, tiktok_privacy_status)
 
 
-def random_from_feed(client, instagram_object_id, feed_url, max_post_age):
+def random_from_feed(tiktok_access_token, max_video_duration, tiktok_privacy_status,
+                     feed_url, max_post_age):
 
     json_index_content = {}
 
     if not feed_url:
         raise Exception('No --feed-url provided.')
-
-    if not instagram_object_id:
-        raise Exception('No --instagram-object-id provided.')
 
     request = Request(url=feed_url, headers={'User-Agent': f'Agoras/{__version__}'})
     feed_data = parse_rss_bytes(urlopen(request).read())
@@ -199,7 +223,6 @@ def random_from_feed(client, instagram_object_id, feed_url, max_post_age):
 
         json_index_content[str(item_timestamp)] = {
             'title': item.title or '',
-            'url': item.link or item.guid or '',
             'date': item.pub_date
         }
 
@@ -210,16 +233,15 @@ def random_from_feed(client, instagram_object_id, feed_url, max_post_age):
 
     random_status_id = random.choice(list(json_index_content.keys()))
     random_status_title = json_index_content[random_status_id]['title']
-    random_status_image = json_index_content[random_status_id]['image']
-    random_status_link = json_index_content[random_status_id]['url']
+    tiktok_video = json_index_content[random_status_id]['image']
 
-    status_link = add_url_timestamp(random_status_link, today.strftime('%Y%m%d%H%M%S')) if random_status_link else ''
-    status_title = unescape(random_status_title) if random_status_title else ''
+    tiktok_title = unescape(random_status_title) if random_status_title else ''
 
-    post(client, instagram_object_id, status_title, status_link, random_status_image)
+    post(tiktok_access_token, max_video_duration, tiktok_video, tiktok_title,
+         tiktok_privacy_status)
 
 
-def schedule(client, instagram_object_id, google_sheets_id,
+def schedule(tiktok_access_token, max_video_duration, google_sheets_id,
              google_sheets_name, google_sheets_client_email,
              google_sheets_private_key, max_count):
 
@@ -243,13 +265,11 @@ def schedule(client, instagram_object_id, google_sheets_id,
 
     for row in content:
 
-        status_text, status_link, status_image_url_1, status_image_url_2, \
-            status_image_url_3, status_image_url_4, \
+        tiktok_title, tiktok_privacy_status, tiktok_video, \
             date, hour, state = row
 
         newcontent.append([
-            status_text, status_link, status_image_url_1, status_image_url_2,
-            status_image_url_3, status_image_url_4,
+            tiktok_title, tiktok_privacy_status, tiktok_video,
             date, hour, state
         ])
 
@@ -272,9 +292,8 @@ def schedule(client, instagram_object_id, google_sheets_id,
 
         count += 1
         newcontent[-1][-1] = 'published'
-        post(client, instagram_object_id, status_text, status_link,
-             status_image_url_1, status_image_url_2,
-             status_image_url_3, status_image_url_4)
+        post(tiktok_access_token, max_video_duration, tiktok_video,
+             tiktok_title, tiktok_privacy_status)
 
     worksheet.clear()
 
@@ -285,22 +304,14 @@ def schedule(client, instagram_object_id, google_sheets_id,
 def main(kwargs):
 
     action = kwargs.get('action')
-    instagram_access_token = kwargs.get('instagram_access_token', None) or \
-        os.environ.get('INSTAGRAM_ACCESS_TOKEN', None)
-    instagram_object_id = kwargs.get('instagram_object_id', None) or \
-        os.environ.get('INSTAGRAM_OBJECT_ID', None)
-    status_text = kwargs.get('status_text', '') or \
-        os.environ.get('STATUS_TEXT', '')
-    status_link = kwargs.get('status_link', '') or \
-        os.environ.get('STATUS_LINK', '')
-    status_image_url_1 = kwargs.get('status_image_url_1', None) or \
-        os.environ.get('STATUS_IMAGE_URL_1', None)
-    status_image_url_2 = kwargs.get('status_image_url_2', None) or \
-        os.environ.get('STATUS_IMAGE_URL_2', None)
-    status_image_url_3 = kwargs.get('status_image_url_3', None) or \
-        os.environ.get('STATUS_IMAGE_URL_3', None)
-    status_image_url_4 = kwargs.get('status_image_url_4', None) or \
-        os.environ.get('STATUS_IMAGE_URL_4', None)
+    tiktok_access_token = kwargs.get('tiktok_access_token', None) or \
+        os.environ.get('TIKTOK_ACCESS_TOKEN', None)
+    tiktok_title = kwargs.get('tiktok_title', '') or \
+        os.environ.get('TIKTOK_TITLE', '')
+    tiktok_privacy_status = kwargs.get('tiktok_privacy_status', '') or \
+        os.environ.get('TIKTOK_PRIVACY_STATUS', '')
+    tiktok_video = kwargs.get('tiktok_video', '') or \
+        os.environ.get('TIKTOK_VIDEO', '')
     feed_url = kwargs.get('feed_url', None) or \
         os.environ.get('FEED_URL', None)
     post_lookback = kwargs.get('post_lookback', 1 * 60 * 60) or \
@@ -327,25 +338,25 @@ def main(kwargs):
         google_sheets_private_key.replace('\\n', '\n') \
         if google_sheets_private_key else ''
 
-    client = GraphAPI(access_token=instagram_access_token, version="14.0")
+    max_video_duration = get_max_video_duration(tiktok_access_token)
 
     if action == 'post':
-        post(client, instagram_object_id, status_text, status_link,
-             status_image_url_1, status_image_url_2,
-             status_image_url_3, status_image_url_4)
+        post(tiktok_access_token, max_video_duration, tiktok_video,
+             tiktok_title, tiktok_privacy_status)
     elif action == 'like':
         like()
-    elif action == 'delete':
-        delete()
     elif action == 'share':
         share()
+    elif action == 'delete':
+        delete()
     elif action == 'last-from-feed':
-        last_from_feed(client, instagram_object_id, feed_url,
-                       max_count, post_lookback)
+        last_from_feed(tiktok_access_token, max_video_duration, tiktok_privacy_status,
+                       feed_url, max_count, post_lookback)
     elif action == 'random-from-feed':
-        random_from_feed(client, instagram_object_id, feed_url, max_post_age)
+        random_from_feed(tiktok_access_token, max_video_duration, tiktok_privacy_status,
+                         feed_url, max_post_age)
     elif action == 'schedule':
-        schedule(client, instagram_object_id, google_sheets_id,
+        schedule(tiktok_access_token, max_video_duration, google_sheets_id,
                  google_sheets_name, google_sheets_client_email,
                  google_sheets_private_key, max_count)
     elif action == '':

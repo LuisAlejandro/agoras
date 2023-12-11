@@ -16,8 +16,8 @@
    :target: https://github.com/LuisAlejandro/agoras/issues?q=is%3Aopen
    :alt: Github Issues
 
-.. image:: https://github.com/LuisAlejandro/agoras/workflows/Push/badge.svg
-   :target: https://github.com/LuisAlejandro/agoras/actions?query=workflow%3APush
+.. image:: https://img.shields.io/github/actions/workflow/status/LuisAlejandro/agoras/push.yml?branch=master
+   :target: https://github.com/LuisAlejandro/agoras/actions/workflows/push.yml
    :alt: Push
 
 .. image:: https://coveralls.io/repos/github/LuisAlejandro/agoras/badge.svg?branch=develop
