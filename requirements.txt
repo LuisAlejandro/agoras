@@ -2,7 +2,7 @@ atoma==0.0.17
 tweepy==4.14.0
 python-facebook-api==0.18.0
 gspread==5.12.0
-google-auth==2.23.4
+google-auth==2.25.2
 python-dateutil==2.8.2
 filetype==1.2.0
 linkedin-api-client==0.3.0
