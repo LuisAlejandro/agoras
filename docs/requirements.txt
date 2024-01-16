@@ -4,9 +4,9 @@
 #
 #    pip-compile docs/requirements.in
 #
-alabaster==0.7.15
+alabaster==0.7.16
     # via
-    #   -r requirements.in
+    #   -r docs/requirements.in
     #   sphinx
 babel==2.12.1
     # via sphinx
@@ -34,7 +34,7 @@ snowballstemmer==2.2.0
     # via sphinx
 sphinx==7.2.6
     # via
-    #   -r requirements.in
+    #   -r docs/requirements.in
     #   sphinxcontrib-applehelp
     #   sphinxcontrib-devhelp
     #   sphinxcontrib-htmlhelp
