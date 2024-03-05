@@ -3,7 +3,7 @@ tweepy==4.14.0
 python-facebook-api==0.18.0
 gspread==6.0.2
 google-auth==2.28.1
-python-dateutil==2.8.2
+python-dateutil==2.9.0.post0
 filetype==1.2.0
 linkedin-api-client==0.3.0
 requests==2.31.0
