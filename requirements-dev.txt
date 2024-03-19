@@ -14,4 +14,4 @@ twine==5.0.0
 virtualenv==20.25.1
 watchdog==4.0.0
 wheel==0.42.0
-autopep8==2.0.4
+autopep8==2.1.0
