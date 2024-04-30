@@ -9,7 +9,7 @@ pip==24.0
 pydocstyle==6.3.0
 setuptools==69.5.1
 sphinx==7.3.7
-tox==4.14.2
+tox==4.15.0
 twine==5.0.0
 virtualenv==20.25.3
 watchdog==4.0.0
