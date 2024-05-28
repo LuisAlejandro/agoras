@@ -6,5 +6,5 @@ google-auth==2.29.0
 python-dateutil==2.9.0.post0
 filetype==1.2.0
 linkedin-api-client==0.3.0
-requests==2.32.1
+requests==2.32.2
 beautifulsoup4==4.12.3
