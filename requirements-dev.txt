@@ -12,6 +12,6 @@ sphinx==7.4.7
 tox==4.17.1
 twine==5.1.1
 virtualenv==20.26.3
-watchdog==4.0.1
+watchdog==4.0.2
 wheel==0.44.0
 autopep8==2.3.1
