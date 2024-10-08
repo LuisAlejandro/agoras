@@ -1,4 +1,4 @@
-build==1.2.2
+build==1.2.2.post1
 bumpversion==0.6.0
 coverage==7.6.1
 coveralls==4.0.1
