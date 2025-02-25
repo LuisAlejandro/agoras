@@ -6,7 +6,7 @@
 #
 alabaster==0.7.16
     # via
-    #   -r requirements.in
+    #   -r docs/requirements.in
     #   sphinx
 babel==2.15.0
     # via sphinx
@@ -30,21 +30,21 @@ pygments==2.18.0
     # via sphinx
 requests==2.32.0
     # via sphinx
+roman-numerals-py==3.1.0
+    # via sphinx
 snowballstemmer==2.2.0
     # via sphinx
-sphinx==7.4.7
+sphinx==8.2.1
     # via
-    #   -r requirements.in
+    #   -r docs/requirements.in
     #   sphinxcontrib-applehelp
-    #   sphinxcontrib-devhelp
-    #   sphinxcontrib-htmlhelp
     #   sphinxcontrib-qthelp
     #   sphinxcontrib-serializinghtml
 sphinxcontrib-applehelp==1.0.7
     # via sphinx
-sphinxcontrib-devhelp==1.0.5
+sphinxcontrib-devhelp==2.0.0
     # via sphinx
-sphinxcontrib-htmlhelp==2.0.4
+sphinxcontrib-htmlhelp==2.1.0
     # via sphinx
 sphinxcontrib-jsmath==1.0.1
     # via sphinx
