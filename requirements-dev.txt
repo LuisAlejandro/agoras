@@ -11,7 +11,7 @@ setuptools==79.0.0
 sphinx==7.4.7
 tox==4.25.0
 twine==6.1.0
-virtualenv==20.30.0
+virtualenv==20.31.1
 watchdog==6.0.0
 wheel==0.45.1
 autopep8==2.3.2
