@@ -1,7 +1,7 @@
 atoma==0.0.17
 tweepy==4.15.0
 python-facebook-api==0.20.1
-gspread==6.2.0
+gspread==6.2.1
 google-auth==2.40.1
 python-dateutil==2.9.0.post0
 filetype==1.2.0
