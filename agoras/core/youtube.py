@@ -16,409 +16,382 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import datetime
-import json
-import os
-import time
-import random
-import tempfile
-from html import unescape
-from urllib.request import Request, urlopen
-import http.client as httplib
+import asyncio
 
-import httplib2
-import filetype
-import gspread
-from atoma import parse_rss_bytes
-from dateutil import parser
-from google.oauth2.service_account import Credentials
-from apiclient import discovery
-from apiclient import errors
-from apiclient import http
-from oauth2client.client import flow_from_clientsecrets
-from oauth2client.file import Storage
-from oauth2client.tools import run_flow
-
-from agoras import __version__
+from agoras.core.base import SocialNetwork
+from agoras.core.api import YouTubeAPI
 
 
-httplib2.RETRIES = 1
+class YouTube(SocialNetwork):
+    """
+    YouTube social network implementation.
 
+    This class provides YouTube-specific functionality for uploading videos,
+    and managing YouTube interactions asynchronously.
+    """
 
-def get_authenticated_service(youtube_project_id, youtube_client_id, youtube_client_secret):
-    _, storagefile = tempfile.mkstemp(prefix='storage-', suffix='.json')
-    _, secretsfile = tempfile.mkstemp(prefix='secrets-', suffix='.json')
+    def __init__(self, **kwargs):
+        """
+        Initialize YouTube instance.
 
-    with open(secretsfile, 'w') as i:
-        i.write(json.dumps({
-            "web": {
-                "project_id": youtube_project_id,
-                "client_id": youtube_client_id,
-                "client_secret": youtube_client_secret,
-                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                "token_uri": "https://oauth2.googleapis.com/token",
-                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            }
-        }))
+        Args:
+            **kwargs: Configuration parameters including:
+                - youtube_client_id: YouTube client ID
+                - youtube_client_secret: YouTube client secret
+                - youtube_video_id: YouTube video ID for operations
+                - youtube_title: Video title
+                - youtube_description: Video description
+                - youtube_category_id: YouTube category ID
+                - youtube_privacy_status: Privacy status (public, private, unlisted)
+                - youtube_keywords: Comma-separated keywords
+                - youtube_video_url: Video URL to upload
+        """
+        super().__init__(**kwargs)
+        self.youtube_client_id = None
+        self.youtube_client_secret = None
+        self.youtube_video_id = None
+        self.youtube_title = None
+        self.youtube_description = None
+        self.youtube_category_id = None
+        self.youtube_privacy_status = None
+        self.youtube_keywords = None
+        self.youtube_video_url = None
+        self.api = None
 
-    flow = flow_from_clientsecrets(secretsfile,
-                                   scope="https://www.googleapis.com/auth/youtube.upload")
+    async def _initialize_client(self):
+        """
+        Initialize YouTube API client.
 
-    storage = Storage(storagefile)
-    credentials = storage.get()
+        This method sets up the YouTube API client with OAuth configuration.
+        """
+        self.youtube_client_id = self._get_config_value('youtube_client_id', 'YOUTUBE_CLIENT_ID')
+        self.youtube_client_secret = self._get_config_value('youtube_client_secret', 'YOUTUBE_CLIENT_SECRET')
+        self.youtube_video_id = self._get_config_value('youtube_video_id', 'YOUTUBE_VIDEO_ID')
+        self.youtube_title = self._get_config_value('youtube_title', 'YOUTUBE_TITLE')
+        self.youtube_description = self._get_config_value('youtube_description', 'YOUTUBE_DESCRIPTION')
+        self.youtube_category_id = self._get_config_value('youtube_category_id', 'YOUTUBE_CATEGORY_ID')
+        self.youtube_privacy_status = (self._get_config_value('youtube_privacy_status', 'YOUTUBE_PRIVACY_STATUS') 
+                                       or 'private')
+        self.youtube_keywords = self._get_config_value('youtube_keywords', 'YOUTUBE_KEYWORDS')
+        self.youtube_video_url = self._get_config_value('youtube_video_url', 'YOUTUBE_VIDEO_URL')
 
-    if credentials is None or credentials.invalid:
-        credentials = run_flow(flow, storage)
+        if not self.youtube_client_id or not self.youtube_client_secret:
+            raise Exception('YouTube client ID and secret are required.')
 
-    return discovery.build("youtube", "v3", http=credentials.authorize(httplib2.Http()))
-
-
-def upload_video(client, youtube_title, youtube_description, youtube_video, youtube_category_id,
-                 youtube_privacy_status, youtube_keywords):
-
-    # Maximum number of times to retry before giving up.
-    MAX_RETRIES = 10
-
-    # Always retry when these exceptions are raised.
-    RETRIABLE_EXCEPTIONS = (httplib2.HttpLib2Error, IOError, httplib.NotConnected,
-                            httplib.IncompleteRead, httplib.ImproperConnectionState,
-                            httplib.CannotSendRequest, httplib.CannotSendHeader,
-                            httplib.ResponseNotReady, httplib.BadStatusLine)
-
-    # Always retry when an apiclient.errors.HttpError with one of these status
-    # codes is raised.
-    RETRIABLE_STATUS_CODES = [500, 502, 503, 504]
-
-    retry = 0
-    response = None
-    error = None
-    tags = None
-
-    if youtube_keywords:
-        tags = youtube_keywords.split(",")
-
-    body = dict(
-        snippet=dict(
-            title=youtube_title,
-            description=youtube_description,
-            tags=tags,
-            categoryId=youtube_category_id
-        ),
-        status=dict(
-            privacyStatus=youtube_privacy_status
+        # Initialize YouTube API
+        self.api = YouTubeAPI(
+            self.youtube_client_id,
+            self.youtube_client_secret
         )
-    )
+        await self.api.authenticate()
 
-    # Call the API's videos.insert method to create and upload the video.
-    request = client.videos().insert(
-        part=",".join(body.keys()),
-        body=body,
-        media_body=http.MediaFileUpload(youtube_video, chunksize=-1, resumable=True)
-    )
+    async def authorize(self):
+        """
+        Perform YouTube OAuth authorization.
 
-    while response is None:
-        try:
-            print("Uploading file...")
-            _, response = request.next_chunk()
-            if response is not None:
-                if 'id' in response:
-                    print("Video id '%s' was successfully uploaded." % response['id'])
-                else:
-                    raise Exception("The upload failed with an unexpected response: %s" % response)
+        This method handles the OAuth flow required for YouTube API access.
 
-        except errors.HttpError as e:
-            if e.resp.status in RETRIABLE_STATUS_CODES:
-                error = "A retriable HTTP error %d occurred:\n%s" % (e.resp.status, e.content)
-            else:
-                raise
+        Returns:
+            YouTube: Self for method chaining
+        """
+        if not self.youtube_client_id or not self.youtube_client_secret:
+            # Get config values if not already loaded
+            self.youtube_client_id = self._get_config_value('youtube_client_id', 'YOUTUBE_CLIENT_ID')
+            self.youtube_client_secret = self._get_config_value('youtube_client_secret', 'YOUTUBE_CLIENT_SECRET')
 
-        except RETRIABLE_EXCEPTIONS as e:
-            error = "A retriable error occurred: %s" % e
+        if not self.youtube_client_id or not self.youtube_client_secret:
+            raise Exception('YouTube client ID and secret are required for authorization.')
 
-        if error is not None:
-            print(error)
-            retry += 1
-            if retry > MAX_RETRIES:
-                exit("No longer attempting to retry.")
+        # Initialize and authorize YouTube API
+        self.api = YouTubeAPI(
+            self.youtube_client_id,
+            self.youtube_client_secret
+        )
+        await self.api.authorize()
+        return self
 
-            max_sleep = 2 ** retry
-            sleep_seconds = random.random() * max_sleep
-            print("Sleeping %f seconds and then retrying..." % sleep_seconds)
-            time.sleep(sleep_seconds)
+    async def post(self, status_text, status_link,
+                   status_image_url_1=None, status_image_url_2=None,
+                   status_image_url_3=None, status_image_url_4=None):
+        """
+        Post is not supported for YouTube (videos only).
 
-    return response
+        Args:
+            status_text (str): Text content
+            status_link (str): URL to include
+            status_image_url_1 (str, optional): First image URL
+            status_image_url_2 (str, optional): Second image URL
+            status_image_url_3 (str, optional): Third image URL
+            status_image_url_4 (str, optional): Fourth image URL
 
+        Raises:
+            Exception: Post not supported for YouTube
+        """
+        raise Exception('Regular posts not supported for YouTube. Use video action instead.')
 
-def post(client, youtube_title, youtube_description, youtube_video, youtube_category_id,
-         youtube_privacy_status, youtube_keywords):
+    async def like(self, youtube_video_id=None):
+        """
+        Like a YouTube video.
 
-    if not youtube_title or not youtube_video:
-        raise Exception('No --youtube-title or --youtube-video provided.')
+        Args:
+            youtube_video_id (str, optional): ID of the YouTube video to like.
+                                               Uses instance youtube_video_id if not provided.
 
-    _, videotmpfile = tempfile.mkstemp(prefix='status-video-url-', suffix='.bin')
+        Returns:
+            str: Video ID
+        """
+        if not self.api:
+            raise Exception('YouTube API not initialized')
 
-    with open(videotmpfile, 'wb') as i:
-        request = Request(url=youtube_video, headers={'User-Agent': f'Agoras/{__version__}'})
-        imgcontent = urlopen(request).read()
-        i.write(imgcontent)
+        video_id = youtube_video_id or self.youtube_video_id
+        if not video_id:
+            raise Exception('YouTube video ID is required.')
 
-    kind = filetype.guess(videotmpfile)
+        await self.api.like_video(video_id)
+        self._output_status(video_id)
+        return video_id
 
-    if not kind:
-        raise Exception(f'Invalid image type for {youtube_video}')
+    async def delete(self, youtube_video_id=None):
+        """
+        Delete a YouTube video.
 
-    if kind.mime not in ['video/quicktime', 'video/mp4', 'video/webm']:
-        raise Exception(f'Invalid video type "{kind.mime}" for {youtube_video}')
+        Args:
+            youtube_video_id (str, optional): ID of the YouTube video to delete.
+                                               Uses instance youtube_video_id if not provided.
 
-    response = upload_video(client, youtube_title, youtube_description, videotmpfile, youtube_category_id,
-                            youtube_privacy_status, youtube_keywords)
-    status = {
-        "id": response.id
-    }
-    print(json.dumps(status, separators=(',', ':')))
+        Returns:
+            str: Video ID
+        """
+        if not self.api:
+            raise Exception('YouTube API not initialized')
 
+        video_id = youtube_video_id or self.youtube_video_id
+        if not video_id:
+            raise Exception('YouTube video ID is required.')
 
-def like(client, youtube_video_id):
-    request = client.videos().rate(
-        id=youtube_video_id,
-        rating="like"
-    )
-    request.execute()
+        await self.api.delete_video(video_id)
+        self._output_status(video_id)
+        return video_id
 
+    async def share(self, youtube_video_id=None):
+        """
+        Share is not supported for YouTube.
 
-def delete(client, youtube_video_id):
-    request = client.videos().delete(
-        id=youtube_video_id
-    )
-    request.execute()
+        Args:
+            youtube_video_id (str, optional): ID of the YouTube video
 
+        Raises:
+            Exception: Share not supported for YouTube
+        """
+        raise Exception('Share not supported for YouTube')
 
-def share():
-    raise Exception('share not supported for youtube')
+    async def video(self, status_text, video_url, video_title):
+        """
+        Upload a video to YouTube.
 
+        Args:
+            status_text (str): Video description
+            video_url (str): URL of the video to upload
+            video_title (str): Title of the video
 
-def last_from_feed(client, youtube_description, youtube_category_id,
-                   youtube_privacy_status, youtube_keywords,
-                   feed_url, max_count, post_lookback):
+        Returns:
+            str: Video ID
+        """
+        if not self.api:
+            raise Exception('YouTube API not initialized')
 
-    count = 0
+        if not video_title or not video_url:
+            raise Exception('Video title and URL are required.')
 
-    if not feed_url:
-        raise Exception('No --feed-url provided.')
+        # Download and validate video using the Media system
+        video = await self.download_video(video_url)
 
-    request = Request(url=feed_url, headers={'User-Agent': f'Agoras/{__version__}'})
-    feed_data = parse_rss_bytes(urlopen(request).read())
-    today = datetime.datetime.now()
-    last_run = today - datetime.timedelta(seconds=post_lookback)
-    last_timestamp = int(last_run.strftime('%Y%m%d%H%M%S'))
+        if not video.content or not video.file_type:
+            video.cleanup()
+            raise Exception('Failed to download or validate video')
 
-    for item in feed_data.items:
+        # Ensure video is in allowed format for YouTube
+        allowed_types = ['video/quicktime', 'video/mp4', 'video/webm']
+        if video.file_type.mime not in allowed_types:
+            video.cleanup()
+            raise Exception(f'Invalid video type "{video.file_type.mime}" for {video_url}. '
+                            f'YouTube supports: {allowed_types}')
 
-        if count >= max_count:
-            break
-
-        if not item.pub_date:
-            continue
-
-        item_timestamp = int(item.pub_date.strftime('%Y%m%d%H%M%S'))
-
-        if item_timestamp < last_timestamp:
-            continue
-
-        title = item.title or ''
-
-        youtube_title = unescape(title) if title else ''
-
-        try:
-            youtube_video = item.enclosures[0].url
-        except Exception:
-            youtube_video = ''
-
-        count += 1
-        post(client, youtube_title, youtube_description, youtube_category_id,
-             youtube_privacy_status, youtube_video, youtube_keywords)
-
-
-def random_from_feed(client, youtube_description, youtube_category_id,
-                     youtube_privacy_status, youtube_keywords, feed_url,
-                     max_post_age):
-
-    json_index_content = {}
-
-    if not feed_url:
-        raise Exception('No --feed-url provided.')
-
-    request = Request(url=feed_url, headers={'User-Agent': f'Agoras/{__version__}'})
-    feed_data = parse_rss_bytes(urlopen(request).read())
-    today = datetime.datetime.now()
-    max_age_delta = today - datetime.timedelta(days=max_post_age)
-    max_age_timestamp = int(max_age_delta.strftime('%Y%m%d%H%M%S'))
-
-    for item in feed_data.items:
-
-        if not item.pub_date:
-            continue
-
-        item_timestamp = int(item.pub_date.strftime('%Y%m%d%H%M%S'))
-
-        if item_timestamp < max_age_timestamp:
-            continue
-
-        json_index_content[str(item_timestamp)] = {
-            'title': item.title or '',
-            'date': item.pub_date
-        }
+        # Ensure temp file exists
+        if not video.temp_file:
+            video.cleanup()
+            raise Exception('No temporary file created for video')
 
         try:
-            json_index_content[str(item_timestamp)]['video'] = item.enclosures[0].url
-        except Exception:
-            json_index_content[str(item_timestamp)]['video'] = ''
+            # Upload video using YouTube API
+            response = await self.api.upload_video(
+                video_file_path=video.temp_file,
+                title=video_title,
+                description=status_text,
+                category_id=self.youtube_category_id or '',
+                privacy_status=self.youtube_privacy_status or 'private',
+                keywords=self.youtube_keywords
+            )
 
-    random_status_id = random.choice(list(json_index_content.keys()))
-    random_status_title = json_index_content[random_status_id]['title']
-    youtube_video = json_index_content[random_status_id]['video']
+            video_id = response.get('id')
+            if not video_id:
+                raise Exception('Failed to get video ID from upload response')
 
-    youtube_title = unescape(random_status_title) if random_status_title else ''
+        finally:
+            # Clean up using Media system
+            video.cleanup()
 
-    post(client, youtube_title, youtube_description, youtube_category_id,
-         youtube_privacy_status, youtube_video, youtube_keywords)
+        self._output_status(video_id)
+        return video_id
+
+    # YouTube-specific feed methods that work with videos instead of posts
+    async def last_from_feed(self, feed_url, max_count, post_lookback):
+        """
+        Upload recent videos from RSS feed asynchronously.
+
+        Args:
+            feed_url (str): URL of the RSS feed
+            max_count (int): Maximum number of videos to upload
+            post_lookback (int): Lookback period in seconds
+        """
+        feed = await self.download_feed(feed_url)
+        recent_items = feed.get_items_since(post_lookback)
+
+        count = 0
+        for item in recent_items:
+            if count >= max_count:
+                break
+
+            video_title = item.title
+            # Get video URL from enclosures
+            video_url = ''
+            try:
+                if item.raw_item.enclosures and len(item.raw_item.enclosures) > 0:
+                    video_url = item.raw_item.enclosures[0].url
+            except (AttributeError, IndexError):
+                pass
+
+            if video_url:
+                count += 1
+                await self.video(self.youtube_description or '', video_url, video_title)
+
+    async def random_from_feed(self, feed_url, max_post_age):
+        """
+        Upload a random video from RSS feed asynchronously.
+
+        Args:
+            feed_url (str): URL of the RSS feed
+            max_post_age (int): Maximum age of posts in days
+        """
+        feed = await self.download_feed(feed_url)
+        random_item = feed.get_random_item(max_post_age)
+
+        video_title = random_item.title
+        # Get video URL from enclosures
+        video_url = ''
+        try:
+            if random_item.raw_item.enclosures and len(random_item.raw_item.enclosures) > 0:
+                video_url = random_item.raw_item.enclosures[0].url
+        except (AttributeError, IndexError):
+            pass
+
+        if video_url:
+            await self.video(self.youtube_description or '', video_url, video_title)
+
+    async def schedule(self, google_sheets_id, google_sheets_name,
+                       google_sheets_client_email, google_sheets_private_key, max_count):
+        """
+        Schedule video uploads from Google Sheets asynchronously.
+
+        Expected sheet columns: youtube_title, youtube_description, youtube_category_id,
+        youtube_privacy_status, youtube_video_url, youtube_keywords, date, hour, state
+
+        Args:
+            google_sheets_id (str): Google Sheets document ID
+            google_sheets_name (str): Worksheet name
+            google_sheets_client_email (str): Service account email
+            google_sheets_private_key (str): Service account private key
+            max_count (int): Maximum number of videos to process
+        """
+        # Create and configure the schedule sheet
+        sheet = await self.create_schedule_sheet(
+            google_sheets_id, google_sheets_name,
+            google_sheets_client_email, google_sheets_private_key
+        )
+
+        # Process scheduled videos
+        videos_to_upload = await sheet.process_scheduled_posts(max_count)
+
+        # Upload videos asynchronously
+        for video_data in videos_to_upload:
+            # YouTube-specific columns
+            title = video_data.get('youtube_title', '')
+            description = video_data.get('youtube_description', '')
+            video_url = video_data.get('youtube_video_url', '')
+            
+            if title and video_url:
+                # Temporarily update instance variables for this upload
+                original_category = self.youtube_category_id
+                original_privacy = self.youtube_privacy_status
+                original_keywords = self.youtube_keywords
+
+                self.youtube_category_id = video_data.get('youtube_category_id', '')
+                self.youtube_privacy_status = video_data.get('youtube_privacy_status', 'private')
+                self.youtube_keywords = video_data.get('youtube_keywords', '')
+
+                try:
+                    await self.video(description, video_url, title)
+                finally:
+                    # Restore original values
+                    self.youtube_category_id = original_category
+                    self.youtube_privacy_status = original_privacy
+                    self.youtube_keywords = original_keywords
+
+    # Override action handlers to use YouTube-specific parameter names
+    async def _handle_like_action(self):
+        """Handle like action with YouTube-specific parameter extraction."""
+        youtube_video_id = self._get_config_value('youtube_video_id', 'YOUTUBE_VIDEO_ID')
+        if not youtube_video_id:
+            raise Exception('YouTube video ID is required for like action.')
+        await self.like(youtube_video_id)
+
+    async def _handle_share_action(self):
+        """Handle share action with YouTube-specific parameter extraction."""
+        await self.share()
+
+    async def _handle_delete_action(self):
+        """Handle delete action with YouTube-specific parameter extraction."""
+        youtube_video_id = self._get_config_value('youtube_video_id', 'YOUTUBE_VIDEO_ID')
+        if not youtube_video_id:
+            raise Exception('YouTube video ID is required for delete action.')
+        await self.delete(youtube_video_id)
+
+    async def _handle_video_action(self):
+        """Handle video action with YouTube-specific parameter extraction."""
+        status_text = self._get_config_value('youtube_description', 'YOUTUBE_DESCRIPTION') or ''
+        video_url = self._get_config_value('youtube_video_url', 'YOUTUBE_VIDEO_URL')
+        video_title = self._get_config_value('youtube_title', 'YOUTUBE_TITLE') or ''
+
+        if not video_url:
+            raise Exception('YouTube video URL is required for video action.')
+        if not video_title:
+            raise Exception('YouTube video title is required for video action.')
+
+        await self.video(status_text, video_url, video_title)
 
 
-def schedule(client, google_sheets_id,
-             google_sheets_name, google_sheets_client_email,
-             google_sheets_private_key, max_count):
-
-    count = 0
-    newcontent = []
-    gspread_scope = ['https://spreadsheets.google.com/feeds']
-    account_info = {
-        'private_key': google_sheets_private_key,
-        'client_email': google_sheets_client_email,
-        'token_uri': 'https://oauth2.googleapis.com/token',
-    }
-    creds = Credentials.from_service_account_info(account_info,
-                                                  scopes=gspread_scope)
-    gclient = gspread.authorize(creds)
-    spreadsheet = gclient.open_by_key(google_sheets_id)
-
-    worksheet = spreadsheet.worksheet(google_sheets_name)
-    currdate = datetime.datetime.now()
-
-    content = worksheet.get_all_values()
-
-    for row in content:
-
-        youtube_title, youtube_description, youtube_category_id, \
-            youtube_privacy_status, youtube_video, youtube_keywords, \
-            date, hour, state = row
-
-        newcontent.append([
-            youtube_title, youtube_description, youtube_category_id,
-            youtube_privacy_status, youtube_video, youtube_keywords,
-            date, hour, state
-        ])
-
-        rowdate = parser.parse(date)
-        normalized_currdate = parser.parse(currdate.strftime('%d-%m-%Y'))
-        normalized_rowdate = parser.parse(rowdate.strftime('%d-%m-%Y'))
-
-        if count >= max_count:
-            break
-
-        if state == 'published':
-            continue
-
-        if normalized_rowdate < normalized_currdate:
-            continue
-
-        if currdate.strftime('%d-%m-%Y') == rowdate.strftime('%d-%m-%Y') and \
-           currdate.strftime('%H') != hour:
-            continue
-
-        count += 1
-        newcontent[-1][-1] = 'published'
-        post(client, youtube_title, youtube_description, youtube_category_id,
-             youtube_privacy_status, youtube_video, youtube_keywords)
-
-    worksheet.clear()
-
-    for row in newcontent:
-        worksheet.append_row(row, table_range='A1')
-
-
+# Legacy main function for backwards compatibility
 def main(kwargs):
+    """
+    Legacy main function for backwards compatibility.
+    This creates a YouTube instance and executes the specified action.
 
-    action = kwargs.get('action')
-    youtube_project_id = kwargs.get('youtube_project_id', '') or \
-        os.environ.get('YOUTUBE_PROJECT_ID', '')
-    youtube_client_id = kwargs.get('youtube_client_id', '') or \
-        os.environ.get('YOUTUBE_CLIENT_ID', '')
-    youtube_client_secret = kwargs.get('youtube_client_secret', '') or \
-        os.environ.get('YOUTUBE_CLIENT_SECRET', '')
-    youtube_video_id = kwargs.get('youtube_video_id', None) or \
-        os.environ.get('YOUTUBE_VIDEO_ID', None)
-    youtube_title = kwargs.get('youtube_title', '') or \
-        os.environ.get('YOUTUBE_TITLE', '')
-    youtube_description = kwargs.get('youtube_description', '') or \
-        os.environ.get('YOUTUBE_DESCRIPTION', '')
-    youtube_category_id = kwargs.get('youtube_category_id', '') or \
-        os.environ.get('YOUTUBE_CATEGORY_ID', '')
-    youtube_privacy_status = kwargs.get('youtube_privacy_status', '') or \
-        os.environ.get('YOUTUBE_PRIVACY_STATUS', '')
-    youtube_video = kwargs.get('youtube_video', '') or \
-        os.environ.get('YOUTUBE_VIDEO', '')
-    youtube_keywords = kwargs.get('youtube_keywords', '') or \
-        os.environ.get('YOUTUBE_KEYWORDS', '')
-    feed_url = kwargs.get('feed_url', None) or \
-        os.environ.get('FEED_URL', None)
-    post_lookback = kwargs.get('post_lookback', 1 * 60 * 60) or \
-        os.environ.get('POST_LOOKBACK', 1 * 60 * 60)
-    max_count = kwargs.get('max_count', 1) or \
-        os.environ.get('MAX_COUNT', 1)
-    max_post_age = kwargs.get('max_post_age', 365) or \
-        os.environ.get('MAX_POST_AGE', 365)
-    google_sheets_id = kwargs.get('google_sheets_id', None) or \
-        os.environ.get('GOOGLE_SHEETS_ID', None)
-    google_sheets_name = kwargs.get('google_sheets_name', None) or \
-        os.environ.get('GOOGLE_SHEETS_NAME', None)
-    google_sheets_client_email = \
-        kwargs.get('google_sheets_client_email', None) or \
-        os.environ.get('GOOGLE_SHEETS_CLIENT_EMAIL', None)
-    google_sheets_private_key = \
-        kwargs.get('google_sheets_private_key', None) or \
-        os.environ.get('GOOGLE_SHEETS_PRIVATE_KEY', None)
+    Args:
+        kwargs (dict): Configuration parameters
+    """
+    async def run():
+        youtube = YouTube(**kwargs)
+        action = kwargs.get('action', '')
+        await youtube.execute_action(action)
 
-    max_count = int(max_count)
-    post_lookback = int(post_lookback)
-    max_post_age = int(max_post_age)
-    google_sheets_private_key = \
-        google_sheets_private_key.replace('\\n', '\n') \
-        if google_sheets_private_key else ''
-
-    client = get_authenticated_service(youtube_project_id, youtube_client_id, youtube_client_secret)
-
-    if action == 'post':
-        post(client, youtube_title, youtube_description, youtube_category_id,
-             youtube_privacy_status, youtube_video, youtube_keywords)
-    elif action == 'like':
-        like(client, youtube_video_id)
-    elif action == 'share':
-        share()
-    elif action == 'delete':
-        delete(client, youtube_video_id)
-    elif action == 'last-from-feed':
-        last_from_feed(client, youtube_description, youtube_category_id,
-                       youtube_privacy_status, youtube_keywords,
-                       feed_url, max_count, post_lookback)
-    elif action == 'random-from-feed':
-        random_from_feed(client, youtube_description, youtube_category_id,
-                         youtube_privacy_status, youtube_keywords, feed_url,
-                         max_post_age)
-    elif action == 'schedule':
-        schedule(client, google_sheets_id,
-                 google_sheets_name, google_sheets_client_email,
-                 google_sheets_private_key, max_count)
-    elif action == '':
-        raise Exception('--action is a required argument.')
-    else:
-        raise Exception(f'"{action}" action not supported.')
+    asyncio.run(run())

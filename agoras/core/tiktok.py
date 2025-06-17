@@ -16,350 +16,437 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import datetime
+import asyncio
 import json
 import os
-import random
-import tempfile
-from html import unescape
-from urllib.request import Request, urlopen
 
-import filetype
-import requests
-import gspread
-from atoma import parse_rss_bytes
-from dateutil import parser
-from google.oauth2.service_account import Credentials
-
-from agoras import __version__
+from agoras.core.base import SocialNetwork
+from agoras.core.api.tiktok import TikTokAPI
+from agoras.core.api.tiktok_oauth import authorize
+from platformdirs import user_cache_dir
 
 
-CREATOR_INFO_URL = "https://open.tiktokapis.com/v2/post/publish/creator_info/query/"
-DIRECT_POST_URL = "https://open.tiktokapis.com/v2/post/publish/video/init/"
-GET_VIDEO_STATUS_URL = "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
+class TikTok(SocialNetwork):
+    """
+    TikTok social network implementation.
 
-CHUNK_SIZE = 2 * 1024 * 1024  # 2MB
+    This class provides TikTok-specific functionality for posting videos and photos,
+    and managing TikTok interactions asynchronously.
+    """
 
-RESPONSE_OK = 200
-RESPONSE_PARTIAL_CONTENT = 206
-RESPONSE_CREATED = 201
+    def __init__(self, **kwargs):
+        """
+        Initialize TikTok instance.
 
+        Args:
+            **kwargs: Configuration parameters including:
+                - tiktok_username: TikTok username
+                - tiktok_client_key: TikTok client key
+                - tiktok_client_secret: TikTok client secret
+                - tiktok_refresh_token: TikTok refresh token
+                - tiktok_title: Title for posts
+                - tiktok_privacy_status: Privacy status (SELF_ONLY, PUBLIC_TO_EVERYONE, etc.)
+                - tiktok_allow_comments: Whether to allow comments
+                - tiktok_allow_duet: Whether to allow duets
+                - tiktok_allow_stitch: Whether to allow stitches
+                - tiktok_auto_add_music: Whether to auto-add music for photos
+                - brand_organic: Whether content is brand organic
+                - brand_content: Whether content is brand content
+        """
+        super().__init__(**kwargs)
+        self.tiktok_username = None
+        self.tiktok_client_key = None
+        self.tiktok_client_secret = None
+        self.tiktok_refresh_token = None
+        self.tiktok_title = None
+        self.tiktok_privacy_status = None
+        self.tiktok_allow_comments = None
+        self.tiktok_allow_duet = None
+        self.tiktok_allow_stitch = None
+        self.tiktok_auto_add_music = None
+        self.brand_organic = None
+        self.brand_content = None
+        self.api = None
 
-def get_max_video_duration(access_token):
-    response = requests.post(url=CREATOR_INFO_URL, headers={
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json; charset=UTF-8",
-    })
-    return response.json()["data"]["max_video_post_duration_sec"]
+    async def _initialize_client(self):
+        """
+        Initialize TikTok API client.
 
+        This method sets up the TikTok API client with configuration.
+        """
+        # Get configuration values
+        self.tiktok_username = self._get_config_value('tiktok_username', 'TIKTOK_USERNAME')
+        self.tiktok_client_key = self._get_config_value('tiktok_client_key', 'TIKTOK_CLIENT_KEY')
+        self.tiktok_client_secret = self._get_config_value('tiktok_client_secret', 'TIKTOK_CLIENT_SECRET')
+        self.tiktok_refresh_token = self._get_config_value('tiktok_refresh_token', 'TIKTOK_REFRESH_TOKEN')
 
-def upload_video(tiktok_access_token, max_video_duration, tiktok_title, videotmpfile, tiktok_privacy_status, mime):
-    """Posts video with caption."""
-
-    video_size = os.path.getsize(videotmpfile)
-    data = {
-        "post_info": {
-            "title": tiktok_title,
-            "privacy_level": tiktok_privacy_status,
-            "disable_duet": False,
-            "disable_comment": False,
-            "disable_stitch": False,
-            "video_cover_timestamp_ms": 0,
-        },
-        "source_info": {
-            "source": "FILE_UPLOAD",
-            "video_size": video_size,
-            "chunk_size": CHUNK_SIZE,
-            "total_chunk_count": max(video_size // CHUNK_SIZE, 1),
-        },
-    }
-
-    response = requests.post(
-        url=DIRECT_POST_URL,
-        headers={
-            "Authorization": f"Bearer {tiktok_access_token}",
-            "Content-Type": "application/json; charset=UTF-8",
-        },
-        data=data
-    )
-
-    upload_url = response.json()["data"]["upload_url"]
-    publish_id = response.json()["data"]["publish_id"]
-
-    first_byte = 0
-    while first_byte < video_size:
-        end_byte = min(first_byte + CHUNK_SIZE - 1, video_size)
-
-        uploads = requests.put(
-            url=upload_url,
-            headers={
-                "Content-Range": f"bytes {first_byte}-{end_byte}/{video_size}",
-                "Content-Length": f"{video_size}",
-                "Content-Type": f"{mime}",
-            },
-            data=videotmpfile
+        # Configuration options
+        self.tiktok_title = self._get_config_value('tiktok_title', 'TIKTOK_TITLE') or ''
+        self.tiktok_privacy_status = (
+            self._get_config_value('tiktok_privacy_status', 'TIKTOK_PRIVACY_STATUS') or 'SELF_ONLY'
         )
+        self.tiktok_allow_comments = self._get_config_value('tiktok_allow_comments', 'TIKTOK_ALLOW_COMMENTS')
+        self.tiktok_allow_duet = self._get_config_value('tiktok_allow_duet', 'TIKTOK_ALLOW_DUET')
+        self.tiktok_allow_stitch = self._get_config_value('tiktok_allow_stitch', 'TIKTOK_ALLOW_STITCH')
+        self.tiktok_auto_add_music = self._get_config_value('tiktok_auto_add_music', 'TIKTOK_AUTO_ADD_MUSIC')
+        self.brand_organic = self._get_config_value('brand_organic', 'TIKTOK_BRAND_ORGANIC')
+        self.brand_content = self._get_config_value('brand_content', 'TIKTOK_BRAND_CONTENT')
 
-        if uploads.status_code not in [RESPONSE_PARTIAL_CONTENT, RESPONSE_CREATED]:
-            break
+        # Convert string booleans
+        self.tiktok_allow_comments = self._convert_bool(self.tiktok_allow_comments, True)
+        self.tiktok_allow_duet = self._convert_bool(self.tiktok_allow_duet, True)
+        self.tiktok_allow_stitch = self._convert_bool(self.tiktok_allow_stitch, True)
+        self.tiktok_auto_add_music = self._convert_bool(self.tiktok_auto_add_music, False)
+        self.brand_organic = self._convert_bool(self.brand_organic, False)
+        self.brand_content = self._convert_bool(self.brand_content, False)
 
-        first_byte = end_byte
+        if not self.tiktok_username:
+            raise Exception('TikTok username is required.')
 
-    status = requests.post(
-        url=GET_VIDEO_STATUS_URL,
-        headers={
-            "Authorization": f"Bearer {tiktok_access_token}",
-            "Content-Type": "application/json; charset=UTF-8",
-        },
-        data={"publish_id": publish_id},
-    )
-    return status.json()["data"]
+        if not self.tiktok_client_key:
+            raise Exception('TikTok client key is required.')
 
+        if not self.tiktok_client_secret:
+            raise Exception('TikTok client secret is required.')
 
-def post(tiktok_access_token, max_video_duration, tiktok_video, tiktok_title, tiktok_privacy_status):
+        # Try to load refresh token from cache if not provided
+        if not self.tiktok_refresh_token:
+            self.tiktok_refresh_token = self._load_refresh_token_from_cache()
 
-    if not tiktok_video or not tiktok_title:
-        raise Exception('No --tiktok-video or --tiktok-title provided.')
+        if not self.tiktok_refresh_token:
+            raise Exception('TikTok refresh token is required. Run authorization first.')
 
-    _, videotmpfile = tempfile.mkstemp(prefix='status-video-url-', suffix='.bin')
+        # Initialize TikTok API
+        self.api = TikTokAPI(
+            self.tiktok_username,
+            self.tiktok_client_key,
+            self.tiktok_client_secret,
+            self.tiktok_refresh_token
+        )
+        await self.api.authenticate()
 
-    with open(videotmpfile, 'wb') as i:
-        request = Request(url=tiktok_video, headers={'User-Agent': f'Agoras/{__version__}'})
-        imgcontent = urlopen(request).read()
-        i.write(imgcontent)
+    def _convert_bool(self, value, default=False):
+        """Convert various boolean representations to bool."""
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.upper() in ['TRUE', '1', 'YES', 'ON']
+        return bool(value)
 
-    kind = filetype.guess(videotmpfile)
+    def _load_refresh_token_from_cache(self):
+        """Load refresh token from cache file."""
+        cachedir = user_cache_dir("Agoras", "Agoras")
+        cachefile = os.path.join(cachedir, f'tiktok-{self.tiktok_username}.json')
 
-    if not kind:
-        raise Exception(f'Invalid image type for {tiktok_video}')
+        if os.path.isfile(cachefile):
+            try:
+                with open(cachefile) as f:
+                    data = json.load(f)
+                    return data.get('tiktok_refresh_token')
+            except Exception:
+                pass
+        return None
 
-    if kind.mime not in ['video/quicktime', 'video/mp4', 'video/webm']:
-        raise Exception(f'Invalid video type "{kind.mime}" for {tiktok_video}')
+    async def authorize(self):
+        """
+        Perform TikTok OAuth authorization flow.
 
-    response = upload_video(tiktok_access_token, max_video_duration, tiktok_title, videotmpfile,
-                            tiktok_privacy_status, kind.mime)
-    status = {
-        "id": response.id
-    }
-    print(json.dumps(status, separators=(',', ':')))
+        Returns:
+            TikTok: Self for method chaining
+        """
+        if not self.tiktok_username:
+            self.tiktok_username = self._get_config_value('tiktok_username', 'TIKTOK_USERNAME')
+        if not self.tiktok_client_key:
+            self.tiktok_client_key = self._get_config_value('tiktok_client_key', 'TIKTOK_CLIENT_KEY')
+        if not self.tiktok_client_secret:
+            self.tiktok_client_secret = self._get_config_value('tiktok_client_secret', 'TIKTOK_CLIENT_SECRET')
 
+        def _sync_authorize():
+            authorize(self.tiktok_username, self.tiktok_client_key, self.tiktok_client_secret)
 
-def like():
-    raise Exception('like not supported for tiktok')
+        await asyncio.to_thread(_sync_authorize)
+        return self
 
+    async def post(self, status_text, status_link,
+                   status_image_url_1=None, status_image_url_2=None,
+                   status_image_url_3=None, status_image_url_4=None):
+        """
+        Create a photo post on TikTok.
 
-def delete():
-    raise Exception('delete not supported for tiktok')
+        Args:
+            status_text (str): Text content of the post (title)
+            status_link (str): Not used for TikTok
+            status_image_url_1 (str, optional): First image URL
+            status_image_url_2 (str, optional): Second image URL
+            status_image_url_3 (str, optional): Third image URL
+            status_image_url_4 (str, optional): Fourth image URL
 
+        Returns:
+            str: Post ID
 
-def share():
-    raise Exception('share not supported for tiktok')
+        Raises:
+            Exception: If post creation fails or duet/stitch not supported for photos
+        """
+        if not self.api:
+            raise Exception('TikTok API not initialized')
 
+        # Validate settings for photo posts
+        if self.tiktok_allow_duet:
+            raise Exception('--allow-duet is not supported for photo posts.')
 
-def last_from_feed(tiktok_access_token, max_video_duration, tiktok_privacy_status,
-                   feed_url, max_count, post_lookback):
+        if self.tiktok_allow_stitch:
+            raise Exception('--allow-stitch is not supported for photo posts.')
 
-    count = 0
+        # Collect source media
+        source_media = list(filter(None, [
+            status_image_url_1, status_image_url_2,
+            status_image_url_3, status_image_url_4
+        ]))
 
-    if not feed_url:
-        raise Exception('No --feed-url provided.')
+        if not source_media:
+            raise Exception('At least one image is required for TikTok photo posts.')
 
-    request = Request(url=feed_url, headers={'User-Agent': f'Agoras/{__version__}'})
-    feed_data = parse_rss_bytes(urlopen(request).read())
-    today = datetime.datetime.now()
-    last_run = today - datetime.timedelta(seconds=post_lookback)
-    last_timestamp = int(last_run.strftime('%Y%m%d%H%M%S'))
+        if not status_text:
+            status_text = self.tiktok_title or ''
 
-    for item in feed_data.items:
-
-        if count >= max_count:
-            break
-
-        if not item.pub_date:
-            continue
-
-        item_timestamp = int(item.pub_date.strftime('%Y%m%d%H%M%S'))
-
-        if item_timestamp < last_timestamp:
-            continue
-
-        title = item.title or ''
-
-        tiktok_title = unescape(title) if title else ''
+        # Validate images using Media system
+        validated_media = []
+        images = await self.download_images(source_media)
 
         try:
-            tiktok_video = item.enclosures[0].url
-        except Exception:
-            tiktok_video = ''
+            for image in images:
+                if not image.content or not image.file_type:
+                    image.cleanup()
+                    raise Exception(f'Failed to download or validate image: {image.url}')
 
-        count += 1
-        post(tiktok_access_token, max_video_duration, tiktok_video,
-             tiktok_title, tiktok_privacy_status)
+                # Ensure image is valid format for TikTok
+                if image.file_type.mime not in ['image/jpeg', 'image/png', 'image/jpg']:
+                    image.cleanup()
+                    raise Exception(f'Invalid image type "{image.file_type.mime}" for {image.url}')
 
+                validated_media.append(image.url)
 
-def random_from_feed(tiktok_access_token, max_video_duration, tiktok_privacy_status,
-                     feed_url, max_post_age):
+            # Validate brand content settings
+            if self.brand_content and self.tiktok_privacy_status == 'ONLY_ME':
+                raise Exception('You cannot use brand content with ONLY_ME privacy status')
 
-    json_index_content = {}
+            # Print brand content notices
+            self._print_brand_content_notices()
 
-    if not feed_url:
-        raise Exception('No --feed-url provided.')
+            # Create the post
+            response = await self.api.upload_photo(
+                validated_media,
+                status_text,
+                str(self.tiktok_privacy_status),
+                bool(self.tiktok_allow_comments),
+                bool(self.brand_organic),
+                bool(self.brand_content),
+                bool(self.tiktok_auto_add_music)
+            )
 
-    request = Request(url=feed_url, headers={'User-Agent': f'Agoras/{__version__}'})
-    feed_data = parse_rss_bytes(urlopen(request).read())
-    today = datetime.datetime.now()
-    max_age_delta = today - datetime.timedelta(days=max_post_age)
-    max_age_timestamp = int(max_age_delta.strftime('%Y%m%d%H%M%S'))
+            post_id = response.get('publish_id')
+            self._output_status(post_id)
+            return post_id
 
-    for item in feed_data.items:
+        finally:
+            # Clean up all downloaded images
+            for image in images:
+                image.cleanup()
 
-        if not item.pub_date:
-            continue
+    async def video(self, status_text, video_url, video_title):
+        """
+        Post a video to TikTok.
 
-        item_timestamp = int(item.pub_date.strftime('%Y%m%d%H%M%S'))
+        Args:
+            status_text (str): Text content to accompany the video (used as title if video_title not provided)
+            video_url (str): URL of the video to post
+            video_title (str): Title of the video (optional, status_text used if not provided)
 
-        if item_timestamp < max_age_timestamp:
-            continue
+        Returns:
+            str: Post ID
+        """
+        if not self.api:
+            raise Exception('TikTok API not initialized')
 
-        json_index_content[str(item_timestamp)] = {
-            'title': item.title or '',
-            'date': item.pub_date
-        }
+        if not video_url:
+            raise Exception('Video URL is required.')
+
+        title = video_title or status_text or self.tiktok_title or ''
+        if not title:
+            raise Exception('Video title is required.')
+
+        # Validate settings for video posts
+        if self.tiktok_auto_add_music:
+            raise Exception('Auto-add music is not supported for video posts.')
+
+        # Download and validate video using Media system
+        video = await self.download_video(video_url)
 
         try:
-            json_index_content[str(item_timestamp)]['image'] = item.enclosures[0].url
-        except Exception:
-            json_index_content[str(item_timestamp)]['image'] = ''
+            if not video.content or not video.file_type:
+                raise Exception('Failed to download or validate video')
 
-    random_status_id = random.choice(list(json_index_content.keys()))
-    random_status_title = json_index_content[random_status_id]['title']
-    tiktok_video = json_index_content[random_status_id]['image']
+            # Ensure video is valid format for TikTok
+            if video.file_type.mime not in ['video/quicktime', 'video/mp4', 'video/webm']:
+                raise Exception(f'Invalid video type "{video.file_type.mime}" for {video_url}')
 
-    tiktok_title = unescape(random_status_title) if random_status_title else ''
+            # Check video duration against creator limits
+            if hasattr(self.api, 'creator_info') and self.api.creator_info:
+                max_duration = self.api.creator_info.get('max_video_post_duration_sec', 0)
+                video_duration = video.get_duration()
+                if video_duration and video_duration > max_duration:
+                    raise Exception(f'Video duration {video_duration}s exceeds max duration of {max_duration}s')
 
-    post(tiktok_access_token, max_video_duration, tiktok_video, tiktok_title,
-         tiktok_privacy_status)
+            # Validate brand content settings
+            if self.brand_content and self.tiktok_privacy_status == 'ONLY_ME':
+                raise Exception('You cannot use brand content with ONLY_ME privacy status')
+
+            # Print brand content notices
+            self._print_brand_content_notices()
+
+            print(f'Uploading video to @{self.tiktok_username}...')
+
+            # Upload the video
+            response = await self.api.upload_video(
+                video_url,
+                title,
+                str(self.tiktok_privacy_status),
+                bool(self.tiktok_allow_comments),
+                bool(self.tiktok_allow_duet),
+                bool(self.tiktok_allow_stitch),
+                bool(self.brand_organic),
+                bool(self.brand_content)
+            )
+
+            post_id = response.get('publish_id')
+            self._output_status(post_id)
+            return post_id
+
+        finally:
+            # Clean up downloaded video
+            video.cleanup()
+
+    async def like(self, post_id):
+        """
+        Like a TikTok post.
+
+        TikTok API doesn't support liking posts through the API.
+
+        Args:
+            post_id (str): ID of the post to like
+
+        Raises:
+            Exception: Always, as like is not supported
+        """
+        raise Exception('Like not supported for TikTok')
+
+    async def delete(self, post_id):
+        """
+        Delete a TikTok post.
+
+        TikTok API doesn't support deleting posts through the API.
+
+        Args:
+            post_id (str): ID of the post to delete
+
+        Raises:
+            Exception: Always, as delete is not supported
+        """
+        raise Exception('Delete not supported for TikTok')
+
+    async def share(self, post_id):
+        """
+        Share a TikTok post.
+
+        TikTok API doesn't support sharing posts through the API.
+
+        Args:
+            post_id (str): ID of the post to share
+
+        Raises:
+            Exception: Always, as share is not supported
+        """
+        raise Exception('Share not supported for TikTok')
+
+    def _print_brand_content_notices(self):
+        """Print brand content compliance notices."""
+        if self.brand_organic and self.brand_content:
+            print("Your photo/video will be labeled as 'Paid partnership'")
+            print("By posting, you agree to TikTok's Branded Content Policy "
+                  "(https://www.tiktok.com/legal/page/global/bc-policy/en) "
+                  "and Music Usage Confirmation "
+                  "(https://www.tiktok.com/legal/page/global/music-usage-confirmation/en).")
+        elif self.brand_organic:
+            print("Your photo/video will be labeled as 'Promotional content'")
+            print("By posting, you agree to TikTok's Music Usage Confirmation "
+                  "(https://www.tiktok.com/legal/page/global/music-usage-confirmation/en).")
+        elif self.brand_content:
+            print("Your photo/video will be labeled as 'Paid partnership'")
+            print("By posting, you agree to TikTok's Branded Content Policy "
+                  "(https://www.tiktok.com/legal/page/global/bc-policy/en) "
+                  "and Music Usage Confirmation "
+                  "(https://www.tiktok.com/legal/page/global/music-usage-confirmation/en).")
+
+    # Override action handlers to use TikTok-specific parameter names
+    async def _handle_post_action(self):
+        """Handle post action with TikTok-specific parameter extraction."""
+        status_image_url_1 = self._get_config_value('status_image_url_1', 'STATUS_IMAGE_URL_1')
+        status_image_url_2 = self._get_config_value('status_image_url_2', 'STATUS_IMAGE_URL_2')
+        status_image_url_3 = self._get_config_value('status_image_url_3', 'STATUS_IMAGE_URL_3')
+        status_image_url_4 = self._get_config_value('status_image_url_4', 'STATUS_IMAGE_URL_4')
+
+        await self.post('', '', status_image_url_1, status_image_url_2,
+                        status_image_url_3, status_image_url_4)
+
+    async def _handle_video_action(self):
+        """Handle video action with TikTok-specific parameter extraction."""
+        video_url = self._get_config_value('tiktok_video_url', 'TIKTOK_VIDEO_URL')
+        video_title = self.tiktok_title or ''
+
+        if not video_url:
+            raise Exception('TikTok video URL is required for video action.')
+
+        await self.video(video_title, video_url, video_title)
+
+    async def _handle_like_action(self):
+        """Handle like action - not supported for TikTok."""
+        await self.like(None)
+
+    async def _handle_share_action(self):
+        """Handle share action - not supported for TikTok."""
+        await self.share(None)
+
+    async def _handle_delete_action(self):
+        """Handle delete action - not supported for TikTok."""
+        await self.delete(None)
 
 
-def schedule(tiktok_access_token, max_video_duration, google_sheets_id,
-             google_sheets_name, google_sheets_client_email,
-             google_sheets_private_key, max_count):
+async def main_async(kwargs):
+    """
+    Async main function to execute TikTok actions.
 
-    count = 0
-    newcontent = []
-    gspread_scope = ['https://spreadsheets.google.com/feeds']
-    account_info = {
-        'private_key': google_sheets_private_key,
-        'client_email': google_sheets_client_email,
-        'token_uri': 'https://oauth2.googleapis.com/token',
-    }
-    creds = Credentials.from_service_account_info(account_info,
-                                                  scopes=gspread_scope)
-    gclient = gspread.authorize(creds)
-    spreadsheet = gclient.open_by_key(google_sheets_id)
+    Args:
+        kwargs (dict): Configuration arguments
+    """
+    action = kwargs.get('action', '')
 
-    worksheet = spreadsheet.worksheet(google_sheets_name)
-    currdate = datetime.datetime.now()
+    if action == '':
+        raise Exception('Action is a required argument.')
 
-    content = worksheet.get_all_values()
+    # Create TikTok instance with configuration
+    tiktok_client = TikTok(**kwargs)
 
-    for row in content:
-
-        tiktok_title, tiktok_privacy_status, tiktok_video, \
-            date, hour, state = row
-
-        newcontent.append([
-            tiktok_title, tiktok_privacy_status, tiktok_video,
-            date, hour, state
-        ])
-
-        rowdate = parser.parse(date)
-        normalized_currdate = parser.parse(currdate.strftime('%d-%m-%Y'))
-        normalized_rowdate = parser.parse(rowdate.strftime('%d-%m-%Y'))
-
-        if count >= max_count:
-            break
-
-        if state == 'published':
-            continue
-
-        if normalized_rowdate < normalized_currdate:
-            continue
-
-        if currdate.strftime('%d-%m-%Y') == rowdate.strftime('%d-%m-%Y') and \
-           currdate.strftime('%H') != hour:
-            continue
-
-        count += 1
-        newcontent[-1][-1] = 'published'
-        post(tiktok_access_token, max_video_duration, tiktok_video,
-             tiktok_title, tiktok_privacy_status)
-
-    worksheet.clear()
-
-    for row in newcontent:
-        worksheet.append_row(row, table_range='A1')
+    # Execute the action using the base class method
+    await tiktok_client.execute_action(action)
 
 
 def main(kwargs):
+    """
+    Main function to execute TikTok actions.
 
-    action = kwargs.get('action')
-    tiktok_access_token = kwargs.get('tiktok_access_token', None) or \
-        os.environ.get('TIKTOK_ACCESS_TOKEN', None)
-    tiktok_title = kwargs.get('tiktok_title', '') or \
-        os.environ.get('TIKTOK_TITLE', '')
-    tiktok_privacy_status = kwargs.get('tiktok_privacy_status', '') or \
-        os.environ.get('TIKTOK_PRIVACY_STATUS', '')
-    tiktok_video = kwargs.get('tiktok_video', '') or \
-        os.environ.get('TIKTOK_VIDEO', '')
-    feed_url = kwargs.get('feed_url', None) or \
-        os.environ.get('FEED_URL', None)
-    post_lookback = kwargs.get('post_lookback', 1 * 60 * 60) or \
-        os.environ.get('POST_LOOKBACK', 1 * 60 * 60)
-    max_count = kwargs.get('max_count', 1) or \
-        os.environ.get('MAX_COUNT', 1)
-    max_post_age = kwargs.get('max_post_age', 365) or \
-        os.environ.get('MAX_POST_AGE', 365)
-    google_sheets_id = kwargs.get('google_sheets_id', None) or \
-        os.environ.get('GOOGLE_SHEETS_ID', None)
-    google_sheets_name = kwargs.get('google_sheets_name', None) or \
-        os.environ.get('GOOGLE_SHEETS_NAME', None)
-    google_sheets_client_email = \
-        kwargs.get('google_sheets_client_email', None) or \
-        os.environ.get('GOOGLE_SHEETS_CLIENT_EMAIL', None)
-    google_sheets_private_key = \
-        kwargs.get('google_sheets_private_key', None) or \
-        os.environ.get('GOOGLE_SHEETS_PRIVATE_KEY', None)
-
-    max_count = int(max_count)
-    post_lookback = int(post_lookback)
-    max_post_age = int(max_post_age)
-    google_sheets_private_key = \
-        google_sheets_private_key.replace('\\n', '\n') \
-        if google_sheets_private_key else ''
-
-    max_video_duration = get_max_video_duration(tiktok_access_token)
-
-    if action == 'post':
-        post(tiktok_access_token, max_video_duration, tiktok_video,
-             tiktok_title, tiktok_privacy_status)
-    elif action == 'like':
-        like()
-    elif action == 'share':
-        share()
-    elif action == 'delete':
-        delete()
-    elif action == 'last-from-feed':
-        last_from_feed(tiktok_access_token, max_video_duration, tiktok_privacy_status,
-                       feed_url, max_count, post_lookback)
-    elif action == 'random-from-feed':
-        random_from_feed(tiktok_access_token, max_video_duration, tiktok_privacy_status,
-                         feed_url, max_post_age)
-    elif action == 'schedule':
-        schedule(tiktok_access_token, max_video_duration, google_sheets_id,
-                 google_sheets_name, google_sheets_client_email,
-                 google_sheets_private_key, max_count)
-    elif action == '':
-        raise Exception('--action is a required argument.')
-    else:
-        raise Exception(f'"{action}" action not supported.')
+    Args:
+        kwargs (dict): Configuration arguments
+    """
+    asyncio.run(main_async(kwargs))

@@ -10,23 +10,23 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Disable workflows
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           script: |
             await github.rest.actions.disableWorkflow({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              workflow_id: 'actionsflow.yml',
+              workflow_id: 'push.yml',
             });
 
       - name: Enable workflows
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           script: |
             await github.rest.actions.enableWorkflow({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              workflow_id: 'actionsflow.yml',
+              workflow_id: 'push.yml',
             });

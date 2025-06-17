@@ -16,500 +16,282 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import datetime
-import json
-import os
+import asyncio
 import random
-import tempfile
-import time
-from html import unescape
-from urllib.request import Request, urlopen
 
-import filetype
-import gspread
-from atoma import parse_rss_bytes
-from dateutil import parser
-from google.oauth2.service_account import Credentials
-from linkedin_api.clients.restli.client import RestliClient
-import requests
-
-from agoras import __version__
-from agoras.core.utils import add_url_timestamp, parse_metatags
+from agoras.core.base import SocialNetwork
+from agoras.core.api import LinkedInAPI
+from agoras.core.utils import parse_metatags
 
 
-api_version = "202302"
+class LinkedIn(SocialNetwork):
+    """
+    LinkedIn social network implementation.
 
+    This class provides LinkedIn-specific functionality for posting messages,
+    images, and managing LinkedIn interactions asynchronously.
+    """
 
-def get_object_id(client, linkedin_access_token):
-    me = client.get(resource_path='/userinfo', access_token=linkedin_access_token)
-    linkedin_object_id = me.response.json().get('sub', '')
-    if not linkedin_object_id:
-        raise Exception('Unable to get LinkedIn object ID.')
-    return linkedin_object_id
+    def __init__(self, **kwargs):
+        """
+        Initialize LinkedIn instance.
 
+        Args:
+            **kwargs: Configuration parameters including:
+                - linkedin_access_token: LinkedIn access token
+                - linkedin_client_id: LinkedIn client ID
+                - linkedin_client_secret: LinkedIn client secret
+                - linkedin_refresh_token: LinkedIn refresh token
+                - linkedin_object_id: LinkedIn object ID
+                - linkedin_post_id: LinkedIn post ID
+        """
+        super().__init__(**kwargs)
+        self.linkedin_access_token = None
+        self.linkedin_client_id = None
+        self.linkedin_client_secret = None
+        self.linkedin_refresh_token = None
+        self.linkedin_object_id = None
+        self.linkedin_post_id = None
+        self.api = None
 
-def get_entity(
-        linkedin_object_id,
-        status_text,
-        status_link,
-        status_link_title,
-        status_link_description,
-        attached_media):
+    async def _initialize_client(self):
+        """
+        Initialize LinkedIn API client.
 
-    entity = {
-        "author": f"urn:li:person:{linkedin_object_id}",
-        "commentary": status_text,
-        "visibility": "PUBLIC",
-        "distribution": {
-            "feedDistribution": "MAIN_FEED",
-            "targetEntities": [],
-            "thirdPartyDistributionChannels": []
-        },
-        "lifecycleState": "PUBLISHED",
-        "isReshareDisabledByAuthor": False
-    }
+        This method sets up the LinkedIn API client with configuration.
+        """
+        self.linkedin_access_token = self._get_config_value('linkedin_access_token', 'LINKEDIN_ACCESS_TOKEN')
+        self.linkedin_client_id = self._get_config_value('linkedin_client_id', 'LINKEDIN_CLIENT_ID')
+        self.linkedin_client_secret = self._get_config_value('linkedin_client_secret', 'LINKEDIN_CLIENT_SECRET')
+        self.linkedin_refresh_token = self._get_config_value('linkedin_refresh_token', 'LINKEDIN_REFRESH_TOKEN')
+        self.linkedin_object_id = self._get_config_value('linkedin_object_id', 'LINKEDIN_OBJECT_ID')
+        self.linkedin_post_id = self._get_config_value('linkedin_post_id', 'LINKEDIN_POST_ID')
 
-    if status_link and status_text:
-        entity["content"] = {
-            "article": {
-                "source": status_link,
-                "title": status_text,
-            }
-        }
+        if not self.linkedin_access_token:
+            raise Exception('LinkedIn access token is required.')
 
-        if len(attached_media) > 0:
-            entity["content"]["article"]["thumbnail"] = attached_media[0]['id']
+        # Initialize LinkedIn API
+        self.api = LinkedInAPI(
+            self.linkedin_access_token,
+            self.linkedin_client_id,
+            self.linkedin_client_secret,
+            self.linkedin_refresh_token
+        )
+        await self.api.authenticate()
 
-        if status_link_title:
-            entity["content"]["article"]["title"] = status_link_title
+    async def post(self, status_text, status_link,
+                   status_image_url_1=None, status_image_url_2=None,
+                   status_image_url_3=None, status_image_url_4=None):
+        """
+        Create a post on LinkedIn.
 
-        if status_link_description:
-            entity["content"]["article"]["description"] = status_link_description
+        Args:
+            status_text (str): Text content of the post
+            status_link (str): URL to include in the post
+            status_image_url_1 (str, optional): First image URL
+            status_image_url_2 (str, optional): Second image URL
+            status_image_url_3 (str, optional): Third image URL
+            status_image_url_4 (str, optional): Fourth image URL
 
-    if not status_link:
-        if len(attached_media) == 1:
-            entity["content"] = {
-                "media": attached_media[0]
-            }
+        Returns:
+            str: Post ID
+        """
+        if not self.api:
+            raise Exception('LinkedIn API not initialized')
 
-        elif len(attached_media) > 1:
-            entity["content"] = {
-                "multiImage": {
-                    "images": attached_media
-                }
-            }
+        status_link_title = ''
+        status_link_description = ''
+        status_link_image = ''
+        media_ids = []
+        source_media = list(filter(None, [
+            status_image_url_1, status_image_url_2,
+            status_image_url_3, status_image_url_4
+        ]))
 
-    return entity
+        if not source_media and not status_text and not status_link:
+            raise Exception('No status text, link, or images provided.')
 
+        # Parse link metadata if link is provided
+        if status_link:
+            scraped_data = parse_metatags(status_link)
+            status_link_title = scraped_data.get('title', '')
+            status_link_description = scraped_data.get('description', '')
+            status_link_image = scraped_data.get('image', '')
 
-def post(client, linkedin_access_token, status_text, status_link,
-         status_image_url_1=None, status_image_url_2=None,
-         status_image_url_3=None, status_image_url_4=None):
+            if status_link_image and not source_media:
+                source_media = [status_link_image]
 
-    if not linkedin_access_token:
-        raise Exception('No --linkedin-access-token provided.')
+        # Download and upload images using the Media system
+        if source_media:
+            images = await self.download_images(source_media)
+            for image in images:
+                try:
+                    # Upload image to LinkedIn
+                    await asyncio.sleep(random.randrange(1, 5))
+                    if image.content:
+                        media_id = await self.api.upload_image(image.content)
+                        if media_id:
+                            media_ids.append(media_id)
+                except Exception as e:
+                    print(f"Failed to upload image {image.url}: {str(e)}")
+                finally:
+                    # Clean up temporary files
+                    image.cleanup()
 
-    status_link_title = ''
-    status_link_description = ''
-    status_link_image = ''
-    attached_media = []
-    source_media = list(filter(None, [
-        status_image_url_1, status_image_url_2,
-        status_image_url_3, status_image_url_4
-    ]))
-
-    if not source_media and not status_text and not status_link:
-        raise Exception('No --status-text or --status-link or --status-image-url-1 provided.')
-
-    linkedin_object_id = get_object_id(client, linkedin_access_token)
-
-    if status_link:
-        scraped_data = parse_metatags(status_link)
-        status_link_title = scraped_data.get('title', '')
-        status_link_description = scraped_data.get('description', '')
-        status_link_image = scraped_data.get('image', '')
-
-        if status_link_image:
-            source_media = [status_link_image]
-
-    for imgurl in source_media:
-
-        _, tmpimg = tempfile.mkstemp(prefix='status-image-url-',
-                                     suffix='.bin')
-
-        with open(tmpimg, 'wb') as i:
-            request = Request(url=imgurl, headers={'User-Agent': f'Agoras/{__version__}'})
-            imgcontent = urlopen(request).read()
-            i.write(imgcontent)
-
-        kind = filetype.guess(tmpimg)
-
-        if not kind:
-            raise Exception(f'Invalid image type for {imgurl}')
-
-        if kind.mime not in ['image/jpeg', 'image/png', 'image/gif']:
-            raise Exception(f'Invalid image type "{kind.mime}" for {imgurl}')
-
-        request = client.action(
-            resource_path="/images",
-            action_name="initializeUpload",
-            action_params={
-                "initializeUploadRequest": {
-                    "owner": f"urn:li:person:{linkedin_object_id}",
-                }
-            },
-            version_string=api_version,
-            access_token=linkedin_access_token
+        # Create the post
+        await asyncio.sleep(random.randrange(1, 5))
+        post_id = await self.api.create_post(
+            text=status_text,
+            link=status_link,
+            link_title=status_link_title,
+            link_description=status_link_description,
+            media_ids=media_ids or []
         )
 
-        response = request.response.json()
-        upload_url = response.get('value', {}).get('uploadUrl', '')
-        media_id = response.get('value', {}).get('image', '')
-
-        time.sleep(random.randrange(5))
-
-        try:
-            response = requests.put(
-                upload_url,
-                headers={
-                    'Authorization': f'Bearer {linkedin_access_token}'},
-                data=imgcontent)
-        except Exception:
-            continue
-
-        if response.status_code != 201:
-            continue
-
-        attached_media.append({
-            "id": media_id,
-        })
-
-    entity = get_entity(
-        linkedin_object_id,
-        status_text,
-        status_link,
-        status_link_title,
-        status_link_description,
-        attached_media)
-
-    time.sleep(random.randrange(5))
-
-    request = client.create(
-        resource_path='/posts',
-        entity=entity,
-        version_string=api_version,
-        access_token=linkedin_access_token
-    )
-
-    status = {
-        'id': request.entity_id
-    }
-    print(json.dumps(status, separators=(',', ':')))
-
-
-def like(client, linkedin_access_token, linkedin_post_id):
-    linkedin_object_id = get_object_id(client, linkedin_access_token)
-
-    time.sleep(random.randrange(5))
-
-    entity = {
-        "actor": f"urn:li:person:{linkedin_object_id}",
-        "object": linkedin_post_id,
-    }
-
-    request = client.create(
-        resource_path='/socialActions/{id}/likes',
-        path_keys={
-            "id": linkedin_post_id,
-        },
-        entity=entity,
-        version_string=api_version,
-        access_token=linkedin_access_token
-    )
-
-    if request.status_code != 201:
-        raise Exception(f'Unable to like post {linkedin_post_id}')
-
-    status = {
-        'id': linkedin_post_id,
-    }
-    print(json.dumps(status, separators=(',', ':')))
-
-
-def share(client, linkedin_access_token, linkedin_post_id):
-    linkedin_object_id = get_object_id(client, linkedin_access_token)
-
-    time.sleep(random.randrange(5))
-
-    entity = {
-        "author": f"urn:li:person:{linkedin_object_id}",
-        "commentary": "",
-        "visibility": "PUBLIC",
-        "distribution": {
-            "feedDistribution": "MAIN_FEED",
-            "targetEntities": [],
-            "thirdPartyDistributionChannels": []
-        },
-        "lifecycleState": "PUBLISHED",
-        "isReshareDisabledByAuthor": False,
-        "reshareContext": {
-            "parent": linkedin_post_id
-        }
-    }
-
-    request = client.create(
-        resource_path='/posts',
-        entity=entity,
-        version_string=api_version,
-        access_token=linkedin_access_token
-    )
-
-    if request.status_code != 201:
-        raise Exception(f'Unable to share post {linkedin_post_id}')
-
-    status = {
-        'id': request.entity_id
-    }
-    print(json.dumps(status, separators=(',', ':')))
-
-
-def delete(client, linkedin_access_token, linkedin_post_id):
-    time.sleep(random.randrange(5))
-
-    request = client.delete(
-        resource_path='/posts/{id}',
-        path_keys={
-            "id": linkedin_post_id,
-        },
-        version_string=api_version,
-        access_token=linkedin_access_token
-    )
-
-    if request.status_code != 204:
-        raise Exception(f'Unable to delete post {linkedin_post_id}')
-
-    status = {
-        'id': linkedin_post_id
-    }
-    print(json.dumps(status, separators=(',', ':')))
-
-
-def last_from_feed(client, linkedin_access_token, feed_url, max_count, post_lookback):
-
-    count = 0
-
-    if not feed_url:
-        raise Exception('No --feed-url provided.')
-
-    request = Request(url=feed_url, headers={'User-Agent': f'Agoras/{__version__}'})
-    feed_data = parse_rss_bytes(urlopen(request).read())
-    today = datetime.datetime.now()
-    last_run = today - datetime.timedelta(seconds=post_lookback)
-    last_timestamp = int(last_run.strftime('%Y%m%d%H%M%S'))
-
-    for item in feed_data.items:
-
-        if count >= max_count:
-            break
-
-        if not item.pub_date:
-            continue
-
-        item_timestamp = int(item.pub_date.strftime('%Y%m%d%H%M%S'))
-
-        if item_timestamp < last_timestamp:
-            continue
-
-        link = item.link or item.guid or ''
-        title = item.title or ''
-
-        status_link = add_url_timestamp(link, today.strftime('%Y%m%d%H%M%S')) if link else ''
-        status_title = unescape(title) if title else ''
-
-        try:
-            status_image = item.enclosures[0].url
-        except Exception:
-            status_image = ''
-
-        count += 1
-        post(client, linkedin_access_token, status_title, status_link, status_image)
-
-
-def random_from_feed(client, linkedin_access_token, feed_url, max_post_age):
-
-    json_index_content = {}
-
-    if not feed_url:
-        raise Exception('No --feed-url provided.')
-
-    request = Request(url=feed_url, headers={'User-Agent': f'Agoras/{__version__}'})
-    feed_data = parse_rss_bytes(urlopen(request).read())
-    today = datetime.datetime.now()
-    max_age_delta = today - datetime.timedelta(days=max_post_age)
-    max_age_timestamp = int(max_age_delta.strftime('%Y%m%d%H%M%S'))
-
-    for item in feed_data.items:
-
-        if not item.pub_date:
-            continue
-
-        item_timestamp = int(item.pub_date.strftime('%Y%m%d%H%M%S'))
-
-        if item_timestamp < max_age_timestamp:
-            continue
-
-        json_index_content[str(item_timestamp)] = {
-            'title': item.title or '',
-            'url': item.link or item.guid or '',
-            'date': item.pub_date
-        }
-
-        try:
-            json_index_content[str(item_timestamp)]['image'] = item.enclosures[0].url
-        except Exception:
-            json_index_content[str(item_timestamp)]['image'] = ''
-
-    random_status_id = random.choice(list(json_index_content.keys()))
-    random_status_title = json_index_content[random_status_id]['title']
-    random_status_image = json_index_content[random_status_id]['image']
-    random_status_link = json_index_content[random_status_id]['url']
-
-    status_link = add_url_timestamp(random_status_link, today.strftime('%Y%m%d%H%M%S')) if random_status_link else ''
-    status_title = unescape(random_status_title) if random_status_title else ''
-
-    post(client, linkedin_access_token, status_title, status_link, random_status_image)
-
-
-def schedule(client, linkedin_access_token, google_sheets_id,
-             google_sheets_name, google_sheets_client_email,
-             google_sheets_private_key, max_count):
-
-    count = 0
-    newcontent = []
-    gspread_scope = ['https://spreadsheets.google.com/feeds']
-    account_info = {
-        'private_key': google_sheets_private_key,
-        'client_email': google_sheets_client_email,
-        'token_uri': 'https://oauth2.googleapis.com/token',
-    }
-    creds = Credentials.from_service_account_info(account_info,
-                                                  scopes=gspread_scope)
-    gclient = gspread.authorize(creds)
-    spreadsheet = gclient.open_by_key(google_sheets_id)
-
-    worksheet = spreadsheet.worksheet(google_sheets_name)
-    currdate = datetime.datetime.now()
-
-    content = worksheet.get_all_values()
-
-    for row in content:
-
-        status_text, status_link, status_image_url_1, status_image_url_2, \
-            status_image_url_3, status_image_url_4, \
-            date, hour, state = row
-
-        newcontent.append([
-            status_text, status_link, status_image_url_1, status_image_url_2,
-            status_image_url_3, status_image_url_4,
-            date, hour, state
-        ])
-
-        rowdate = parser.parse(date)
-        normalized_currdate = parser.parse(currdate.strftime('%d-%m-%Y'))
-        normalized_rowdate = parser.parse(rowdate.strftime('%d-%m-%Y'))
-
-        if count >= max_count:
-            break
-
-        if state == 'published':
-            continue
-
-        if normalized_rowdate < normalized_currdate:
-            continue
-
-        if currdate.strftime('%d-%m-%Y') == rowdate.strftime('%d-%m-%Y') and \
-           currdate.strftime('%H') != hour:
-            continue
-
-        count += 1
-        newcontent[-1][-1] = 'published'
-        post(client, linkedin_access_token, status_text, status_link,
-             status_image_url_1, status_image_url_2,
-             status_image_url_3, status_image_url_4)
-
-    worksheet.clear()
-
-    for row in newcontent:
-        worksheet.append_row(row, table_range='A1')
+        self._output_status(post_id)
+        return post_id
+
+    async def like(self, linkedin_post_id=None):
+        """
+        Like a LinkedIn post.
+
+        Args:
+            linkedin_post_id (str, optional): ID of the LinkedIn post to like.
+                                               Uses instance linkedin_post_id if not provided.
+
+        Returns:
+            str: Post ID
+        """
+        if not self.api:
+            raise Exception('LinkedIn API not initialized')
+
+        post_id = linkedin_post_id or self.linkedin_post_id
+        if not post_id:
+            raise Exception('LinkedIn post ID is required.')
+
+        await asyncio.sleep(random.randrange(1, 5))
+        result = await self.api.like_post(post_id)
+        self._output_status(result)
+        return result
+
+    async def delete(self, linkedin_post_id=None):
+        """
+        Delete a LinkedIn post.
+
+        Args:
+            linkedin_post_id (str, optional): ID of the LinkedIn post to delete.
+                                               Uses instance linkedin_post_id if not provided.
+
+        Returns:
+            str: Post ID
+        """
+        if not self.api:
+            raise Exception('LinkedIn API not initialized')
+
+        post_id = linkedin_post_id or self.linkedin_post_id
+        if not post_id:
+            raise Exception('LinkedIn post ID is required.')
+
+        await asyncio.sleep(random.randrange(1, 5))
+        result = await self.api.delete_post(post_id)
+        self._output_status(result)
+        return result
+
+    async def share(self, linkedin_post_id=None):
+        """
+        Share a LinkedIn post.
+
+        Args:
+            linkedin_post_id (str, optional): ID of the LinkedIn post to share.
+                                               Uses instance linkedin_post_id if not provided.
+
+        Returns:
+            str: New post ID
+        """
+        if not self.api:
+            raise Exception('LinkedIn API not initialized')
+
+        post_id = linkedin_post_id or self.linkedin_post_id
+        if not post_id:
+            raise Exception('LinkedIn post ID is required.')
+
+        await asyncio.sleep(random.randrange(1, 5))
+        result = await self.api.share_post(post_id)
+        self._output_status(result)
+        return result
+
+    async def video(self, status_text, video_url, video_title):
+        """
+        LinkedIn doesn't support direct video uploads in the same way as other platforms.
+        This method is a placeholder that raises a NotImplementedError.
+
+        Args:
+            status_text (str): Text content to accompany the video
+            video_url (str): URL of the video to post
+            video_title (str): Title of the video
+
+        Raises:
+            NotImplementedError: LinkedIn video uploads require different approach
+        """
+        raise NotImplementedError(
+            'LinkedIn video uploads require specialized handling through LinkedIn Video API. '
+            'Use post() method with video links instead.'
+        )
+
+    # The base class already provides last_from_feed, random_from_feed, and schedule methods.
+    # We only need to override the action handlers for LinkedIn-specific parameter names.
+
+    # Override action handlers to use LinkedIn-specific parameter names
+    async def _handle_like_action(self):
+        """Handle like action with LinkedIn-specific parameter extraction."""
+        linkedin_post_id = self._get_config_value('linkedin_post_id', 'LINKEDIN_POST_ID')
+        if not linkedin_post_id:
+            raise Exception('LinkedIn post ID is required for like action.')
+        await self.like(linkedin_post_id)
+
+    async def _handle_share_action(self):
+        """Handle share action with LinkedIn-specific parameter extraction."""
+        linkedin_post_id = self._get_config_value('linkedin_post_id', 'LINKEDIN_POST_ID')
+        if not linkedin_post_id:
+            raise Exception('LinkedIn post ID is required for share action.')
+        await self.share(linkedin_post_id)
+
+    async def _handle_delete_action(self):
+        """Handle delete action with LinkedIn-specific parameter extraction."""
+        linkedin_post_id = self._get_config_value('linkedin_post_id', 'LINKEDIN_POST_ID')
+        if not linkedin_post_id:
+            raise Exception('LinkedIn post ID is required for delete action.')
+        await self.delete(linkedin_post_id)
+
+    # The base class already provides default action handlers for last-from-feed, 
+    # random-from-feed, and schedule actions with the correct parameter names.
+    # No need to override them for LinkedIn.
+
+
+async def main_async(kwargs):
+    """
+    Async main function to execute LinkedIn actions.
+
+    Args:
+        kwargs (dict): Configuration arguments
+    """
+    action = kwargs.get('action', '')
+
+    if action == '':
+        raise Exception('Action is a required argument.')
+
+    # Create LinkedIn instance with configuration
+    linkedin_client = LinkedIn(**kwargs)
+
+    # Execute the action using the base class method
+    await linkedin_client.execute_action(action)
 
 
 def main(kwargs):
+    """
+    Main function to execute LinkedIn actions (for backwards compatibility).
 
-    action = kwargs.get('action')
-    linkedin_access_token = kwargs.get('linkedin_access_token', None) or \
-        os.environ.get('LINKEDIN_ACCESS_TOKEN', None)
-    linkedin_post_id = kwargs.get('linkedin_post_id', None) or \
-        os.environ.get('LINKEDIN_POST_ID', None)
-    status_text = kwargs.get('status_text', '') or \
-        os.environ.get('STATUS_TEXT', '')
-    status_link = kwargs.get('status_link', '') or \
-        os.environ.get('STATUS_LINK', '')
-    status_image_url_1 = kwargs.get('status_image_url_1', None) or \
-        os.environ.get('STATUS_IMAGE_URL_1', None)
-    status_image_url_2 = kwargs.get('status_image_url_2', None) or \
-        os.environ.get('STATUS_IMAGE_URL_2', None)
-    status_image_url_3 = kwargs.get('status_image_url_3', None) or \
-        os.environ.get('STATUS_IMAGE_URL_3', None)
-    status_image_url_4 = kwargs.get('status_image_url_4', None) or \
-        os.environ.get('STATUS_IMAGE_URL_4', None)
-    feed_url = kwargs.get('feed_url', None) or \
-        os.environ.get('FEED_URL', None)
-    post_lookback = kwargs.get('post_lookback', 1 * 60 * 60) or \
-        os.environ.get('POST_LOOKBACK', 1 * 60 * 60)
-    max_count = kwargs.get('max_count', 1) or \
-        os.environ.get('MAX_COUNT', 1)
-    max_post_age = kwargs.get('max_post_age', 365) or \
-        os.environ.get('MAX_POST_AGE', 365)
-    google_sheets_id = kwargs.get('google_sheets_id', None) or \
-        os.environ.get('GOOGLE_SHEETS_ID', None)
-    google_sheets_name = kwargs.get('google_sheets_name', None) or \
-        os.environ.get('GOOGLE_SHEETS_NAME', None)
-    google_sheets_client_email = \
-        kwargs.get('google_sheets_client_email', None) or \
-        os.environ.get('GOOGLE_SHEETS_CLIENT_EMAIL', None)
-    google_sheets_private_key = \
-        kwargs.get('google_sheets_private_key', None) or \
-        os.environ.get('GOOGLE_SHEETS_PRIVATE_KEY', None)
-
-    max_count = int(max_count)
-    post_lookback = int(post_lookback)
-    max_post_age = int(max_post_age)
-    google_sheets_private_key = \
-        google_sheets_private_key.replace('\\n', '\n') \
-        if google_sheets_private_key else ''
-
-    client = RestliClient()
-
-    if action == 'post':
-        post(client, linkedin_access_token, status_text, status_link,
-             status_image_url_1, status_image_url_2,
-             status_image_url_3, status_image_url_4)
-    elif action == 'like':
-        like(client, linkedin_access_token, linkedin_post_id)
-    elif action == 'share':
-        share(client, linkedin_access_token, linkedin_post_id)
-    elif action == 'delete':
-        delete(client, linkedin_access_token, linkedin_post_id)
-    elif action == 'last-from-feed':
-        last_from_feed(client, linkedin_access_token, feed_url,
-                       max_count, post_lookback)
-    elif action == 'random-from-feed':
-        random_from_feed(client, linkedin_access_token, feed_url, max_post_age)
-    elif action == 'schedule':
-        schedule(client, linkedin_access_token, google_sheets_id,
-                 google_sheets_name, google_sheets_client_email,
-                 google_sheets_private_key, max_count)
-    elif action == '':
-        raise Exception('--action is a required argument.')
-    else:
-        raise Exception(f'"{action}" action not supported.')
+    Args:
+        kwargs (dict): Configuration arguments
+    """
+    asyncio.run(main_async(kwargs))

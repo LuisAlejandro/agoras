@@ -28,7 +28,7 @@ from argparse import ArgumentParser
 
 from . import __version__, __description__
 from .core.logger import logger
-from .api.publish import main as publish
+from .commands.publish import main as publish
 
 
 def add_twitter_options(parser):
@@ -47,6 +47,12 @@ def add_twitter_options(parser):
     parser.add_argument(
         '-ti', '--tweet-id', metavar='<id>',
         help=('Twitter post ID to like, share or delete.'))
+    parser.add_argument(
+        '-tvu', '--twitter-video-url', metavar='<video url>',
+        help=('Twitter video file URL.'))
+    parser.add_argument(
+        '-tvt', '--twitter-video-title', metavar='<title>',
+        help=('Twitter video title.'))
 
 
 def add_facebook_options(parser):
@@ -63,6 +69,21 @@ def add_facebook_options(parser):
     parser.add_argument(
         '-fr', '--facebook-profile-id', metavar='<id>',
         help=('Facebook ID of profile where a post will be shared.'))
+    parser.add_argument(
+        '-fa', '--facebook-app-id', metavar='<id>',
+        help=('Facebook ID of profile where a post will be shared.'))
+    parser.add_argument(
+        '-fvu', '--facebook-video-url', metavar='<id>',
+        help=('Facebook ID of profile where a post will be shared.'))
+    parser.add_argument(
+        '-fvt', '--facebook-video-type', metavar='<id>',
+        help=('Facebook ID of profile where a post will be shared.'))
+    parser.add_argument(
+        '-fvi', '--facebook-video-title', metavar='<id>',
+        help=('Facebook ID of profile where a post will be shared.'))
+    parser.add_argument(
+        '-fvd', '--facebook-video-description', metavar='<id>',
+        help=('Facebook ID of profile where a post will be shared.'))
 
 
 def add_discord_options(parser):
@@ -78,12 +99,15 @@ def add_discord_options(parser):
     parser.add_argument(
         '-dp', '--discord-post-id', metavar='<id>',
         help=('Discord ID of post to be liked or deleted.'))
+    parser.add_argument(
+        '-dvu', '--discord-video-url', metavar='<video url>',
+        help=('Discord video file URL.'))
+    parser.add_argument(
+        '-dvt', '--discord-video-title', metavar='<title>',
+        help=('Discord video title.'))
 
 
 def add_youtube_options(parser):
-    parser.add_argument(
-        '-yp', '--youtube-project-id', metavar='<name>',
-        help=('YouTube project ID.'))
     parser.add_argument(
         '-yc', '--youtube-client-id', metavar='<name>',
         help=('YouTube client ID.'))
@@ -107,7 +131,7 @@ def add_youtube_options(parser):
         choices=["public", "private", "unlisted"],
         help=('YouTube video privacy status.'))
     parser.add_argument(
-        '-yv', '--youtube-video', metavar='<name>',
+        '-yv', '--youtube-video-url', metavar='<video url>',
         help=('YouTube video file URL.'))
     parser.add_argument(
         '-yk', '--youtube-keywords', metavar='<name>',
@@ -130,10 +154,38 @@ def add_google_sheets_options(parser):
         help=('The name of the sheet where the schedule is.'))
 
 
+def add_tiktok_options(parser):
+    parser.add_argument(
+        '-tu', '--tiktok-username', metavar='<username>',
+        help=('TikTok username.'))
+    parser.add_argument(
+        '-ta', '--tiktok-access-token', metavar='<access token>',
+        help=('TikTok access token from authorize action.'))
+    parser.add_argument(
+        '-tr', '--tiktok-refresh-token', metavar='<refresh token>',
+        help=('TikTok refresh token from authorize action.'))
+    parser.add_argument(
+        '-tck', '--tiktok-client-key', metavar='<client key>',
+        help=('TikTok client key from developer app.'))
+    parser.add_argument(
+        '-tcs', '--tiktok-client-secret', metavar='<client secret>',
+        help=('TikTok client secret from developer app.'))
+    parser.add_argument(
+        '-ty', '--tiktok-privacy-status', default='SELF_ONLY', metavar='<name>',
+        choices=["PUBLIC_TO_EVERYONE", "MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR", "SELF_ONLY"],
+        help=('TikTok video privacy status.'))
+    parser.add_argument(
+        '-tv', '--tiktok-video-url', metavar='<video url>',
+        help=('TikTok video file URL.'))
+    parser.add_argument(
+        '-tt', '--tiktok-title', metavar='<title>',
+        help=('TikTok video title.'))
+
+
 def add_instagram_options(parser):
     parser.add_argument(
         '-it', '--instagram-access-token', metavar='<access token>',
-        help=('Facebook access token from facebook app.'))
+        help=('Instagram access token from facebook app.'))
     parser.add_argument(
         '-io', '--instagram-object-id', metavar='<id>',
         help=('Instagram ID of profile where the post is going '
@@ -141,6 +193,15 @@ def add_instagram_options(parser):
     parser.add_argument(
         '-ip', '--instagram-post-id', metavar='<id>',
         help=('Instagram ID of post to be liked, shared or deleted.'))
+    parser.add_argument(
+        '-ivu', '--instagram-video-url', metavar='<id>',
+        help=('Instagram ID of profile where a post will be shared.'))
+    parser.add_argument(
+        '-ivt', '--instagram-video-type', metavar='<id>',
+        help=('Instagram ID of profile where a post will be shared.'))
+    parser.add_argument(
+        '-ivc', '--instagram-video-caption', metavar='<id>',
+        help=('Instagram ID of profile where a post will be shared.'))
 
 
 def add_linkedin_options(parser):
@@ -148,21 +209,46 @@ def add_linkedin_options(parser):
         '-lw', '--linkedin-access-token', metavar='<access token>',
         help=('Your LinkedIn access token.'))
     parser.add_argument(
+        '-li', '--linkedin-client-id', metavar='<access token>',
+        help=('Your LinkedIn access token.'))
+    parser.add_argument(
+        '-ls', '--linkedin-client-secret', metavar='<access token>',
+        help=('Your LinkedIn access token.'))
+    parser.add_argument(
         '-lp', '--linkedin-post-id', metavar='<id>',
         help=('LinkedIn post ID to like, share or delete.'))
 
 
-def add_tiktok_options(parser):
-    pass
-
-
 def add_common_options(parser):
+    parser.add_argument(
+        '-l', '--loglevel', default='INFO', metavar='<level>',
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+        help=('Logger verbosity level (default: INFO). Must be one of: '
+              'DEBUG, INFO, WARNING, ERROR or CRITICAL.'))
+    parser.add_argument(
+        '-n', '--network', default='', metavar='<social network>',
+        choices=['twitter', 'facebook', 'instagram', 'linkedin',
+                 'discord', 'youtube', 'tiktok'],
+        help=('Social network to use for publishing (default: ""). '
+              'Must be one of: '
+              'twitter, facebook, instagram, linkedin, discord, youtube or tiktok.'))
+    parser.add_argument(
+        '-a', '--action', default='', metavar='<action>',
+        choices=['like', 'share', 'last-from-feed', 'random-from-feed',
+                 'schedule', 'post', 'video', 'delete', 'authorize'],
+        help=('Action to execute (default: ""). '
+              'Must be one of: '
+              'like, share, last-from-feed, random-from-feed, '
+              'schedule, post, video, delete, authorize'))
     parser.add_argument(
         '-st', '--status-text', metavar='<text>',
         help=('Text to be published.'))
     parser.add_argument(
-        '-sl', '--status-link', metavar='<link>',
+        '-sl', '--status-link', metavar='<link url>',
         help=('Link to be published.'))
+    # parser.add_argument(
+    #     '-sv', '--status-video', metavar='<video url>',
+    #     help=('URL of the video to be published.'))
     parser.add_argument(
         '-i1', '--status-image-url-1', metavar='<image url>',
         help=('First image URL to be published.'))
@@ -179,13 +265,13 @@ def add_common_options(parser):
         '-fu', '--feed-url', metavar='<feed url>',
         help=('URL of public Atom feed to be parsed.'))
     parser.add_argument(
-        '-mc', '--max-count', metavar='<number>',
+        '-mc', '--feed-max-count', metavar='<number>',
         help=('Max number of new posts to be published at once.'))
     parser.add_argument(
-        '-pl', '--post-lookback', metavar='<seconds>',
+        '-pl', '--feed-post-lookback', metavar='<seconds>',
         help=('Only allow posts published within the last <seconds>.'))
     parser.add_argument(
-        '-ma', '--max-post-age', metavar='<days>',
+        '-ma', '--feed-max-post-age', metavar='<days>',
         help=('Dont allow publishing of posts older than this '
               'number of days.'))
 
@@ -230,26 +316,6 @@ def commandline(argv=None):
         '-h', '--help', action='help', help='Show this help message and exit.')
 
     publish_options = publish_parser.add_argument_group('Publish Options')
-    publish_options.add_argument(
-        '-l', '--loglevel', default='INFO', metavar='<level>',
-        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-        help=('Logger verbosity level (default: INFO). Must be one of: '
-              'DEBUG, INFO, WARNING, ERROR or CRITICAL.'))
-    publish_options.add_argument(
-        '-n', '--network', default='', metavar='<social network>',
-        choices=['twitter', 'facebook', 'instagram', 'linkedin',
-                 'discord', 'youtube', 'tiktok'],
-        help=('Social network to use for publishing (default: ""). '
-              'Must be one of: '
-              'twitter, facebook, instagram, discord, youtube, tiktok or linkedin.'))
-    publish_options.add_argument(
-        '-a', '--action', default='', metavar='<action>',
-        choices=['like', 'share', 'last-from-feed', 'random-from-feed',
-                 'schedule', 'post', 'delete'],
-        help=('Action to execute (default: ""). '
-              'Must be one of: '
-              'like, share, last-from-feed, random-from-feed, '
-              'schedule, post, delete'))
 
     add_common_options(publish_options)
     add_twitter_options(publish_options)

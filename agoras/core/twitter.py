@@ -16,317 +16,324 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import datetime
-import json
-import os
+import asyncio
 import random
-import tempfile
-import time
-from html import unescape
-from urllib.request import Request, urlopen
 
-import filetype
-import gspread
-from atoma import parse_rss_bytes
-from dateutil import parser
-from google.oauth2.service_account import Credentials
-from tweepy import API, Client, OAuth1UserHandler
-
-from agoras import __version__
-from agoras.core.utils import add_url_timestamp
+from agoras.core.base import SocialNetwork
+from agoras.core.api import TwitterAPI
 
 
-def post(client, clientv1, status_text, status_link,
-         status_image_url_1=None, status_image_url_2=None,
-         status_image_url_3=None, status_image_url_4=None):
+class Twitter(SocialNetwork):
+    """
+    Twitter social network implementation.
 
-    media_ids = []
-    source_media = list(filter(None, [
-        status_image_url_1, status_image_url_2,
-        status_image_url_3, status_image_url_4
-    ]))
+    This class provides Twitter-specific functionality for posting tweets,
+    images, videos, and managing Twitter interactions asynchronously.
+    """
 
-    if not source_media and not status_text and not status_link:
-        raise Exception('No --status-text or --status-link or --status-image-url-1 provided.')
+    def __init__(self, **kwargs):
+        """
+        Initialize Twitter instance.
 
-    for imgurl in source_media:
-        _, tmpimg = tempfile.mkstemp(prefix='status-image-url-',
-                                     suffix='.bin')
+        Args:
+            **kwargs: Configuration parameters including:
+                - twitter_consumer_key: Twitter consumer key
+                - twitter_consumer_secret: Twitter consumer secret
+                - twitter_oauth_token: Twitter OAuth token
+                - twitter_oauth_secret: Twitter OAuth secret
+                - tweet_id: Tweet ID for operations
+        """
+        super().__init__(**kwargs)
+        self.twitter_consumer_key = None
+        self.twitter_consumer_secret = None
+        self.twitter_oauth_token = None
+        self.twitter_oauth_secret = None
+        self.tweet_id = None
+        self.api = None
 
-        with open(tmpimg, 'wb') as i:
-            request = Request(url=imgurl, headers={'User-Agent': f'Agoras/{__version__}'})
-            i.write(urlopen(request).read())
+    async def _initialize_client(self):
+        """
+        Initialize Twitter API client.
 
-        kind = filetype.guess(tmpimg)
+        This method sets up the Twitter API client with OAuth configuration.
+        """
+        self.twitter_consumer_key = self._get_config_value('twitter_consumer_key', 'TWITTER_CONSUMER_KEY')
+        self.twitter_consumer_secret = self._get_config_value('twitter_consumer_secret', 'TWITTER_CONSUMER_SECRET')
+        self.twitter_oauth_token = self._get_config_value('twitter_oauth_token', 'TWITTER_OAUTH_TOKEN')
+        self.twitter_oauth_secret = self._get_config_value('twitter_oauth_secret', 'TWITTER_OAUTH_SECRET')
+        self.tweet_id = self._get_config_value('tweet_id', 'TWEET_ID')
 
-        if not kind:
-            raise Exception(f'Invalid image type for {imgurl}')
+        if not all([self.twitter_consumer_key, self.twitter_consumer_secret,
+                   self.twitter_oauth_token, self.twitter_oauth_secret]):
+            raise Exception('All Twitter OAuth credentials are required.')
 
-        if kind.mime not in ['image/jpeg', 'image/png', 'image/gif']:
-            raise Exception(f'Invalid image type "{kind.mime}" for {imgurl}')
+        # Initialize Twitter API
+        self.api = TwitterAPI(
+            self.twitter_consumer_key,
+            self.twitter_consumer_secret,
+            self.twitter_oauth_token,
+            self.twitter_oauth_secret
+        )
+        await self.api.authenticate()
 
-        time.sleep(random.randrange(5))
+    async def post(self, status_text, status_link,
+                   status_image_url_1=None, status_image_url_2=None,
+                   status_image_url_3=None, status_image_url_4=None):
+        """
+        Create a post (tweet) on Twitter.
 
-        media = clientv1.media_upload(tmpimg)
-        media_ids.append(media.media_id)
+        Args:
+            status_text (str): Text content of the tweet
+            status_link (str): URL to include in the tweet
+            status_image_url_1 (str, optional): First image URL
+            status_image_url_2 (str, optional): Second image URL
+            status_image_url_3 (str, optional): Third image URL
+            status_image_url_4 (str, optional): Fourth image URL
 
-    data = {
-        'text': f'{status_text} {status_link}'
-    }
+        Returns:
+            str: Tweet ID
+        """
+        if not self.api:
+            raise Exception('Twitter API not initialized')
 
-    if media_ids:
-        data['media_ids'] = media_ids  # type: ignore
+        media_ids = []
+        source_media = list(filter(None, [
+            status_image_url_1, status_image_url_2,
+            status_image_url_3, status_image_url_4
+        ]))
 
-    time.sleep(random.randrange(5))
-    request = client.create_tweet(**data)
-    status = {
-        "id": request.data['id']
-    }
-    print(json.dumps(status, separators=(',', ':')))
+        if not source_media and not status_text and not status_link:
+            raise Exception('No status text, link, or images provided.')
 
+        # Download and upload media using the Media system
+        if source_media:
+            # Handle both images and videos
+            for media_url in source_media:
+                try:
+                    # Try to download as image first, then video
+                    try:
+                        image = await self.download_images([media_url])
+                        if image and len(image) > 0:
+                            media_obj = image[0]
+                        else:
+                            raise Exception('Failed to download as image')
+                    except Exception:
+                        # Try as video
+                        video = await self.download_video(media_url)
+                        media_obj = video
 
-def like():
-    raise Exception('like not supported for twitter')
+                    # Upload media to Twitter
+                    await asyncio.sleep(random.randrange(1, 5))
+                    if media_obj.content and media_obj.file_type:
+                        media_id = await self.api.upload_media(
+                            media_obj.content,
+                            media_obj.file_type.mime
+                        )
+                        if media_id:
+                            media_ids.append(media_id)
 
+                    # Clean up temporary files
+                    media_obj.cleanup()
 
-def delete(client, clientv1, tweet_id):
-    time.sleep(random.randrange(5))
-    client.delete_tweet(tweet_id)
-    status = {
-        "id": tweet_id
-    }
-    print(json.dumps(status, separators=(',', ':')))
+                except Exception as e:
+                    print(f"Failed to upload media {media_url}: {str(e)}")
 
+        # Compose tweet text
+        tweet_text = f'{status_text} {status_link}'.strip()
 
-def share():
-    raise Exception('share not supported for twitter')
+        # Create the tweet
+        await asyncio.sleep(random.randrange(1, 5))
+        tweet_id = await self.api.create_tweet(tweet_text, media_ids or [])
 
+        self._output_status(tweet_id)
+        return tweet_id
 
-def last_from_feed(client, clientv1, feed_url, max_count, post_lookback):
+    async def like(self, tweet_id=None):
+        """
+        Like a tweet.
 
-    count = 0
+        Args:
+            tweet_id (str, optional): ID of the tweet to like.
+                                     Uses instance tweet_id if not provided.
 
-    if not feed_url:
-        raise Exception('No --feed-url provided.')
+        Returns:
+            str: Tweet ID
+        """
+        if not self.api:
+            raise Exception('Twitter API not initialized')
 
-    request = Request(url=feed_url, headers={'User-Agent': f'Agoras/{__version__}'})
-    feed_data = parse_rss_bytes(urlopen(request).read())
-    today = datetime.datetime.now()
-    last_run = today - datetime.timedelta(seconds=post_lookback)
-    last_timestamp = int(last_run.strftime('%Y%m%d%H%M%S'))
+        post_id = tweet_id or self.tweet_id
+        if not post_id:
+            raise Exception('Tweet ID is required.')
 
-    for item in feed_data.items:
+        await asyncio.sleep(random.randrange(1, 5))
+        result = await self.api.like_tweet(post_id)
+        self._output_status(result)
+        return result
 
-        if count >= max_count:
-            break
+    async def delete(self, tweet_id=None):
+        """
+        Delete a tweet.
 
-        if not item.pub_date:
-            continue
+        Args:
+            tweet_id (str, optional): ID of the tweet to delete.
+                                     Uses instance tweet_id if not provided.
 
-        item_timestamp = int(item.pub_date.strftime('%Y%m%d%H%M%S'))
+        Returns:
+            str: Tweet ID
+        """
+        if not self.api:
+            raise Exception('Twitter API not initialized')
 
-        if item_timestamp < last_timestamp:
-            continue
+        post_id = tweet_id or self.tweet_id
+        if not post_id:
+            raise Exception('Tweet ID is required.')
 
-        link = item.link or item.guid or ''
-        title = item.title or ''
+        await asyncio.sleep(random.randrange(1, 5))
+        result = await self.api.delete_tweet(post_id)
+        self._output_status(result)
+        return result
 
-        status_link = add_url_timestamp(link, today.strftime('%Y%m%d%H%M%S')) if link else ''
-        status_title = unescape(title) if title else ''
+    async def share(self, tweet_id=None):
+        """
+        Share a tweet (retweet).
+
+        Args:
+            tweet_id (str, optional): ID of the tweet to retweet.
+                                     Uses instance tweet_id if not provided.
+
+        Returns:
+            str: Tweet ID
+        """
+        if not self.api:
+            raise Exception('Twitter API not initialized')
+
+        post_id = tweet_id or self.tweet_id
+        if not post_id:
+            raise Exception('Tweet ID is required.')
+
+        await asyncio.sleep(random.randrange(1, 5))
+        result = await self.api.retweet(post_id)
+        self._output_status(result)
+        return result
+
+    async def video(self, status_text, video_url, video_title):
+        """
+        Post a video to Twitter.
+
+        Args:
+            status_text (str): Text content to accompany the video
+            video_url (str): URL of the video to post
+            video_title (str): Title of the video
+
+        Returns:
+            str: Tweet ID
+        """
+        if not self.api:
+            raise Exception('Twitter API not initialized')
+
+        if not video_url:
+            raise Exception('Video URL is required.')
+
+        # Download and validate video using the Media system
+        video = await self.download_video(video_url)
+
+        if not video.content or not video.file_type:
+            video.cleanup()
+            raise Exception('Failed to download or validate video')
+
+        # Ensure video is MP4 format for Twitter
+        if video.file_type.mime not in ['video/mp4']:
+            video.cleanup()
+            raise Exception(f'Invalid video type "{video.file_type.mime}" for {video_url}. '
+                            f'Twitter only supports MP4 videos.')
 
         try:
-            status_image = item.enclosures[0].url
-        except Exception:
-            status_image = ''
+            # Upload video to Twitter
+            await asyncio.sleep(random.randrange(1, 5))
+            media_id = await self.api.upload_media(video.content, video.file_type.mime)
 
-        count += 1
-        post(client, clientv1, status_title, status_link, status_image)
+            # Compose tweet text with title and description
+            tweet_text_parts = []
+            if video_title:
+                tweet_text_parts.append(video_title)
+            if status_text:
+                tweet_text_parts.append(status_text)
+
+            final_text = ' - '.join(tweet_text_parts) if tweet_text_parts else ''
+
+            # Twitter has a 280 character limit (handled by API, but let's be safe)
+            if len(final_text) > 280:
+                final_text = final_text[:277] + '...'
+
+            # Create the tweet with video
+            tweet_id = await self.api.create_tweet(final_text, [media_id] if media_id else [])
+
+        finally:
+            # Clean up using Media system
+            video.cleanup()
+
+        self._output_status(tweet_id)
+        return tweet_id
+
+    # Override action handlers to use Twitter-specific parameter names
+    async def _handle_like_action(self):
+        """Handle like action with Twitter-specific parameter extraction."""
+        tweet_id = self._get_config_value('tweet_id', 'TWEET_ID')
+        if not tweet_id:
+            raise Exception('Tweet ID is required for like action.')
+        await self.like(tweet_id)
+
+    async def _handle_share_action(self):
+        """Handle share action with Twitter-specific parameter extraction."""
+        tweet_id = self._get_config_value('tweet_id', 'TWEET_ID')
+        if not tweet_id:
+            raise Exception('Tweet ID is required for share action.')
+        await self.share(tweet_id)
+
+    async def _handle_delete_action(self):
+        """Handle delete action with Twitter-specific parameter extraction."""
+        tweet_id = self._get_config_value('tweet_id', 'TWEET_ID')
+        if not tweet_id:
+            raise Exception('Tweet ID is required for delete action.')
+        await self.delete(tweet_id)
+
+    async def _handle_video_action(self):
+        """Handle video action with Twitter-specific parameter extraction."""
+        status_text = self._get_config_value('status_text', 'STATUS_TEXT') or ''
+        video_url = self._get_config_value('twitter_video_url', 'TWITTER_VIDEO_URL')
+        video_title = self._get_config_value('twitter_video_title', 'TWITTER_VIDEO_TITLE') or ''
+
+        if not video_url:
+            raise Exception('Twitter video URL is required for video action.')
+
+        await self.video(status_text, video_url, video_title)
 
 
-def random_from_feed(client, clientv1, feed_url, max_post_age):
+async def main_async(kwargs):
+    """
+    Async main function to execute Twitter actions.
 
-    json_index_content = {}
+    Args:
+        kwargs (dict): Configuration arguments
+    """
+    action = kwargs.get('action', '')
 
-    if not feed_url:
-        raise Exception('No --feed-url provided.')
+    if action == '':
+        raise Exception('Action is a required argument.')
 
-    request = Request(url=feed_url, headers={'User-Agent': f'Agoras/{__version__}'})
-    feed_data = parse_rss_bytes(urlopen(request).read())
-    today = datetime.datetime.now()
-    max_age_delta = today - datetime.timedelta(days=max_post_age)
-    max_age_timestamp = int(max_age_delta.strftime('%Y%m%d%H%M%S'))
+    # Create Twitter instance with configuration
+    twitter_client = Twitter(**kwargs)
 
-    for item in feed_data.items:
-
-        if not item.pub_date:
-            continue
-
-        item_timestamp = int(item.pub_date.strftime('%Y%m%d%H%M%S'))
-
-        if item_timestamp < max_age_timestamp:
-            continue
-
-        json_index_content[str(item_timestamp)] = {
-            'title': item.title or '',
-            'url': item.link or item.guid or '',
-            'date': item.pub_date
-        }
-
-        try:
-            json_index_content[str(item_timestamp)]['image'] = item.enclosures[0].url
-        except Exception:
-            json_index_content[str(item_timestamp)]['image'] = ''
-
-    random_status_id = random.choice(list(json_index_content.keys()))
-    random_status_title = json_index_content[random_status_id]['title']
-    random_status_image = json_index_content[random_status_id]['image']
-    random_status_link = json_index_content[random_status_id]['url']
-
-    status_link = add_url_timestamp(random_status_link, today.strftime('%Y%m%d%H%M%S')) if random_status_link else ''
-    status_title = unescape(random_status_title) if random_status_title else ''
-
-    post(client, clientv1, status_title, status_link, random_status_image)
-
-
-def schedule(client, clientv1, google_sheets_id, google_sheets_name,
-             google_sheets_client_email, google_sheets_private_key, max_count):
-
-    count = 0
-    newcontent = []
-    gspread_scope = ['https://spreadsheets.google.com/feeds']
-    account_info = {
-        'private_key': google_sheets_private_key,
-        'client_email': google_sheets_client_email,
-        'token_uri': 'https://oauth2.googleapis.com/token',
-    }
-    creds = Credentials.from_service_account_info(account_info,
-                                                  scopes=gspread_scope)
-    gclient = gspread.authorize(creds)
-    spreadsheet = gclient.open_by_key(google_sheets_id)
-
-    worksheet = spreadsheet.worksheet(google_sheets_name)
-    currdate = datetime.datetime.now()
-
-    content = worksheet.get_all_values()
-
-    for row in content:
-
-        status_text, status_link, status_image_url_1, status_image_url_2, \
-            status_image_url_3, status_image_url_4, \
-            date, hour, state = row
-
-        newcontent.append([
-            status_text, status_link, status_image_url_1, status_image_url_2,
-            status_image_url_3, status_image_url_4,
-            date, hour, state
-        ])
-
-        rowdate = parser.parse(date)
-        normalized_currdate = parser.parse(currdate.strftime('%d-%m-%Y'))
-        normalized_rowdate = parser.parse(rowdate.strftime('%d-%m-%Y'))
-
-        if count >= max_count:
-            break
-
-        if state == 'published':
-            continue
-
-        if normalized_rowdate < normalized_currdate:
-            continue
-
-        if currdate.strftime('%d-%m-%Y') == rowdate.strftime('%d-%m-%Y') and \
-           currdate.strftime('%H') != hour:
-            continue
-
-        count += 1
-        newcontent[-1][-1] = 'published'
-        post(client, clientv1, status_text, status_link,
-             status_image_url_1, status_image_url_2,
-             status_image_url_3, status_image_url_4)
-
-    worksheet.clear()
-
-    for row in newcontent:
-        worksheet.append_row(row, table_range='A1')
+    # Execute the action using the base class method
+    await twitter_client.execute_action(action)
 
 
 def main(kwargs):
+    """
+    Main function to execute Twitter actions (for backwards compatibility).
 
-    action = kwargs.get('action')
-    twitter_consumer_key = kwargs.get('twitter_consumer_key', None) or \
-        os.environ.get('TWITTER_CONSUMER_KEY', None)
-    twitter_consumer_secret = kwargs.get('twitter_consumer_secret', None) or \
-        os.environ.get('TWITTER_CONSUMER_SECRET', None)
-    twitter_oauth_token = kwargs.get('twitter_oauth_token', None) or \
-        os.environ.get('TWITTER_OAUTH_TOKEN', None)
-    twitter_oauth_secret = kwargs.get('twitter_oauth_secret', None) or \
-        os.environ.get('TWITTER_OAUTH_SECRET', None)
-    status_text = kwargs.get('status_text', '') or \
-        os.environ.get('STATUS_TEXT', '')
-    status_link = kwargs.get('status_link', '') or \
-        os.environ.get('STATUS_LINK', '')
-    status_image_url_1 = kwargs.get('status_image_url_1', None) or \
-        os.environ.get('STATUS_IMAGE_URL_1', None)
-    status_image_url_2 = kwargs.get('status_image_url_2', None) or \
-        os.environ.get('STATUS_IMAGE_URL_2', None)
-    status_image_url_3 = kwargs.get('status_image_url_3', None) or \
-        os.environ.get('STATUS_IMAGE_URL_3', None)
-    status_image_url_4 = kwargs.get('status_image_url_4', None) or \
-        os.environ.get('STATUS_IMAGE_URL_4', None)
-    feed_url = kwargs.get('feed_url', None) or \
-        os.environ.get('FEED_URL', None)
-    post_lookback = kwargs.get('post_lookback', '3600') or \
-        os.environ.get('POST_LOOKBACK', '3600')
-    max_count = kwargs.get('max_count', '1') or \
-        os.environ.get('MAX_COUNT', '1')
-    max_post_age = kwargs.get('max_post_age', '365') or \
-        os.environ.get('MAX_POST_AGE', '365')
-    tweet_id = kwargs.get('tweet_id', None) or \
-        os.environ.get('TWEET_ID', None)
-    google_sheets_id = kwargs.get('google_sheets_id', None) or \
-        os.environ.get('GOOGLE_SHEETS_ID', None)
-    google_sheets_name = kwargs.get('google_sheets_name', None) or \
-        os.environ.get('GOOGLE_SHEETS_NAME', None)
-    google_sheets_client_email = \
-        kwargs.get('google_sheets_client_email', None) or \
-        os.environ.get('GOOGLE_SHEETS_CLIENT_EMAIL', None)
-    google_sheets_private_key = \
-        kwargs.get('google_sheets_private_key', None) or \
-        os.environ.get('GOOGLE_SHEETS_PRIVATE_KEY', None)
-
-    max_count = int(max_count)
-    post_lookback = int(post_lookback)
-    max_post_age = int(max_post_age)
-    google_sheets_private_key = \
-        google_sheets_private_key.replace('\\n', '\n') \
-        if google_sheets_private_key else ''
-
-    authv1 = OAuth1UserHandler(twitter_consumer_key, twitter_consumer_secret,
-                               twitter_oauth_token, twitter_oauth_secret)
-    clientv1 = API(authv1)
-    client = Client(consumer_key=twitter_consumer_key,
-                    consumer_secret=twitter_consumer_secret,
-                    access_token=twitter_oauth_token,
-                    access_token_secret=twitter_oauth_secret)
-
-    if action == 'post':
-        post(client, clientv1, status_text, status_link,
-             status_image_url_1, status_image_url_2,
-             status_image_url_3, status_image_url_4)
-    elif action == 'like':
-        like()
-    elif action == 'share':
-        share()
-    elif action == 'delete':
-        delete(client, clientv1, tweet_id)
-    elif action == 'last-from-feed':
-        last_from_feed(client, clientv1, feed_url, int(max_count), int(post_lookback))
-    elif action == 'random-from-feed':
-        random_from_feed(client, clientv1, feed_url, int(max_post_age))
-    elif action == 'schedule':
-        schedule(client, clientv1, google_sheets_id, google_sheets_name,
-                 google_sheets_client_email, google_sheets_private_key, max_count)
-    elif action == '':
-        raise Exception('--action is a required argument.')
-    else:
-        raise Exception(f'"{action}" action not supported.')
+    Args:
+        kwargs (dict): Configuration arguments
+    """
+    asyncio.run(main_async(kwargs))

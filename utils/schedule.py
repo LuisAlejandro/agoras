@@ -30,12 +30,35 @@ spreadsheet = gclient.open_by_key(google_sheets_id)
 
 worksheet = spreadsheet.worksheet(google_sheets_name)
 
-worksheet.append_row([msg,
-                      'https://luisalejandro.org/blog/posts/nuevo-blog',
-                      '',
-                      '',
-                      '',
-                      '',
-                      currdate,
-                      currhour,
-                      'draft'], table_range='A1')
+if google_sheets_name == 'Youtube':
+    worksheet.append_row([msg,
+                          'https://luisalejandro.org/blog/posts/nuevo-blog',
+                          '',
+                          '',
+                          '',
+                          '',
+                          currdate,
+                          currhour,
+                          'draft'], table_range='A1')
+
+elif google_sheets_name == 'Tiktok':
+    worksheet.append_row([msg,
+                          'https://luisalejandro.org/blog/posts/nuevo-blog',
+                          '',
+                          '',
+                          '',
+                          '',
+                          currdate,
+                          currhour,
+                          'draft'], table_range='A1')
+
+else:
+    worksheet.append_row([msg,
+                          'https://luisalejandro.org/blog/posts/nuevo-blog',
+                          '',
+                          '',
+                          '',
+                          '',
+                          currdate,
+                          currhour,
+                          'draft'], table_range='A1')

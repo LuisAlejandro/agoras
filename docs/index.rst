@@ -38,7 +38,7 @@
 .. _full documentation: https://agoras.readthedocs.org
 
 Agoras is a python utility that helps publish and delete posts on the most 
-popular social networks (twitter, facebook, instagram and linkedin).
+popular social networks (twitter, facebook, instagram, linkedin, discord and tiktok).
 
 This repository stores the application. There's also `GitHub actions`_
 that you can incorporate into your workflows.
@@ -57,10 +57,14 @@ Table of Contents
    facebook
    instagram
    linkedin
+   discord
+   tiktok
    credentials/twitter
    credentials/facebook
    credentials/instagram
    credentials/linkedin
+   credentials/discord
+   credentials/tiktok
    credentials/google
    rss
    api

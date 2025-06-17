@@ -121,10 +121,10 @@ virtualenv: start
 	@./virtualenv/bin/python3 -m pip install -r requirements.txt -r requirements-dev.txt
 
 stop:
-	@docker-compose -p agoras -f docker-compose.yml stop app
+	@docker compose -p agoras -f docker-compose.yml stop app
 
 down:
-	@docker-compose -p agoras -f docker-compose.yml down \
+	@docker compose -p agoras -f docker-compose.yml down \
 		--remove-orphans
 
 destroy:

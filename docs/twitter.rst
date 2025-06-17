@@ -32,13 +32,33 @@ This command will publish a post on the account thats authorized by the provided
 Like a Twitter post
 -------------------
 
-Action not supported by Agoras.
+This command will like (retweet) a post identified by ``--tweet-id`` (read about how to get the id of a post :ref:`here <how-to-get-twitter-post-id>`) using the twitter account thats authorized by the provided credentials (read about how to get credentials :doc:`here <credentials/twitter>`).
+::
+
+      agoras publish \
+            --network "twitter" \
+            --action "like" \
+            --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \
+            --twitter-consumer-secret "${TWITTER_CONSUMER_SECRET}" \
+            --twitter-oauth-token "${TWITTER_OAUTH_TOKEN}" \
+            --twitter-oauth-secret "${TWITTER_OAUTH_SECRET}" \
+            --tweet-id "${TWEET_ID}"
 
 
 Share a Twitter post
 --------------------
 
-Action not supported by Agoras.
+This command will share (retweet) a post identified by ``--tweet-id`` (read about how to get the id of a post :ref:`here <how-to-get-twitter-post-id>`) using the twitter account thats authorized by the provided credentials (read about how to get credentials :doc:`here <credentials/twitter>`).
+::
+
+      agoras publish \
+            --network "twitter" \
+            --action "share" \
+            --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \
+            --twitter-consumer-secret "${TWITTER_CONSUMER_SECRET}" \
+            --twitter-oauth-token "${TWITTER_OAUTH_TOKEN}" \
+            --twitter-oauth-secret "${TWITTER_OAUTH_SECRET}" \
+            --tweet-id "${TWEET_ID}"
 
 
 Delete a Twitter post

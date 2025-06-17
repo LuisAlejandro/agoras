@@ -16,339 +16,299 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import datetime
-import json
-import os
+import asyncio
 import random
-import tempfile
-import time
-from html import unescape
-from urllib.request import Request, urlopen
 
-import filetype
-import gspread
-from atoma import parse_rss_bytes
-from dateutil import parser
-from google.oauth2.service_account import Credentials
-from pyfacebook import GraphAPI
-
-from agoras import __version__
-from agoras.core.utils import add_url_timestamp
+from agoras.core.base import SocialNetwork
+from agoras.core.api import InstagramAPI
 
 
-def post(client, instagram_object_id, status_text, status_link,
-         status_image_url_1=None, status_image_url_2=None,
-         status_image_url_3=None, status_image_url_4=None):
+class Instagram(SocialNetwork):
+    """
+    Instagram social network implementation.
 
-    if not instagram_object_id:
-        raise Exception('No --instagram-object-id provided.')
+    This class provides Instagram-specific functionality for posting messages,
+    videos, and managing Instagram interactions asynchronously.
+    """
 
-    attached_media = []
-    source_media = list(filter(None, [
-        status_image_url_1, status_image_url_2,
-        status_image_url_3, status_image_url_4
-    ]))
+    def __init__(self, **kwargs):
+        """
+        Initialize Instagram instance.
 
-    if not source_media:
-        raise Exception('Instagram requires at least one status image.')
+        Args:
+            **kwargs: Configuration parameters including:
+                - instagram_access_token: Instagram access token
+                - instagram_client_id: Instagram client ID
+                - instagram_client_secret: Instagram client secret
+                - instagram_refresh_token: Instagram refresh token
+                - instagram_object_id: Instagram object ID
+                - instagram_post_id: Instagram post ID
+                - instagram_video_type: Instagram video type
+                - instagram_video_url: Instagram video URL
+                - instagram_video_caption: Instagram video caption
+        """
+        super().__init__(**kwargs)
+        self.instagram_access_token = None
+        self.instagram_client_id = None
+        self.instagram_client_secret = None
+        self.instagram_refresh_token = None
+        self.instagram_object_id = None
+        self.instagram_post_id = None
+        self.instagram_video_type = None
+        self.instagram_video_url = None
+        self.instagram_video_caption = None
+        self.api = None
 
-    is_carousel_item = False if len(source_media) == 1 else True
+    async def _initialize_client(self):
+        """
+        Initialize Instagram API client.
 
-    for imgurl in source_media:
+        This method sets up the Instagram API client with configuration.
+        """
+        self.instagram_access_token = self._get_config_value('instagram_access_token', 'INSTAGRAM_ACCESS_TOKEN')
+        self.instagram_client_id = self._get_config_value('instagram_client_id', 'INSTAGRAM_CLIENT_ID')
+        self.instagram_client_secret = self._get_config_value('instagram_client_secret', 'INSTAGRAM_CLIENT_SECRET')
+        self.instagram_refresh_token = self._get_config_value('instagram_refresh_token', 'INSTAGRAM_REFRESH_TOKEN')
+        self.instagram_object_id = self._get_config_value('instagram_object_id', 'INSTAGRAM_OBJECT_ID')
+        self.instagram_post_id = self._get_config_value('instagram_post_id', 'INSTAGRAM_POST_ID')
+        self.instagram_video_type = self._get_config_value('instagram_video_type', 'INSTAGRAM_VIDEO_TYPE')
+        self.instagram_video_url = self._get_config_value('instagram_video_url', 'INSTAGRAM_VIDEO_URL')
+        self.instagram_video_caption = self._get_config_value('instagram_video_caption', 'INSTAGRAM_VIDEO_CAPTION')
 
-        _, tmpimg = tempfile.mkstemp(prefix='status-image-url-',
-                                     suffix='.bin')
+        if not self.instagram_access_token:
+            raise Exception('Instagram access token is required.')
 
-        with open(tmpimg, 'wb') as i:
-            request = Request(url=imgurl, headers={'User-Agent': f'Agoras/{__version__}'})
-            i.write(urlopen(request).read())
+        # Initialize Instagram API
+        self.api = InstagramAPI(
+            self.instagram_access_token,
+            self.instagram_client_id,
+            self.instagram_client_secret,
+            self.instagram_refresh_token
+        )
+        await self.api.authenticate()
 
-        kind = filetype.guess(tmpimg)
+    async def post(self, status_text, status_link,
+                   status_image_url_1=None, status_image_url_2=None,
+                   status_image_url_3=None, status_image_url_4=None):
+        """
+        Create a post on Instagram.
 
-        if not kind:
-            raise Exception(f'Invalid image type for {imgurl}')
+        Args:
+            status_text (str): Text content of the post
+            status_link (str): URL to include in the post
+            status_image_url_1 (str, optional): First image URL
+            status_image_url_2 (str, optional): Second image URL
+            status_image_url_3 (str, optional): Third image URL
+            status_image_url_4 (str, optional): Fourth image URL
 
-        if kind.mime not in ['image/jpeg', 'image/png', 'image/gif']:
-            raise Exception(f'Invalid image type "{kind.mime}" for {imgurl}')
+        Returns:
+            str: Post ID
+        """
+        if not self.api:
+            raise Exception('Instagram API not initialized')
 
-        image_data = {
-            'image_url': imgurl,
-            'is_carousel_item': is_carousel_item,
-        }
+        if not self.instagram_object_id:
+            raise Exception('Instagram object ID is required.')
 
-        if not is_carousel_item:
-            image_data['caption'] = f'{status_text} {status_link}'
+        source_media = list(filter(None, [
+            status_image_url_1, status_image_url_2,
+            status_image_url_3, status_image_url_4
+        ]))
 
-        time.sleep(random.randrange(5))
-        media = client.post_object(object_id=instagram_object_id,
-                                   connection='media',
-                                   data=image_data)
-        attached_media.append(media['id'])
+        if not source_media:
+            raise Exception('Instagram requires at least one status image.')
 
-    if is_carousel_item:
-        carousel_data = {
-            'media_type': 'CAROUSEL',
-            'children': ','.join(attached_media),
-            'caption': f'{status_text} {status_link}'
-        }
-        time.sleep(random.randrange(5))
-        carousel = client.post_object(object_id=instagram_object_id,
-                                      connection='media',
-                                      data=carousel_data)
-        creation_id = carousel['id']
+        attached_media = []
+        is_carousel_item = len(source_media) > 1
 
-    else:
-        creation_id = attached_media[0]
+        # Download and validate images using the Media system
+        images = await self.download_images(source_media)
+        for image in images:
+            try:
+                # Create media for each image
+                await asyncio.sleep(random.randrange(1, 5))
+                media_id = await self.api.create_media(
+                    self.instagram_object_id,
+                    image_url=image.url,
+                    is_carousel_item=is_carousel_item
+                )
+                attached_media.append(media_id)
+            finally:
+                # Clean up temporary files
+                image.cleanup()
 
-    data = {
-        'creation_id': creation_id,
-    }
+        # Create carousel or single post
+        if is_carousel_item:
+            caption = f'{status_text} {status_link}'
+            creation_id = await self.api.create_carousel(
+                self.instagram_object_id,
+                attached_media,
+                caption
+            )
+        else:
+            # For single image, the caption needs to be set in create_media
+            # We need to recreate the media with caption for single posts
+            if attached_media:
+                # Remove the media without caption
+                media_id = attached_media[0]
+                # Create new media with caption for single posts
+                creation_id = await self.api.create_media(
+                    self.instagram_object_id,
+                    image_url=images[0].url,
+                    caption=f'{status_text} {status_link}',
+                    is_carousel_item=False
+                )
+            else:
+                raise Exception('No media created')
 
-    time.sleep(random.randrange(5))
-    request = client.post_object(object_id=instagram_object_id,
-                                 connection='media_publish',
-                                 data=data)
-    status = {
-        "id": request['id']
-    }
-    print(json.dumps(status, separators=(',', ':')))
+        # Publish the media
+        post_id = await self.api.publish_media(self.instagram_object_id, creation_id)
 
+        self._output_status(post_id)
+        return post_id
 
-def like():
-    raise Exception('like not supported for instagram')
+    async def like(self, instagram_post_id=None):
+        """
+        Like is not supported for Instagram.
 
+        Args:
+            instagram_post_id (str, optional): ID of the Instagram post
 
-def delete():
-    raise Exception('delete not supported for instagram')
+        Raises:
+            Exception: Like not supported for Instagram
+        """
+        raise Exception('Like not supported for Instagram')
 
+    async def delete(self, instagram_post_id=None):
+        """
+        Delete is not supported for Instagram.
 
-def share():
-    raise Exception('share not supported for instagram')
+        Args:
+            instagram_post_id (str, optional): ID of the Instagram post
 
+        Raises:
+            Exception: Delete not supported for Instagram
+        """
+        raise Exception('Delete not supported for Instagram')
 
-def last_from_feed(client, instagram_object_id, feed_url,
-                   max_count, post_lookback):
+    async def share(self, instagram_post_id=None):
+        """
+        Share is not supported for Instagram.
 
-    count = 0
+        Args:
+            instagram_post_id (str, optional): ID of the Instagram post
 
-    if not feed_url:
-        raise Exception('No --feed-url provided.')
+        Raises:
+            Exception: Share not supported for Instagram
+        """
+        raise Exception('Share not supported for Instagram')
 
-    if not instagram_object_id:
-        raise Exception('No --instagram-object-id provided.')
+    async def video(self, status_text, video_url, video_title):
+        """
+        Post a video to Instagram.
 
-    request = Request(url=feed_url, headers={'User-Agent': f'Agoras/{__version__}'})
-    feed_data = parse_rss_bytes(urlopen(request).read())
-    today = datetime.datetime.now()
-    last_run = today - datetime.timedelta(seconds=post_lookback)
-    last_timestamp = int(last_run.strftime('%Y%m%d%H%M%S'))
+        Args:
+            status_text (str): Text content to accompany the video (caption)
+            video_url (str): URL of the video to post
+            video_title (str): Title of the video (not used by Instagram)
 
-    for item in feed_data.items:
+        Returns:
+            str: Post ID
+        """
+        if not self.api:
+            raise Exception('Instagram API not initialized')
 
-        if count >= max_count:
-            break
+        if not self.instagram_object_id:
+            raise Exception('Instagram object ID is required.')
+        if not video_url:
+            raise Exception('Instagram video URL is required.')
 
-        if not item.pub_date:
-            continue
+        video_type = self.instagram_video_type or ''
 
-        item_timestamp = int(item.pub_date.strftime('%Y%m%d%H%M%S'))
+        # Download and validate video using the Media system
+        video = await self.download_video(video_url)
 
-        if item_timestamp < last_timestamp:
-            continue
+        if not video.content or not video.file_type:
+            video.cleanup()
+            raise Exception('Failed to download or validate video')
 
-        link = item.link or item.guid or ''
-        title = item.title or ''
-
-        status_link = add_url_timestamp(link, today.strftime('%Y%m%d%H%M%S')) if link else ''
-        status_title = unescape(title) if title else ''
+        # Ensure video is in allowed format for Instagram
+        if video.file_type.mime not in ['video/mp4']:
+            video.cleanup()
+            raise Exception(f'Invalid video type "{video.file_type.mime}" for {video_url}. '
+                            f'Instagram requires MP4 format.')
 
         try:
-            status_image = item.enclosures[0].url
-        except Exception:
-            status_image = ''
+            # Set media type based on video type
+            media_type = None
+            if video_type == 'reel':
+                media_type = 'REELS'
+            elif video_type == 'story':
+                media_type = 'STORIES'
+            else:
+                media_type = 'VIDEO'
 
-        count += 1
-        post(client, instagram_object_id, status_title, status_link, status_image)
+            # Create media for video
+            creation_id = await self.api.create_media(
+                self.instagram_object_id,
+                video_url=video_url,
+                caption=status_text,
+                is_carousel_item=False,
+                media_type=media_type
+            )
 
+            # Publish the video
+            post_id = await self.api.publish_media(self.instagram_object_id, creation_id)
 
-def random_from_feed(client, instagram_object_id, feed_url, max_post_age):
+        finally:
+            # Clean up using Media system
+            video.cleanup()
 
-    json_index_content = {}
+        self._output_status(post_id)
+        return post_id
 
-    if not feed_url:
-        raise Exception('No --feed-url provided.')
+    # Override action handlers to use Instagram-specific parameter names
+    async def _handle_like_action(self):
+        """Handle like action with Instagram-specific parameter extraction."""
+        instagram_post_id = self._get_config_value('instagram_post_id', 'INSTAGRAM_POST_ID')
+        await self.like(instagram_post_id)
 
-    if not instagram_object_id:
-        raise Exception('No --instagram-object-id provided.')
+    async def _handle_share_action(self):
+        """Handle share action with Instagram-specific parameter extraction."""
+        instagram_post_id = self._get_config_value('instagram_post_id', 'INSTAGRAM_POST_ID')
+        await self.share(instagram_post_id)
 
-    request = Request(url=feed_url, headers={'User-Agent': f'Agoras/{__version__}'})
-    feed_data = parse_rss_bytes(urlopen(request).read())
-    today = datetime.datetime.now()
-    max_age_delta = today - datetime.timedelta(days=max_post_age)
-    max_age_timestamp = int(max_age_delta.strftime('%Y%m%d%H%M%S'))
+    async def _handle_delete_action(self):
+        """Handle delete action with Instagram-specific parameter extraction."""
+        instagram_post_id = self._get_config_value('instagram_post_id', 'INSTAGRAM_POST_ID')
+        await self.delete(instagram_post_id)
 
-    for item in feed_data.items:
+    async def _handle_video_action(self):
+        """Handle video action with Instagram-specific parameter extraction."""
+        status_text = self._get_config_value('instagram_video_caption', 'INSTAGRAM_VIDEO_CAPTION') or ''
+        video_url = self._get_config_value('instagram_video_url', 'INSTAGRAM_VIDEO_URL')
+        video_title = ''  # Instagram doesn't use video titles
 
-        if not item.pub_date:
-            continue
+        if not video_url:
+            raise Exception('Instagram video URL is required for video action.')
 
-        item_timestamp = int(item.pub_date.strftime('%Y%m%d%H%M%S'))
-
-        if item_timestamp < max_age_timestamp:
-            continue
-
-        json_index_content[str(item_timestamp)] = {
-            'title': item.title or '',
-            'url': item.link or item.guid or '',
-            'date': item.pub_date
-        }
-
-        try:
-            json_index_content[str(item_timestamp)]['image'] = item.enclosures[0].url
-        except Exception:
-            json_index_content[str(item_timestamp)]['image'] = ''
-
-    random_status_id = random.choice(list(json_index_content.keys()))
-    random_status_title = json_index_content[random_status_id]['title']
-    random_status_image = json_index_content[random_status_id]['image']
-    random_status_link = json_index_content[random_status_id]['url']
-
-    status_link = add_url_timestamp(random_status_link, today.strftime('%Y%m%d%H%M%S')) if random_status_link else ''
-    status_title = unescape(random_status_title) if random_status_title else ''
-
-    post(client, instagram_object_id, status_title, status_link, random_status_image)
-
-
-def schedule(client, instagram_object_id, google_sheets_id,
-             google_sheets_name, google_sheets_client_email,
-             google_sheets_private_key, max_count):
-
-    count = 0
-    newcontent = []
-    gspread_scope = ['https://spreadsheets.google.com/feeds']
-    account_info = {
-        'private_key': google_sheets_private_key,
-        'client_email': google_sheets_client_email,
-        'token_uri': 'https://oauth2.googleapis.com/token',
-    }
-    creds = Credentials.from_service_account_info(account_info,
-                                                  scopes=gspread_scope)
-    gclient = gspread.authorize(creds)
-    spreadsheet = gclient.open_by_key(google_sheets_id)
-
-    worksheet = spreadsheet.worksheet(google_sheets_name)
-    currdate = datetime.datetime.now()
-
-    content = worksheet.get_all_values()
-
-    for row in content:
-
-        status_text, status_link, status_image_url_1, status_image_url_2, \
-            status_image_url_3, status_image_url_4, \
-            date, hour, state = row
-
-        newcontent.append([
-            status_text, status_link, status_image_url_1, status_image_url_2,
-            status_image_url_3, status_image_url_4,
-            date, hour, state
-        ])
-
-        rowdate = parser.parse(date)
-        normalized_currdate = parser.parse(currdate.strftime('%d-%m-%Y'))
-        normalized_rowdate = parser.parse(rowdate.strftime('%d-%m-%Y'))
-
-        if count >= max_count:
-            break
-
-        if state == 'published':
-            continue
-
-        if normalized_rowdate < normalized_currdate:
-            continue
-
-        if currdate.strftime('%d-%m-%Y') == rowdate.strftime('%d-%m-%Y') and \
-           currdate.strftime('%H') != hour:
-            continue
-
-        count += 1
-        newcontent[-1][-1] = 'published'
-        post(client, instagram_object_id, status_text, status_link,
-             status_image_url_1, status_image_url_2,
-             status_image_url_3, status_image_url_4)
-
-    worksheet.clear()
-
-    for row in newcontent:
-        worksheet.append_row(row, table_range='A1')
+        await self.video(status_text, video_url, video_title)
 
 
+# Legacy main function for backwards compatibility
 def main(kwargs):
+    """
+    Legacy main function for backwards compatibility.
+    This creates an Instagram instance and executes the specified action.
 
-    action = kwargs.get('action')
-    instagram_access_token = kwargs.get('instagram_access_token', None) or \
-        os.environ.get('INSTAGRAM_ACCESS_TOKEN', None)
-    instagram_object_id = kwargs.get('instagram_object_id', None) or \
-        os.environ.get('INSTAGRAM_OBJECT_ID', None)
-    status_text = kwargs.get('status_text', '') or \
-        os.environ.get('STATUS_TEXT', '')
-    status_link = kwargs.get('status_link', '') or \
-        os.environ.get('STATUS_LINK', '')
-    status_image_url_1 = kwargs.get('status_image_url_1', None) or \
-        os.environ.get('STATUS_IMAGE_URL_1', None)
-    status_image_url_2 = kwargs.get('status_image_url_2', None) or \
-        os.environ.get('STATUS_IMAGE_URL_2', None)
-    status_image_url_3 = kwargs.get('status_image_url_3', None) or \
-        os.environ.get('STATUS_IMAGE_URL_3', None)
-    status_image_url_4 = kwargs.get('status_image_url_4', None) or \
-        os.environ.get('STATUS_IMAGE_URL_4', None)
-    feed_url = kwargs.get('feed_url', None) or \
-        os.environ.get('FEED_URL', None)
-    post_lookback = kwargs.get('post_lookback', 1 * 60 * 60) or \
-        os.environ.get('POST_LOOKBACK', 1 * 60 * 60)
-    max_count = kwargs.get('max_count', 1) or \
-        os.environ.get('MAX_COUNT', 1)
-    max_post_age = kwargs.get('max_post_age', 365) or \
-        os.environ.get('MAX_POST_AGE', 365)
-    google_sheets_id = kwargs.get('google_sheets_id', None) or \
-        os.environ.get('GOOGLE_SHEETS_ID', None)
-    google_sheets_name = kwargs.get('google_sheets_name', None) or \
-        os.environ.get('GOOGLE_SHEETS_NAME', None)
-    google_sheets_client_email = \
-        kwargs.get('google_sheets_client_email', None) or \
-        os.environ.get('GOOGLE_SHEETS_CLIENT_EMAIL', None)
-    google_sheets_private_key = \
-        kwargs.get('google_sheets_private_key', None) or \
-        os.environ.get('GOOGLE_SHEETS_PRIVATE_KEY', None)
+    Args:
+        kwargs (dict): Configuration parameters
+    """
+    import asyncio
 
-    max_count = int(max_count)
-    post_lookback = int(post_lookback)
-    max_post_age = int(max_post_age)
-    google_sheets_private_key = \
-        google_sheets_private_key.replace('\\n', '\n') \
-        if google_sheets_private_key else ''
+    async def run():
+        instagram = Instagram(**kwargs)
+        action = kwargs.get('action', '')
+        await instagram.execute_action(action)
 
-    client = GraphAPI(access_token=instagram_access_token, version="14.0")
-
-    if action == 'post':
-        post(client, instagram_object_id, status_text, status_link,
-             status_image_url_1, status_image_url_2,
-             status_image_url_3, status_image_url_4)
-    elif action == 'like':
-        like()
-    elif action == 'delete':
-        delete()
-    elif action == 'share':
-        share()
-    elif action == 'last-from-feed':
-        last_from_feed(client, instagram_object_id, feed_url,
-                       max_count, post_lookback)
-    elif action == 'random-from-feed':
-        random_from_feed(client, instagram_object_id, feed_url, max_post_age)
-    elif action == 'schedule':
-        schedule(client, instagram_object_id, google_sheets_id,
-                 google_sheets_name, google_sheets_client_email,
-                 google_sheets_private_key, max_count)
-    elif action == '':
-        raise Exception('--action is a required argument.')
-    else:
-        raise Exception(f'"{action}" action not supported.')
+    asyncio.run(run()) 

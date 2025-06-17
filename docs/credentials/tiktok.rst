@@ -1,0 +1,195 @@
+TikTok credentials
+==================
+
+Agoras needs the following credentials from TikTok to be able to access its API:
+
+- Client Key (App ID)
+- Client Secret
+- TikTok Username
+
+For that, we'll need to create a TikTok for Developers app and get it approved for production use.
+
+**Important**: TikTok requires app review and approval before you can use the API in production. The approval process can take several weeks. Additionally, TikTok's API does not support like, share, or delete actions.
+
+---
+
+You can create a TikTok for Developers app at https://developers.tiktok.com/.
+
+.. image:: images/tiktok-1.png
+
+If you haven't yet, you will need to apply for a TikTok for Developers account and create an application.
+
+Apply for a TikTok for Developers account
+-----------------------------------------
+
+1. Go to https://developers.tiktok.com/ and click "Get Started"
+2. Sign in with your TikTok account (the same account you want to post to)
+3. Complete the developer registration form:
+
+   - **Account Type**: Select "Individual" unless you're representing a company
+   - **Use Case**: Select "Content Publishing" or "Marketing"
+   - **Contact Information**: Provide accurate contact details
+   - **Company Information**: Fill this if you selected "Company" as account type
+
+.. image:: images/tiktok-2.png
+
+Create an app
+-------------
+
+After your developer account is approved:
+
+1. Go to your TikTok for Developers dashboard
+2. Click "Create an app" or "Add app"
+3. Fill out the application form:
+
+   - **App Name**: Choose a descriptive name like "My-App-Agoras"
+   - **App Description**: Describe your use case for content publishing
+   - **Category**: Select "Productivity" or "Social Media"
+   - **Platform**: Select "Web"
+
+.. image:: images/tiktok-3.png
+
+Configure app permissions
+------------------------
+
+After creating your app:
+
+1. Go to your app's dashboard
+2. Navigate to "Products" or "Add Products"
+3. Add the following products to your app:
+
+   - **Login Kit**: For user authentication
+   - **Content Posting API**: For publishing videos and photos
+
+4. Configure the required scopes:
+
+   - ``user.info.basic``: To get user profile information
+   - ``video.upload``: To upload video content
+   - ``video.publish``: To publish video content
+
+.. image:: images/tiktok-4.png
+
+Set up OAuth redirect URI
+-------------------------
+
+1. In your app dashboard, go to "Login Kit" settings
+2. Add a redirect URI: ``http://127.0.0.1:3456/callback/``
+3. Make sure this exact URL is added to your app configuration
+
+.. image:: images/tiktok-5.png
+
+Submit for app review
+---------------------
+
+**Important**: TikTok requires app review for production use.
+
+1. Complete all required app information
+2. Provide detailed use case description
+3. Submit privacy policy and terms of service URLs (if required)
+4. Submit your app for review
+
+The review process typically takes 2-4 weeks. During this time, you can use your app in development mode with limited functionality.
+
+.. image:: images/tiktok-6.png
+
+Get your credentials
+-------------------
+
+Once your app is created (and optionally approved):
+
+1. Go to your app dashboard
+2. Navigate to "Basic Information" or "App Details"
+3. Copy the following credentials:
+
+   - **Client Key**: Your app's unique identifier
+   - **Client Secret**: Your app's secret key (keep this secure!)
+
+.. image:: images/tiktok-7.png
+
+Get your TikTok username
+------------------------
+
+You'll also need your TikTok username (the handle you want to post to):
+
+1. Go to your TikTok profile
+2. Your username is displayed as @username
+3. Use just the username part (without the @)
+
+For example, if your profile shows @myawesomehandle, use ``myawesomehandle``
+
+Authorization process
+--------------------
+
+Before you can post content, you need to authorize Agoras to access your TikTok account:
+
+1. Run the authorization command:
+
+   ::
+
+         agoras publish \
+               --network "tiktok" \
+               --action "authorize" \
+               --tiktok-username "yourusername" \
+               --tiktok-client-key "your_client_key" \
+               --tiktok-client-secret "your_client_secret"
+
+2. A local web server will start and open a browser window
+3. Log in to TikTok and approve the app permissions
+4. The authorization tokens will be saved locally for future use
+
+This is a one-time process. The refresh token will be stored securely and used for subsequent requests.
+
+Development vs Production
+------------------------
+
+**Development Mode**:
+- Available immediately after app creation
+- Limited to your own account
+- May have posting restrictions
+- Good for testing integration
+
+**Production Mode**:
+- Requires app review and approval
+- Can post to any authorized account
+- Full API functionality
+- Required for live usage
+
+Agoras parameters
+-----------------
+
++------------------------+---------------------------+
+| TikTok credential      | Agoras parameter          |
++========================+===========================+
+| Client Key             | --tiktok-client-key       |
++------------------------+---------------------------+
+| Client Secret          | --tiktok-client-secret    |
++------------------------+---------------------------+
+| Username               | --tiktok-username         |
++------------------------+---------------------------+
+
+**Note**: Refresh tokens are managed automatically by Agoras after the initial authorization.
+
+Troubleshooting
+---------------
+
+**"App not approved" error**:
+- Make sure your app has been submitted for review
+- Check if you're trying to use production features in development mode
+- Verify all required app information is complete
+
+**"Invalid credentials" error**:
+- Double-check your Client Key and Client Secret
+- Make sure you're using the correct TikTok username
+- Verify your app's redirect URI is set to ``http://127.0.0.1:3456/callback/``
+
+**"Authorization failed" error**:
+- Make sure you're logged into the correct TikTok account
+- Check that your app has the required scopes enabled
+- Try the authorization process again
+
+**"Video upload failed" error**:
+- Verify your video format is supported (MP4, MOV, WebM)
+- Check that your video duration doesn't exceed account limits
+- Make sure your video file is accessible from the provided URL
+
+For more help, consult the `TikTok for Developers documentation <https://developers.tiktok.com/doc/>`_. 

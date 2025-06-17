@@ -16,385 +16,284 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import datetime
-import json
-import os
-import random
-import tempfile
-from html import unescape
-from urllib.request import Request, urlopen
+import asyncio
 
-import filetype
-import gspread
-import discord
-from atoma import parse_rss_bytes
-from dateutil import parser
-from google.oauth2.service_account import Credentials
-
-from agoras import __version__
-from agoras.core.utils import add_url_timestamp, parse_metatags
+from agoras.core.base import SocialNetwork
+from agoras.core.utils import parse_metatags
+from agoras.core.api import DiscordAPI
 
 
-def get_arguments(
-        status_text,
-        status_link,
-        status_link_title,
-        status_link_description,
-        status_link_image,
-        attached_media):
+class Discord(SocialNetwork):
+    """
+    Discord social network implementation.
 
-    entity = {
-        "embeds": [],
-    }
+    This class provides Discord-specific functionality for posting messages,
+    videos, and managing Discord interactions asynchronously.
+    """
 
-    if status_text:
-        entity["content"] = status_text
+    def __init__(self, **kwargs):
+        """
+        Initialize Discord instance.
 
-    if status_link:
-        embed_link = discord.Embed(
-            url=status_link,
-            type='link',
-            description=status_link_description,
-            title=status_link_title
+        Args:
+            **kwargs: Configuration parameters including:
+                - discord_bot_token: Discord bot token
+                - discord_server_name: Discord server name
+                - discord_channel_name: Discord channel name
+        """
+        super().__init__(**kwargs)
+        self.discord_bot_token = None
+        self.discord_server_name = None
+        self.discord_channel_name = None
+        self.api = None
+
+    async def _initialize_client(self):
+        """
+        Initialize Discord API client.
+
+        This method sets up the Discord API client with configuration.
+        """
+        self.discord_bot_token = self._get_config_value('discord_bot_token', 'DISCORD_BOT_TOKEN')
+        self.discord_server_name = self._get_config_value('discord_server_name', 'DISCORD_SERVER_NAME')
+        self.discord_channel_name = self._get_config_value('discord_channel_name', 'DISCORD_CHANNEL_NAME')
+
+        if not self.discord_bot_token:
+            raise Exception('Discord bot token is required.')
+        if not self.discord_server_name:
+            raise Exception('Discord server name is required.')
+        if not self.discord_channel_name:
+            raise Exception('Discord channel name is required.')
+
+        # Initialize Discord API
+        self.api = DiscordAPI(
+            self.discord_bot_token,
+            self.discord_server_name,
+            self.discord_channel_name
         )
-        if status_link_image:
-            embed_link.set_image(url=status_link_image)
-        entity["embeds"].append(embed_link)
+        await self.api.authenticate()
 
-    for media in attached_media:
-        embed_media = discord.Embed(
-            type='image',
+    def _build_embeds(self, status_link, status_link_title, status_link_description,
+                      status_link_image, attached_media):
+        """
+        Build Discord embeds for a message.
+
+        Args:
+            status_link (str): URL to include
+            status_link_title (str): Link title
+            status_link_description (str): Link description
+            status_link_image (str): Link image URL
+            attached_media (list): List of attached media info
+
+        Returns:
+            list: List of Discord embeds
+        """
+        if not self.api:
+            raise Exception('Discord API not initialized')
+
+        embeds = []
+
+        # Add link embed
+        if status_link:
+            link_embed = self.api.create_embed(
+                title=status_link_title,
+                description=status_link_description,
+                url=status_link,
+                image_url=status_link_image
+            )
+            embeds.append(link_embed)
+
+        # Add media embeds
+        for media in attached_media:
+            media_embed = self.api.create_embed(image_url=media['url'])
+            embeds.append(media_embed)
+
+        return embeds
+
+    async def post(self, status_text, status_link,
+                   status_image_url_1=None, status_image_url_2=None,
+                   status_image_url_3=None, status_image_url_4=None):
+        """
+        Create a post on Discord.
+
+        Args:
+            status_text (str): Text content of the post
+            status_link (str): URL to include in the post
+            status_image_url_1 (str, optional): First image URL
+            status_image_url_2 (str, optional): Second image URL
+            status_image_url_3 (str, optional): Third image URL
+            status_image_url_4 (str, optional): Fourth image URL
+
+        Returns:
+            str: Post ID
+        """
+        if not self.api:
+            raise Exception('Discord API not initialized')
+
+        status_link_title = ''
+        status_link_description = ''
+        status_link_image = ''
+        attached_media = []
+        source_media = list(filter(None, [
+            status_image_url_1, status_image_url_2,
+            status_image_url_3, status_image_url_4
+        ]))
+
+        if not source_media and not status_text and not status_link:
+            raise Exception('No status text, link, or images provided.')
+
+        # Parse link metadata
+        if status_link:
+            scraped_data = parse_metatags(status_link)
+            status_link_title = scraped_data.get('title', '')
+            status_link_description = scraped_data.get('description', '')
+            status_link_image = scraped_data.get('image', '')
+
+        # Download and validate images using the Media system
+        if source_media:
+            images = await self.download_images(source_media)
+            for image in images:
+                attached_media.append({'url': image.url})
+                # Clean up temporary files
+                image.cleanup()
+
+        # Build embeds
+        embeds = self._build_embeds(
+            status_link, status_link_title, status_link_description,
+            status_link_image, attached_media
         )
-        embed_media.set_image(url=media['url'])
-        entity["embeds"].append(embed_media)
 
-    return entity
+        # Send message using Discord API
+        message_id = await self.api.send_message(
+            content=status_text or None,
+            embeds=embeds if embeds else None
+        )
+
+        self._output_status(message_id)
+        return message_id
+
+    async def like(self, discord_post_id):
+        """
+        Like a Discord message by adding a heart reaction.
+
+        Args:
+            discord_post_id (str): ID of the Discord message to like
+
+        Returns:
+            str: Post ID
+        """
+        if not self.api:
+            raise Exception('Discord API not initialized')
+
+        result = await self.api.add_reaction(discord_post_id, '❤️')
+        self._output_status(result)
+        return result
+
+    async def delete(self, discord_post_id):
+        """
+        Delete a Discord message.
+
+        Args:
+            discord_post_id (str): ID of the Discord message to delete
+
+        Returns:
+            str: Post ID
+        """
+        if not self.api:
+            raise Exception('Discord API not initialized')
+
+        result = await self.api.delete_message(discord_post_id)
+        self._output_status(result)
+        return result
+
+    async def share(self, discord_post_id):
+        """
+        Share is not supported for Discord.
+
+        Args:
+            discord_post_id (str): ID of the Discord message
+
+        Raises:
+            Exception: Share not supported for Discord
+        """
+        raise Exception('Share not supported for Discord')
+
+    async def video(self, status_text, video_url, video_title):
+        """
+        Post a video to Discord.
+
+        Args:
+            status_text (str): Text content to accompany the video
+            video_url (str): URL of the video to post
+            video_title (str): Title of the video
+
+        Returns:
+            str: Post ID
+        """
+        if not self.api:
+            raise Exception('Discord API not initialized')
+
+        if not video_url:
+            raise Exception('No Discord video URL provided.')
+
+        # Download and validate video using the Media system
+        video = await self.download_video(video_url)
+
+        if not video.content or not video.file_type:
+            video.cleanup()
+            raise Exception('Failed to download or validate video')
+
+        # Create embed for video title and description
+        embeds = []
+        if video_title or status_text:
+            embed = self.api.create_embed(
+                title=video_title or "Video",
+                description=status_text
+            )
+            embeds.append(embed)
+
+        # Get file-like object directly from video content in memory
+        video_file = video.get_file_like_object()
+        filename = f"video.{video.file_type.extension}"
+
+        # Upload file using Discord API
+        message_id = await self.api.upload_file(
+            video_file,
+            filename,
+            content=None,
+            embeds=embeds if embeds else None
+        )
 
+        # Clean up
+        video.cleanup()
 
-async def post(channel, status_text, status_link,
-               status_image_url_1=None, status_image_url_2=None,
-               status_image_url_3=None, status_image_url_4=None):
+        self._output_status(message_id)
+        return message_id
 
-    status_link_title = ''
-    status_link_description = ''
-    status_link_image = ''
-    attached_media = []
-    source_media = list(filter(None, [
-        status_image_url_1, status_image_url_2,
-        status_image_url_3, status_image_url_4
-    ]))
 
-    if not source_media and not status_text and not status_link:
-        raise Exception('No --status-text or --status-link or --status-image-url-1 provided.')
+async def main_async(kwargs):
+    """
+    Async main function to execute Discord actions.
 
-    if status_link:
-        scraped_data = parse_metatags(status_link)
-        status_link_title = scraped_data.get('title', '')
-        status_link_description = scraped_data.get('description', '')
-        status_link_image = scraped_data.get('image', '')
+    Args:
+        kwargs (dict): Configuration arguments
+    """
+    action = kwargs.get('action', '')
 
-    for imgurl in source_media:
+    if action == '':
+        raise Exception('Action is a required argument.')
 
-        _, tmpimg = tempfile.mkstemp(prefix='status-image-url-',
-                                     suffix='.bin')
+    # Create Discord instance with configuration
+    discord_client = Discord(**kwargs)
 
-        with open(tmpimg, 'wb') as i:
-            request = Request(url=imgurl, headers={'User-Agent': f'Agoras/{__version__}'})
-            imgcontent = urlopen(request).read()
-            i.write(imgcontent)
-
-        kind = filetype.guess(tmpimg)
-
-        if not kind:
-            raise Exception(f'Invalid image type for {imgurl}')
-
-        if kind.mime not in ['image/jpeg', 'image/png', 'image/gif']:
-            raise Exception(f'Invalid image type "{kind.mime}" for {imgurl}')
-
-        attached_media.append({
-            'url': imgurl,
-        })
-
-    arguments = get_arguments(
-        status_text,
-        status_link,
-        status_link_title,
-        status_link_description,
-        status_link_image,
-        attached_media)
-
-    request = await channel.send(**arguments)
-    status = {
-        "id": request.id
-    }
-    print(json.dumps(status, separators=(',', ':')))
-
-
-async def like(channel, discord_post_id):
-    message = await channel.fetch_message(discord_post_id)
-    await message.add_reaction('❤️')
-    status = {
-        "id": discord_post_id
-    }
-    print(json.dumps(status, separators=(',', ':')))
-
-
-async def delete(channel, discord_post_id):
-    message = await channel.fetch_message(discord_post_id)
-    await message.delete()
-    status = {
-        "id": discord_post_id
-    }
-    print(json.dumps(status, separators=(',', ':')))
-
-
-async def share():
-    raise Exception('share not supported for discord')
-
-
-async def last_from_feed(channel, feed_url, max_count, post_lookback):
-
-    count = 0
-
-    if not feed_url:
-        raise Exception('No --feed-url provided.')
-
-    request = Request(url=feed_url, headers={'User-Agent': f'Agoras/{__version__}'})
-    feed_data = parse_rss_bytes(urlopen(request).read())
-    today = datetime.datetime.now()
-    last_run = today - datetime.timedelta(seconds=post_lookback)
-    last_timestamp = int(last_run.strftime('%Y%m%d%H%M%S'))
-
-    for item in feed_data.items:
-
-        if count >= max_count:
-            break
-
-        if not item.pub_date:
-            continue
-
-        item_timestamp = int(item.pub_date.strftime('%Y%m%d%H%M%S'))
-
-        if item_timestamp < last_timestamp:
-            continue
-
-        link = item.link or item.guid or ''
-        title = item.title or ''
-
-        status_link = add_url_timestamp(link, today.strftime('%Y%m%d%H%M%S')) if link else ''
-        status_title = unescape(title) if title else ''
-
-        try:
-            status_image = item.enclosures[0].url
-        except Exception:
-            status_image = ''
-
-        count += 1
-        await post(channel, status_title, status_link, status_image)
-
-
-async def random_from_feed(channel, feed_url, max_post_age):
-
-    json_index_content = {}
-
-    if not feed_url:
-        raise Exception('No --feed-url provided.')
-
-    request = Request(url=feed_url, headers={'User-Agent': f'Agoras/{__version__}'})
-    feed_data = parse_rss_bytes(urlopen(request).read())
-    today = datetime.datetime.now()
-    max_age_delta = today - datetime.timedelta(days=max_post_age)
-    max_age_timestamp = int(max_age_delta.strftime('%Y%m%d%H%M%S'))
-
-    for item in feed_data.items:
-
-        if not item.pub_date:
-            continue
-
-        item_timestamp = int(item.pub_date.strftime('%Y%m%d%H%M%S'))
-
-        if item_timestamp < max_age_timestamp:
-            continue
-
-        json_index_content[str(item_timestamp)] = {
-            'title': item.title or '',
-            'url': item.link or item.guid or '',
-            'date': item.pub_date
-        }
-
-        try:
-            json_index_content[str(item_timestamp)]['image'] = item.enclosures[0].url
-        except Exception:
-            json_index_content[str(item_timestamp)]['image'] = ''
-
-    random_status_id = random.choice(list(json_index_content.keys()))
-    random_status_title = json_index_content[random_status_id]['title']
-    random_status_image = json_index_content[random_status_id]['image']
-    random_status_link = json_index_content[random_status_id]['url']
-
-    status_link = add_url_timestamp(random_status_link, today.strftime('%Y%m%d%H%M%S')) if random_status_link else ''
-    status_title = unescape(random_status_title) if random_status_title else ''
-
-    await post(channel, status_title, status_link, random_status_image)
-
-
-async def schedule(channel, google_sheets_id,
-                   google_sheets_name, google_sheets_client_email,
-                   google_sheets_private_key, max_count):
-
-    count = 0
-    newcontent = []
-    gspread_scope = ['https://spreadsheets.google.com/feeds']
-    account_info = {
-        'private_key': google_sheets_private_key,
-        'client_email': google_sheets_client_email,
-        'token_uri': 'https://oauth2.googleapis.com/token',
-    }
-    creds = Credentials.from_service_account_info(account_info,
-                                                  scopes=gspread_scope)
-    gclient = gspread.authorize(creds)
-    spreadsheet = gclient.open_by_key(google_sheets_id)
-
-    worksheet = spreadsheet.worksheet(google_sheets_name)
-    currdate = datetime.datetime.now()
-
-    content = worksheet.get_all_values()
-
-    for row in content:
-
-        status_text, status_link, status_image_url_1, status_image_url_2, \
-            status_image_url_3, status_image_url_4, \
-            date, hour, state = row
-
-        newcontent.append([
-            status_text, status_link, status_image_url_1, status_image_url_2,
-            status_image_url_3, status_image_url_4,
-            date, hour, state
-        ])
-
-        rowdate = parser.parse(date)
-        normalized_currdate = parser.parse(currdate.strftime('%d-%m-%Y'))
-        normalized_rowdate = parser.parse(rowdate.strftime('%d-%m-%Y'))
-
-        if count >= max_count:
-            break
-
-        if state == 'published':
-            continue
-
-        if normalized_rowdate < normalized_currdate:
-            continue
-
-        if currdate.strftime('%d-%m-%Y') == rowdate.strftime('%d-%m-%Y') and \
-           currdate.strftime('%H') != hour:
-            continue
-
-        count += 1
-        newcontent[-1][-1] = 'published'
-        await post(channel, status_text, status_link,
-                   status_image_url_1, status_image_url_2,
-                   status_image_url_3, status_image_url_4)
-
-    worksheet.clear()
-
-    for row in newcontent:
-        worksheet.append_row(row, table_range='A1')
-
-
-def get_discord_guild(client, discord_server_name):
-    for guild in client.guilds:
-        if guild.name == discord_server_name:
-            return guild
-    raise Exception(f'Guild {discord_server_name} not found.')
-
-
-def get_discord_channel(client, discord_server_name, discord_channel_name):
-    guild = get_discord_guild(client, discord_server_name)
-    for channel in guild.channels:
-        if channel.name == discord_channel_name:
-            return channel
-    raise Exception(f'Channel {discord_channel_name} not found.')
+    # Execute the action using the base class method
+    await discord_client.execute_action(action)
 
 
 def main(kwargs):
+    """
+    Main function to execute Discord actions.
 
-    action = kwargs.get('action')
-    discord_bot_token = kwargs.get('discord_bot_token', '') or \
-        os.environ.get('DISCORD_BOT_TOKEN', '')
-    discord_server_name = kwargs.get('discord_server_name', '') or \
-        os.environ.get('DISCORD_SERVER_NAME', '')
-    discord_channel_name = kwargs.get('discord_channel_name', '') or \
-        os.environ.get('DISCORD_CHANNEL_NAME', '')
-    discord_post_id = kwargs.get('discord_post_id', None) or \
-        os.environ.get('DISCORD_POST_ID', None)
-    status_text = kwargs.get('status_text', '') or \
-        os.environ.get('STATUS_TEXT', '')
-    status_link = kwargs.get('status_link', '') or \
-        os.environ.get('STATUS_LINK', '')
-    status_image_url_1 = kwargs.get('status_image_url_1', None) or \
-        os.environ.get('STATUS_IMAGE_URL_1', None)
-    status_image_url_2 = kwargs.get('status_image_url_2', None) or \
-        os.environ.get('STATUS_IMAGE_URL_2', None)
-    status_image_url_3 = kwargs.get('status_image_url_3', None) or \
-        os.environ.get('STATUS_IMAGE_URL_3', None)
-    status_image_url_4 = kwargs.get('status_image_url_4', None) or \
-        os.environ.get('STATUS_IMAGE_URL_4', None)
-    feed_url = kwargs.get('feed_url', None) or \
-        os.environ.get('FEED_URL', None)
-    post_lookback = kwargs.get('post_lookback', 1 * 60 * 60) or \
-        os.environ.get('POST_LOOKBACK', 1 * 60 * 60)
-    max_count = kwargs.get('max_count', 1) or \
-        os.environ.get('MAX_COUNT', 1)
-    max_post_age = kwargs.get('max_post_age', 365) or \
-        os.environ.get('MAX_POST_AGE', 365)
-    google_sheets_id = kwargs.get('google_sheets_id', None) or \
-        os.environ.get('GOOGLE_SHEETS_ID', None)
-    google_sheets_name = kwargs.get('google_sheets_name', None) or \
-        os.environ.get('GOOGLE_SHEETS_NAME', None)
-    google_sheets_client_email = \
-        kwargs.get('google_sheets_client_email', None) or \
-        os.environ.get('GOOGLE_SHEETS_CLIENT_EMAIL', None)
-    google_sheets_private_key = \
-        kwargs.get('google_sheets_private_key', None) or \
-        os.environ.get('GOOGLE_SHEETS_PRIVATE_KEY', None)
-
-    max_count = int(max_count)
-    post_lookback = int(post_lookback)
-    max_post_age = int(max_post_age)
-    google_sheets_private_key = \
-        google_sheets_private_key.replace('\\n', '\n') \
-        if google_sheets_private_key else ''
-
-    client = discord.Client(intents=discord.Intents.all())
-
-    @client.event
-    async def on_ready():
-        channel = get_discord_channel(client, discord_server_name,
-                                      discord_channel_name)
-
-        if action == 'post':
-            await post(channel, status_text, status_link,
-                       status_image_url_1, status_image_url_2,
-                       status_image_url_3, status_image_url_4)
-        elif action == 'like':
-            await like(channel, discord_post_id)
-        elif action == 'share':
-            await share()
-        elif action == 'delete':
-            await delete(channel, discord_post_id)
-        elif action == 'last-from-feed':
-            await last_from_feed(channel, feed_url, max_count, post_lookback)
-        elif action == 'random-from-feed':
-            await random_from_feed(channel, feed_url, max_post_age)
-        elif action == 'schedule':
-            await schedule(channel, google_sheets_id,
-                           google_sheets_name, google_sheets_client_email,
-                           google_sheets_private_key, max_count)
-        elif action == '':
-            raise Exception('--action is a required argument.')
-        else:
-            raise Exception(f'"{action}" action not supported.')
-
-        await client.close()
-
-    client.run(discord_bot_token)
+    Args:
+        kwargs (dict): Configuration arguments
+    """
+    asyncio.run(main_async(kwargs))
