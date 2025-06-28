@@ -17,10 +17,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
-import random
 
-from agoras.core.base import SocialNetwork
 from agoras.core.api import InstagramAPI
+from agoras.core.base import SocialNetwork
 
 
 class Instagram(SocialNetwork):
@@ -87,6 +86,13 @@ class Instagram(SocialNetwork):
         )
         await self.api.authenticate()
 
+    async def disconnect(self):
+        """
+        Disconnect from Instagram API and clean up resources.
+        """
+        if self.api:
+            await self.api.disconnect()
+
     async def post(self, status_text, status_link,
                    status_image_url_1=None, status_image_url_2=None,
                    status_image_url_3=None, status_image_url_4=None):
@@ -110,6 +116,7 @@ class Instagram(SocialNetwork):
         if not self.instagram_object_id:
             raise Exception('Instagram object ID is required.')
 
+        attached_media = []
         source_media = list(filter(None, [
             status_image_url_1, status_image_url_2,
             status_image_url_3, status_image_url_4
@@ -118,24 +125,23 @@ class Instagram(SocialNetwork):
         if not source_media:
             raise Exception('Instagram requires at least one status image.')
 
-        attached_media = []
         is_carousel_item = len(source_media) > 1
 
         # Download and validate images using the Media system
-        images = await self.download_images(source_media)
-        for image in images:
-            try:
-                # Create media for each image
-                await asyncio.sleep(random.randrange(1, 5))
-                media_id = await self.api.create_media(
-                    self.instagram_object_id,
-                    image_url=image.url,
-                    is_carousel_item=is_carousel_item
-                )
-                attached_media.append(media_id)
-            finally:
-                # Clean up temporary files
-                image.cleanup()
+        if source_media:
+            images = await self.download_images(source_media)
+            for image in images:
+                try:
+                    # Create media for each image
+                    media_id = await self.api.create_media(
+                        self.instagram_object_id,
+                        image_url=image.url,
+                        is_carousel_item=is_carousel_item
+                    )
+                    attached_media.append(media_id)
+                finally:
+                    # Clean up temporary files
+                    image.cleanup()
 
         # Create carousel or single post
         if is_carousel_item:
@@ -295,20 +301,30 @@ class Instagram(SocialNetwork):
         await self.video(status_text, video_url, video_title)
 
 
-# Legacy main function for backwards compatibility
-def main(kwargs):
+async def main_async(kwargs):
     """
-    Legacy main function for backwards compatibility.
-    This creates an Instagram instance and executes the specified action.
+    Async main function to execute Instagram actions.
 
     Args:
-        kwargs (dict): Configuration parameters
+        kwargs (dict): Configuration arguments
     """
-    import asyncio
+    action = kwargs.get('action', '')
 
-    async def run():
-        instagram = Instagram(**kwargs)
-        action = kwargs.get('action', '')
-        await instagram.execute_action(action)
+    if action == '':
+        raise Exception('Action is a required argument.')
 
-    asyncio.run(run()) 
+    # Create Instagram instance with configuration
+    instance = Instagram(**kwargs)
+    # Execute the action using the base class method
+    await instance.execute_action(action)
+    await instance.disconnect()
+
+
+def main(kwargs):
+    """
+    Main function to execute Instagram actions.
+
+    Args:
+        kwargs (dict): Configuration arguments
+    """
+    asyncio.run(main_async(kwargs))

@@ -17,13 +17,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
-import json
-import os
 
-from agoras.core.base import SocialNetwork
 from agoras.core.api.tiktok import TikTokAPI
-from agoras.core.api.tiktok_oauth import authorize
-from platformdirs import user_cache_dir
+from agoras.core.base import SocialNetwork
 
 
 class TikTok(SocialNetwork):
@@ -109,14 +105,7 @@ class TikTok(SocialNetwork):
         if not self.tiktok_client_secret:
             raise Exception('TikTok client secret is required.')
 
-        # Try to load refresh token from cache if not provided
-        if not self.tiktok_refresh_token:
-            self.tiktok_refresh_token = self._load_refresh_token_from_cache()
-
-        if not self.tiktok_refresh_token:
-            raise Exception('TikTok refresh token is required. Run authorization first.')
-
-        # Initialize TikTok API
+        # Initialize TikTok API (it will handle loading refresh token from cache if needed)
         self.api = TikTokAPI(
             self.tiktok_username,
             self.tiktok_client_key,
@@ -124,6 +113,13 @@ class TikTok(SocialNetwork):
             self.tiktok_refresh_token
         )
         await self.api.authenticate()
+
+    async def disconnect(self):
+        """
+        Disconnect from TikTok API and clean up resources.
+        """
+        if self.api:
+            await self.api.disconnect()
 
     def _convert_bool(self, value, default=False):
         """Convert various boolean representations to bool."""
@@ -134,40 +130,6 @@ class TikTok(SocialNetwork):
         if isinstance(value, str):
             return value.upper() in ['TRUE', '1', 'YES', 'ON']
         return bool(value)
-
-    def _load_refresh_token_from_cache(self):
-        """Load refresh token from cache file."""
-        cachedir = user_cache_dir("Agoras", "Agoras")
-        cachefile = os.path.join(cachedir, f'tiktok-{self.tiktok_username}.json')
-
-        if os.path.isfile(cachefile):
-            try:
-                with open(cachefile) as f:
-                    data = json.load(f)
-                    return data.get('tiktok_refresh_token')
-            except Exception:
-                pass
-        return None
-
-    async def authorize(self):
-        """
-        Perform TikTok OAuth authorization flow.
-
-        Returns:
-            TikTok: Self for method chaining
-        """
-        if not self.tiktok_username:
-            self.tiktok_username = self._get_config_value('tiktok_username', 'TIKTOK_USERNAME')
-        if not self.tiktok_client_key:
-            self.tiktok_client_key = self._get_config_value('tiktok_client_key', 'TIKTOK_CLIENT_KEY')
-        if not self.tiktok_client_secret:
-            self.tiktok_client_secret = self._get_config_value('tiktok_client_secret', 'TIKTOK_CLIENT_SECRET')
-
-        def _sync_authorize():
-            authorize(self.tiktok_username, self.tiktok_client_key, self.tiktok_client_secret)
-
-        await asyncio.to_thread(_sync_authorize)
-        return self
 
     async def post(self, status_text, status_link,
                    status_image_url_1=None, status_image_url_2=None,
@@ -436,10 +398,10 @@ async def main_async(kwargs):
         raise Exception('Action is a required argument.')
 
     # Create TikTok instance with configuration
-    tiktok_client = TikTok(**kwargs)
-
+    instance = TikTok(**kwargs)
     # Execute the action using the base class method
-    await tiktok_client.execute_action(action)
+    await instance.execute_action(action)
+    await instance.disconnect()
 
 
 def main(kwargs):

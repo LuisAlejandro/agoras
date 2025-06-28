@@ -18,9 +18,9 @@
 
 import asyncio
 
+from agoras.core.api import DiscordAPI
 from agoras.core.base import SocialNetwork
 from agoras.core.utils import parse_metatags
-from agoras.core.api import DiscordAPI
 
 
 class Discord(SocialNetwork):
@@ -71,6 +71,13 @@ class Discord(SocialNetwork):
             self.discord_channel_name
         )
         await self.api.authenticate()
+
+    async def disconnect(self):
+        """
+        Disconnect from Discord API and clean up resources.
+        """
+        if self.api:
+            await self.api.disconnect()
 
     def _build_embeds(self, status_link, status_link_title, status_link_description,
                       status_link_image, attached_media):
@@ -129,10 +136,10 @@ class Discord(SocialNetwork):
         if not self.api:
             raise Exception('Discord API not initialized')
 
+        embeds = []
         status_link_title = ''
         status_link_description = ''
         status_link_image = ''
-        attached_media = []
         source_media = list(filter(None, [
             status_image_url_1, status_image_url_2,
             status_image_url_3, status_image_url_4
@@ -148,22 +155,28 @@ class Discord(SocialNetwork):
             status_link_description = scraped_data.get('description', '')
             status_link_image = scraped_data.get('image', '')
 
+            # Create link embed
+            link_embed = self.api.create_embed(
+                title=status_link_title,
+                description=status_link_description,
+                url=status_link,
+                image_url=status_link_image
+            )
+            embeds.append(link_embed)
+
         # Download and validate images using the Media system
         if source_media:
             images = await self.download_images(source_media)
             for image in images:
-                attached_media.append({'url': image.url})
-                # Clean up temporary files
-                image.cleanup()
+                try:
+                    image_embed = self.api.create_embed(image_url=image.url)
+                    embeds.append(image_embed)
+                finally:
+                    # Clean up temporary files
+                    image.cleanup()
 
-        # Build embeds
-        embeds = self._build_embeds(
-            status_link, status_link_title, status_link_description,
-            status_link_image, attached_media
-        )
-
-        # Send message using Discord API
-        message_id = await self.api.send_message(
+        # Post message using Discord API
+        message_id = await self.api.post(
             content=status_text or None,
             embeds=embeds if embeds else None
         )
@@ -184,7 +197,7 @@ class Discord(SocialNetwork):
         if not self.api:
             raise Exception('Discord API not initialized')
 
-        result = await self.api.add_reaction(discord_post_id, '❤️')
+        result = await self.api.like(discord_post_id, '❤️')
         self._output_status(result)
         return result
 
@@ -201,7 +214,7 @@ class Discord(SocialNetwork):
         if not self.api:
             raise Exception('Discord API not initialized')
 
-        result = await self.api.delete_message(discord_post_id)
+        result = await self.api.delete(discord_post_id)
         self._output_status(result)
         return result
 
@@ -283,10 +296,10 @@ async def main_async(kwargs):
         raise Exception('Action is a required argument.')
 
     # Create Discord instance with configuration
-    discord_client = Discord(**kwargs)
-
+    instance = Discord(**kwargs)
     # Execute the action using the base class method
-    await discord_client.execute_action(action)
+    await instance.execute_action(action)
+    await instance.disconnect()
 
 
 def main(kwargs):

@@ -2,6 +2,8 @@
 Internal API
 ============
 
+This section documents the internal API of the Agoras package, organized by subpackages and modules.
+
 agoras package
 --------------
 
@@ -10,18 +12,23 @@ agoras package
     :private-members:
     :special-members:
 
-agoras.api submodule
---------------------
+agoras.cli module
+-----------------
 
-.. automodule:: agoras.api
+.. automodule:: agoras.cli
     :members:
     :private-members:
     :special-members:
 
-agoras.core submodule
----------------------
+Subpackages
+-----------
 
-.. automodule:: agoras.core
-    :members:
-    :private-members:
-    :special-members:
+.. toctree::
+   :maxdepth: 2
+
+   api/commands
+   api/core
+   api/core_api
+   api/core_feed
+   api/core_media
+   api/core_sheet

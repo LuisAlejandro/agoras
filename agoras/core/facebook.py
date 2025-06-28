@@ -17,12 +17,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
-import random
 
-import requests
-
-from agoras.core.base import SocialNetwork
 from agoras.core.api import FacebookAPI
+from agoras.core.base import SocialNetwork
 
 
 class Facebook(SocialNetwork):
@@ -82,9 +79,17 @@ class Facebook(SocialNetwork):
             self.facebook_access_token,
             self.facebook_client_id,
             self.facebook_client_secret,
-            self.facebook_refresh_token
+            self.facebook_refresh_token,
+            self.facebook_app_id
         )
         await self.api.authenticate()
+
+    async def disconnect(self):
+        """
+        Disconnect from Facebook API and clean up resources.
+        """
+        if self.api:
+            await self.api.disconnect()
 
     async def post(self, status_text, status_link,
                    status_image_url_1=None, status_image_url_2=None,
@@ -122,23 +127,23 @@ class Facebook(SocialNetwork):
         if source_media:
             images = await self.download_images(source_media)
             for image in images:
-                # Upload media to Facebook (unpublished)
-                await asyncio.sleep(random.randrange(1, 5))
-                media_response = await self.api.upload_media(
-                    self.facebook_object_id,
-                    image.url,
-                    published=False
-                )
-                if media_response and 'id' in media_response:
-                    attached_media.append({
-                        'media_fbid': media_response['id']
-                    })
-                # Clean up temporary files
-                image.cleanup()
+                try:
+                    # Upload media to Facebook
+                    media_response = await self.api.upload_media(
+                        self.facebook_object_id,
+                        image.url,
+                        published=False
+                    )
+                    if media_response and 'id' in media_response:
+                        attached_media.append({
+                            'media_fbid': media_response['id']
+                        })
+                finally:
+                    # Clean up temporary files
+                    image.cleanup()
 
         # Create the post
-        await asyncio.sleep(random.randrange(1, 5))
-        post_id = await self.api.create_post(
+        post_id = await self.api.post(
             self.facebook_object_id,
             message=status_text,
             link=status_link,
@@ -168,8 +173,7 @@ class Facebook(SocialNetwork):
         if not self.facebook_object_id:
             raise Exception('Facebook object ID is required.')
 
-        await asyncio.sleep(random.randrange(1, 5))
-        result = await self.api.like_post(self.facebook_object_id, post_id)
+        result = await self.api.like(self.facebook_object_id, post_id)
         self._output_status(result)
         return result
 
@@ -193,8 +197,7 @@ class Facebook(SocialNetwork):
         if not self.facebook_object_id:
             raise Exception('Facebook object ID is required.')
 
-        await asyncio.sleep(random.randrange(1, 5))
-        result = await self.api.delete_post(self.facebook_object_id, post_id)
+        result = await self.api.delete(self.facebook_object_id, post_id)
         self._output_status(result)
         return result
 
@@ -220,8 +223,7 @@ class Facebook(SocialNetwork):
         if not self.facebook_profile_id:
             raise Exception('Facebook profile ID is required.')
 
-        await asyncio.sleep(random.randrange(1, 5))
-        result = await self.api.share_post(
+        result = await self.api.share(
             self.facebook_profile_id,
             self.facebook_object_id,
             post_id
@@ -241,43 +243,18 @@ class Facebook(SocialNetwork):
         Returns:
             str: Video/Post ID
         """
-        if not self.api or not self.api.client:
+        if not self.api:
             raise Exception('Facebook API client not initialized')
 
         assert self.api is not None  # Help type checker
         assert self.facebook_object_id is not None  # Help type checker
 
-        connection = 'video_reels' if video_type == 'reel' else 'video_stories'
-
-        # Start upload
-        request = self.api.client.post_object(
+        return await self.api.upload_reel_or_story(
             object_id=self.facebook_object_id,
-            connection=connection,
-            data={"upload_phase": "start"}
+            video_type=video_type,
+            status_text=status_text,
+            video_url=video_url
         )
-        video_id = request.get('video_id')
-        upload_url = request.get('upload_url')
-
-        # Upload video
-        if upload_url:
-            requests.post(upload_url, headers={
-                "file_url": video_url,
-                "Authorization": f"OAuth {self.api.access_token}",
-            })
-
-        # Finish upload
-        self.api.client.post_object(
-            object_id=self.facebook_object_id,
-            connection=connection,
-            data={
-                "upload_phase": "finish",
-                "video_state": "PUBLISHED",
-                "video_id": video_id,
-                "description": status_text,
-            }
-        )
-
-        return video_id
 
     async def _upload_regular_video(self, video, status_text, video_title):
         """
@@ -297,44 +274,21 @@ class Facebook(SocialNetwork):
         assert self.api is not None  # Help type checker
         assert self.facebook_object_id is not None  # Help type checker
 
-        # Create upload session
-        upload_response = requests.post(
-            f"https://graph.facebook.com/v21.0/{self.facebook_app_id}/uploads",
-            headers={"Authorization": f"OAuth {self.api.access_token}"},
-            data={
-                "file_type": video.file_type.mime,
-                "file_length": video.get_file_size(),
-                "file_name": f"video.{video.file_type.extension}",
-            }
-        )
-        upload_session_id = upload_response.json().get('id')
+        # Get video file info
+        video_content = video.content or b""
+        video_file_type = video.file_type.mime if video.file_type else "video/mp4"
+        video_file_size = video.get_file_size()
+        video_filename = f"video.{video.file_type.extension}" if video.file_type else "video.mp4"
 
-        # Upload video file using file-like object from video content
-        video_file = video.get_file_like_object()
-        upload_data_response = requests.post(
-            f"https://graph.facebook.com/v21.0/{upload_session_id}",
-            headers={
-                "Content-Type": video.file_type.mime,
-                "file_offset": "0",
-                "Authorization": f"OAuth {self.api.access_token}",
-            },
-            data=video_file.read()
+        return await self.api.upload_regular_video(
+            object_id=self.facebook_object_id,
+            video_content=video_content,
+            video_file_type=video_file_type,
+            video_file_size=video_file_size,
+            video_filename=video_filename,
+            status_text=status_text,
+            video_title=video_title
         )
-        file_handle = upload_data_response.json().get('h')
-
-        await asyncio.sleep(random.randrange(1, 5))
-
-        # Create video post
-        video_response = requests.post(
-            f"https://graph-video.facebook.com/v21.0/{self.facebook_object_id}/videos",
-            headers={"Authorization": f"OAuth {self.api.access_token}"},
-            data={
-                'title': video_title,
-                'description': status_text,
-                "fbuploader_video_file_chunk": file_handle,
-            }
-        )
-        return video_response.json()['id']
 
     async def video(self, status_text, video_url, video_title):
         """
@@ -435,10 +389,11 @@ async def main_async(kwargs):
         raise Exception('Action is a required argument.')
 
     # Create Facebook instance with configuration
-    facebook_client = Facebook(**kwargs)
+    instance = Facebook(**kwargs)
 
     # Execute the action using the base class method
-    await facebook_client.execute_action(action)
+    await instance.execute_action(action)
+    await instance.disconnect()
 
 
 def main(kwargs):

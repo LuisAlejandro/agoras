@@ -18,8 +18,8 @@
 
 import asyncio
 
-from agoras.core.base import SocialNetwork
 from agoras.core.api import YouTubeAPI
+from agoras.core.base import SocialNetwork
 
 
 class YouTube(SocialNetwork):
@@ -70,7 +70,7 @@ class YouTube(SocialNetwork):
         self.youtube_title = self._get_config_value('youtube_title', 'YOUTUBE_TITLE')
         self.youtube_description = self._get_config_value('youtube_description', 'YOUTUBE_DESCRIPTION')
         self.youtube_category_id = self._get_config_value('youtube_category_id', 'YOUTUBE_CATEGORY_ID')
-        self.youtube_privacy_status = (self._get_config_value('youtube_privacy_status', 'YOUTUBE_PRIVACY_STATUS') 
+        self.youtube_privacy_status = (self._get_config_value('youtube_privacy_status', 'YOUTUBE_PRIVACY_STATUS')
                                        or 'private')
         self.youtube_keywords = self._get_config_value('youtube_keywords', 'YOUTUBE_KEYWORDS')
         self.youtube_video_url = self._get_config_value('youtube_video_url', 'YOUTUBE_VIDEO_URL')
@@ -85,30 +85,12 @@ class YouTube(SocialNetwork):
         )
         await self.api.authenticate()
 
-    async def authorize(self):
+    async def disconnect(self):
         """
-        Perform YouTube OAuth authorization.
-
-        This method handles the OAuth flow required for YouTube API access.
-
-        Returns:
-            YouTube: Self for method chaining
+        Disconnect from YouTube API and clean up resources.
         """
-        if not self.youtube_client_id or not self.youtube_client_secret:
-            # Get config values if not already loaded
-            self.youtube_client_id = self._get_config_value('youtube_client_id', 'YOUTUBE_CLIENT_ID')
-            self.youtube_client_secret = self._get_config_value('youtube_client_secret', 'YOUTUBE_CLIENT_SECRET')
-
-        if not self.youtube_client_id or not self.youtube_client_secret:
-            raise Exception('YouTube client ID and secret are required for authorization.')
-
-        # Initialize and authorize YouTube API
-        self.api = YouTubeAPI(
-            self.youtube_client_id,
-            self.youtube_client_secret
-        )
-        await self.api.authorize()
-        return self
+        if self.api:
+            await self.api.disconnect()
 
     async def post(self, status_text, status_link,
                    status_image_url_1=None, status_image_url_2=None,
@@ -147,7 +129,7 @@ class YouTube(SocialNetwork):
         if not video_id:
             raise Exception('YouTube video ID is required.')
 
-        await self.api.like_video(video_id)
+        await self.api.like(video_id)
         self._output_status(video_id)
         return video_id
 
@@ -169,7 +151,7 @@ class YouTube(SocialNetwork):
         if not video_id:
             raise Exception('YouTube video ID is required.')
 
-        await self.api.delete_video(video_id)
+        await self.api.delete(video_id)
         self._output_status(video_id)
         return video_id
 
@@ -328,7 +310,7 @@ class YouTube(SocialNetwork):
             title = video_data.get('youtube_title', '')
             description = video_data.get('youtube_description', '')
             video_url = video_data.get('youtube_video_url', '')
-            
+
             if title and video_url:
                 # Temporarily update instance variables for this upload
                 original_category = self.youtube_category_id
@@ -380,18 +362,30 @@ class YouTube(SocialNetwork):
         await self.video(status_text, video_url, video_title)
 
 
-# Legacy main function for backwards compatibility
-def main(kwargs):
+async def main_async(kwargs):
     """
-    Legacy main function for backwards compatibility.
-    This creates a YouTube instance and executes the specified action.
+    Async main function to execute YouTube actions.
 
     Args:
         kwargs (dict): Configuration parameters
     """
-    async def run():
-        youtube = YouTube(**kwargs)
-        action = kwargs.get('action', '')
-        await youtube.execute_action(action)
+    action = kwargs.get('action', '')
 
-    asyncio.run(run())
+    if action == '':
+        raise Exception('Action is a required argument.')
+
+    # Create YouTube instance with configuration
+    instance = YouTube(**kwargs)
+    # Execute the action using the base class method
+    await instance.execute_action(action)
+    await instance.disconnect()
+
+
+def main(kwargs):
+    """
+    Main function to execute YouTube actions.
+
+    Args:
+        kwargs (dict): Configuration arguments
+    """
+    asyncio.run(main_async(kwargs))

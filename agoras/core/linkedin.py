@@ -17,10 +17,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
-import random
 
-from agoras.core.base import SocialNetwork
 from agoras.core.api import LinkedInAPI
+from agoras.core.base import SocialNetwork
 from agoras.core.utils import parse_metatags
 
 
@@ -79,6 +78,13 @@ class LinkedIn(SocialNetwork):
         )
         await self.api.authenticate()
 
+    async def disconnect(self):
+        """
+        Disconnect from LinkedIn API and clean up resources.
+        """
+        if self.api:
+            await self.api.disconnect()
+
     async def post(self, status_text, status_link,
                    status_image_url_1=None, status_image_url_2=None,
                    status_image_url_3=None, status_image_url_4=None):
@@ -127,7 +133,6 @@ class LinkedIn(SocialNetwork):
             for image in images:
                 try:
                     # Upload image to LinkedIn
-                    await asyncio.sleep(random.randrange(1, 5))
                     if image.content:
                         media_id = await self.api.upload_image(image.content)
                         if media_id:
@@ -139,13 +144,12 @@ class LinkedIn(SocialNetwork):
                     image.cleanup()
 
         # Create the post
-        await asyncio.sleep(random.randrange(1, 5))
-        post_id = await self.api.create_post(
+        post_id = await self.api.post(
             text=status_text,
             link=status_link,
             link_title=status_link_title,
             link_description=status_link_description,
-            media_ids=media_ids or []
+            image_ids=media_ids
         )
 
         self._output_status(post_id)
@@ -169,8 +173,7 @@ class LinkedIn(SocialNetwork):
         if not post_id:
             raise Exception('LinkedIn post ID is required.')
 
-        await asyncio.sleep(random.randrange(1, 5))
-        result = await self.api.like_post(post_id)
+        result = await self.api.like(post_id)
         self._output_status(result)
         return result
 
@@ -192,8 +195,7 @@ class LinkedIn(SocialNetwork):
         if not post_id:
             raise Exception('LinkedIn post ID is required.')
 
-        await asyncio.sleep(random.randrange(1, 5))
-        result = await self.api.delete_post(post_id)
+        result = await self.api.delete(post_id)
         self._output_status(result)
         return result
 
@@ -215,8 +217,7 @@ class LinkedIn(SocialNetwork):
         if not post_id:
             raise Exception('LinkedIn post ID is required.')
 
-        await asyncio.sleep(random.randrange(1, 5))
-        result = await self.api.share_post(post_id)
+        result = await self.api.share(post_id)
         self._output_status(result)
         return result
 
@@ -263,7 +264,7 @@ class LinkedIn(SocialNetwork):
             raise Exception('LinkedIn post ID is required for delete action.')
         await self.delete(linkedin_post_id)
 
-    # The base class already provides default action handlers for last-from-feed, 
+    # The base class already provides default action handlers for last-from-feed,
     # random-from-feed, and schedule actions with the correct parameter names.
     # No need to override them for LinkedIn.
 
@@ -281,10 +282,10 @@ async def main_async(kwargs):
         raise Exception('Action is a required argument.')
 
     # Create LinkedIn instance with configuration
-    linkedin_client = LinkedIn(**kwargs)
-
+    instance = LinkedIn(**kwargs)
     # Execute the action using the base class method
-    await linkedin_client.execute_action(action)
+    await instance.execute_action(action)
+    await instance.disconnect()
 
 
 def main(kwargs):

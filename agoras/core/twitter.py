@@ -17,10 +17,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
-import random
 
-from agoras.core.base import SocialNetwork
 from agoras.core.api import TwitterAPI
+from agoras.core.base import SocialNetwork
 
 
 class Twitter(SocialNetwork):
@@ -76,6 +75,13 @@ class Twitter(SocialNetwork):
         )
         await self.api.authenticate()
 
+    async def disconnect(self):
+        """
+        Disconnect from Twitter API and clean up resources.
+        """
+        if self.api:
+            await self.api.disconnect()
+
     async def post(self, status_text, status_link,
                    status_image_url_1=None, status_image_url_2=None,
                    status_image_url_3=None, status_image_url_4=None):
@@ -123,7 +129,6 @@ class Twitter(SocialNetwork):
                         media_obj = video
 
                     # Upload media to Twitter
-                    await asyncio.sleep(random.randrange(1, 5))
                     if media_obj.content and media_obj.file_type:
                         media_id = await self.api.upload_media(
                             media_obj.content,
@@ -142,8 +147,7 @@ class Twitter(SocialNetwork):
         tweet_text = f'{status_text} {status_link}'.strip()
 
         # Create the tweet
-        await asyncio.sleep(random.randrange(1, 5))
-        tweet_id = await self.api.create_tweet(tweet_text, media_ids or [])
+        tweet_id = await self.api.post(tweet_text, media_ids or [])
 
         self._output_status(tweet_id)
         return tweet_id
@@ -166,8 +170,7 @@ class Twitter(SocialNetwork):
         if not post_id:
             raise Exception('Tweet ID is required.')
 
-        await asyncio.sleep(random.randrange(1, 5))
-        result = await self.api.like_tweet(post_id)
+        result = await self.api.like(post_id)
         self._output_status(result)
         return result
 
@@ -189,8 +192,7 @@ class Twitter(SocialNetwork):
         if not post_id:
             raise Exception('Tweet ID is required.')
 
-        await asyncio.sleep(random.randrange(1, 5))
-        result = await self.api.delete_tweet(post_id)
+        result = await self.api.delete(post_id)
         self._output_status(result)
         return result
 
@@ -212,8 +214,7 @@ class Twitter(SocialNetwork):
         if not post_id:
             raise Exception('Tweet ID is required.')
 
-        await asyncio.sleep(random.randrange(1, 5))
-        result = await self.api.retweet(post_id)
+        result = await self.api.share(post_id)
         self._output_status(result)
         return result
 
@@ -250,7 +251,7 @@ class Twitter(SocialNetwork):
 
         try:
             # Upload video to Twitter
-            await asyncio.sleep(random.randrange(1, 5))
+
             media_id = await self.api.upload_media(video.content, video.file_type.mime)
 
             # Compose tweet text with title and description
@@ -267,7 +268,7 @@ class Twitter(SocialNetwork):
                 final_text = final_text[:277] + '...'
 
             # Create the tweet with video
-            tweet_id = await self.api.create_tweet(final_text, [media_id] if media_id else [])
+            tweet_id = await self.api.post(final_text, [media_id] if media_id else [])
 
         finally:
             # Clean up using Media system
@@ -323,10 +324,10 @@ async def main_async(kwargs):
         raise Exception('Action is a required argument.')
 
     # Create Twitter instance with configuration
-    twitter_client = Twitter(**kwargs)
-
+    instance = Twitter(**kwargs)
     # Execute the action using the base class method
-    await twitter_client.execute_action(action)
+    await instance.execute_action(action)
+    await instance.disconnect()
 
 
 def main(kwargs):

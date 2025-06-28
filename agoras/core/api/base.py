@@ -101,3 +101,64 @@ class BaseAPI(ABC):
         """
         error_msg = f'{operation_name} failed: {str(error)}'
         raise Exception(error_msg) from error
+
+    @abstractmethod
+    async def post(self, *args, **kwargs):
+        """
+        Create a post on the social media platform.
+
+        Returns:
+            str: Post ID
+
+        Raises:
+            Exception: If posting fails
+        """
+        pass
+
+    @abstractmethod
+    async def like(self, post_id, *args, **kwargs):
+        """
+        Like/react to a post on the social media platform.
+
+        Args:
+            post_id (str): ID of the post to like
+
+        Returns:
+            str: Post ID
+
+        Raises:
+            Exception: If liking fails or not supported
+        """
+        pass
+
+    @abstractmethod
+    async def delete(self, post_id, *args, **kwargs):
+        """
+        Delete a post from the social media platform.
+
+        Args:
+            post_id (str): ID of the post to delete
+
+        Returns:
+            str: Post ID
+
+        Raises:
+            Exception: If deletion fails or not supported
+        """
+        pass
+
+    @abstractmethod
+    async def share(self, post_id, *args, **kwargs):
+        """
+        Share/repost a post on the social media platform.
+
+        Args:
+            post_id (str): ID of the post to share
+
+        Returns:
+            str: Share/Post ID
+
+        Raises:
+            Exception: If sharing fails or not supported
+        """
+        pass

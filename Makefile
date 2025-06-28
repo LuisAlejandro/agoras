@@ -8,7 +8,10 @@ exec_on_docker = docker compose \
 	-p agoras -f docker-compose.yml exec \
 	--user agoras app
 
-.PHONY: clean-pyc clean-build docs clean
+# Release configuration
+VERSION_TYPE ?= patch
+APP_NAME ?= Agoras
+
 define BROWSER_PYSCRIPT
 import os, webbrowser, sys
 try:
@@ -27,6 +30,8 @@ help:
 	@echo "clean-pyc - remove Python file artifacts"
 	@echo "clean-test - remove test and coverage artifacts"
 	@echo "lint - check style with flake8"
+	@echo "format - format Python code with autopep8"
+	@echo "lint-and-format - lint and format all Python files"
 	@echo "test - run tests quickly with the default Python"
 	@echo "test-all - run tests on every Python version with tox"
 	@echo "coverage - check code coverage quickly with the default Python"
@@ -59,6 +64,13 @@ clean-docs:
 	rm -fr docs/_build
 
 lint: start
+	@$(exec_on_docker) flake8 agoras
+
+format: start
+	@$(exec_on_docker) autopep8 --in-place --recursive --aggressive --aggressive agoras tests
+
+lint-and-format: start
+	@$(exec_on_docker) autopep8 --in-place --recursive --aggressive --aggressive agoras tests
 	@$(exec_on_docker) flake8 agoras
 
 test: start
@@ -148,3 +160,22 @@ cataplum:
 	@docker compose -p agoras -f docker-compose.yml down \
 		--rmi all --remove-orphans --volumes
 	@docker system prune -a -f --volumes
+
+# Release management
+release:
+	@./scripts/release.sh $(VERSION_TYPE)
+
+release-patch:
+	@./scripts/release.sh patch $(APP_NAME)
+
+release-minor:
+	@./scripts/release.sh minor $(APP_NAME)
+
+release-major:
+	@./scripts/release.sh major $(APP_NAME)
+
+# Hotfix management
+hotfix:
+	@./scripts/hotfix.sh $(APP_NAME)
+
+.PHONY: clean-pyc clean-build docs clean release release-patch release-minor release-major hotfix

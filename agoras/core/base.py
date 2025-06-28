@@ -21,8 +21,8 @@ import json
 import os
 from abc import ABC, abstractmethod
 
-from agoras.core.media import MediaFactory
 from agoras.core.feed import Feed
+from agoras.core.media import MediaFactory
 from agoras.core.sheet import ScheduleSheet
 
 
@@ -52,6 +52,13 @@ class SocialNetwork(ABC):
 
         This method must be implemented by each social network to set up
         their specific API clients and authentication.
+        """
+        pass
+
+    @abstractmethod
+    async def disconnect(self):
+        """
+        Disconnect from the social network.
         """
         pass
 
@@ -130,18 +137,6 @@ class SocialNetwork(ABC):
             Exception: If video posting is not supported
         """
         raise Exception(f'Video posting not supported for {self.__class__.__name__}')
-
-    async def authorize(self):
-        """
-        Perform authorization flow for platforms that require it.
-        
-        Default implementation does nothing. Override in subclasses that need
-        special authorization flows (like YouTube OAuth).
-
-        Returns:
-            SocialNetwork: Self for method chaining
-        """
-        return self
 
     def get_platform_name(self):
         """
@@ -338,11 +333,6 @@ class SocialNetwork(ABC):
         """
         if action == '':
             raise Exception('Action is a required argument.')
-
-        # Handle authorize action before client initialization
-        if action == 'authorize':
-            await self.authorize()
-            return
 
         # Initialize client before executing other actions
         await self._initialize_client()

@@ -17,15 +17,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
-import json
 import time
 from typing import Any, Dict, List
 
-import requests
-
-from agoras import __version__
+from .auth import TikTokAuthManager
 from .base import BaseAPI
-from .tiktok_oauth import refresh, get_creator_info
 
 
 class TikTokAPI(BaseAPI):
@@ -36,9 +32,9 @@ class TikTokAPI(BaseAPI):
     and all TikTok API operations.
     """
 
-    # TikTok API URLs
-    DIRECT_POST_URL = "https://open.tiktokapis.com/v2/post/publish/video/init/"
-    GET_VIDEO_STATUS_URL = "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
+    # TikTok API URLs - moved to client
+    # DIRECT_POST_URL = "https://open.tiktokapis.com/v2/post/publish/video/init/"
+    # GET_VIDEO_STATUS_URL = "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
 
     def __init__(self, username, client_key, client_secret, refresh_token=None):
         """
@@ -56,16 +52,28 @@ class TikTokAPI(BaseAPI):
             client_secret=client_secret,
             refresh_token=refresh_token
         )
-        self.username = username
-        self.client_key = client_key
-        self.client_secret = client_secret
-        self.refresh_token = refresh_token
-        self.access_token = None
-        self.creator_info = None
+
+        # Initialize the authentication manager
+        self.auth_manager = TikTokAuthManager(
+            username=username,
+            client_key=client_key,
+            client_secret=client_secret,
+            refresh_token=refresh_token
+        )
+
+    @property
+    def access_token(self):
+        """Get the TikTok access token from the auth manager."""
+        return self.auth_manager.access_token if self.auth_manager else None
+
+    @property
+    def creator_info(self):
+        """Get the TikTok creator info from the auth manager."""
+        return self.auth_manager.user_info if self.auth_manager else None
 
     async def authenticate(self):
         """
-        Authenticate with TikTok API using refresh token.
+        Authenticate with TikTok API using the auth manager.
 
         Returns:
             TikTokAPI: Self for method chaining
@@ -76,27 +84,26 @@ class TikTokAPI(BaseAPI):
         if self._authenticated:
             return self
 
-        if not self.refresh_token:
-            raise Exception('TikTok refresh token is required for authentication.')
+        success = await self.auth_manager.authenticate()
+        if not success:
+            raise Exception('TikTok authentication failed')
 
-        def _sync_refresh():
-            return refresh(self.username, self.refresh_token, self.client_key, self.client_secret)
-
-        try:
-            self.access_token = await asyncio.to_thread(_sync_refresh)
-            self.creator_info = await self.get_creator_info()
-            self._authenticated = True
-            return self
-        except Exception as e:
-            self._handle_api_error(e, 'TikTok authentication')
-            raise
+        self.client = self.auth_manager.client
+        self._authenticated = True
+        return self
 
     async def disconnect(self):
         """
         Disconnect from TikTok API and clean up resources.
         """
-        self.access_token = None
-        self.creator_info = None
+        # Clear auth manager tokens and user info
+        if self.auth_manager:
+            self.auth_manager.access_token = None
+            self.auth_manager.user_info = None
+            self.auth_manager.client = None
+
+        # Clear BaseAPI client
+        self.client = None
         self._authenticated = False
 
     async def get_creator_info(self) -> Dict[str, Any]:
@@ -113,7 +120,7 @@ class TikTokAPI(BaseAPI):
             raise Exception('TikTok API not authenticated')
 
         def _sync_get_creator_info():
-            return get_creator_info(self.access_token)
+            return self.creator_info
 
         try:
             creator_info = await asyncio.to_thread(_sync_get_creator_info)
@@ -150,45 +157,27 @@ class TikTokAPI(BaseAPI):
         if not self.access_token:
             raise Exception('TikTok API not authenticated')
 
+        if not self.client:
+            raise Exception('TikTok client not available')
+
         await self._rate_limit_check('upload_video', 2.0)
 
-        data = {
-            "post_info": {
-                "title": title,
-                "privacy_level": privacy_status,
-                "disable_duet": not allow_duet,
-                "disable_comment": not allow_comments,
-                "disable_stitch": not allow_stitch,
-                "video_cover_timestamp_ms": 0,
-                "brand_content_toggle": is_brand_content,
-                "brand_organic_toggle": is_brand_organic,
-            },
-            "source_info": {
-                "source": "PULL_FROM_URL",
-                "video_url": video_url,
-            },
-        }
-
         def _sync_upload():
-            res = requests.post(
-                url=self.DIRECT_POST_URL,
-                headers={
-                    "Authorization": f"Bearer {self.access_token}",
-                    "Content-Type": "application/json; charset=UTF-8",
-                    'User-Agent': f'Agoras/{__version__}',
-                },
-                data=json.dumps(data)
+            if not self.client:
+                raise Exception('TikTok client not available')
+            return self.client.upload_video(
+                video_url=video_url,
+                title=title,
+                privacy_status=privacy_status,
+                allow_comments=allow_comments,
+                allow_duet=allow_duet,
+                allow_stitch=allow_stitch,
+                is_brand_organic=is_brand_organic,
+                is_brand_content=is_brand_content
             )
-            return res.json()
 
         try:
             response = await asyncio.to_thread(_sync_upload)
-
-            post_error_code = response.get('error', {}).get('code')
-            post_error_message = response.get('error', {}).get('message')
-
-            if post_error_code or post_error_message:
-                raise Exception(f'Error uploading video: [{post_error_code}] {post_error_message}')
 
             publish_id = response.get('data', {}).get('publish_id')
 
@@ -224,38 +213,23 @@ class TikTokAPI(BaseAPI):
         if not self.access_token:
             raise Exception('TikTok API not authenticated')
 
+        if not self.client:
+            raise Exception('TikTok client not available')
+
         await self._rate_limit_check('upload_photo', 2.0)
 
-        data = {
-            "media_type": "PHOTO",
-            "post_mode": "DIRECT_POST",
-            "post_info": {
-                "title": title,
-                "description": "",
-                "privacy_level": privacy_status,
-                "disable_comment": not allow_comments,
-                "auto_add_music": auto_add_music,
-                "brand_content_toggle": is_brand_content,
-                "brand_organic_toggle": is_brand_organic,
-            },
-            "source_info": {
-                "source": "PULL_FROM_URL",
-                "photo_cover_index": 0,
-                "photo_images": photo_images,
-            },
-        }
-
         def _sync_upload():
-            res = requests.post(
-                url=self.DIRECT_POST_URL,
-                headers={
-                    "Authorization": f"Bearer {self.access_token}",
-                    "Content-Type": "application/json",
-                    'User-Agent': f'Agoras/{__version__}',
-                },
-                data=json.dumps(data)
+            if not self.client:
+                raise Exception('TikTok client not available')
+            return self.client.upload_photo(
+                photo_images=photo_images,
+                title=title,
+                privacy_status=privacy_status,
+                allow_comments=allow_comments,
+                is_brand_organic=is_brand_organic,
+                is_brand_content=is_brand_content,
+                auto_add_music=auto_add_music
             )
-            return res.json()
 
         try:
             response = await asyncio.to_thread(_sync_upload)
@@ -286,16 +260,9 @@ class TikTokAPI(BaseAPI):
             print('Waiting for post status ...')
 
             def _sync_check_status():
-                st = requests.post(
-                    url=self.GET_VIDEO_STATUS_URL,
-                    headers={
-                        "Authorization": f"Bearer {self.access_token}",
-                        "Content-Type": "application/json; charset=UTF-8",
-                        'User-Agent': f'Agoras/{__version__}',
-                    },
-                    data=json.dumps({"publish_id": publish_id}),
-                )
-                return st.json()
+                if not self.client:
+                    raise Exception('TikTok client not available')
+                return self.client.get_publish_status(publish_id)
 
             try:
                 status = await asyncio.to_thread(_sync_check_status)
@@ -310,17 +277,47 @@ class TikTokAPI(BaseAPI):
                 self._handle_api_error(e, 'TikTok status check')
                 raise
 
-    def get_api_info(self) -> Dict[str, Any]:
+    async def post(self, *args, **kwargs) -> str:
         """
-        Get TikTok API configuration information.
+        Regular posts are not supported on TikTok (use upload_photo instead).
 
-        Returns:
-            dict: API configuration details
+        Raises:
+            Exception: Post not supported for TikTok
         """
-        return {
-            'platform': 'TikTok',
-            'authenticated': self._authenticated,
-            'username': self.username,
-            'has_creator_info': bool(self.creator_info),
-            'rate_limits': list(self._rate_limit_cache.keys())
-        } 
+        raise Exception('Regular posts not supported for TikTok - use upload_photo() method instead')
+
+    async def like(self, post_id: str) -> str:
+        """
+        Like a TikTok post (not supported via API).
+
+        Args:
+            post_id (str): Post ID to like
+
+        Raises:
+            Exception: Like not supported for TikTok
+        """
+        raise Exception('Like not supported for TikTok')
+
+    async def delete(self, post_id: str) -> str:
+        """
+        Delete a TikTok post (not supported via API).
+
+        Args:
+            post_id (str): Post ID to delete
+
+        Raises:
+            Exception: Delete not supported for TikTok
+        """
+        raise Exception('Delete not supported for TikTok')
+
+    async def share(self, post_id: str) -> str:
+        """
+        Share a TikTok post (not supported via API).
+
+        Args:
+            post_id (str): Post ID to share
+
+        Raises:
+            Exception: Share not supported for TikTok
+        """
+        raise Exception('Share not supported for TikTok')

@@ -16,12 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import json
 from typing import Any, Dict, List, Optional
 
-import requests
-from pyfacebook import GraphAPI
-
+from .auth import FacebookAuthManager
 from .base import BaseAPI
 
 
@@ -33,31 +30,37 @@ class FacebookAPI(BaseAPI):
     and all Facebook API operations including posts, likes, shares, and videos.
     """
 
-    def __init__(self, access_token, client_id=None, client_secret=None, refresh_token=None):
+    def __init__(self, user_id, client_id, client_secret, refresh_token=None, app_id=None):
         """
         Initialize Facebook API instance.
 
         Args:
-            access_token (str): Facebook access token
-            client_id (str, optional): Facebook client ID for token refresh
-            client_secret (str, optional): Facebook client secret for token refresh
+            user_id (str): Facebook user ID for cache identification
+            client_id (str): Facebook client ID for token refresh
+            client_secret (str): Facebook client secret for token refresh
             refresh_token (str, optional): Facebook refresh token
+            app_id (str, optional): Facebook app ID for video uploads
         """
         super().__init__(
-            access_token=access_token,
+            user_id=user_id,
             client_id=client_id,
             client_secret=client_secret,
             refresh_token=refresh_token
         )
-        self.access_token = access_token
-        self.client_id = client_id
-        self.client_secret = client_secret
-        self.refresh_token = refresh_token
-        self.client = None
+
+        self.app_id = app_id
+
+        # Initialize the authentication manager
+        self.auth_manager = FacebookAuthManager(
+            user_id=user_id,
+            client_id=client_id,
+            client_secret=client_secret,
+            refresh_token=refresh_token
+        )
 
     async def authenticate(self):
         """
-        Authenticate with Facebook API and validate/refresh token if needed.
+        Authenticate with Facebook API using the auth manager.
 
         Returns:
             FacebookAPI: Self for method chaining
@@ -68,18 +71,12 @@ class FacebookAPI(BaseAPI):
         if self._authenticated:
             return self
 
-        if not self.access_token:
-            raise Exception('Facebook access token is required.')
+        success = await self.auth_manager.authenticate()
+        if not success:
+            raise Exception('Facebook authentication failed')
 
-        # Create GraphAPI client
-        self.client = GraphAPI(access_token=self.access_token, version="21.0")
-
-        # Validate and refresh token if needed
-        self.access_token = await self._validate_and_refresh_token()
-
-        # Update client with potentially new token
-        self.client = GraphAPI(access_token=self.access_token, version="21.0")
-
+        # Set the client from auth manager for BaseAPI compatibility
+        self.client = self.auth_manager.client
         self._authenticated = True
         return self
 
@@ -87,88 +84,20 @@ class FacebookAPI(BaseAPI):
         """
         Disconnect from Facebook API and clean up resources.
         """
+        # Disconnect the client first
+        if self.client:
+            self.client.disconnect()
+
+        # Clear auth manager tokens
+        if self.auth_manager:
+            self.auth_manager.access_token = None
+
+        # Clear BaseAPI client
         self.client = None
         self._authenticated = False
 
-    async def _refresh_access_token(self):
-        """
-        Refresh Facebook access token using refresh token.
-
-        Returns:
-            tuple: (new_access_token, new_refresh_token)
-
-        Raises:
-            Exception: If token refresh fails
-        """
-        if not all([self.client_id, self.client_secret, self.refresh_token]):
-            raise Exception('Client ID, client secret, and refresh token required for token refresh.')
-
-        await self._rate_limit_check('token_refresh', 5.0)
-
-        try:
-            url = 'https://graph.facebook.com/v21.0/oauth/access_token'
-            params = {
-                'grant_type': 'refresh_token',
-                'refresh_token': self.refresh_token,
-                'client_id': self.client_id,
-                'client_secret': self.client_secret
-            }
-
-            response = requests.get(url, params=params)
-            response.raise_for_status()
-
-            token_data = response.json()
-            new_access_token = token_data.get('access_token')
-            new_refresh_token = token_data.get('refresh_token')
-
-            if not new_access_token:
-                raise Exception('No access token in refresh response')
-
-            return new_access_token, new_refresh_token
-        except Exception as e:
-            raise Exception(f'Failed to refresh Facebook access token: {str(e)}')
-
-    async def _validate_and_refresh_token(self):
-        """
-        Validate Facebook access token and refresh if expired.
-
-        Returns:
-            str: Valid access token
-
-        Raises:
-            Exception: If token validation and refresh both fail
-        """
-        try:
-            # Test token validity by making a simple API call
-            if self.client:
-                self.client.get_object(object_id='me', fields='id,name')
-            return self.access_token  # Token is valid
-        except Exception as e:
-            error_str = str(e).lower()
-            if 'expired' in error_str or 'invalid' in error_str or 'token' in error_str:
-                if not all([self.client_id, self.client_secret, self.refresh_token]):
-                    raise Exception('Facebook access token has expired and no refresh credentials provided.')
-
-                # Attempt to refresh the token
-                try:
-                    new_access_token, new_refresh_token = await self._refresh_access_token()
-                    print(f"Facebook token refreshed successfully. New access token: {new_access_token[:20]}...")
-                    if new_refresh_token:
-                        print(f"New refresh token: {new_refresh_token[:20]}...")
-
-                    self.access_token = new_access_token
-                    if new_refresh_token:
-                        self.refresh_token = new_refresh_token
-
-                    return new_access_token
-                except Exception as refresh_error:
-                    raise Exception(f'Facebook access token has expired and refresh failed: {str(refresh_error)}')
-            else:
-                # Re-raise the original exception if it's not token-related
-                raise e
-
-    async def create_post(self, object_id: str, message: Optional[str] = None,
-                          link: Optional[str] = None, attached_media: Optional[List[Dict[str, Any]]] = None) -> str:
+    async def post(self, object_id: str, message: Optional[str] = None,
+                   link: Optional[str] = None, attached_media: Optional[List[Dict[str, Any]]] = None) -> str:
         """
         Create a Facebook post.
 
@@ -187,24 +116,15 @@ class FacebookAPI(BaseAPI):
         if not self.client:
             raise Exception('Facebook API not authenticated')
 
-        await self._rate_limit_check('create_post', 1.0)
-
-        data: Dict[str, Any] = {'published': True}
-
-        if link:
-            data['link'] = link
-        if message:
-            data['message'] = message
-        if attached_media:
-            data['attached_media'] = json.dumps(attached_media)
+        await self._rate_limit_check('post', 1.0)
 
         try:
-            request = self.client.post_object(
+            return await self.client.create_post(
                 object_id=object_id,
-                connection='feed',
-                data=data
+                message=message,
+                link=link,
+                attached_media=attached_media
             )
-            return request['id'].split('_')[1]
         except Exception as e:
             self._handle_api_error(e, 'Facebook post creation')
             raise
@@ -230,19 +150,12 @@ class FacebookAPI(BaseAPI):
         await self._rate_limit_check('upload_media', 1.0)
 
         try:
-            return self.client.post_object(
-                object_id=object_id,
-                connection='photos',
-                data={
-                    'url': media_url,
-                    'published': published
-                }
-            )
+            return await self.client.upload_media(object_id, media_url, published)
         except Exception as e:
             self._handle_api_error(e, 'Facebook media upload')
             raise
 
-    async def like_post(self, object_id: str, post_id: str) -> str:
+    async def like(self, object_id: str, post_id: str) -> str:
         """
         Like a Facebook post.
 
@@ -259,19 +172,15 @@ class FacebookAPI(BaseAPI):
         if not self.client:
             raise Exception('Facebook API not authenticated')
 
-        await self._rate_limit_check('like_post', 0.5)
+        await self._rate_limit_check('like', 0.5)
 
         try:
-            self.client.post_object(
-                object_id=f'{object_id}_{post_id}',
-                connection='likes'
-            )
-            return post_id
+            return await self.client.like_post(object_id, post_id)
         except Exception as e:
             self._handle_api_error(e, 'Facebook like')
             raise
 
-    async def delete_post(self, object_id: str, post_id: str) -> str:
+    async def delete(self, object_id: str, post_id: str) -> str:
         """
         Delete a Facebook post.
 
@@ -288,16 +197,15 @@ class FacebookAPI(BaseAPI):
         if not self.client:
             raise Exception('Facebook API not authenticated')
 
-        await self._rate_limit_check('delete_post', 0.5)
+        await self._rate_limit_check('delete', 0.5)
 
         try:
-            self.client.delete_object(object_id=f'{object_id}_{post_id}')
-            return post_id
+            return await self.client.delete_post(object_id, post_id)
         except Exception as e:
             self._handle_api_error(e, 'Facebook delete')
             raise
 
-    async def share_post(self, profile_id: str, object_id: str, post_id: str) -> str:
+    async def share(self, profile_id: str, object_id: str, post_id: str) -> str:
         """
         Share a Facebook post.
 
@@ -315,34 +223,81 @@ class FacebookAPI(BaseAPI):
         if not self.client:
             raise Exception('Facebook API not authenticated')
 
-        await self._rate_limit_check('share_post', 1.0)
+        await self._rate_limit_check('share', 1.0)
 
         try:
-            host = 'https://www.facebook.com'
-            data = {
-                'link': f'{host}/{object_id}/posts/{post_id}',
-                'published': True
-            }
-            request = self.client.post_object(
-                object_id=profile_id,
-                connection='feed',
-                data=data
-            )
-            return request['id'].split('_')[1]
+            return await self.client.share_post(profile_id, object_id, post_id)
         except Exception as e:
             self._handle_api_error(e, 'Facebook share')
             raise
 
-    def get_api_info(self) -> Dict[str, Any]:
+    async def upload_reel_or_story(self, object_id: str, video_type: str, status_text: str, video_url: str) -> str:
         """
-        Get Facebook API configuration information.
+        Upload a video as a reel or story to Facebook.
+
+        Args:
+            object_id (str): Facebook object ID
+            video_type (str): Type of video ('reel' or 'story')
+            status_text (str): Text content to accompany the video
+            video_url (str): URL of the video to post
 
         Returns:
-            dict: API configuration details
+            str: Post ID
+
+        Raises:
+            Exception: If upload fails
         """
-        return {
-            'platform': 'Facebook',
-            'authenticated': self._authenticated,
-            'has_refresh_token': bool(self.refresh_token),
-            'rate_limits': list(self._rate_limit_cache.keys())
-        }
+        if not self.client:
+            raise Exception('Facebook API not authenticated')
+
+        await self._rate_limit_check('upload_reel_or_story', 1.0)
+
+        try:
+            return await self.client.upload_reel_or_story(object_id, video_type, status_text, video_url)
+        except Exception as e:
+            self._handle_api_error(e, 'Facebook reel or story upload')
+            raise
+
+    async def upload_regular_video(
+            self,
+            object_id: str,
+            video_content: bytes,
+            video_file_type: str,
+            video_file_size: int,
+            video_filename: str,
+            status_text: str,
+            video_title: str) -> str:
+        """
+        Upload a regular video to Facebook.
+
+        Args:
+            object_id (str): Facebook object ID
+            video_content (bytes): Video content
+            video_file_type (str): Video file type
+            video_file_size (int): Video file size
+            video_filename (str): Video filename
+            status_text (str): Text content to accompany the video
+            video_title (str): Title of the video
+
+        Returns:
+            str: Post ID
+
+        Raises:
+            Exception: If upload fails
+        """
+        if not self.client:
+            raise Exception('Facebook API not authenticated')
+
+        await self._rate_limit_check('upload_regular_video', 1.0)
+
+        if not self.app_id:
+            raise Exception('Facebook app ID is required for regular video uploads')
+
+        try:
+            return await self.client.upload_regular_video(
+                object_id, self.app_id, video_content, video_file_type,
+                video_file_size, video_filename, status_text, video_title
+            )
+        except Exception as e:
+            self._handle_api_error(e, 'Facebook regular video upload')
+            raise

@@ -5,10 +5,6 @@ set -exuo pipefail
 
 source secrets.env
 
-python3 -m utils.schedule "${GOOGLE_SHEETS_ID}" "${GOOGLE_SHEETS_NAME}" "${GOOGLE_SHEETS_CLIENT_EMAIL}" "${GOOGLE_SHEETS_PRIVATE_KEY}"
-python3 -m utils.schedule "${GOOGLE_SHEETS_ID}" "Youtube" "${GOOGLE_SHEETS_CLIENT_EMAIL}" "${GOOGLE_SHEETS_PRIVATE_KEY}"
-python3 -m utils.schedule "${GOOGLE_SHEETS_ID}" "Tiktok" "${GOOGLE_SHEETS_CLIENT_EMAIL}" "${GOOGLE_SHEETS_PRIVATE_KEY}"
-
 if [ "${1}" == "twitter" ]; then
     SCHEDULE_TWEET_ID=$(
         python3 -m agoras.cli publish \

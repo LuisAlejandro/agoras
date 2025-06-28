@@ -16,21 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import asyncio
-import json
-import os
-import random
-import time
 from typing import Any, Dict, Optional
-import http.client as httplib
 
-import httplib2
-from apiclient import discovery, errors, http
-from oauth2client.client import flow_from_clientsecrets
-from oauth2client.file import Storage
-from oauth2client.tools import run_flow
-from platformdirs import user_cache_dir
-
+from .auth import YouTubeAuthManager
 from .base import BaseAPI
 
 
@@ -41,16 +29,6 @@ class YouTubeAPI(BaseAPI):
     Provides methods for YouTube OAuth authentication, video uploads,
     and all YouTube API operations.
     """
-
-    # Constants for retry logic
-    MAX_RETRIES = 10
-    RETRIABLE_EXCEPTIONS = (
-        httplib2.HttpLib2Error, IOError, httplib.NotConnected,
-        httplib.IncompleteRead, httplib.ImproperConnectionState,
-        httplib.CannotSendRequest, httplib.CannotSendHeader,
-        httplib.ResponseNotReady, httplib.BadStatusLine
-    )
-    RETRIABLE_STATUS_CODES = [500, 502, 503, 504]
 
     def __init__(self, client_id, client_secret):
         """
@@ -64,39 +42,36 @@ class YouTubeAPI(BaseAPI):
             client_id=client_id,
             client_secret=client_secret
         )
-        self.client_id = client_id
-        self.client_secret = client_secret
-        self.client = None
-        self.storage_file = None
-        self.secrets_file = None
 
-        # Set up retry configuration
-        httplib2.RETRIES = 1
+        # Initialize the authentication manager
+        self.auth_manager = YouTubeAuthManager(
+            client_id=client_id,
+            client_secret=client_secret
+        )
 
-    def _setup_oauth_files(self):
-        """
-        Set up OAuth storage and secrets files.
-        """
-        cachedir = user_cache_dir("Agoras", "Agoras")
-        os.makedirs(cachedir, exist_ok=True)
-        self.storage_file = os.path.join(cachedir, f'youtube-storage-{self.client_id}.json')
-        self.secrets_file = os.path.join(cachedir, f'youtube-secrets-{self.client_id}.json')
+    @property
+    def client_id(self):
+        """Get the YouTube client ID from the auth manager."""
+        return self.auth_manager.client_id if self.auth_manager else None
 
-        # Create secrets file
-        with open(self.secrets_file, 'w') as f:
-            f.write(json.dumps({
-                "web": {
-                    "client_id": self.client_id,
-                    "client_secret": self.client_secret,
-                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                    "token_uri": "https://accounts.google.com/o/oauth2/token",
-                    "redirect_uris": ["http://localhost"]
-                }
-            }))
+    @property
+    def client_secret(self):
+        """Get the YouTube client secret from the auth manager."""
+        return self.auth_manager.client_secret if self.auth_manager else None
+
+    @property
+    def access_token(self):
+        """Get the YouTube access token from the auth manager."""
+        return self.auth_manager.access_token if self.auth_manager else None
+
+    @property
+    def user_info(self):
+        """Get the YouTube user info from the auth manager."""
+        return self.auth_manager.user_info if self.auth_manager else None
 
     async def authorize(self):
         """
-        Perform OAuth authorization flow.
+        Perform OAuth authorization flow using the auth manager.
 
         This method should be called first to authorize the application
         with YouTube API.
@@ -104,35 +79,14 @@ class YouTubeAPI(BaseAPI):
         Returns:
             YouTubeAPI: Self for method chaining
         """
-        if not self.client_id or not self.client_secret:
-            raise Exception('YouTube client ID and secret are required for authorization.')
-
-        self._setup_oauth_files()
-
-        def _sync_authorize():
-            storage = Storage(self.storage_file)
-            flow = flow_from_clientsecrets(
-                self.secrets_file,
-                scope="https://www.googleapis.com/auth/youtube.upload"
-            )
-
-            # Create a minimal flags object
-            class MinimalFlags:
-                def __init__(self):
-                    self.auth_host_name = 'localhost'
-                    self.auth_host_port = [3456]
-                    self.logging_level = 'INFO'
-                    self.noauth_local_webserver = True
-
-            flags = MinimalFlags()
-            run_flow(flow, storage, flags)
-
-        await asyncio.to_thread(_sync_authorize)
+        access_token = await self.auth_manager.authorize()
+        if not access_token:
+            raise Exception('YouTube authorization failed')
         return self
 
     async def authenticate(self):
         """
-        Authenticate with YouTube API using stored OAuth credentials.
+        Authenticate with YouTube API using the auth manager.
 
         Returns:
             YouTubeAPI: Self for method chaining
@@ -143,39 +97,12 @@ class YouTubeAPI(BaseAPI):
         if self._authenticated:
             return self
 
-        if not self.client_id or not self.client_secret:
-            raise Exception('YouTube client ID and secret are required.')
+        success = await self.auth_manager.authenticate()
+        if not success:
+            raise Exception('YouTube authentication failed - please run authorization first')
 
-        self._setup_oauth_files()
-
-        if (not self.storage_file or not self.secrets_file or
-                not os.path.isfile(self.storage_file) or not os.path.isfile(self.secrets_file)):
-            raise Exception('Please run authorization first using the authorize action.')
-
-        def _sync_authenticate():
-            storage = Storage(self.storage_file)
-            credentials = storage.get()
-
-            if credentials is None or credentials.invalid:
-                flow = flow_from_clientsecrets(
-                    self.secrets_file,
-                    scope="https://www.googleapis.com/auth/youtube.upload"
-                )
-
-                # Create a minimal flags object
-                class MinimalFlags:
-                    def __init__(self):
-                        self.auth_host_name = 'localhost'
-                        self.auth_host_port = [3456]
-                        self.logging_level = 'INFO'
-                        self.noauth_local_webserver = True
-
-                flags = MinimalFlags()
-                credentials = run_flow(flow, storage, flags)
-
-            return discovery.build("youtube", "v3", http=credentials.authorize(httplib2.Http()))
-
-        self.client = await asyncio.to_thread(_sync_authenticate)
+        # Set the client from auth manager for BaseAPI compatibility
+        self.client = self.auth_manager.client
         self._authenticated = True
         return self
 
@@ -183,6 +110,15 @@ class YouTubeAPI(BaseAPI):
         """
         Disconnect from YouTube API and clean up resources.
         """
+        # Disconnect the client first
+        if self.client:
+            self.client.disconnect()
+
+        # Clear auth manager data
+        if self.auth_manager:
+            self.auth_manager.access_token = None
+
+        # Clear BaseAPI client
         self.client = None
         self._authenticated = False
 
@@ -210,75 +146,20 @@ class YouTubeAPI(BaseAPI):
 
         await self._rate_limit_check('upload_video', 2.0)
 
-        def _sync_upload():
-            if not self.client:
-                raise Exception('YouTube client not initialized')
-
-            retry = 0
-            response = None
-            error = None
-            tags = None
-
-            if keywords:
-                tags = keywords.split(",")
-
-            body = {
-                'snippet': {
-                    'title': title,
-                    'description': description,
-                    'tags': tags,
-                    'categoryId': category_id
-                },
-                'status': {
-                    'privacyStatus': privacy_status
-                }
-            }
-
-            # Call the API's videos.insert method to create and upload the video
-            request = self.client.videos().insert(
-                part=",".join(body.keys()),
-                body=body,
-                media_body=http.MediaFileUpload(video_file_path, chunksize=-1, resumable=True)
-            )
-
-            while response is None:
-                try:
-                    _, response = request.next_chunk()
-                    if response is not None:
-                        if 'id' in response:
-                            break
-                        else:
-                            raise Exception(f"Upload failed with unexpected response: {response}")
-
-                except errors.HttpError as e:
-                    if e.resp.status in self.RETRIABLE_STATUS_CODES:
-                        error = f"A retriable HTTP error {e.resp.status} occurred:\n{e.content}"
-                    else:
-                        raise
-
-                except self.RETRIABLE_EXCEPTIONS as e:
-                    error = f"A retriable error occurred: {e}"
-
-                if error is not None:
-                    retry += 1
-                    if retry > self.MAX_RETRIES:
-                        raise Exception("No longer attempting to retry.")
-
-                    max_sleep = 2 ** retry
-                    sleep_seconds = random.random() * max_sleep
-                    time.sleep(sleep_seconds)
-                    error = None
-
-            return response
-
         try:
-            response = await asyncio.to_thread(_sync_upload)
-            return response
+            return await self.client.upload_video(
+                video_file_path=video_file_path,
+                title=title,
+                description=description,
+                category_id=category_id,
+                privacy_status=privacy_status,
+                keywords=keywords
+            )
         except Exception as e:
             self._handle_api_error(e, 'YouTube video upload')
             raise
 
-    async def like_video(self, video_id: str) -> None:
+    async def like(self, video_id: str) -> None:
         """
         Like a YouTube video.
 
@@ -291,24 +172,15 @@ class YouTubeAPI(BaseAPI):
         if not self.client:
             raise Exception('YouTube API not authenticated')
 
-        await self._rate_limit_check('like_video', 1.0)
-
-        def _sync_like():
-            if not self.client:
-                raise Exception('YouTube client not initialized')
-            request = self.client.videos().rate(
-                id=video_id,
-                rating="like"
-            )
-            request.execute()
+        await self._rate_limit_check('like', 1.0)
 
         try:
-            await asyncio.to_thread(_sync_like)
+            await self.client.like_video(video_id)
         except Exception as e:
             self._handle_api_error(e, 'YouTube video like')
             raise
 
-    async def delete_video(self, video_id: str) -> None:
+    async def delete(self, video_id: str) -> None:
         """
         Delete a YouTube video.
 
@@ -321,30 +193,31 @@ class YouTubeAPI(BaseAPI):
         if not self.client:
             raise Exception('YouTube API not authenticated')
 
-        await self._rate_limit_check('delete_video', 1.0)
-
-        def _sync_delete():
-            if not self.client:
-                raise Exception('YouTube client not initialized')
-            request = self.client.videos().delete(id=video_id)
-            request.execute()
+        await self._rate_limit_check('delete', 1.0)
 
         try:
-            await asyncio.to_thread(_sync_delete)
+            await self.client.delete_video(video_id)
         except Exception as e:
-            self._handle_api_error(e, 'YouTube video delete')
+            self._handle_api_error(e, 'YouTube video deletion')
             raise
 
-    def get_api_info(self) -> Dict[str, Any]:
+    async def post(self, *args, **kwargs) -> str:
         """
-        Get YouTube API configuration information.
+        Regular posts are not supported on YouTube (video platform only).
 
-        Returns:
-            dict: API configuration details
+        Raises:
+            Exception: Post not supported for YouTube
         """
-        return {
-            'platform': 'YouTube',
-            'authenticated': self._authenticated,
-            'has_oauth_files': bool(self.storage_file and os.path.exists(self.storage_file)),
-            'rate_limits': list(self._rate_limit_cache.keys())
-        }
+        raise Exception('Regular posts not supported for YouTube - use upload_video() method instead')
+
+    async def share(self, video_id: str) -> str:
+        """
+        Share is not supported for YouTube via API.
+
+        Args:
+            video_id (str): Video ID to share
+
+        Raises:
+            Exception: Share not supported for YouTube
+        """
+        raise Exception('Share not supported for YouTube')
