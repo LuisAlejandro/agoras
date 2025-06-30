@@ -27,6 +27,7 @@ Currently supported platforms:
 - Facebook: FacebookAuthManager (OAuth 2.0 with compliance fixes)
 - Instagram: InstagramAuthManager (OAuth 2.0 via Facebook)
 - LinkedIn: LinkedInAuthManager (OAuth 2.0)
+- Threads: ThreadsAuthManager (OAuth 2.0 via Meta)
 - TikTok: TikTokAuthManager (OAuth 2.0 with PKCE and compliance fixes)
 - Twitter: TwitterAuthManager (OAuth 1.0a)
 - YouTube: YouTubeAuthManager (OAuth 2.0 via Google)
@@ -37,6 +38,7 @@ from .discord import DiscordAuthManager
 from .facebook import FacebookAuthManager
 from .instagram import InstagramAuthManager
 from .linkedin import LinkedInAuthManager
+from .threads import ThreadsAuthManager
 from .tiktok import TikTokAuthManager
 from .twitter import TwitterAuthManager
 from .youtube import YouTubeAuthManager
@@ -47,7 +49,8 @@ __all__ = [
     'FacebookAuthManager',
     'InstagramAuthManager',
     'LinkedInAuthManager',
+    'ThreadsAuthManager',
     'TikTokAuthManager',
     'TwitterAuthManager',
     'YouTubeAuthManager',
-] 
+]
