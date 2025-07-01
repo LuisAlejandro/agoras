@@ -20,7 +20,7 @@ import asyncio
 import webbrowser
 from typing import Optional
 
-from threadspipepy import ThreadsPipe
+from threadspipepy.threadspipe import ThreadsPipe
 
 from ..clients.threads import ThreadsAPIClient
 from .base import BaseAuthManager
@@ -83,14 +83,17 @@ class ThreadsAuthManager(BaseAuthManager):
         try:
             def _sync_authorize():
                 # Create ThreadsPipe instance for authorization
+                # For auth flow, we use minimal initialization
                 threads_pipe = ThreadsPipe(
-                    app_id=self.app_id,
-                    app_secret=self.app_secret,
-                    redirect_uri=self.redirect_uri
+                    user_id="",  # Empty for auth flow
+                    access_token=""  # Empty for auth flow
                 )
 
                 # Get authorization URL
-                auth_url = threads_pipe.get_auth_token()
+                auth_url = threads_pipe.get_auth_token(
+                    app_id=self.app_id,
+                    redirect_uri=self.redirect_uri
+                )
 
                 print("Opening browser for Threads authorization...")
                 print(f"Authorization URL: {auth_url}")
@@ -106,7 +109,12 @@ class ThreadsAuthManager(BaseAuthManager):
                     raise Exception('No authorization code found in callback URL')
 
                 # Exchange authorization code for tokens
-                tokens = threads_pipe.get_access_tokens(code)
+                tokens = threads_pipe.get_access_tokens(
+                    app_id=self.app_id,
+                    app_secret=self.app_secret,
+                    auth_code=code,
+                    redirect_uri=self.redirect_uri
+                )
 
                 # Extract long-lived token (refresh token)
                 long_lived_token = tokens.get('access_token')

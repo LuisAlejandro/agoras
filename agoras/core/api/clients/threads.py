@@ -18,7 +18,7 @@
 
 from typing import Any, Dict, List, Optional
 
-from threadspipepy import ThreadsPipe
+from threadspipepy.threadspipe import ThreadsPipe
 
 
 class ThreadsAPIClient:

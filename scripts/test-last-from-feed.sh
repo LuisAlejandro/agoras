@@ -3,7 +3,7 @@
 # Exit early if there are errors and be verbose
 set -exuo pipefail
 
-source secrets.env
+source ../secrets.env
 
 if [ "${1}" == "twitter" ]; then
     LAST_FROM_FEED_TWEET_ID=$(
@@ -159,4 +159,4 @@ elif [ "${1}" == "linkedin" ]; then
 else
     echo "Unsupported platform ${1}"
     echo "Usage: $0 {twitter|tiktok|youtube|facebook|instagram|discord|linkedin}"
-fi 
+fi

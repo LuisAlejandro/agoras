@@ -3,34 +3,31 @@
 # Exit early if there are errors and be verbose
 set -exuo pipefail
 
-source secrets.env
+source ../secrets.env
 
 if [ "${1}" == "twitter" ]; then
-    SCHEDULE_TWEET_ID=$(
+    RANDOM_FROM_FEED_TWEET_ID=$(
         python3 -m agoras.cli publish \
             --network twitter \
-            --action schedule \
+            --action random-from-feed \
             --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \
             --twitter-consumer-secret "${TWITTER_CONSUMER_SECRET}" \
             --twitter-oauth-token "${TWITTER_OAUTH_TOKEN}" \
             --twitter-oauth-secret "${TWITTER_OAUTH_SECRET}" \
-            --max-count 1 \
-            --google-sheets-id "${GOOGLE_SHEETS_ID}" \
-            --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
-            --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-            --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" | jq --unbuffered '.' | jq -r '.id'
+            --feed-url "${FEED_URL}" \
+            --max-post-age 365 | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
-    [ -n "${SCHEDULE_TWEET_ID}" ] && python3 -m agoras.cli publish \
+    [ -n "${RANDOM_FROM_FEED_TWEET_ID}" ] && python3 -m agoras.cli publish \
         --network twitter \
         --action delete \
         --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \
         --twitter-consumer-secret "${TWITTER_CONSUMER_SECRET}" \
         --twitter-oauth-token "${TWITTER_OAUTH_TOKEN}" \
         --twitter-oauth-secret "${TWITTER_OAUTH_SECRET}" \
-        --tweet-id "${SCHEDULE_TWEET_ID}" || true
+        --tweet-id "${RANDOM_FROM_FEED_TWEET_ID}" || true
 
 elif [ "${1}" == "tiktok" ]; then
     python3 -m agoras.cli publish \
@@ -40,137 +37,119 @@ elif [ "${1}" == "tiktok" ]; then
         --tiktok-client-key "${TIKTOK_CLIENT_KEY}" \
         --tiktok-client-secret "${TIKTOK_CLIENT_SECRET}"
 
-    SCHEDULE_TIKTOK_ID=$(
+    RANDOM_FROM_FEED_TIKTOK_ID=$(
         python3 -m agoras.cli publish \
             --network tiktok \
-            --action schedule \
+            --action random-from-feed \
             --tiktok-username "${TIKTOK_USERNAME}" \
             --tiktok-client-key "${TIKTOK_CLIENT_KEY}" \
             --tiktok-client-secret "${TIKTOK_CLIENT_SECRET}" \
-            --max-count 1 \
-            --google-sheets-id "${GOOGLE_SHEETS_ID}" \
-            --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
-            --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-            --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" | jq --unbuffered '.' | jq -r '.publish_id'
+            --feed-url "${FEED_URL}" \
+            --max-post-age 365 | jq --unbuffered '.' | jq -r '.publish_id'
     )
 
-    echo "TikTok schedule test created with ID: ${SCHEDULE_TIKTOK_ID}"
+    echo "TikTok random from feed test created with ID: ${RANDOM_FROM_FEED_TIKTOK_ID}"
     echo "Note: TikTok does not support delete action"
 
 elif [ "${1}" == "youtube" ]; then
-    SCHEDULE_YOUTUBE_ID=$(
+    RANDOM_FROM_FEED_YOUTUBE_ID=$(
         python3 -m agoras.cli publish \
             --network youtube \
-            --action schedule \
+            --action random-from-feed \
             --youtube-client-id "${YOUTUBE_CLIENT_ID}" \
             --youtube-client-secret "${YOUTUBE_CLIENT_SECRET}" \
-            --max-count 1 \
-            --google-sheets-id "${GOOGLE_SHEETS_ID}" \
-            --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
-            --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-            --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" | jq --unbuffered '.' | jq -r '.id'
+            --feed-url "${FEED_URL}" \
+            --max-post-age 365 | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
-    [ -n "${SCHEDULE_YOUTUBE_ID}" ] && python3 -m agoras.cli publish \
+    [ -n "${RANDOM_FROM_FEED_YOUTUBE_ID}" ] && python3 -m agoras.cli publish \
         --network youtube \
         --action delete \
         --youtube-client-id "${YOUTUBE_CLIENT_ID}" \
         --youtube-client-secret "${YOUTUBE_CLIENT_SECRET}" \
-        --youtube-video-id "${SCHEDULE_YOUTUBE_ID}" || true
+        --youtube-video-id "${RANDOM_FROM_FEED_YOUTUBE_ID}" || true
 
 elif [ "${1}" == "facebook" ]; then
-    SCHEDULE_FACEBOOK_ID=$(
+    RANDOM_FROM_FEED_FACEBOOK_ID=$(
         python3 -m agoras.cli publish \
             --network facebook \
-            --action schedule \
+            --action random-from-feed \
             --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
             --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-            --max-count 1 \
-            --google-sheets-id "${GOOGLE_SHEETS_ID}" \
-            --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
-            --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-            --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" | jq --unbuffered '.' | jq -r '.id'
+            --feed-url "${FEED_URL}" \
+            --max-post-age 365 | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
-    [ -n "${SCHEDULE_FACEBOOK_ID}" ] && python3 -m agoras.cli publish \
+    [ -n "${RANDOM_FROM_FEED_FACEBOOK_ID}" ] && python3 -m agoras.cli publish \
         --network facebook \
         --action delete \
         --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
         --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-        --facebook-post-id "${SCHEDULE_FACEBOOK_ID}" || true
+        --facebook-post-id "${RANDOM_FROM_FEED_FACEBOOK_ID}" || true
 
 elif [ "${1}" == "instagram" ]; then
-    SCHEDULE_INSTAGRAM_ID=$(
+    RANDOM_FROM_FEED_INSTAGRAM_ID=$(
         python3 -m agoras.cli publish \
             --network instagram \
-            --action schedule \
+            --action random-from-feed \
             --instagram-access-token "${INSTAGRAM_ACCESS_TOKEN}" \
             --instagram-object-id "${INSTAGRAM_OBJECT_ID}" \
-            --max-count 1 \
-            --google-sheets-id "${GOOGLE_SHEETS_ID}" \
-            --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
-            --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-            --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" | jq --unbuffered '.' | jq -r '.id'
+            --feed-url "${FEED_URL}" \
+            --max-post-age 365 | jq --unbuffered '.' | jq -r '.id'
     )
 
-    echo "Instagram schedule test created with ID: ${SCHEDULE_INSTAGRAM_ID}"
+    echo "Instagram random from feed test created with ID: ${RANDOM_FROM_FEED_INSTAGRAM_ID}"
     echo "Note: Instagram does not support delete action"
 
 elif [ "${1}" == "discord" ]; then
-    SCHEDULE_DISCORD_ID=$(
+    RANDOM_FROM_FEED_DISCORD_ID=$(
         python3 -m agoras.cli publish \
             --network discord \
-            --action schedule \
+            --action random-from-feed \
             --discord-bot-token "${DISCORD_BOT_TOKEN}" \
             --discord-server-name "${DISCORD_SERVER_NAME}" \
             --discord-channel-name "${DISCORD_CHANNEL_NAME}" \
-            --max-count 1 \
-            --google-sheets-id "${GOOGLE_SHEETS_ID}" \
-            --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
-            --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-            --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" | jq --unbuffered '.' | jq -r '.id'
+            --feed-url "${FEED_URL}" \
+            --max-post-age 365 | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
-    [ -n "${SCHEDULE_DISCORD_ID}" ] && python3 -m agoras.cli publish \
+    [ -n "${RANDOM_FROM_FEED_DISCORD_ID}" ] && python3 -m agoras.cli publish \
         --network discord \
         --action delete \
         --discord-bot-token "${DISCORD_BOT_TOKEN}" \
         --discord-server-name "${DISCORD_SERVER_NAME}" \
         --discord-channel-name "${DISCORD_CHANNEL_NAME}" \
-        --discord-post-id "${SCHEDULE_DISCORD_ID}" || true
+        --discord-post-id "${RANDOM_FROM_FEED_DISCORD_ID}" || true
 
 elif [ "${1}" == "linkedin" ]; then
-    SCHEDULE_LINKEDIN_ID=$(
+    RANDOM_FROM_FEED_LINKEDIN_ID=$(
         python3 -m agoras.cli publish \
             --network linkedin \
-            --action schedule \
+            --action random-from-feed \
             --linkedin-client-id "${LINKEDIN_CLIENT_ID}" \
             --linkedin-client-secret "${LINKEDIN_CLIENT_SECRET}" \
             --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
-            --max-count 1 \
-            --google-sheets-id "${GOOGLE_SHEETS_ID}" \
-            --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
-            --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-            --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" | jq --unbuffered '.' | jq -r '.id'
+            --feed-url "${FEED_URL}" \
+            --max-post-age 365 | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
-    [ -n "${SCHEDULE_LINKEDIN_ID}" ] && python3 -m agoras.cli publish \
+    [ -n "${RANDOM_FROM_FEED_LINKEDIN_ID}" ] && python3 -m agoras.cli publish \
         --network linkedin \
         --action delete \
         --linkedin-client-id "${LINKEDIN_CLIENT_ID}" \
         --linkedin-client-secret "${LINKEDIN_CLIENT_SECRET}" \
         --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
-        --linkedin-post-id "${SCHEDULE_LINKEDIN_ID}" || true
+        --linkedin-post-id "${RANDOM_FROM_FEED_LINKEDIN_ID}" || true
 
 else
     echo "Unsupported platform ${1}"
     echo "Usage: $0 {twitter|tiktok|youtube|facebook|instagram|discord|linkedin}"
-fi 
+fi

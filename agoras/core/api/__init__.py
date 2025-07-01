@@ -28,6 +28,7 @@ from .discord import DiscordAPI
 from .facebook import FacebookAPI
 from .instagram import InstagramAPI
 from .linkedin import LinkedInAPI
+from .threads import ThreadsAPI
 from .twitter import TwitterAPI
 from .youtube import YouTubeAPI
 
@@ -37,6 +38,7 @@ __all__ = [
     'FacebookAPI',
     'InstagramAPI',
     'LinkedInAPI',
+    'ThreadsAPI',
     'TwitterAPI',
     'YouTubeAPI'
 ]
