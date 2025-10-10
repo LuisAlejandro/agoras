@@ -15,5 +15,5 @@ google-auth-httplib2==0.1.1
 oauth2client==4.1.3
 platformdirs==4.4.0
 opencv-python-headless==4.10.0.84
-authlib==1.6.4
+authlib==1.6.5
 threadspipepy>=0.4.5
