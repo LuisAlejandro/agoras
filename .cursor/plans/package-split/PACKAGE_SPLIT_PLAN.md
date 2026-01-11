@@ -325,9 +325,6 @@ This package split happens on the `develop` branch as the final v2.0 feature:
     - Remove any remaining monolithic artifacts
     - Verify no broken symlinks or references
     - Run full test suite one final time (packages/*/tests/)
-    - Optionally test integration scripts: `tests/test.sh` (requires credentials)
-    - Commit cleanup changes
-    - Tag as pre-release: `v2.0.0-alpha` or `v2.0.0-rc1`
 
 **Files/Directories to Remove**:
 

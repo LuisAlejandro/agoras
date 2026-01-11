@@ -6,7 +6,7 @@ This document provides a comprehensive analysis of the authentication mechanisms
 Overview
 --------
 
-The authentication system is built around a consistent ``BaseAuthManager`` architecture located in ``agoras/core/api/auth/base.py``. Each social network implements its own authentication manager that extends this base class, providing platform-specific OAuth flows and token management.
+The authentication system is built around a consistent ``BaseAuthManager`` architecture located in ``packages/core/src/agoras/core/auth/base.py``. Each social network implements its own authentication manager that extends this base class, providing platform-specific OAuth flows and token management.
 
 All authentication managers implement:
 
@@ -23,7 +23,7 @@ Discord
 
 :Status: ✅ **Fully Unattended**
 :Method: Bot Token Authentication
-:Implementation: ``agoras/core/api/auth/discord.py``
+:Implementation: ``packages/platforms/src/agoras/platforms/discord/auth.py``
 
 **Details:**
 
@@ -41,7 +41,7 @@ Twitter
 
 :Status: ✅ **Fully Unattended** (after initial setup)
 :Method: OAuth 1.0a with permanent tokens
-:Implementation: ``agoras/core/api/auth/twitter.py``
+:Implementation: ``packages/platforms/src/agoras/platforms/x/auth.py``
 
 **Details:**
 
@@ -64,7 +64,7 @@ Facebook
 
 :Status: ⚠️ **Mostly Unattended**
 :Method: OAuth2 with long-lived tokens
-:Implementation: ``agoras/core/api/auth/facebook.py``
+:Implementation: ``packages/platforms/src/agoras/platforms/facebook/auth.py``
 
 **Token Lifecycle:**
 
@@ -87,7 +87,7 @@ Instagram
 
 :Status: ⚠️ **Mostly Unattended**
 :Method: Facebook OAuth2 system with long-lived tokens
-:Implementation: ``agoras/core/api/auth/instagram.py``
+:Implementation: ``packages/platforms/src/agoras/platforms/instagram/auth.py``
 
 **Token Lifecycle:**
 
@@ -103,7 +103,7 @@ LinkedIn
 
 :Status: ⚠️ **Mostly Unattended**
 :Method: OAuth2 with refresh tokens
-:Implementation: ``agoras/core/api/auth/linkedin.py``
+:Implementation: ``packages/platforms/src/agoras/platforms/linkedin/auth.py``
 
 **Token Lifecycle:**
 
@@ -118,7 +118,7 @@ TikTok
 
 :Status: ⚠️ **Mostly Unattended**
 :Method: OAuth2 with PKCE and refresh tokens
-:Implementation: ``agoras/core/api/auth/tiktok.py``
+:Implementation: ``packages/platforms/src/agoras/platforms/tiktok/auth.py``
 
 **Token Lifecycle:**
 
@@ -139,7 +139,7 @@ YouTube
 
 :Status: ⚠️ **Mostly Unattended**
 :Method: Google OAuth2 with refresh tokens
-:Implementation: ``agoras/core/api/auth/youtube.py``
+:Implementation: ``packages/platforms/src/agoras/platforms/youtube/auth.py``
 
 **Token Lifecycle:**
 
