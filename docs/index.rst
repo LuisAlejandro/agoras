@@ -45,6 +45,21 @@ that you can incorporate into your workflows.
 
 For more information, please read the `full documentation`_.
 
+.. note::
+
+   **v2.0 Development in Progress**
+
+   Agoras v2.0 will introduce a modular architecture, splitting the monolithic package into 5 separate PyPI packages.
+
+   **New features in v2.0:**
+
+   - Support for Telegram, WhatsApp, Threads, and X (Twitter rebrand)
+   - OAuth2 callback server for easier authentication
+   - Async/await pattern throughout
+   - Enhanced CLI with platform-specific commands
+
+   For migration guidance, see the `Migration Guide <https://github.com/LuisAlejandro/agoras/blob/develop/MIGRATION.md>`_.
+
 Table of Contents
 -----------------
 

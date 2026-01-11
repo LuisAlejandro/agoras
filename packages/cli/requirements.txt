@@ -1,0 +1,2 @@
+# agoras-cli inherits all dependencies from agoras-platforms
+# No additional dependencies needed

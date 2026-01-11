@@ -92,6 +92,42 @@ Ready to contribute? Here's how to set up `agoras` for local development.
 
 7. Submit a pull request through the GitHub website.
 
+Monorepo Development (v2.0)
+----------------------------
+
+Starting with v2.0, Agoras uses a monorepo structure with 5 separate packages.
+If you're working on v2.0 code:
+
+1. Install all packages in editable mode::
+
+    $ cd packages
+    $ pip install -e common/
+    $ pip install -e media/
+    $ pip install -e core/
+    $ pip install -e platforms/
+    $ pip install -e cli/
+
+2. Make changes in the appropriate package directory::
+
+    packages/
+    ├── common/     # Utilities, logging
+    ├── media/      # Image/video processing
+    ├── core/       # Interfaces, Feed, Sheet
+    ├── platforms/  # Platform implementations
+    └── cli/        # Command-line interface
+
+3. Run tests for specific package::
+
+    $ cd packages/<package>
+    $ pytest tests/ -v
+
+4. Run all tests::
+
+    $ cd packages
+    $ tox
+
+For detailed monorepo development guide, see `packages/CONTRIBUTING.md`.
+
 Pull Request Guidelines
 -----------------------
 

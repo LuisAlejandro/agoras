@@ -64,3 +64,13 @@ target/
 
 virtualenv/
 *.env
+
+# Package build artifacts (v2.0 monorepo)
+packages/*/build/
+packages/*/dist/
+packages/*/*.egg-info/
+packages/*/.tox/
+packages/*/.coverage
+packages/*/htmlcov/
+packages/*/.pytest_cache/
+*.lcov

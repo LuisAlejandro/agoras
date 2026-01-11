@@ -44,6 +44,20 @@
 
 Current version: 1.1.3
 
+.. note::
+
+   **Agoras v2.0 Coming Soon!**
+
+   The next major version of Agoras will introduce:
+
+   - **Modular Architecture**: Split into 5 separate packages for better maintainability
+   - **New Platforms**: Telegram, WhatsApp, Threads, and X (Twitter rebrand) support
+   - **OAuth2 Infrastructure**: Automatic callback server for easier authentication
+   - **Enhanced CLI**: Platform-specific commands with improved validation
+
+   The develop branch contains v2.0 features. Package split is the final feature before release.
+   See `MIGRATION.md <MIGRATION.md>`_ for upgrade guidance.
+
 Agoras is a python utility that helps publish and delete posts on the most
 popular social networks (Twitter, Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, and Threads).
 
