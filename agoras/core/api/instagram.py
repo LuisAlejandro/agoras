@@ -120,6 +120,8 @@ class InstagramAPI(BaseAPI):
         Raises:
             Exception: If post creation fails
         """
+        self.auth_manager.ensure_authenticated()
+
         if not self.client:
             raise Exception('Instagram API not authenticated')
 
@@ -157,6 +159,8 @@ class InstagramAPI(BaseAPI):
         Raises:
             Exception: If media creation fails
         """
+        self.auth_manager.ensure_authenticated()
+
         if not self.client:
             raise Exception('Instagram API not authenticated')
 

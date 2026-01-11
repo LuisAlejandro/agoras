@@ -53,11 +53,17 @@ class ThreadsAPIClient:
         Get user profile information from Threads API.
 
         Returns:
-            dict: User profile information
+            dict: User profile information containing user_id and token validity
 
         Raises:
             Exception: If API call fails or not authenticated
         """
+        if not self.access_token:
+            raise Exception('No access token available')
+
+        if not self.user_id:
+            raise Exception('No user ID available')
+
         try:
             # ThreadsPipe doesn't have a direct profile method,
             # so we'll return basic info we have
@@ -86,8 +92,14 @@ class ThreadsAPIClient:
             dict: Post creation response
 
         Raises:
-            Exception: If post creation fails
+            Exception: If post creation fails or not authenticated
         """
+        if not self.access_token:
+            raise Exception('No access token available')
+
+        if not self.user_id:
+            raise Exception('No user ID available')
+
         try:
             response = self.api.pipe(
                 post=post_text,
@@ -112,8 +124,14 @@ class ThreadsAPIClient:
             dict: Reply creation response
 
         Raises:
-            Exception: If reply creation fails
+            Exception: If reply creation fails or not authenticated
         """
+        if not self.access_token:
+            raise Exception('No access token available')
+
+        if not self.user_id:
+            raise Exception('No user ID available')
+
         try:
             response = self.api.reply(
                 reply_text=reply_text,
@@ -135,8 +153,14 @@ class ThreadsAPIClient:
             dict: Repost response
 
         Raises:
-            Exception: If repost fails
+            Exception: If repost fails or not authenticated
         """
+        if not self.access_token:
+            raise Exception('No access token available')
+
+        if not self.user_id:
+            raise Exception('No user ID available')
+
         try:
             response = self.api.repost(post_id=post_id)
 

@@ -26,15 +26,19 @@ and response parsing.
 
 from .instagram import InstagramAPIClient
 from .linkedin import LinkedInAPIClient
+from .telegram import TelegramAPIClient
 from .threads import ThreadsAPIClient
 from .tiktok import TikTokAPIClient
-from .twitter import TwitterAPIClient
+from .whatsapp import WhatsAppAPIClient
+from .x import XAPIClient
 from .youtube import YouTubeAPIClient
 
 __all__ = [
     'InstagramAPIClient',
     'LinkedInAPIClient',
+    'TelegramAPIClient',
     'ThreadsAPIClient',
     'TikTokAPIClient',
-    'TwitterAPIClient',
+    'WhatsAppAPIClient',
+    'XAPIClient',
     'YouTubeAPIClient']

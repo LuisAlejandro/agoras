@@ -17,7 +17,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+
+from agoras.core.media import MediaFactory
 
 from .auth import ThreadsAuthManager
 from .base import BaseAPI
@@ -101,6 +103,71 @@ class ThreadsAPI(BaseAPI):
         self.client = None
         self._authenticated = False
 
+    async def _validate_and_download_images(
+        self, files: List[str], file_captions: Optional[List[str]]
+    ) -> Tuple[List[str], List[str], List[Any]]:
+        """
+        Download and validate images using Media system.
+
+        Args:
+            files: List of file URLs to download and validate
+            file_captions: Optional list of captions for files
+
+        Returns:
+            tuple: (validated_files, validated_captions, images)
+
+        Raises:
+            Exception: If validation or download fails
+        """
+        validated_files = []
+        validated_captions = []
+        images = []
+
+        # Filter out None/empty values
+        valid_file_urls = [f for f in files if f]
+
+        if not valid_file_urls:
+            raise Exception('Files list contains no valid URLs')
+
+        try:
+            # Download and validate all images concurrently
+            images = await MediaFactory.download_images(valid_file_urls)
+
+            # Validate each image and collect validated URLs
+            for idx, image in enumerate(images):
+                if not image.content or not image.file_type:
+                    raise Exception(f'Failed to download or validate image: {image.url}')
+
+                # Validate image format (Threads supports JPEG, PNG)
+                if image.file_type.mime not in ['image/jpeg', 'image/png', 'image/jpg']:
+                    raise Exception(
+                        f'Invalid image type "{image.file_type.mime}" for {image.url}. '
+                        'Threads supports JPEG and PNG only.'
+                    )
+
+                # Use the original URL (ThreadsPipe handles URL downloads)
+                # Media system validation ensures the URL is valid and accessible
+                validated_files.append(image.url)
+
+                # Handle file captions - align with validated files
+                if file_captions and idx < len(file_captions):
+                    validated_captions.append(file_captions[idx])
+
+            return validated_files, validated_captions, images
+
+        except Exception as e:
+            # Clean up any downloaded images on error
+            for image in images:
+                try:
+                    image.cleanup()
+                except Exception:
+                    pass
+            # Re-raise with more context if it's not already our formatted exception
+            error_msg = str(e)
+            if not error_msg.startswith('Media validation failed'):
+                raise Exception(f'Media validation failed: {error_msg}')
+            raise
+
     async def get_profile(self) -> Dict[str, Any]:
         """
         Get user profile information from Threads API.
@@ -127,6 +194,7 @@ class ThreadsAPI(BaseAPI):
             raise
 
     async def create_post(self, post_text: str, files: Optional[List[str]] = None,
+                          file_captions: Optional[List[str]] = None,
                           who_can_reply: str = "everyone") -> str:
         """
         Create a post on Threads.
@@ -134,6 +202,7 @@ class ThreadsAPI(BaseAPI):
         Args:
             post_text (str): Text content of the post
             files (list, optional): List of file URLs to attach
+            file_captions (list, optional): Captions for files (must align with files array)
             who_can_reply (str): Who can reply to this post
 
         Returns:
@@ -142,6 +211,8 @@ class ThreadsAPI(BaseAPI):
         Raises:
             Exception: If post creation fails
         """
+        self.auth_manager.ensure_authenticated()
+
         if not self.access_token:
             raise Exception('Threads API not authenticated')
 
@@ -150,12 +221,30 @@ class ThreadsAPI(BaseAPI):
 
         await self._rate_limit_check('create_post', 2.0)
 
+        # Validate file_captions length matches files if both provided
+        if file_captions and files and len(file_captions) != len(files):
+            raise Exception(
+                f'File captions count ({len(file_captions)}) must match files count '
+                f'({len(files)})'
+            )
+
+        # Download and validate images using Media system if files are provided
+        validated_files = []
+        validated_captions = []
+        images = []
+
+        if files:
+            validated_files, validated_captions, images = await self._validate_and_download_images(
+                files, file_captions
+            )
+
         def _sync_create_post():
             if not self.client:
                 raise Exception('Threads client not available')
             return self.client.create_post(
                 post_text=post_text,
-                files=files or [],
+                files=validated_files if validated_files else None,
+                file_captions=validated_captions if validated_captions else None,
                 who_can_reply=who_can_reply
             )
 
@@ -168,46 +257,13 @@ class ThreadsAPI(BaseAPI):
         except Exception as e:
             self._handle_api_error(e, 'Threads post creation')
             raise
-
-    async def create_reply(self, reply_text: str, reply_to_id: str) -> str:
-        """
-        Create a reply to a specific post.
-
-        Args:
-            reply_text (str): Text content of the reply
-            reply_to_id (str): ID of the post to reply to
-
-        Returns:
-            str: Reply ID
-
-        Raises:
-            Exception: If reply creation fails
-        """
-        if not self.access_token:
-            raise Exception('Threads API not authenticated')
-
-        if not self.client:
-            raise Exception('Threads client not available')
-
-        await self._rate_limit_check('create_reply', 2.0)
-
-        def _sync_create_reply():
-            if not self.client:
-                raise Exception('Threads client not available')
-            return self.client.create_reply(
-                reply_text=reply_text,
-                reply_to_id=reply_to_id
-            )
-
-        try:
-            response = await asyncio.to_thread(_sync_create_reply)
-
-            # Extract reply ID from response
-            reply_id = response.get('id') or response.get('reply_id') or str(response)
-            return reply_id
-        except Exception as e:
-            self._handle_api_error(e, 'Threads reply creation')
-            raise
+        finally:
+            # Clean up all downloaded images
+            for image in images:
+                try:
+                    image.cleanup()
+                except Exception:
+                    pass
 
     async def repost_post(self, post_id: str) -> str:
         """
@@ -222,6 +278,8 @@ class ThreadsAPI(BaseAPI):
         Raises:
             Exception: If repost fails
         """
+        self.auth_manager.ensure_authenticated()
+
         if not self.access_token:
             raise Exception('Threads API not authenticated')
 
@@ -245,118 +303,21 @@ class ThreadsAPI(BaseAPI):
             self._handle_api_error(e, 'Threads repost')
             raise
 
-    async def get_posts(self, limit: int = 25) -> Dict[str, Any]:
-        """
-        Get user's posts.
-
-        Args:
-            limit (int): Maximum number of posts to retrieve
-
-        Returns:
-            dict: Posts data
-
-        Raises:
-            Exception: If API call fails
-        """
-        if not self.access_token:
-            raise Exception('Threads API not authenticated')
-
-        if not self.client:
-            raise Exception('Threads client not available')
-
-        await self._rate_limit_check('get_posts', 1.0)
-
-        def _sync_get_posts():
-            if not self.client:
-                raise Exception('Threads client not available')
-            return self.client.get_posts(limit=limit)
-
-        try:
-            response = await asyncio.to_thread(_sync_get_posts)
-            return response
-        except Exception as e:
-            self._handle_api_error(e, 'Threads get posts')
-            raise
-
-    async def get_post_insights(self, post_id: str) -> Dict[str, Any]:
-        """
-        Get insights/analytics for a specific post.
-
-        Args:
-            post_id (str): ID of the post to get insights for
-
-        Returns:
-            dict: Post insights data
-
-        Raises:
-            Exception: If API call fails
-        """
-        if not self.access_token:
-            raise Exception('Threads API not authenticated')
-
-        if not self.client:
-            raise Exception('Threads client not available')
-
-        await self._rate_limit_check('get_post_insights', 1.0)
-
-        def _sync_get_insights():
-            if not self.client:
-                raise Exception('Threads client not available')
-            return self.client.get_post_insights(post_id=post_id)
-
-        try:
-            response = await asyncio.to_thread(_sync_get_insights)
-            return response
-        except Exception as e:
-            self._handle_api_error(e, 'Threads get post insights')
-            raise
-
-    async def hide_reply(self, reply_id: str) -> str:
-        """
-        Hide a reply (moderation functionality).
-
-        Args:
-            reply_id (str): ID of the reply to hide
-
-        Returns:
-            str: Reply ID
-
-        Raises:
-            Exception: If API call fails
-        """
-        if not self.access_token:
-            raise Exception('Threads API not authenticated')
-
-        if not self.client:
-            raise Exception('Threads client not available')
-
-        await self._rate_limit_check('hide_reply', 1.0)
-
-        def _sync_hide_reply():
-            if not self.client:
-                raise Exception('Threads client not available')
-            return self.client.hide_reply(reply_id=reply_id)
-
-        try:
-            await asyncio.to_thread(_sync_hide_reply)
-            return reply_id
-        except Exception as e:
-            self._handle_api_error(e, 'Threads hide reply')
-            raise
-
     # BaseAPI abstract method implementations
-    async def post(self, post_text: str, files: Optional[List[str]] = None) -> str:
+    async def post(self, post_text: str, files: Optional[List[str]] = None,
+                   file_captions: Optional[List[str]] = None) -> str:
         """
         Create a post on Threads (BaseAPI interface implementation).
 
         Args:
             post_text (str): Text content of the post
             files (list, optional): List of file URLs to attach
+            file_captions (list, optional): Captions for files
 
         Returns:
             str: Post ID
         """
-        return await self.create_post(post_text, files)
+        return await self.create_post(post_text, files, file_captions)
 
     async def like(self, post_id: str) -> str:
         """

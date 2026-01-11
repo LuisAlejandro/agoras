@@ -17,3 +17,5 @@ platformdirs==4.3.6
 opencv-python-headless==4.10.0.84
 authlib==1.6.0
 threadspipepy>=0.4.5
+cryptography>=42.0.0
+python-telegram-bot>=22.1

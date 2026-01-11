@@ -28,8 +28,10 @@ from .discord import DiscordAPI
 from .facebook import FacebookAPI
 from .instagram import InstagramAPI
 from .linkedin import LinkedInAPI
+from .telegram import TelegramAPI
 from .threads import ThreadsAPI
-from .twitter import TwitterAPI
+from .whatsapp import WhatsAppAPI
+from .x import XAPI
 from .youtube import YouTubeAPI
 
 __all__ = [
@@ -38,7 +40,9 @@ __all__ = [
     'FacebookAPI',
     'InstagramAPI',
     'LinkedInAPI',
+    'TelegramAPI',
     'ThreadsAPI',
-    'TwitterAPI',
+    'WhatsAppAPI',
+    'XAPI',
     'YouTubeAPI'
 ]

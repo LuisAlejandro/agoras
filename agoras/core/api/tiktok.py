@@ -154,6 +154,8 @@ class TikTokAPI(BaseAPI):
         Raises:
             Exception: If upload fails
         """
+        self.auth_manager.ensure_authenticated()
+
         if not self.access_token:
             raise Exception('TikTok API not authenticated')
 
@@ -210,6 +212,8 @@ class TikTokAPI(BaseAPI):
         Raises:
             Exception: If upload fails
         """
+        self.auth_manager.ensure_authenticated()
+
         if not self.access_token:
             raise Exception('TikTok API not authenticated')
 

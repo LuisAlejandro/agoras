@@ -17,13 +17,16 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+import os
+import secrets
 import webbrowser
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from threadspipepy.threadspipe import ThreadsPipe
 
 from ..clients.threads import ThreadsAPIClient
 from .base import BaseAuthManager
+from .callback_server import OAuthCallbackServer
 
 
 class ThreadsAuthManager(BaseAuthManager):
@@ -49,11 +52,9 @@ class ThreadsAuthManager(BaseAuthManager):
         if not self._validate_credentials():
             return False
 
-        # If we don't have a refresh token, need to authorize first
+        # If we don't have a refresh token, fail fast (don't trigger OAuth)
         if not self.refresh_token:
-            self.refresh_token = await self.authorize()
-            if not self.refresh_token:
-                return False
+            return False
 
         try:
             # Refresh or validate access token
@@ -67,12 +68,17 @@ class ThreadsAuthManager(BaseAuthManager):
                 self.user_info = await self._get_user_info()
 
             return True
-        except Exception:
+        except Exception as e:
+            # Log error for debugging but don't expose to user
+            # Following the pattern from TikTokAuthManager
             return False
 
     async def authorize(self) -> Optional[str]:
         """
         Run Threads OAuth authorization flow using threadspipepy.
+
+        Supports both interactive mode (with local callback server) and
+        headless mode (using environment variables for CI/CD).
 
         Returns:
             str or None: The refresh token if successful, None if failed
@@ -80,61 +86,100 @@ class ThreadsAuthManager(BaseAuthManager):
         if not self._validate_credentials():
             raise Exception('Threads app ID, app secret, and redirect URI are required for authorization.')
 
+        # Check for headless mode (CI/CD)
+        if self._check_headless_mode():
+            return await self._authorize_headless()
+
+        # Interactive mode with callback server
+        return await self._authorize_interactive()
+
+    async def _authorize_headless(self) -> Optional[str]:
+        """Authorize using environment variables (CI/CD mode)."""
         try:
-            def _sync_authorize():
-                # Create ThreadsPipe instance for authorization
-                # For auth flow, we use minimal initialization
-                threads_pipe = ThreadsPipe(
-                    user_id="",  # Empty for auth flow
-                    access_token=""  # Empty for auth flow
+            refresh_token = self._load_refresh_token_from_env()
+            user_id_env = os.environ.get('AGORAS_THREADS_USER_ID')
+
+            if not refresh_token or not user_id_env:
+                raise Exception(
+                    'Headless mode enabled but AGORAS_THREADS_REFRESH_TOKEN '
+                    'or AGORAS_THREADS_USER_ID not set.'
                 )
 
-                # Get authorization URL
-                auth_url = threads_pipe.get_auth_token(
-                    app_id=self.app_id,
-                    redirect_uri=self.redirect_uri
-                )
+            # Save both token and user_id to storage
+            self._save_tokens_to_storage(refresh_token, user_id_env)
+            print("Successfully seeded Threads credentials from environment variables.")
+            return refresh_token
+        except Exception as e:
+            print(f"Headless authorization failed: {e}")
+            return None
 
-                print("Opening browser for Threads authorization...")
-                print(f"Authorization URL: {auth_url}")
-                webbrowser.open(auth_url)
+    async def _authorize_interactive(self) -> Optional[str]:
+        """Authorize using local callback server (interactive mode)."""
+        try:
+            state = secrets.token_urlsafe(32)
+            callback_server = OAuthCallbackServer(expected_state=state)
+            port = await callback_server.get_available_port()
+            dynamic_redirect_uri = f"http://localhost:{port}/callback"
 
-                # Wait for user to complete authorization and provide callback URL
-                callback_url = input("Please complete authorization in browser and paste the callback URL here: ")
+            # Create ThreadsPipe instance for authorization
+            threads_pipe = ThreadsPipe(
+                user_id="",
+                access_token=""
+            )
 
-                # Extract authorization code from callback URL
-                if 'code=' in callback_url:
-                    code = callback_url.split('code=')[1].split('&')[0]
-                else:
-                    raise Exception('No authorization code found in callback URL')
+            # Get authorization URL (ThreadsPipe doesn't support state parameter directly)
+            # We'll append it to the URL manually
+            auth_url = threads_pipe.get_auth_token(
+                app_id=self.app_id,
+                redirect_uri=dynamic_redirect_uri
+            )
 
+            # Append state parameter for CSRF protection
+            if '?' in auth_url:
+                auth_url += f"&state={state}"
+            else:
+                auth_url += f"?state={state}"
+
+            print("Opening browser for Threads authorization...")
+            print(f"If browser doesn't open automatically, visit: {auth_url}")
+            webbrowser.open(auth_url)
+
+            auth_code = await callback_server.start_and_wait(timeout=300)
+
+            def _sync_exchange():
                 # Exchange authorization code for tokens
                 tokens = threads_pipe.get_access_tokens(
                     app_id=self.app_id,
                     app_secret=self.app_secret,
-                    auth_code=code,
-                    redirect_uri=self.redirect_uri
+                    auth_code=auth_code,
+                    redirect_uri=dynamic_redirect_uri
                 )
 
-                # Extract long-lived token (refresh token)
                 long_lived_token = tokens.get('access_token')
                 user_id = tokens.get('user_id')
 
-                if long_lived_token:
-                    # Save both token and user_id to cache
-                    self._save_tokens_to_cache(long_lived_token, user_id)
-                    return long_lived_token
-                else:
+                if not long_lived_token:
                     raise Exception('No access token in Threads response')
 
-            return await asyncio.to_thread(_sync_authorize)
-        except Exception:
+                if not user_id:
+                    raise Exception('No user ID in Threads response')
+
+                # Save both token and user_id to storage
+                self._save_tokens_to_storage(long_lived_token, user_id)
+                return long_lived_token
+
+            return await asyncio.to_thread(_sync_exchange)
+        except Exception as e:
+            print(f"Interactive authorization failed: {e}")
             return None
 
-    async def _refresh_or_get_token(self) -> dict:
+    async def _refresh_or_get_token(self) -> Dict[str, Any]:
         """
         Refresh Threads access token or use cached long-lived token.
         Meta's long-lived tokens last 60 days and don't need frequent refresh.
+
+        Returns:
+            dict: Token data containing 'access_token' and 'user_id'
         """
         def _sync_refresh():
             # For Threads, we use the long-lived token directly
@@ -142,10 +187,10 @@ class ThreadsAuthManager(BaseAuthManager):
             if not self.refresh_token:
                 raise Exception('No refresh token available')
 
-            # Load user_id from cache
-            user_id = self._load_user_id_from_cache()
+            # Load user_id from storage
+            user_id = self._load_user_id_from_storage()
             if not user_id:
-                raise Exception('No user ID found in cache')
+                raise Exception('No user ID found in storage')
 
             # Return the cached token data
             return {
@@ -159,8 +204,13 @@ class ThreadsAuthManager(BaseAuthManager):
         """Create Threads API client instance."""
         return ThreadsAPIClient(access_token=access_token, user_id=user_id)
 
-    async def _get_user_info(self) -> dict:
-        """Get user information from Threads API."""
+    async def _get_user_info(self) -> Dict[str, Any]:
+        """
+        Get user information from Threads API.
+
+        Returns:
+            dict: User information from the Threads API
+        """
         if not self.client:
             raise Exception('No client available')
 
@@ -178,30 +228,45 @@ class ThreadsAuthManager(BaseAuthManager):
         return all([self.app_id, self.app_secret, self.redirect_uri])
 
     def _get_cache_filename(self) -> str:
-        """Get cache filename for storing refresh token."""
+        """Get cache filename for storing refresh token. DEPRECATED."""
         return f'threads-{self.app_id}.json'
 
-    def _load_refresh_token_from_cache(self) -> Optional[str]:
-        """Load refresh token from cache file."""
-        cache_file = self._get_cache_filename()
-        return self._load_token_from_cache(cache_file, 'threads_refresh_token')
+    def _get_platform_name(self) -> str:
+        """Get the platform name for this auth manager."""
+        return 'threads'
 
-    def _load_user_id_from_cache(self) -> Optional[str]:
-        """Load user ID from cache file."""
-        cache_file = self._get_cache_filename()
-        return self._load_token_from_cache(cache_file, 'threads_user_id')
+    def _get_token_identifier(self) -> str:
+        """Get unique identifier for token storage."""
+        return self.app_id
+
+    def _load_refresh_token_from_cache(self) -> Optional[str]:
+        """
+        Load refresh token from secure storage.
+
+        Note: Despite the name, this method loads from SecureTokenStorage,
+        not from deprecated cache files. The name is kept for compatibility
+        with the base class interface.
+        """
+        token_data = self.token_storage.load_token('threads', self.app_id)
+        if token_data:
+            return token_data.get('refresh_token')
+        return None
+
+    def _load_user_id_from_storage(self) -> Optional[str]:
+        """Load user ID from secure storage."""
+        token_data = self.token_storage.load_token('threads', self.app_id)
+        if token_data:
+            return token_data.get('user_id')
+        return None
 
     def _save_refresh_token_to_cache(self, refresh_token: str):
-        """Save refresh token to cache file."""
-        cache_file = self._get_cache_filename()
-        self._save_token_to_cache(cache_file, 'threads_refresh_token', refresh_token)
+        """Save refresh token to secure storage. DEPRECATED - use _save_tokens_to_storage."""
+        self._save_refresh_token_to_storage(refresh_token)
 
-    def _save_tokens_to_cache(self, refresh_token: str, user_id: str):
-        """Save both refresh token and user ID to cache file."""
-        cache_file = self._get_cache_filename()
-        data = self._load_cache_data(cache_file)
-        data.update({
-            'threads_refresh_token': refresh_token,
-            'threads_user_id': user_id
-        })
-        self._save_cache_data(cache_file, data)
+    def _save_tokens_to_storage(self, refresh_token: str, user_id: str):
+        """Save both refresh token and user ID to secure storage."""
+        token_data = {
+            'refresh_token': refresh_token,
+            'user_id': user_id
+        }
+        self.token_storage.save_token('threads', self.app_id, token_data)

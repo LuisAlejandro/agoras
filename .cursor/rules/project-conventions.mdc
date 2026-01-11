@@ -5,41 +5,74 @@ alwaysApply: false
 ---
 # Project Conventions and Structure
 
+## Project Structure
+
+- `agoras/`: Source code package
+- `tests/`: Unit and functional tests
+- `docs/`: Sphinx documentation (RST)
+- `scripts/`: Helper scripts for release and maintenance
+
 ## Documentation Format
+
 This project uses **reStructuredText (RST)** format for all documentation, NOT Markdown:
+
 - Main changelog: [HISTORY.rst](mdc:HISTORY.rst)
 - Release descriptions: `RELEASE_DESCRIPTION.rst` (when present)
 - All documentation files use `.rst` extension
 
+## Development Workflow
+
+The project uses `make` and Docker for consistent development environments:
+
+- `make test`: Run tests
+- `make lint-and-format`: Lint and format code
+- `make docs`: Generate documentation
+- `make console`: Open a shell inside the Docker container
+
 ## Release Process
-The project uses git flow with automated release scripts:
-- Release script: [scripts/release.sh](mdc:scripts/release.sh) - handles major/minor/patch releases
-- Hotfix script: [scripts/hotfix.sh](mdc:scripts/hotfix.sh) - handles critical fixes
+
+Automated via `make` and `git flow`:
+
+- Release commands:
+  - `make release-patch`: Create a patch release
+  - `make release-minor`: Create a minor release
+  - `make release-major`: Create a major release
+  - `make hotfix`: Create a hotfix
+- Underlying scripts:
+  - [scripts/release.sh](mdc:scripts/release.sh): Handles release logic
+  - [scripts/hotfix.sh](mdc:scripts/hotfix.sh): Handles hotfix logic
 - Version management via [setup.cfg](mdc:setup.cfg) using bumpversion
 - Changelog generation using `gitchangelog` tool
 
 ## RST Changelog Format
+
 The [HISTORY.rst](mdc:HISTORY.rst) follows this structure:
+
 ```rst
 1.1.3 (2023-09-05)
 ------------
 
 Changed
 ~~~~~~~~~~~~
+
 * Description of changes
 
 Fixed
 ~~~~~~~~~~~~
+
 * Description of fixes
 ```
 
 ## Key Files and Scripts
-- [scripts/release.sh](mdc:scripts/release.sh): Automated release workflow (major/minor/patch)
+
+- [Makefile](mdc:Makefile): Main entry point for development and release tasks
+- [scripts/release.sh](mdc:scripts/release.sh): Automated release workflow
 - [scripts/hotfix.sh](mdc:scripts/hotfix.sh): Automated hotfix workflow
 - [setup.cfg](mdc:setup.cfg): Contains current version and bumpversion configuration
 - [HISTORY.rst](mdc:HISTORY.rst): Project changelog in RST format
 
 ## Important Notes
+
 - Always use RST format (.rst) for documentation files, never Markdown (.md)
 - Scripts are configured to work with RST files and RST parsing patterns
 - Release process includes GitHub CLI integration for automated releases

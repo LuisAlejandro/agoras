@@ -113,6 +113,8 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If post creation fails
         """
+        self.auth_manager.ensure_authenticated()
+
         if not self.client:
             raise Exception('Facebook API not authenticated')
 
@@ -144,6 +146,8 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If media upload fails
         """
+        self.auth_manager.ensure_authenticated()
+
         if not self.client:
             raise Exception('Facebook API not authenticated')
 
@@ -169,6 +173,8 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If like operation fails
         """
+        self.auth_manager.ensure_authenticated()
+
         if not self.client:
             raise Exception('Facebook API not authenticated')
 
@@ -194,6 +200,8 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If deletion fails
         """
+        self.auth_manager.ensure_authenticated()
+
         if not self.client:
             raise Exception('Facebook API not authenticated')
 
@@ -220,6 +228,8 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If sharing fails
         """
+        self.auth_manager.ensure_authenticated()
+
         if not self.client:
             raise Exception('Facebook API not authenticated')
 
@@ -247,6 +257,8 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If upload fails
         """
+        self.auth_manager.ensure_authenticated()
+
         if not self.client:
             raise Exception('Facebook API not authenticated')
 
@@ -285,6 +297,8 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If upload fails
         """
+        self.auth_manager.ensure_authenticated()
+
         if not self.client:
             raise Exception('Facebook API not authenticated')
 

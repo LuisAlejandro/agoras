@@ -6,6 +6,7 @@ alwaysApply: false
 # Adding a New Social Network Platform (OAuth 2.0 Authentication)
 
 ## Overview
+
 To add a new social network platform with **OAuth 2.0 authentication** (e.g., "newplatform" using OAuth flow like TikTok, Threads, Pinterest, Bluesky, or Mastodon), follow this systematic approach based on the existing OAuth architecture patterns.
 
 > **Note**: This guide is for platforms using OAuth 2.0 authentication. For simple authentication (API keys, bot tokens), see the separate simple authentication guide.
@@ -13,19 +14,25 @@ To add a new social network platform with **OAuth 2.0 authentication** (e.g., "n
 ## Required Files to Create
 
 ### 1. Core Module
+
 Create `[agoras/core/newplatform.py](mdc:agoras/core/newplatform.py)` following the pattern of existing OAuth platforms like [agoras/core/tiktok.py](mdc:agoras/core/tiktok.py):
+
 - Main platform integration logic
 - High-level posting and interaction methods
 - Platform-specific configuration handling
 
 ### 2. API Module
+
 Create `[agoras/core/api/newplatform.py](mdc:agoras/core/api/newplatform.py)` following the pattern of [agoras/core/api/tiktok.py](mdc:agoras/core/api/tiktok.py):
+
 - Low-level API interaction methods
 - Platform-specific API endpoints and data formatting
 - Error handling and response processing
 
 ### 3. OAuth Authentication Module
+
 Create `[agoras/core/api/auth/newplatform.py](mdc:agoras/core/api/auth/newplatform.py)` following the pattern of [agoras/core/api/auth/tiktok.py](mdc:agoras/core/api/auth/tiktok.py):
+
 - **OAuth 2.0 flow implementation** with authlib or platform-specific libraries
 - **Authorization URL generation** with proper scopes
 - **Code exchange for tokens** (authorization code flow)
@@ -34,7 +41,9 @@ Create `[agoras/core/api/auth/newplatform.py](mdc:agoras/core/api/auth/newplatfo
 - **Platform-specific compliance fixes** (like TikTok's client_key vs client_id)
 
 ### 4. OAuth Client Module
+
 Create `[agoras/core/api/clients/newplatform.py](mdc:agoras/core/api/clients/newplatform.py)` following the pattern of [agoras/core/api/clients/tiktok.py](mdc:agoras/core/api/clients/tiktok.py):
+
 - HTTP client configuration with OAuth headers
 - Bearer token authentication
 - Request/response handling with OAuth error codes
@@ -43,6 +52,7 @@ Create `[agoras/core/api/clients/newplatform.py](mdc:agoras/core/api/clients/new
 ## OAuth-Specific Implementation Details
 
 ### Authentication Manager Requirements
+
 Your auth manager must implement:
 
 ```python
@@ -97,7 +107,8 @@ class NewPlatformAuthManager(BaseAuthManager):
 
 ## Platform-Specific Implementation Patterns
 
-### Standard OAuth 2.0 (Pinterest, Mastodon)
+### Standard OAuth 2.0 (LinkedIn, Pinterest)
+
 ```python
 class StandardAuthManager(BaseAuthManager):
     def __init__(self, client_id: str, client_secret: str, redirect_uri: str):
@@ -110,6 +121,7 @@ class StandardAuthManager(BaseAuthManager):
 ```
 
 ### Library-Based OAuth (Threads, Bluesky)
+
 ```python
 class LibraryAuthManager(BaseAuthManager):
     def __init__(self, app_id: str, app_secret: str):
@@ -122,6 +134,7 @@ class LibraryAuthManager(BaseAuthManager):
 ```
 
 ### Multi-Instance OAuth (Mastodon)
+
 ```python
 class InstanceAuthManager(BaseAuthManager):
     def __init__(self, instance_url: str, client_id: str = None):
@@ -132,6 +145,7 @@ class InstanceAuthManager(BaseAuthManager):
 ```
 
 ### Dual Authentication (Bluesky)
+
 ```python
 class DualAuthManager(BaseAuthManager):
     def __init__(self, identifier: str, password: str = None,
@@ -145,26 +159,33 @@ class DualAuthManager(BaseAuthManager):
 
 ## Files to Update
 
-### 1. Base API Module
-Update [agoras/core/api/base.py](mdc:agoras/core/api/base.py):
+### 1. API Package Initialization
+
+Update [agoras/core/api/**init**.py](mdc:agoras/core/api/__init__.py):
+
 - Add imports for the new OAuth platform modules
-- Register the platform in any platform registry or factory
+- Export the new API class in `__all__`
 
 ### 2. Core Base Module
+
 Update [agoras/core/base.py](mdc:agoras/core/base.py):
+
 - Add platform-specific base classes if needed
 - Update any platform enumeration or configuration
 
 ### 3. Package Initialization
+
 Update relevant `__init__.py` files:
-- [agoras/core/api/__init__.py](mdc:agoras/core/api/__init__.py)
-- [agoras/core/api/auth/__init__.py](mdc:agoras/core/api/auth/__init__.py)
-- [agoras/core/api/clients/__init__.py](mdc:agoras/core/api/clients/__init__.py)
+
+- [agoras/core/api/auth/**init**.py](mdc:agoras/core/api/auth/__init__.py)
+- [agoras/core/api/clients/**init**.py](mdc:agoras/core/api/clients/__init__.py)
 
 ## OAuth-Specific Documentation Requirements
 
 ### 1. OAuth Credentials Documentation
+
 Create `docs/credentials/newplatform.rst` following the pattern of [docs/credentials/tiktok.rst](mdc:docs/credentials/tiktok.rst):
+
 - **OAuth app registration process** with screenshots
 - **Required OAuth scopes and permissions**
 - **Redirect URI configuration** (typically `http://localhost:3456/callback`)
@@ -173,7 +194,9 @@ Create `docs/credentials/newplatform.rst` following the pattern of [docs/credent
 - **Platform-specific requirements** (business accounts, verification, etc.)
 
 ### 2. Platform Usage Documentation
+
 Create `docs/newplatform.rst` following the pattern of [docs/tiktok.rst](mdc:docs/tiktok.rst):
+
 - **OAuth setup and first-time authorization**
 - **Token refresh and maintenance**
 - **Platform-specific usage examples**
@@ -194,26 +217,31 @@ Create `docs/newplatform.rst` following the pattern of [docs/tiktok.rst](mdc:doc
 ## Platform-Specific Considerations
 
 ### Business Account Requirements (Threads, Instagram)
+
 - Document business verification process
 - Handle business account-specific limitations
 - App review requirements for production
 
 ### Rate Limiting (Pinterest, all platforms)
+
 - Implement proper retry logic with exponential backoff
 - Document platform-specific rate limits
 - Handle rate limit errors gracefully
 
 ### Multi-Instance Support (Mastodon)
+
 - Support configuration of multiple instances
 - Automatic app registration per instance
 - Instance-specific credential caching
 
 ### Decentralized Architecture (Bluesky)
+
 - Support custom server endpoints
 - Handle DID-based identity systems
 - AT Protocol specific requirements
 
 ### Character Limits and Features
+
 - Detect platform-specific character limits
 - Handle varying feature availability
 - Instance or account-specific capabilities
@@ -221,6 +249,7 @@ Create `docs/newplatform.rst` following the pattern of [docs/tiktok.rst](mdc:doc
 ## New CLI Actions
 
 Some platforms may introduce new actions:
+
 - `reply` - Reply to posts (Threads, Bluesky, Mastodon)
 - `quote` - Quote posts (Bluesky)
 - `create-board` - Create boards (Pinterest)
@@ -247,6 +276,7 @@ Some platforms may introduce new actions:
 ## OAuth Error Handling
 
 Implement handling for common OAuth errors:
+
 - `invalid_grant`: Refresh token expired, need re-authorization
 - `invalid_client`: Client credentials incorrect
 - `insufficient_scope`: Need additional permissions
@@ -256,26 +286,37 @@ Implement handling for common OAuth errors:
 ## Platform Examples
 
 ### TikTok (Existing)
+
 - OAuth 2.0 with PKCE and compliance fixes
 - Business creator account requirements
 - Complex authorization flow with authlib
 
-### Threads (Planned)
+### Threads (Existing)
+
 - Meta OAuth 2.0 with ThreadsPipe library
 - Business account verification required
 - Long-lived tokens with 60-day expiration
 
+### LinkedIn (Existing)
+
+- Standard OAuth 2.0 implementation
+- OpenID Connect support (scopes: openid, profile, email)
+- Token refresh and caching
+
 ### Pinterest (Planned)
+
 - Standard OAuth 2.0 implementation
 - Board-based content organization
 - Rate limiting considerations
 
 ### Bluesky (Planned)
+
 - AT Protocol with dual authentication options
 - Decentralized architecture support
 - Custom server endpoints
 
 ### Mastodon (Planned)
+
 - Multi-instance OAuth 2.0 support
 - Automatic app registration
 - Instance-specific features and limits

@@ -141,6 +141,8 @@ class YouTubeAPI(BaseAPI):
         Raises:
             Exception: If upload fails
         """
+        self.auth_manager.ensure_authenticated()
+
         if not self.client:
             raise Exception('YouTube API not authenticated')
 
@@ -169,6 +171,8 @@ class YouTubeAPI(BaseAPI):
         Raises:
             Exception: If like operation fails
         """
+        self.auth_manager.ensure_authenticated()
+
         if not self.client:
             raise Exception('YouTube API not authenticated')
 

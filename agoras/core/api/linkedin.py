@@ -142,6 +142,8 @@ class LinkedInAPI(BaseAPI):
         Raises:
             Exception: If image upload fails
         """
+        self.auth_manager.ensure_authenticated()
+
         if not self.client or not self.object_id:
             raise Exception('LinkedIn API not authenticated')
 
@@ -176,6 +178,8 @@ class LinkedInAPI(BaseAPI):
         Raises:
             Exception: If post creation fails
         """
+        self.auth_manager.ensure_authenticated()
+
         if not self.client:
             raise Exception('LinkedIn API not authenticated')
 

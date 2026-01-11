@@ -17,13 +17,15 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+import secrets
 import webbrowser
 from typing import Optional
 
 from authlib.integrations.requests_client import OAuth2Session
 
-from .base import BaseAuthManager
 from ..clients.linkedin import LinkedInAPIClient
+from .base import BaseAuthManager
+from .callback_server import OAuthCallbackServer
 
 
 class LinkedInAuthManager(BaseAuthManager):
@@ -65,11 +67,9 @@ class LinkedInAuthManager(BaseAuthManager):
         if not self._validate_credentials():
             return False
 
-        # If we don't have a refresh token, need to authorize first
+        # If we don't have a refresh token, fail fast (don't trigger OAuth)
         if not self.refresh_token:
-            self.refresh_token = await self.authorize()
-            if not self.refresh_token:
-                return False
+            return False
 
         try:
             # Refresh access token using authlib's built-in method
@@ -79,7 +79,7 @@ class LinkedInAuthManager(BaseAuthManager):
             # Update refresh token if new one provided
             if token_data.get('refresh_token') and token_data['refresh_token'] != self.refresh_token:
                 self.refresh_token = token_data['refresh_token']
-                self._save_refresh_token_to_cache(self.refresh_token)
+                self._save_refresh_token_to_storage(self.refresh_token)
 
             # Create client and get user info
             if self.access_token:
@@ -94,49 +94,81 @@ class LinkedInAuthManager(BaseAuthManager):
         """
         Run LinkedIn OAuth authorization flow using Authlib.
 
+        Supports both interactive mode (with local callback server) and
+        headless mode (using environment variables for CI/CD).
+
         Returns:
             str or None: The refresh token if successful, None if failed
         """
         if not self._validate_credentials():
             raise Exception('LinkedIn credentials are required for authorization.')
 
+        # Check for headless mode (CI/CD)
+        if self._check_headless_mode():
+            return await self._authorize_headless()
+
+        # Interactive mode with callback server
+        return await self._authorize_interactive()
+
+    async def _authorize_headless(self) -> Optional[str]:
+        """Authorize using environment variables (CI/CD mode)."""
         try:
-            def _sync_authorize():
-                # Create authorization URL
-                authorization_url, state = self.oauth_session.create_authorization_url(
-                    'https://www.linkedin.com/oauth/v2/authorization',
-                    state=None  # Let authlib generate state
+            refresh_token = self._load_refresh_token_from_env()
+            if not refresh_token:
+                raise Exception(
+                    'Headless mode enabled but AGORAS_LINKEDIN_REFRESH_TOKEN not set.'
                 )
 
-                print("Opening browser for LinkedIn authorization...")
-                print(f"Authorization URL: {authorization_url}")
-                webbrowser.open(authorization_url)
+            self._save_refresh_token_to_storage(refresh_token)
+            print("Successfully seeded LinkedIn credentials from environment variables.")
+            return refresh_token
+        except Exception as e:
+            print(f"Headless authorization failed: {e}")
+            return None
 
-                # Wait for user to complete authorization and provide callback URL
-                callback_url = input("Please complete authorization in browser and paste the callback URL here: ")
+    async def _authorize_interactive(self) -> Optional[str]:
+        """Authorize using local callback server (interactive mode)."""
+        try:
+            state = secrets.token_urlsafe(32)
+            callback_server = OAuthCallbackServer(expected_state=state)
+            port = await callback_server.get_available_port()
+            redirect_uri = f"http://localhost:{port}/callback"
 
-                # Exchange authorization code for tokens
+            self.oauth_session.redirect_uri = redirect_uri
+
+            authorization_url, _ = self.oauth_session.create_authorization_url(
+                'https://www.linkedin.com/oauth/v2/authorization',
+                state=state
+            )
+
+            print("Opening browser for LinkedIn authorization...")
+            print(f"If browser doesn't open automatically, visit: {authorization_url}")
+            webbrowser.open(authorization_url)
+
+            auth_code = await callback_server.start_and_wait(timeout=300)
+
+            def _sync_exchange():
                 token = self.oauth_session.fetch_token(
                     'https://www.linkedin.com/oauth/v2/accessToken',
-                    authorization_response=callback_url
+                    code=auth_code,
+                    redirect_uri=redirect_uri
                 )
 
-                # Save the refresh token
                 refresh_token = token.get('refresh_token')
                 if refresh_token:
-                    self._save_refresh_token_to_cache(refresh_token)
+                    self._save_refresh_token_to_storage(refresh_token)
                     return refresh_token
                 else:
                     # LinkedIn might not always return refresh tokens
-                    # In such cases, we'll store the access token as a long-lived token
                     access_token = token.get('access_token')
                     if access_token:
-                        self._save_refresh_token_to_cache(access_token)
+                        self._save_refresh_token_to_storage(access_token)
                         return access_token
                     raise Exception('No refresh token or access token in LinkedIn response')
 
-            return await asyncio.to_thread(_sync_authorize)
-        except Exception:
+            return await asyncio.to_thread(_sync_exchange)
+        except Exception as e:
+            print(f"Interactive authorization failed: {e}")
             return None
 
     async def _refresh_access_token_with_authlib(self) -> dict:
@@ -206,15 +238,21 @@ class LinkedInAuthManager(BaseAuthManager):
         return all([self.user_id, self.client_id, self.client_secret])
 
     def _get_cache_filename(self) -> str:
-        """Get cache filename for storing refresh token."""
+        """Get cache filename for storing refresh token. DEPRECATED."""
         return f'linkedin-{self.user_id}.json'
 
+    def _get_platform_name(self) -> str:
+        """Get the platform name for this auth manager."""
+        return 'linkedin'
+
+    def _get_token_identifier(self) -> str:
+        """Get unique identifier for token storage."""
+        return self.user_id
+
     def _load_refresh_token_from_cache(self) -> Optional[str]:
-        """Load refresh token from cache file."""
-        cache_file = self._get_cache_filename()
-        return self._load_token_from_cache(cache_file, 'linkedin_refresh_token')
+        """Load refresh token from secure storage."""
+        return self._load_refresh_token_from_storage()
 
     def _save_refresh_token_to_cache(self, refresh_token: str):
-        """Save refresh token to cache file."""
-        cache_file = self._get_cache_filename()
-        self._save_token_to_cache(cache_file, 'linkedin_refresh_token', refresh_token) 
+        """Save refresh token to secure storage. DEPRECATED - use _save_refresh_token_to_storage."""
+        self._save_refresh_token_to_storage(refresh_token)

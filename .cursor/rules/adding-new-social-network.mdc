@@ -6,6 +6,7 @@ alwaysApply: false
 # Adding a New Social Network Platform (Simple Authentication)
 
 ## Overview
+
 To add a new social network platform with **simple authentication** (e.g., "newplatform" using API keys/tokens like Discord), follow this systematic approach based on the existing architecture patterns.
 
 > **Note**: This guide is for platforms using simple authentication (API keys, bot tokens, etc.). For OAuth 2.0 authentication, see the separate OAuth 2.0 guide.
@@ -13,6 +14,7 @@ To add a new social network platform with **simple authentication** (e.g., "newp
 ## Simple Authentication Characteristics
 
 Simple authentication platforms typically use:
+
 - **Direct API keys or bot tokens** (no OAuth flow required)
 - **Static credentials** that don't expire or refresh
 - **Connection-based validation** (connect to verify credentials work)
@@ -23,26 +25,35 @@ Examples: Discord (bot tokens), Slack (bot tokens), some webhook-based APIs
 ## Required Files to Create
 
 ### 1. Core Module
-Create `[agoras/core/newplatform.py](mdc:agoras/core/newplatform.py)` following the pattern of existing platforms like [agoras/core/discord.py](mdc:agoras/core/discord.py):
-- Main platform integration logic
+
+Create `agoras/core/newplatform.py` following the pattern of existing platforms like `agoras/core/discord.py`:
+
+- Main platform integration logic (inherits from `SocialNetwork`)
 - High-level posting and interaction methods
 - Platform-specific configuration handling
 
 ### 2. API Module
-Create `[agoras/core/api/newplatform.py](mdc:agoras/core/api/newplatform.py)` following the pattern of [agoras/core/api/discord.py](mdc:agoras/core/api/discord.py):
-- Low-level API interaction methods
+
+Create `agoras/core/api/newplatform.py` following the pattern of `agoras/core/api/discord.py`:
+
+- Low-level API interaction methods (inherits from `BaseAPI`)
 - Platform-specific API endpoints and data formatting
 - Error handling and response processing
 
 ### 3. Simple Authentication Module
-Create `[agoras/core/api/auth/newplatform.py](mdc:agoras/core/api/auth/newplatform.py)` following the pattern of [agoras/core/api/auth/discord.py](mdc:agoras/core/api/auth/discord.py):
+
+Create `agoras/core/api/auth/newplatform.py` following the pattern of `agoras/core/api/auth/discord.py`:
+
 - **Direct token/API key validation** (no OAuth flow)
 - **Simple credential verification** (bot token, API key, etc.)
 - **Connection-based authentication** (like Discord bot validation)
 - **Cached validation results** for performance
+- Inherits from `BaseAuthManager`
 
 ### 4. Client Module
-Create `[agoras/core/api/clients/newplatform.py](mdc:agoras/core/api/clients/newplatform.py)` following the pattern of [agoras/core/api/clients/discord.py](mdc:agoras/core/api/clients/discord.py):
+
+Create `agoras/core/api/clients/newplatform.py` following the pattern of `agoras/core/api/clients/discord.py`:
+
 - HTTP client configuration
 - Request/response handling
 - Rate limiting and retry logic
@@ -50,6 +61,7 @@ Create `[agoras/core/api/clients/newplatform.py](mdc:agoras/core/api/clients/new
 ## Simple Authentication Implementation Details
 
 ### Authentication Manager Requirements
+
 Your auth manager should implement:
 
 ```python
@@ -80,61 +92,81 @@ class NewPlatformAuthManager(BaseAuthManager):
 
 ## Files to Update
 
-### 1. Base API Module
-Update [agoras/core/api/base.py](mdc:agoras/core/api/base.py):
-- Add imports for the new platform modules
-- Register the platform in any platform registry or factory
+### 1. Package Initialization
 
-### 2. Core Base Module
-Update [agoras/core/base.py](mdc:agoras/core/base.py):
-- Add platform-specific base classes if needed
-- Update any platform enumeration or configuration
+Update relevant `__init__.py` files to export the new classes:
 
-### 3. Package Initialization
-Update relevant `__init__.py` files:
-- [agoras/core/api/__init__.py](mdc:agoras/core/api/__init__.py)
-- [agoras/core/api/auth/__init__.py](mdc:agoras/core/api/auth/__init__.py)
-- [agoras/core/api/clients/__init__.py](mdc:agoras/core/api/clients/__init__.py)
+- `agoras/core/api/__init__.py`: Add `NewPlatformAPI` to imports and `__all__`
+- `agoras/core/api/auth/__init__.py`: Add `NewPlatformAuthManager` to imports and `__all__`
+- `agoras/core/api/clients/__init__.py`: Add `NewPlatformAPIClient` to imports and `__all__`
+
+### 2. CLI Configuration
+
+Update `agoras/cli.py`:
+
+- Add a new `add_newplatform_options(parser)` function
+- Call this function in `commandline()` inside the `publish_parser` group setup
+
+### 3. Command Dispatcher
+
+Update `agoras/commands/publish.py`:
+
+- Import the main module: `from ..core.newplatform import main as newplatform`
+- Add a condition in the `main` function:
+
+  ```python
+  elif network == 'newplatform':
+      newplatform(kwargs)
+  ```
+
+### 4. Base Modules (Optional)
+
+- `agoras/core/base.py`: Only if you need to add platform-specific base classes.
+- `agoras/core/api/base.py`: Only if you need to add common API functionality.
 
 ## Documentation Requirements
 
 ### 1. Credentials Documentation
-Create `docs/credentials/newplatform.rst` following the pattern of [docs/credentials/discord.rst](mdc:docs/credentials/discord.rst):
+
+Create `docs/credentials/newplatform.rst` following the pattern of `docs/credentials/discord.rst`:
+
 - API registration process
 - Required credentials and permissions
 - Configuration steps with screenshots
 
 ### 2. Platform Usage Documentation
-Create `docs/newplatform.rst` following the pattern of [docs/discord.rst](mdc:docs/discord.rst):
+
+Create `docs/newplatform.rst` following the pattern of `docs/discord.rst`:
+
 - Platform-specific usage examples
 - Configuration options
 - Troubleshooting guide
 
 ### 3. Update API Documentation
-Update [docs/api.rst](mdc:docs/api.rst) to include references to the new platform modules.
+
+Update `docs/api.rst` to include references to the new platform modules.
 
 ## Implementation Checklist
 
-1. **Study Existing Implementation**: Review [agoras/core/discord.py](mdc:agoras/core/discord.py) and related files as reference
+1. **Study Existing Implementation**: Review `agoras/core/discord.py` and related files as reference
 2. **Create Core Files**: Implement the four main platform files (core, api, auth, client)
-3. **Update Base Classes**: Modify base modules to register the new platform
-4. **Add Configuration**: Update any configuration files or environment variable handling
-5. **Write Documentation**: Create RST documentation files for credentials and usage
-6. **Add Tests**: Create unit tests in [tests/](mdc:tests) directory
-7. **Update CLI**: If needed, update [agoras/cli.py](mdc:agoras/cli.py) to support the new platform
-8. **Test Integration**: Use test scripts like [test-post.sh](mdc:test-post.sh) to verify functionality
+3. **Update Init Files**: Export new classes in `__init__.py` files
+4. **Update CLI**: Add command-line arguments in `agoras/cli.py`
+5. **Update Command Dispatcher**: Add logic in `agoras/commands/publish.py`
+6. **Write Documentation**: Create RST documentation files for credentials and usage
+7. **Add Tests**: Create unit tests in `tests/` directory
+8. **Test Integration**: Use test scripts like `test-post.sh` to verify functionality
 
 ## Architecture Patterns to Follow
 
 - **Separation of Concerns**: Keep authentication, API calls, and business logic separate
-- **Error Handling**: Implement robust error handling and logging using [agoras/core/logger.py](mdc:agoras/core/logger.py)
+- **Error Handling**: Implement robust error handling and logging using `agoras/core/logger.py`
 - **Configuration**: Follow existing patterns for credential management and platform settings
-- **Media Support**: Integrate with [agoras/core/media/](mdc:agoras/core/media) for image/video handling
-- **Feed Integration**: Ensure compatibility with [agoras/core/feed/](mdc:agoras/core/feed) for RSS processing
+- **Media Support**: Integrate with `agoras/core/media/` for image/video handling
+- **Feed Integration**: Ensure compatibility with `agoras/core/feed/` for RSS processing
 
 ## Common Integration Points
 
-- **Media Factory**: Update [agoras/core/media/factory.py](mdc:agoras/core/media/factory.py) if platform has specific media requirements
-- **Feed Manager**: Ensure compatibility with [agoras/core/feed/manager.py](mdc:agoras/core/feed/manager.py)
-- **Sheet Integration**: Consider integration with [agoras/core/sheet/](mdc:agoras/core/sheet) for scheduling
-- **Command Interface**: Update [agoras/commands/publish.py](mdc:agoras/commands/publish.py) to support the new platform
+- **Media Factory**: Update `agoras/core/media/factory.py` if platform has specific media requirements
+- **Feed Manager**: Ensure compatibility with `agoras/core/feed/manager.py`
+- **Sheet Integration**: Consider integration with `agoras/core/sheet/` for scheduling

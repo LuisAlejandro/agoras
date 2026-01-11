@@ -22,11 +22,14 @@ import os
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
+from .exceptions import AuthenticationError
+from .storage import SecureTokenStorage
+
 
 class BaseAuthManager(ABC):
     """
     Base authentication manager class with common functionality.
-    
+
     This abstract base class provides common patterns and methods used across
     all platform-specific authentication managers, including:
     - Common attributes and properties
@@ -40,11 +43,151 @@ class BaseAuthManager(ABC):
         self.access_token: Optional[str] = None
         self.client = None
         self.user_info = None
+        self.token_storage = SecureTokenStorage()
 
     @property
     def authenticated(self) -> bool:
         """Check if currently authenticated with valid access token."""
         return bool(self.access_token and self.client and self.user_info)
+
+    def ensure_authenticated(self):
+        """
+        Ensure valid authentication state (Fail Fast).
+
+        This method enforces the "Authorize First" workflow by checking if
+        authentication is available. If not authenticated, it attempts to load
+        and refresh credentials from secure storage. If no valid credentials
+        exist, it tries to seed from environment variables (CI/CD support).
+        If all attempts fail, it raises AuthenticationError.
+
+        Raises:
+            AuthenticationError: If not authenticated and no stored credentials available
+        """
+        if self.authenticated:
+            return
+
+        # Try to load from secure storage and refresh
+        if not self._load_and_refresh_from_storage():
+            # Before failing, check if we can seed from environment (CI/CD)
+            if self._try_seed_from_environment():
+                # Retry loading after seeding
+                if self._load_and_refresh_from_storage():
+                    return
+
+            platform_name = self._get_platform_name()
+            raise AuthenticationError(
+                f"Not authenticated. Please run 'agoras {platform_name} authorize' first."
+            )
+
+    def _load_and_refresh_from_storage(self) -> bool:
+        """
+        Load credentials from secure storage and refresh if needed.
+
+        Returns:
+            bool: True if successfully loaded and refreshed, False otherwise
+        """
+        try:
+            # Load token data from secure storage
+            platform_name = self._get_platform_name()
+            identifier = self._get_token_identifier()
+            token_data = self.token_storage.load_token(platform_name, identifier)
+
+            if not token_data:
+                return False
+
+            # Extract refresh token
+            refresh_token = token_data.get('refresh_token')
+            if not refresh_token:
+                return False
+
+            # Set the refresh token so authenticate() can use it
+            if hasattr(self, 'refresh_token'):
+                self.refresh_token = refresh_token
+
+            # Call authenticate to refresh and get access token
+            # This is async, but we need to handle it synchronously here
+            import asyncio
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # If we're already in an async context, this is tricky
+                # For now, we'll set the refresh_token and let authenticate handle it
+                return True
+            else:
+                result = loop.run_until_complete(self.authenticate())
+                return result
+        except Exception:
+            return False
+
+    def _save_refresh_token_to_storage(self, refresh_token: str, **metadata):
+        """
+        Save refresh token to secure storage.
+
+        Args:
+            refresh_token (str): The refresh token to save
+            **metadata: Additional metadata to store (expires_at, scopes, etc.)
+        """
+        platform_name = self._get_platform_name()
+        identifier = self._get_token_identifier()
+
+        token_data = {
+            'refresh_token': refresh_token,
+            **metadata
+        }
+
+        self.token_storage.save_token(platform_name, identifier, token_data)
+
+    def _load_refresh_token_from_storage(self) -> Optional[str]:
+        """
+        Load refresh token from secure storage.
+
+        Returns:
+            str or None: Refresh token if found, None otherwise
+        """
+        platform_name = self._get_platform_name()
+        identifier = self._get_token_identifier()
+
+        token_data = self.token_storage.load_token(platform_name, identifier)
+
+        if token_data:
+            return token_data.get('refresh_token')
+
+        return None
+
+    def _check_headless_mode(self) -> bool:
+        """
+        Check if running in headless/CI mode.
+
+        Headless mode is enabled by setting the AGORAS_{PLATFORM}_HEADLESS
+        environment variable to any non-empty value.
+
+        Returns:
+            bool: True if headless mode is enabled
+        """
+        platform = self._get_platform_name().upper()
+        return bool(os.environ.get(f'AGORAS_{platform}_HEADLESS'))
+
+    def _load_refresh_token_from_env(self) -> Optional[str]:
+        """
+        Load refresh token from environment variable for CI/CD.
+
+        Checks for AGORAS_{PLATFORM}_REFRESH_TOKEN environment variable.
+
+        Returns:
+            str or None: Refresh token from environment if found
+        """
+        platform = self._get_platform_name().upper()
+        return os.environ.get(f'AGORAS_{platform}_REFRESH_TOKEN')
+
+    def _try_seed_from_environment(self) -> bool:
+        """
+        Try to seed storage from environment variables (CI/CD support).
+
+        Returns:
+            bool: True if token was successfully seeded from environment
+        """
+        platform_name = self._get_platform_name()
+        identifier = self._get_token_identifier()
+        return self.token_storage.seed_from_environment(platform_name, identifier)
 
     @abstractmethod
     async def authenticate(self) -> bool:
@@ -101,15 +244,40 @@ class BaseAuthManager(ABC):
         """
         Get cache filename for storing platform-specific tokens.
 
+        DEPRECATED: Use SecureTokenStorage instead.
+
         Returns:
             str: Cache filename
         """
         pass
 
-    # Common utility methods for token caching
+    @abstractmethod
+    def _get_platform_name(self) -> str:
+        """
+        Get the platform name for this auth manager.
+
+        Returns:
+            str: Platform name (e.g., 'facebook', 'instagram')
+        """
+        pass
+
+    @abstractmethod
+    def _get_token_identifier(self) -> str:
+        """
+        Get unique identifier for token storage (e.g., user_id, username).
+
+        Returns:
+            str: Unique identifier for this authentication session
+        """
+        pass
+
+    # Common utility methods for token caching (DEPRECATED)
     def _load_token_from_cache(self, cache_file: str, token_key: str) -> Optional[str]:
         """
         Load token from cache file.
+
+        DEPRECATED: This method is deprecated and will be removed in v2.0.
+        Use SecureTokenStorage instead via _load_refresh_token_from_storage().
 
         Args:
             cache_file (str): Cache filename
@@ -118,6 +286,14 @@ class BaseAuthManager(ABC):
         Returns:
             str or None: Token if found, None otherwise
         """
+        import warnings
+        warnings.warn(
+            "Plaintext token caching is deprecated. "
+            "Please run 'agoras <platform> authorize' to migrate to secure encrypted storage.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+
         if os.path.exists(cache_file):
             try:
                 with open(cache_file, 'r') as f:
@@ -131,11 +307,22 @@ class BaseAuthManager(ABC):
         """
         Save token to cache file.
 
+        DEPRECATED: This method is deprecated and will be removed in v2.0.
+        Use SecureTokenStorage instead via _save_refresh_token_to_storage().
+
         Args:
             cache_file (str): Cache filename
             token_key (str): Key for the token in the cache file
             token_value (str): Token value to save
         """
+        import warnings
+        warnings.warn(
+            "Plaintext token caching is deprecated. "
+            "Please run 'agoras <platform> authorize' to migrate to secure encrypted storage.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+
         data = {token_key: token_value}
         try:
             with open(cache_file, 'w') as f:
@@ -187,4 +374,4 @@ class BaseAuthManager(ABC):
         Returns:
             Result of the synchronous function
         """
-        return await asyncio.to_thread(sync_func, *args, **kwargs) 
+        return await asyncio.to_thread(sync_func, *args, **kwargs)

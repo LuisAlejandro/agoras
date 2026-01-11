@@ -8,45 +8,56 @@ TikTok is a short-form video social platform that allows users to create and sha
 Actions
 ~~~~~~~
 
-Authorize TikTok access
------------------------
+* ``authorize`` - Set up OAuth 2.0 authentication (required first step)
+* ``video`` - Upload videos to TikTok
+* ``post`` - Create photo slideshow posts
+
+Authorization
+-------------
+
+.. versionadded:: 1.6
+   OAuth 2.0 "authorize first" workflow
 
 Before you can publish content to TikTok, you must authorize Agoras to access your TikTok account. This is a one-time setup process that uses OAuth 2.0 authentication. You'll need your TikTok developer app credentials (read about how to get credentials :doc:`here <credentials/tiktok>`).
 
-This command will open a local web server and guide you through the OAuth flow:
-
 ::
 
-      agoras publish \
-            --network "tiktok" \
-            --action "authorize" \
-            --tiktok-username "${TIKTOK_USERNAME}" \
-            --tiktok-client-key "${TIKTOK_CLIENT_KEY}" \
-            --tiktok-client-secret "${TIKTOK_CLIENT_SECRET}"
+    agoras tiktok authorize \
+      --client-key "${TIKTOK_CLIENT_KEY}" \
+      --client-secret "${TIKTOK_CLIENT_SECRET}" \
+      --username "${TIKTOK_USERNAME}"
 
-After successful authorization, your refresh token will be stored locally and used for future requests.
+This will:
+
+1. Open your browser to TikTok's OAuth authorization page
+2. Prompt you to grant permissions to Agoras
+3. Automatically capture the authorization code
+4. Store encrypted credentials in ``~/.agoras/tokens/``
+
+After successful authorization, your refresh token will be stored locally and used for future requests. Credentials are automatically refreshed when needed.
+
+For CI/CD environments, see :doc:`credentials/tiktok` for headless authorization setup.
 
 Publish a TikTok video
 ----------------------
 
-This command will upload and publish a video to TikTok using the account authorized by your credentials. ``--tiktok-title`` is required and will be the video's caption. ``--tiktok-video-url`` must point to a downloadable video file in MP4, MOV, or WebM format.
+This command will upload and publish a video to TikTok. ``--title`` is required and will be the video's caption. ``--video-url`` must point to a downloadable video file in MP4, MOV, or WebM format.
 
-::
+.. note::
+   You must run ``agoras tiktok authorize`` first before using this command.
 
-      agoras publish \
-            --network "tiktok" \
-            --action "video" \
-            --tiktok-username "${TIKTOK_USERNAME}" \
-            --tiktok-client-key "${TIKTOK_CLIENT_KEY}" \
-            --tiktok-client-secret "${TIKTOK_CLIENT_SECRET}" \
-            --tiktok-video-url "${TIKTOK_VIDEO_URL}" \
-            --tiktok-title "${TIKTOK_TITLE}" \
-            --tiktok-privacy-status "${TIKTOK_PRIVACY_STATUS}"
+**New format**::
+
+    agoras tiktok video \
+      --username "${TIKTOK_USERNAME}" \
+      --video-url "${TIKTOK_VIDEO_URL}" \
+      --title "${TIKTOK_TITLE}" \
+      --privacy-status "${TIKTOK_PRIVACY_STATUS}"
 
 Optional parameters for video posts:
 
 - ``--tiktok-allow-comments``: Allow comments on the video (default: true)
-- ``--tiktok-allow-duet``: Allow other users to duet with your video (default: true)  
+- ``--tiktok-allow-duet``: Allow other users to duet with your video (default: true)
 - ``--tiktok-allow-stitch``: Allow other users to stitch your video (default: true)
 - ``--brand-organic``: Mark content as promotional (displays "Promotional content" label)
 - ``--brand-content``: Mark content as paid partnership (displays "Paid partnership" label)
@@ -60,22 +71,21 @@ Privacy status options:
 Publish a TikTok photo slideshow
 --------------------------------
 
-This command will create a photo slideshow post on TikTok. You can include up to 4 images using the ``--status-image-url-X`` parameters. TikTok will automatically add music to photo posts.
+This command will create a photo slideshow post on TikTok. You can include up to 4 images using the ``--image-X`` parameters. TikTok will automatically add music to photo posts.
 
-::
+.. note::
+   You must run ``agoras tiktok authorize`` first before using this command.
 
-      agoras publish \
-            --network "tiktok" \
-            --action "post" \
-            --tiktok-username "${TIKTOK_USERNAME}" \
-            --tiktok-client-key "${TIKTOK_CLIENT_KEY}" \
-            --tiktok-client-secret "${TIKTOK_CLIENT_SECRET}" \
-            --tiktok-title "${TIKTOK_TITLE}" \
-            --status-image-url-1 "${STATUS_IMAGE_URL_1}" \
-            --status-image-url-2 "${STATUS_IMAGE_URL_2}" \
-            --status-image-url-3 "${STATUS_IMAGE_URL_3}" \
-            --status-image-url-4 "${STATUS_IMAGE_URL_4}" \
-            --tiktok-privacy-status "${TIKTOK_PRIVACY_STATUS}"
+**New format**::
+
+    agoras tiktok post \
+      --username "${TIKTOK_USERNAME}" \
+      --title "${TIKTOK_TITLE}" \
+      --image-1 "${IMAGE_URL_1}" \
+      --image-2 "${IMAGE_URL_2}" \
+      --image-3 "${IMAGE_URL_3}" \
+      --image-4 "${IMAGE_URL_4}" \
+      --privacy-status "${TIKTOK_PRIVACY_STATUS}"
 
 Optional parameters for photo posts:
 
@@ -173,7 +183,7 @@ TikTok requires proper labeling of commercial content:
 
 **Paid Partnership** (``--brand-content``):
   - Use when content is sponsored by another brand
-  - Displays "Paid partnership" label  
+  - Displays "Paid partnership" label
   - Requires agreement to TikTok's Branded Content Policy and Music Usage Confirmation
 
 **Combined** (both flags):
@@ -208,4 +218,4 @@ When you create a TikTok post with Agoras, it will print the publish ID (in JSON
             --tiktok-title "My awesome video"
       $ {"id":"NNNNNNNNNNN"}
 
-``NNNNNNNNNNN`` is the publish ID that can be used to track the post status. 
+``NNNNNNNNNNN`` is the publish ID that can be used to track the post status.

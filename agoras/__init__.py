@@ -24,4 +24,4 @@ __email__ = 'luis@luisalejandro.org'
 __version__ = '1.1.3'
 __url__ = 'https://github.com/LuisAlejandro/agoras'
 __description__ = ('A command line python utility to manage your social'
-                   ' networks (Twitter, Facebook, LinkedIn and Instagram)')
+                   ' networks (Twitter, Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, and Threads)')

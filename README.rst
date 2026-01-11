@@ -2,7 +2,7 @@
 
 ..
 
-    A command line python utility to manage your social networks (Twitter, Facebook, LinkedIn and Instagram)
+    A command line python utility to manage your social networks (Twitter, Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, and Threads)
 
 .. image:: https://img.shields.io/pypi/v/agoras.svg
    :target: https://pypi.org/project/agoras/
@@ -44,8 +44,8 @@
 
 Current version: 1.1.3
 
-Agoras is a python utility that helps publish and delete posts on the most 
-popular social networks (twitter, facebook, instagram and linkedin).
+Agoras is a python utility that helps publish and delete posts on the most
+popular social networks (Twitter, Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, and Threads).
 
 This repository stores the application. There's also `GitHub actions`_
 that you can incorporate into your workflows.
@@ -73,81 +73,58 @@ install directlty from GitHub like this::
 Using the application
 ---------------------
 
-agoras publish
-~~~~~~~~~~~~~~
+Quick Start
+~~~~~~~~~~~
 
-This command allows you to publish a post in different social network.::
+Post to Twitter with the new intuitive CLI::
 
-    $ agoras publish --help
-    usage: agoras publish [options]
+    $ agoras twitter post \
+        --consumer-key "${TWITTER_CONSUMER_KEY}" \
+        --consumer-secret "${TWITTER_CONSUMER_SECRET}" \
+        --oauth-token "${TWITTER_OAUTH_TOKEN}" \
+        --oauth-secret "${TWITTER_OAUTH_SECRET}" \
+        --text "Hello from Agoras!" \
+        --image-1 "https://example.com/image.jpg"
 
-    General Options:
-      -V, --version         Print version and exit.
-      -h, --help            Show this help message and exit.
+See all available platforms::
 
-    Publish Options:
-      -l <level>, --loglevel <level>
-                            Logger verbosity level (default: INFO). Must be one of: DEBUG, INFO, WARNING, ERROR or CRITICAL.
-      -n <social network>, --network <social network>
-                            Social network to use for publishing (default: ""). Must be one of: twitter, facebook, instagram or linkedin.
-      -a <action>, --action <action>
-                            Action to execute (default: ""). Must be one of: like, share, last-from-feed, random-from-feed, schedule, post, delete
-      -tk <consumer key>, --twitter-consumer-key <consumer key>
-                            Twitter consumer key from twitter developer app.
-      -ts <consumer secret>, --twitter-consumer-secret <consumer secret>
-                            Twitter consumer secret from twitter developer app.
-      -tot <oauth token>, --twitter-oauth-token <oauth token>
-                            Twitter OAuth token from twitter developer app.
-      -tos <oauth secret>, --twitter-oauth-secret <oauth secret>
-                            Twitter OAuth secret from twitter developer app.
-      -ti <id>, --tweet-id <id>
-                            Twitter post ID to like, retweet or delete.
-      -ft <access token>, --facebook-access-token <access token>
-                            Facebook access token from facebook app.
-      -fo <id>, --facebook-object-id <id>
-                            Facebook ID of object where the post is going to be published.
-      -fp <id>, --facebook-post-id <id>
-                            Facebook ID of post to be liked, shared or deleted.
-      -fr <id>, --facebook-profile-id <id>
-                            Facebook ID of profile where a post will be shared.
-      -it <access token>, --instagram-access-token <access token>
-                            Facebook access token from facebook app.
-      -io <id>, --instagram-object-id <id>
-                            Instagram ID of profile where the post is going to be published.
-      -ip <id>, --instagram-post-id <id>
-                            Instagram ID of post to be liked, shared or deleted.
-      -lw <access token>, --linkedin-access-token <access token>
-                            Your LinkedIn access token.
-      -lp <id>, --linkedin-post-id <id>
-                            LinkedIn post ID to like, retweet or delete.
-      -st <text>, --status-text <text>
-                            Text to be published.
-      -sl <link>, --status-link <link>
-                            Link to be published.
-      -i1 <image url>, --status-image-url-1 <image url>
-                            First image URL to be published.
-      -i2 <image url>, --status-image-url-2 <image url>
-                            Second image URL to be published.
-      -i3 <image url>, --status-image-url-3 <image url>
-                            Third image URL to be published.
-      -i4 <image url>, --status-image-url-4 <image url>
-                            Fourth image URL to be published.
-      -fu <feed url>, --feed-url <feed url>
-                            URL of public Atom feed to be parsed.
-      -mc <number>, --max-count <number>
-                            Max number of new posts to be published at once.
-      -pl <seconds>, --post-lookback <seconds>
-                            Only allow posts published
-      -ma <days>, --max-post-age <days>
-                            Dont allow publishing of posts older than this number of days.
-      -ge <email>, --google-sheets-client-email <email>
-                            A google console project client email corresponding to the private key.
-      -gk <private key>, --google-sheets-private-key <private key>
-                            A google console project private key.
-      -gi <id>, --google-sheets-id <id>
-                            The google sheets ID to read schedule entries.
-      -gn <name>, --google-sheets-name <name>
-                            The name of the sheet where the schedule is.
+    $ agoras --help
+
+See platform-specific commands::
+
+    $ agoras twitter --help
+    $ agoras facebook --help
+    $ agoras youtube --help
+
+Supported Platforms
+~~~~~~~~~~~~~~~~~~~
+
+Agoras supports 8 social networks with intuitive platform-first commands:
+
+- **Twitter**: ``agoras twitter <action>`` - Full action set (post, video, like, share, delete)
+- **Facebook**: ``agoras facebook <action>`` - Full action set (post, video, like, share, delete)
+- **Instagram**: ``agoras instagram <action>`` - Post and video actions
+- **LinkedIn**: ``agoras linkedin <action>`` - Full action set (post, video, like, share, delete)
+- **Discord**: ``agoras discord <action>`` - Bot-based messaging (post, video, delete)
+- **YouTube**: ``agoras youtube <action>`` - Video platform (video, like, delete)
+- **TikTok**: ``agoras tiktok <action>`` - Video platform (video, delete)
+- **Threads**: ``agoras threads <action>`` - Meta's platform (post, video, share, reply, analytics, moderation)
+
+Automation Commands
+~~~~~~~~~~~~~~~~~~~
+
+Publish from RSS/Atom feeds::
+
+    $ agoras utils feed-publish \
+        --network twitter \
+        --mode last \
+        --feed-url "https://blog.example.com/feed.xml"
+
+Run scheduled posts from Google Sheets::
+
+    $ agoras utils schedule-run \
+        --sheets-id "${GOOGLE_SHEETS_ID}" \
+        --sheets-name "Schedule"
 
 
 Examples of usage
@@ -157,11 +134,21 @@ Examples of usage
 .. _Using Agoras with Facebook: https://agoras.readthedocs.io/en/latest/facebook.html
 .. _Using Agoras with Instagram: https://agoras.readthedocs.io/en/latest/instagram.html
 .. _Using Agoras with LinkedIn: https://agoras.readthedocs.io/en/latest/linkedin.html
+.. _Using Agoras with Discord: https://agoras.readthedocs.io/en/latest/discord.html
+.. _Using Agoras with YouTube: https://agoras.readthedocs.io/en/latest/youtube.html
+.. _Using Agoras with TikTok: https://agoras.readthedocs.io/en/latest/tiktok.html
+.. _Using Agoras with Threads: https://agoras.readthedocs.io/en/latest/threads.html
+.. _Migration Guide: https://agoras.readthedocs.io/en/latest/migration.html
 
 - `Using Agoras with Twitter`_
 - `Using Agoras with Facebook`_
 - `Using Agoras with Instagram`_
 - `Using Agoras with LinkedIn`_
+- `Using Agoras with Discord`_
+- `Using Agoras with YouTube`_
+- `Using Agoras with TikTok`_
+- `Using Agoras with Threads`_
+- `Migration Guide`_ (New CLI Format)
 
 
 Credentials
@@ -171,12 +158,18 @@ Credentials
 .. _How to get credentials for Facebook: https://agoras.readthedocs.io/en/latest/credentials/facebook.html
 .. _How to get credentials for Instagram: https://agoras.readthedocs.io/en/latest/credentials/instagram.html
 .. _How to get credentials for LinkedIn: https://agoras.readthedocs.io/en/latest/credentials/linkedin.html
+.. _How to get credentials for Discord: https://agoras.readthedocs.io/en/latest/credentials/discord.html
+.. _How to get credentials for YouTube: https://agoras.readthedocs.io/en/latest/credentials/youtube.html
+.. _How to get credentials for TikTok: https://agoras.readthedocs.io/en/latest/credentials/tiktok.html
 .. _How to get credentials for Google spreadsheets: https://agoras.readthedocs.io/en/latest/credentials/google.html
 
 - `How to get credentials for Twitter`_
 - `How to get credentials for Facebook`_
 - `How to get credentials for Instagram`_
 - `How to get credentials for LinkedIn`_
+- `How to get credentials for Discord`_
+- `How to get credentials for YouTube`_
+- `How to get credentials for TikTok`_
 - `How to get credentials for Google spreadsheets`_
 
 Getting help

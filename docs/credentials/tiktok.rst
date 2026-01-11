@@ -117,27 +117,41 @@ You'll also need your TikTok username (the handle you want to post to):
 
 For example, if your profile shows @myawesomehandle, use ``myawesomehandle``
 
-Authorization process
---------------------
+Authorize Agoras
+----------------
 
-Before you can post content, you need to authorize Agoras to access your TikTok account:
+.. versionchanged:: 1.6
+   TikTok now uses OAuth 2.0 "authorize first" workflow.
 
-1. Run the authorization command:
+Before you can post content, you need to authorize Agoras to access your TikTok account::
 
-   ::
+    agoras tiktok authorize \
+      --client-key "${TIKTOK_CLIENT_KEY}" \
+      --client-secret "${TIKTOK_CLIENT_SECRET}" \
+      --username "${TIKTOK_USERNAME}"
 
-         agoras publish \
-               --network "tiktok" \
-               --action "authorize" \
-               --tiktok-username "yourusername" \
-               --tiktok-client-key "your_client_key" \
-               --tiktok-client-secret "your_client_secret"
+This will:
 
-2. A local web server will start and open a browser window
-3. Log in to TikTok and approve the app permissions
-4. The authorization tokens will be saved locally for future use
+1. Open your browser to TikTok's OAuth authorization page
+2. Prompt you to log in to TikTok and approve the app permissions
+3. Automatically capture the authorization code
+4. Store encrypted credentials in ``~/.agoras/tokens/``
 
-This is a one-time process. The refresh token will be stored securely and used for subsequent requests.
+This is a one-time process. The refresh token will be stored securely and used for subsequent requests. Credentials are automatically refreshed when needed.
+
+CI/CD Setup (Headless Authorization)
+------------------------------------
+
+For CI/CD environments where interactive browser authorization isn't possible:
+
+1. Run ``agoras tiktok authorize`` locally first to generate a refresh token.
+2. Extract the refresh token from ``~/.agoras/tokens/tiktok-{username}.token`` (decrypted).
+3. Set environment variables in your CI/CD pipeline::
+
+      export AGORAS_TIKTOK_REFRESH_TOKEN="your_refresh_token_here"
+      export AGORAS_TIKTOK_HEADLESS=1
+
+4. Agoras will automatically use the refresh token from the environment variable.
 
 Development vs Production
 ------------------------
@@ -160,14 +174,14 @@ Agoras parameters
 +------------------------+---------------------------+
 | TikTok credential      | Agoras parameter          |
 +========================+===========================+
-| Client Key             | --tiktok-client-key       |
+| Client Key             | --client-key              |
 +------------------------+---------------------------+
-| Client Secret          | --tiktok-client-secret    |
+| Client Secret          | --client-secret            |
 +------------------------+---------------------------+
-| Username               | --tiktok-username         |
+| Username               | --username                |
 +------------------------+---------------------------+
 
-**Note**: Refresh tokens are managed automatically by Agoras after the initial authorization.
+**Note**: After authorization, refresh tokens are managed automatically by Agoras. You no longer need to provide tokens for actions.
 
 Troubleshooting
 ---------------
@@ -192,4 +206,4 @@ Troubleshooting
 - Check that your video duration doesn't exceed account limits
 - Make sure your video file is accessible from the provided URL
 
-For more help, consult the `TikTok for Developers documentation <https://developers.tiktok.com/doc/>`_. 
+For more help, consult the `TikTok for Developers documentation <https://developers.tiktok.com/doc/>`_.

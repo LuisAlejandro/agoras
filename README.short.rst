@@ -2,7 +2,7 @@
 
 ..
 
-    A command line python utility to manage your social networks (Twitter, Facebook, LinkedIn and Instagram)
+    A command line python utility to manage your social networks (Twitter, Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, and Threads)
 
 .. image:: https://img.shields.io/pypi/v/agoras.svg
    :target: https://pypi.org/project/agoras/
@@ -44,8 +44,8 @@
 
 Current version: 1.1.3
 
-Agoras is a python utility that helps publish and delete posts on the most 
-popular social networks (twitter, facebook, instagram and linkedin).
+Agoras is a python utility that helps publish and delete posts on the most
+popular social networks (Twitter, Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, and Threads).
 
 This repository stores the application. There's also `GitHub actions`_
 that you can incorporate into your workflows.

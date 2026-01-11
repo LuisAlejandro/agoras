@@ -1,6 +1,86 @@
 Google credentials
 ==================
 
+This document covers credentials for both Google Sheets (for scheduling) and YouTube (for video publishing).
+
+YouTube OAuth 2.0 Credentials
+------------------------------
+
+.. versionadded:: 1.6
+   YouTube now uses OAuth 2.0 "authorize first" workflow.
+
+Agoras needs the following OAuth app credentials from Google to access YouTube:
+
+- Client ID (OAuth 2.0 Client ID)
+- Client Secret (OAuth 2.0 Client Secret)
+
+Create Google OAuth Credentials for YouTube
+--------------------------------------------
+
+1. Go to the `Google Cloud Console <https://console.cloud.google.com/>`_.
+2. Create a new project or select an existing one.
+3. Enable the **YouTube Data API v3**:
+
+   - Go to **APIs & Services** > **Library**
+   - Search for "YouTube Data API v3"
+   - Click **Enable**
+
+4. Create OAuth 2.0 credentials:
+
+   - Go to **APIs & Services** > **Credentials**
+   - Click **Create Credentials** > **OAuth client ID**
+   - If prompted, configure the OAuth consent screen first
+   - Select application type: **Desktop app** or **Web application**
+   - Add authorized redirect URIs: ``http://localhost:3456/callback``
+   - Click **Create**
+   - Copy the **Client ID** and **Client Secret**
+
+Authorize Agoras for YouTube
+-----------------------------
+
+Once you have your OAuth credentials, authorize Agoras to access your YouTube account::
+
+    agoras youtube authorize \
+      --client-id "${YOUTUBE_CLIENT_ID}" \
+      --client-secret "${YOUTUBE_CLIENT_SECRET}"
+
+This will:
+
+1. Open your browser to Google's OAuth authorization page
+2. Prompt you to grant permissions to Agoras
+3. Automatically capture the authorization code
+4. Store encrypted credentials in ``~/.agoras/tokens/``
+
+After authorization, you can use YouTube actions without providing tokens. Credentials are automatically refreshed when needed.
+
+CI/CD Setup (Headless Authorization)
+------------------------------------
+
+For CI/CD environments where interactive browser authorization isn't possible:
+
+1. Run ``agoras youtube authorize`` locally first to generate a refresh token.
+2. Extract the refresh token from ``~/.agoras/tokens/youtube-{user_id}.token`` (decrypted).
+3. Set environment variables in your CI/CD pipeline::
+
+      export AGORAS_YOUTUBE_REFRESH_TOKEN="your_refresh_token_here"
+      export AGORAS_YOUTUBE_HEADLESS=1
+
+4. Agoras will automatically use the refresh token from the environment variable.
+
+YouTube Parameters
+------------------
+
++------------------------------+--------------------------+
+| YouTube credential           | Agoras parameter         |
++==============================+==========================+
+| Client ID                    | --client-id              |
++------------------------------+--------------------------+
+| Client Secret                | --client-secret          |
++------------------------------+--------------------------+
+
+Google Sheets Credentials (for Scheduling)
+-------------------------------------------
+
 Creating JSON file with credentials to access Google Sheets API is fast
 and easy. It can be summarized with the following steps.
 

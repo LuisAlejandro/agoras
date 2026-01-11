@@ -27,30 +27,42 @@ Currently supported platforms:
 - Facebook: FacebookAuthManager (OAuth 2.0 with compliance fixes)
 - Instagram: InstagramAuthManager (OAuth 2.0 via Facebook)
 - LinkedIn: LinkedInAuthManager (OAuth 2.0)
+- Telegram: TelegramAuthManager (Bot Token Authentication)
 - Threads: ThreadsAuthManager (OAuth 2.0 via Meta)
 - TikTok: TikTokAuthManager (OAuth 2.0 with PKCE and compliance fixes)
-- Twitter: TwitterAuthManager (OAuth 1.0a)
+- WhatsApp: WhatsAppAuthManager (Direct Access Token via Meta Graph API)
+- X: XAuthManager (OAuth 1.0a)
 - YouTube: YouTubeAuthManager (OAuth 2.0 via Google)
 """
 
 from .base import BaseAuthManager
+from .callback_server import OAuthCallbackServer
 from .discord import DiscordAuthManager
+from .exceptions import AuthenticationError
 from .facebook import FacebookAuthManager
 from .instagram import InstagramAuthManager
 from .linkedin import LinkedInAuthManager
+from .storage import SecureTokenStorage
+from .telegram import TelegramAuthManager
 from .threads import ThreadsAuthManager
 from .tiktok import TikTokAuthManager
-from .twitter import TwitterAuthManager
+from .whatsapp import WhatsAppAuthManager
+from .x import XAuthManager
 from .youtube import YouTubeAuthManager
 
 __all__ = [
+    'AuthenticationError',
     'BaseAuthManager',
     'DiscordAuthManager',
     'FacebookAuthManager',
     'InstagramAuthManager',
     'LinkedInAuthManager',
+    'OAuthCallbackServer',
+    'SecureTokenStorage',
+    'TelegramAuthManager',
     'ThreadsAuthManager',
     'TikTokAuthManager',
-    'TwitterAuthManager',
+    'WhatsAppAuthManager',
+    'XAuthManager',
     'YouTubeAuthManager',
 ]
