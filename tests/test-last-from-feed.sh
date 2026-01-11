@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# Integration Test - End-to-End testing with real API credentials
+# Uses the installed agoras CLI command
+# Part of agoras v2.0 modular package structure
+
 # Exit early if there are errors and be verbose
 set -exuo pipefail
 
@@ -7,7 +11,7 @@ source ../secrets.env
 
 if [ "${1}" == "twitter" ]; then
     LAST_FROM_FEED_TWEET_ID=$(
-        python3 -m agoras.cli utils feed-publish \
+        agoras utils feed-publish \
             --network twitter \
             --mode last \
             --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \
@@ -21,7 +25,7 @@ if [ "${1}" == "twitter" ]; then
 
     sleep 5
 
-    [ -n "${LAST_FROM_FEED_TWEET_ID}" ] && python3 -m agoras.cli twitter delete \
+    [ -n "${LAST_FROM_FEED_TWEET_ID}" ] && agoras twitter delete \
         --consumer-key "${TWITTER_CONSUMER_KEY}" \
         --consumer-secret "${TWITTER_CONSUMER_SECRET}" \
         --oauth-token "${TWITTER_OAUTH_TOKEN}" \
@@ -29,12 +33,12 @@ if [ "${1}" == "twitter" ]; then
         --post-id "${LAST_FROM_FEED_TWEET_ID}" || true
 
 elif [ "${1}" == "tiktok" ]; then
-    python3 -m agoras.cli tiktok authorize \
+    agoras tiktok authorize \
         --client-key "${TIKTOK_CLIENT_KEY}" \
         --client-secret "${TIKTOK_CLIENT_SECRET}"
 
     LAST_FROM_FEED_TIKTOK_ID=$(
-        python3 -m agoras.cli utils feed-publish \
+        agoras utils feed-publish \
             --network tiktok \
             --mode last \
             --tiktok-username "${TIKTOK_USERNAME}" \
@@ -51,7 +55,7 @@ elif [ "${1}" == "tiktok" ]; then
 
 elif [ "${1}" == "youtube" ]; then
     LAST_FROM_FEED_YOUTUBE_ID=$(
-        python3 -m agoras.cli utils feed-publish \
+        agoras utils feed-publish \
             --network youtube \
             --mode last \
             --youtube-client-id "${YOUTUBE_CLIENT_ID}" \
@@ -63,14 +67,14 @@ elif [ "${1}" == "youtube" ]; then
 
     sleep 5
 
-    [ -n "${LAST_FROM_FEED_YOUTUBE_ID}" ] && python3 -m agoras.cli youtube delete \
+    [ -n "${LAST_FROM_FEED_YOUTUBE_ID}" ] && agoras youtube delete \
         --client-id "${YOUTUBE_CLIENT_ID}" \
         --client-secret "${YOUTUBE_CLIENT_SECRET}" \
         --video-id "${LAST_FROM_FEED_YOUTUBE_ID}" || true
 
 elif [ "${1}" == "facebook" ]; then
     LAST_FROM_FEED_FACEBOOK_ID=$(
-        python3 -m agoras.cli utils feed-publish \
+        agoras utils feed-publish \
             --network facebook \
             --mode last \
             --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
@@ -82,13 +86,13 @@ elif [ "${1}" == "facebook" ]; then
 
     sleep 5
 
-    [ -n "${LAST_FROM_FEED_FACEBOOK_ID}" ] && python3 -m agoras.cli facebook delete \
+    [ -n "${LAST_FROM_FEED_FACEBOOK_ID}" ] && agoras facebook delete \
         --access-token "${FACEBOOK_ACCESS_TOKEN}" \
         --post-id "${LAST_FROM_FEED_FACEBOOK_ID}" || true
 
 elif [ "${1}" == "instagram" ]; then
     LAST_FROM_FEED_INSTAGRAM_ID=$(
-        python3 -m agoras.cli utils feed-publish \
+        agoras utils feed-publish \
             --network instagram \
             --mode last \
             --instagram-access-token "${INSTAGRAM_ACCESS_TOKEN}" \
@@ -103,7 +107,7 @@ elif [ "${1}" == "instagram" ]; then
 
 elif [ "${1}" == "discord" ]; then
     LAST_FROM_FEED_DISCORD_ID=$(
-        python3 -m agoras.cli utils feed-publish \
+        agoras utils feed-publish \
             --network discord \
             --mode last \
             --discord-bot-token "${DISCORD_BOT_TOKEN}" \
@@ -116,7 +120,7 @@ elif [ "${1}" == "discord" ]; then
 
     sleep 5
 
-    [ -n "${LAST_FROM_FEED_DISCORD_ID}" ] && python3 -m agoras.cli discord delete \
+    [ -n "${LAST_FROM_FEED_DISCORD_ID}" ] && agoras discord delete \
         --bot-token "${DISCORD_BOT_TOKEN}" \
         --server-name "${DISCORD_SERVER_NAME}" \
         --channel-name "${DISCORD_CHANNEL_NAME}" \
@@ -124,7 +128,7 @@ elif [ "${1}" == "discord" ]; then
 
 elif [ "${1}" == "linkedin" ]; then
     LAST_FROM_FEED_LINKEDIN_ID=$(
-        python3 -m agoras.cli utils feed-publish \
+        agoras utils feed-publish \
             --network linkedin \
             --mode last \
             --linkedin-client-id "${LINKEDIN_CLIENT_ID}" \
@@ -137,7 +141,7 @@ elif [ "${1}" == "linkedin" ]; then
 
     sleep 5
 
-    [ -n "${LAST_FROM_FEED_LINKEDIN_ID}" ] && python3 -m agoras.cli linkedin delete \
+    [ -n "${LAST_FROM_FEED_LINKEDIN_ID}" ] && agoras linkedin delete \
         --client-id "${LINKEDIN_CLIENT_ID}" \
         --client-secret "${LINKEDIN_CLIENT_SECRET}" \
         --access-token "${LINKEDIN_ACCESS_TOKEN}" \

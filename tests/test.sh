@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# Integration Test Master Runner - End-to-End testing with real API credentials
+# Orchestrates all integration tests across multiple platforms
+# Part of agoras v2.0 modular package structure
+
 # Exit early if there are errors and be verbose
 set -exuo pipefail
 

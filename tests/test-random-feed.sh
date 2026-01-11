@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# Integration Test - End-to-End testing with real API credentials
+# Uses the installed agoras CLI command
+# Part of agoras v2.0 modular package structure
+
 # Exit early if there are errors and be verbose
 set -exuo pipefail
 
@@ -7,7 +11,7 @@ source ../secrets.env
 
 if [ "${1}" == "twitter" ]; then
     RANDOM_FROM_FEED_TWEET_ID=$(
-        python3 -m agoras.cli utils feed-publish \
+        agoras utils feed-publish \
             --network twitter \
             --mode random \
             --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \
@@ -20,7 +24,7 @@ if [ "${1}" == "twitter" ]; then
 
     sleep 5
 
-    [ -n "${RANDOM_FROM_FEED_TWEET_ID}" ] && python3 -m agoras.cli publish \
+    [ -n "${RANDOM_FROM_FEED_TWEET_ID}" ] && agoras publish \
         --network twitter \
         --action delete \
         --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \
@@ -30,7 +34,7 @@ if [ "${1}" == "twitter" ]; then
         --tweet-id "${RANDOM_FROM_FEED_TWEET_ID}" || true
 
 elif [ "${1}" == "tiktok" ]; then
-    python3 -m agoras.cli publish \
+    agoras publish \
         --network tiktok \
         --action authorize \
         --tiktok-username "${TIKTOK_USERNAME}" \
@@ -38,7 +42,7 @@ elif [ "${1}" == "tiktok" ]; then
         --tiktok-client-secret "${TIKTOK_CLIENT_SECRET}"
 
     RANDOM_FROM_FEED_TIKTOK_ID=$(
-        python3 -m agoras.cli publish \
+        agoras publish \
             --network tiktok \
             --action random-from-feed \
             --tiktok-username "${TIKTOK_USERNAME}" \
@@ -53,7 +57,7 @@ elif [ "${1}" == "tiktok" ]; then
 
 elif [ "${1}" == "youtube" ]; then
     RANDOM_FROM_FEED_YOUTUBE_ID=$(
-        python3 -m agoras.cli publish \
+        agoras publish \
             --network youtube \
             --action random-from-feed \
             --youtube-client-id "${YOUTUBE_CLIENT_ID}" \
@@ -64,7 +68,7 @@ elif [ "${1}" == "youtube" ]; then
 
     sleep 5
 
-    [ -n "${RANDOM_FROM_FEED_YOUTUBE_ID}" ] && python3 -m agoras.cli publish \
+    [ -n "${RANDOM_FROM_FEED_YOUTUBE_ID}" ] && agoras publish \
         --network youtube \
         --action delete \
         --youtube-client-id "${YOUTUBE_CLIENT_ID}" \
@@ -73,7 +77,7 @@ elif [ "${1}" == "youtube" ]; then
 
 elif [ "${1}" == "facebook" ]; then
     RANDOM_FROM_FEED_FACEBOOK_ID=$(
-        python3 -m agoras.cli utils feed-publish \
+        agoras utils feed-publish \
             --network facebook \
             --mode random \
             --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
@@ -84,7 +88,7 @@ elif [ "${1}" == "facebook" ]; then
 
     sleep 5
 
-    [ -n "${RANDOM_FROM_FEED_FACEBOOK_ID}" ] && python3 -m agoras.cli publish \
+    [ -n "${RANDOM_FROM_FEED_FACEBOOK_ID}" ] && agoras publish \
         --network facebook \
         --action delete \
         --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
@@ -93,7 +97,7 @@ elif [ "${1}" == "facebook" ]; then
 
 elif [ "${1}" == "instagram" ]; then
     RANDOM_FROM_FEED_INSTAGRAM_ID=$(
-        python3 -m agoras.cli utils feed-publish \
+        agoras utils feed-publish \
             --network instagram \
             --mode random \
             --instagram-access-token "${INSTAGRAM_ACCESS_TOKEN}" \
@@ -107,7 +111,7 @@ elif [ "${1}" == "instagram" ]; then
 
 elif [ "${1}" == "discord" ]; then
     RANDOM_FROM_FEED_DISCORD_ID=$(
-        python3 -m agoras.cli publish \
+        agoras publish \
             --network discord \
             --action random-from-feed \
             --discord-bot-token "${DISCORD_BOT_TOKEN}" \
@@ -119,7 +123,7 @@ elif [ "${1}" == "discord" ]; then
 
     sleep 5
 
-    [ -n "${RANDOM_FROM_FEED_DISCORD_ID}" ] && python3 -m agoras.cli publish \
+    [ -n "${RANDOM_FROM_FEED_DISCORD_ID}" ] && agoras publish \
         --network discord \
         --action delete \
         --discord-bot-token "${DISCORD_BOT_TOKEN}" \
@@ -129,7 +133,7 @@ elif [ "${1}" == "discord" ]; then
 
 elif [ "${1}" == "linkedin" ]; then
     RANDOM_FROM_FEED_LINKEDIN_ID=$(
-        python3 -m agoras.cli utils feed-publish \
+        agoras utils feed-publish \
             --network linkedin \
             --mode random \
             --linkedin-client-id "${LINKEDIN_CLIENT_ID}" \
@@ -141,7 +145,7 @@ elif [ "${1}" == "linkedin" ]; then
 
     sleep 5
 
-    [ -n "${RANDOM_FROM_FEED_LINKEDIN_ID}" ] && python3 -m agoras.cli publish \
+    [ -n "${RANDOM_FROM_FEED_LINKEDIN_ID}" ] && agoras publish \
         --network linkedin \
         --action delete \
         --linkedin-client-id "${LINKEDIN_CLIENT_ID}" \

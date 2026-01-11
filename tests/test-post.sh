@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# Integration Test - End-to-End testing with real API credentials
+# Uses the installed agoras CLI command
+# Part of agoras v2.0 modular package structure
+
 # Exit early if there are errors and be verbose
 set -exuo pipefail
 
@@ -7,7 +11,7 @@ source ../secrets.env
 
 if [ "${1}" == "twitter" ]; then
     POST_TWITTER_ID=$(
-        python3 -m agoras.cli twitter post \
+        agoras twitter post \
             --consumer-key "${TWITTER_CONSUMER_KEY}" \
             --consumer-secret "${TWITTER_CONSUMER_SECRET}" \
             --oauth-token "${TWITTER_OAUTH_TOKEN}" \
@@ -18,7 +22,7 @@ if [ "${1}" == "twitter" ]; then
 
     sleep 5
 
-    [ -n "${POST_TWITTER_ID}" ] && python3 -m agoras.cli twitter delete \
+    [ -n "${POST_TWITTER_ID}" ] && agoras twitter delete \
         --consumer-key "${TWITTER_CONSUMER_KEY}" \
         --consumer-secret "${TWITTER_CONSUMER_SECRET}" \
         --oauth-token "${TWITTER_OAUTH_TOKEN}" \
@@ -26,12 +30,12 @@ if [ "${1}" == "twitter" ]; then
         --post-id "${POST_TWITTER_ID}" || true
 
 elif [ "${1}" == "tiktok" ]; then
-    python3 -m agoras.cli tiktok authorize \
+    agoras tiktok authorize \
         --client-key "${TIKTOK_CLIENT_KEY}" \
         --client-secret "${TIKTOK_CLIENT_SECRET}"
 
     POST_TIKTOK_ID=$(
-        python3 -m agoras.cli tiktok video \
+        agoras tiktok video \
             --client-key "${TIKTOK_CLIENT_KEY}" \
             --client-secret "${TIKTOK_CLIENT_SECRET}" \
             --access-token "${TIKTOK_ACCESS_TOKEN}" \
@@ -44,7 +48,7 @@ elif [ "${1}" == "tiktok" ]; then
     echo "Note: TikTok does not support delete, like, or share actions"
 
 elif [ "${1}" == "facebook-video" ]; then
-    python3 -m agoras.cli facebook video \
+    agoras facebook video \
         --access-token "${FACEBOOK_ACCESS_TOKEN}" \
         --app-id "${FACEBOOK_APP_ID}" \
         --object-id "${FACEBOOK_OBJECT_ID}" \
@@ -55,7 +59,7 @@ elif [ "${1}" == "facebook-video" ]; then
 
 elif [ "${1}" == "youtube" ]; then
     POST_YOUTUBE_ID=$(
-        python3 -m agoras.cli youtube video \
+        agoras youtube video \
             --client-id "${YOUTUBE_CLIENT_ID}" \
             --client-secret "${YOUTUBE_CLIENT_SECRET}" \
             --title "${YOUTUBE_TITLE}" \
@@ -64,21 +68,21 @@ elif [ "${1}" == "youtube" ]; then
 
     sleep 5
 
-    [ -n "${POST_YOUTUBE_ID}" ] && python3 -m agoras.cli youtube like \
+    [ -n "${POST_YOUTUBE_ID}" ] && agoras youtube like \
         --client-id "${YOUTUBE_CLIENT_ID}" \
         --client-secret "${YOUTUBE_CLIENT_SECRET}" \
         --video-id "${POST_YOUTUBE_ID}" || true
 
     sleep 5
 
-    [ -n "${POST_YOUTUBE_ID}" ] && python3 -m agoras.cli youtube delete \
+    [ -n "${POST_YOUTUBE_ID}" ] && agoras youtube delete \
         --client-id "${YOUTUBE_CLIENT_ID}" \
         --client-secret "${YOUTUBE_CLIENT_SECRET}" \
         --video-id "${POST_YOUTUBE_ID}" || true
 
 elif [ "${1}" == "facebook" ]; then
     POST_FACEBOOK_ID=$(
-        python3 -m agoras.cli facebook post \
+        agoras facebook post \
             --access-token "${FACEBOOK_ACCESS_TOKEN}" \
             --object-id "${FACEBOOK_OBJECT_ID}" \
             --text "${FACEBOOK_STATUS_TEXT}" \
@@ -88,7 +92,7 @@ elif [ "${1}" == "facebook" ]; then
     sleep 5
 
     SHARED_POST_FACEBOOK_ID=$(
-        python3 -m agoras.cli facebook share \
+        agoras facebook share \
             --access-token "${FACEBOOK_ACCESS_TOKEN}" \
             --profile-id "${FACEBOOK_PROFILE_ID}" \
             --post-id "${POST_FACEBOOK_ID}" | jq --unbuffered '.' | jq -r '.id'
@@ -96,25 +100,25 @@ elif [ "${1}" == "facebook" ]; then
 
     sleep 5
 
-    [ -n "${POST_FACEBOOK_ID}" ] && python3 -m agoras.cli facebook like \
+    [ -n "${POST_FACEBOOK_ID}" ] && agoras facebook like \
         --access-token "${FACEBOOK_ACCESS_TOKEN}" \
         --post-id "${POST_FACEBOOK_ID}" || true
 
     sleep 5
 
-    [ -n "${SHARED_POST_FACEBOOK_ID}" ] && python3 -m agoras.cli facebook delete \
+    [ -n "${SHARED_POST_FACEBOOK_ID}" ] && agoras facebook delete \
         --access-token "${FACEBOOK_ACCESS_TOKEN}" \
         --post-id "${SHARED_POST_FACEBOOK_ID}" || true
 
     sleep 5
 
-    [ -n "${POST_FACEBOOK_ID}" ] && python3 -m agoras.cli facebook delete \
+    [ -n "${POST_FACEBOOK_ID}" ] && agoras facebook delete \
         --access-token "${FACEBOOK_ACCESS_TOKEN}" \
         --post-id "${POST_FACEBOOK_ID}" || true
 
 elif [ "${1}" == "instagram" ]; then
     POST_INSTAGRAM_ID=$(
-        python3 -m agoras.cli instagram post \
+        agoras instagram post \
             --access-token "${INSTAGRAM_ACCESS_TOKEN}" \
             --object-id "${INSTAGRAM_OBJECT_ID}" \
             --text "${INSTAGRAM_STATUS_TEXT}" \
@@ -126,7 +130,7 @@ elif [ "${1}" == "instagram" ]; then
 
 elif [ "${1}" == "discord" ]; then
     POST_DISCORD_ID=$(
-        python3 -m agoras.cli discord post \
+        agoras discord post \
             --bot-token "${DISCORD_BOT_TOKEN}" \
             --server-name "${DISCORD_SERVER_NAME}" \
             --channel-name "${DISCORD_CHANNEL_NAME}" \
@@ -140,7 +144,7 @@ elif [ "${1}" == "discord" ]; then
 
     sleep 5
 
-    [ -n "${POST_DISCORD_ID}" ] && python3 -m agoras.cli discord delete \
+    [ -n "${POST_DISCORD_ID}" ] && agoras discord delete \
         --bot-token "${DISCORD_BOT_TOKEN}" \
         --server-name "${DISCORD_SERVER_NAME}" \
         --channel-name "${DISCORD_CHANNEL_NAME}" \
@@ -148,7 +152,7 @@ elif [ "${1}" == "discord" ]; then
 
 elif [ "${1}" == "linkedin" ]; then
     POST_LINKEDIN_ID=$(
-        python3 -m agoras.cli linkedin post \
+        agoras linkedin post \
             --client-id "${LINKEDIN_CLIENT_ID}" \
             --client-secret "${LINKEDIN_CLIENT_SECRET}" \
             --access-token "${LINKEDIN_ACCESS_TOKEN}" \
@@ -159,7 +163,7 @@ elif [ "${1}" == "linkedin" ]; then
     sleep 5
 
     SHARED_POST_LINKEDIN_ID=$(
-        python3 -m agoras.cli linkedin share \
+        agoras linkedin share \
             --client-id "${LINKEDIN_CLIENT_ID}" \
             --client-secret "${LINKEDIN_CLIENT_SECRET}" \
             --access-token "${LINKEDIN_ACCESS_TOKEN}" \
@@ -168,7 +172,7 @@ elif [ "${1}" == "linkedin" ]; then
 
     sleep 5
 
-    [ -n "${POST_LINKEDIN_ID}" ] && python3 -m agoras.cli linkedin like \
+    [ -n "${POST_LINKEDIN_ID}" ] && agoras linkedin like \
         --client-id "${LINKEDIN_CLIENT_ID}" \
         --client-secret "${LINKEDIN_CLIENT_SECRET}" \
         --access-token "${LINKEDIN_ACCESS_TOKEN}" \
@@ -176,7 +180,7 @@ elif [ "${1}" == "linkedin" ]; then
 
     sleep 5
 
-    [ -n "${SHARED_POST_LINKEDIN_ID}" ] && python3 -m agoras.cli linkedin delete \
+    [ -n "${SHARED_POST_LINKEDIN_ID}" ] && agoras linkedin delete \
         --client-id "${LINKEDIN_CLIENT_ID}" \
         --client-secret "${LINKEDIN_CLIENT_SECRET}" \
         --access-token "${LINKEDIN_ACCESS_TOKEN}" \
@@ -184,7 +188,7 @@ elif [ "${1}" == "linkedin" ]; then
 
     sleep 5
 
-    [ -n "${POST_LINKEDIN_ID}" ] && python3 -m agoras.cli linkedin delete \
+    [ -n "${POST_LINKEDIN_ID}" ] && agoras linkedin delete \
         --client-id "${LINKEDIN_CLIENT_ID}" \
         --client-secret "${LINKEDIN_CLIENT_SECRET}" \
         --access-token "${LINKEDIN_ACCESS_TOKEN}" \
