@@ -30,4 +30,14 @@ RUN mkdir -p \
 
 WORKDIR /home/agoras/app
 
+# Copy packages directory for v2.0 modular structure
+COPY --chown=agoras:agoras packages/ /home/agoras/app/packages/
+
+# Install all packages in development mode
+RUN pip3 install -e packages/common \
+    -e packages/media \
+    -e packages/core \
+    -e packages/platforms \
+    -e packages/cli
+
 CMD ["tail", "-f", "/dev/null"]

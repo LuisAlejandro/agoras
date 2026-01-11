@@ -242,12 +242,14 @@ tests/test_core_utils.py     → packages/common/tests/test_utils.py
 ### Platform Classes
 
 **Old**:
+
 ```python
 from agoras.core.facebook import Facebook
 from agoras.core.x import X
 ```
 
 **New**:
+
 ```python
 from agoras.platforms.facebook import Facebook
 from agoras.platforms.x import X
@@ -256,11 +258,13 @@ from agoras.platforms.x import X
 ### Core Interfaces
 
 **Old**:
+
 ```python
 from agoras.core.base import SocialNetwork
 ```
 
 **New**:
+
 ```python
 from agoras.core.interfaces import SocialNetwork
 ```
@@ -268,12 +272,14 @@ from agoras.core.interfaces import SocialNetwork
 ### Common Utilities
 
 **Old**:
+
 ```python
 from agoras.core.logger import logger
 from agoras.core.utils import sanitize_text
 ```
 
 **New**:
+
 ```python
 from agoras.common.logger import logger
 from agoras.common.utils import sanitize_text
@@ -282,12 +288,14 @@ from agoras.common.utils import sanitize_text
 ### Media
 
 **Old**:
+
 ```python
 from agoras.core.media import MediaFactory
 from agoras.core.media.image import Image
 ```
 
 **New**:
+
 ```python
 from agoras.media import MediaFactory
 from agoras.media.image import Image
@@ -296,11 +304,13 @@ from agoras.media.image import Image
 ### CLI Entry Point
 
 **Old**:
+
 ```python
 from agoras.cli import main, commandline
 ```
 
 **New**:
+
 ```python
 from agoras.cli.main import main, commandline
 ```
@@ -321,6 +331,7 @@ These files were organization/import helpers in the monolithic structure. In the
 ## Package Structure Comparison
 
 ### Old Monolithic Structure
+
 ```
 agoras/
 ├── __init__.py
@@ -339,6 +350,7 @@ agoras/
 ```
 
 ### New Modular Structure
+
 ```
 packages/
 ├── common/src/agoras/common/
@@ -372,7 +384,8 @@ If you need to find where old code went:
 
 Use this mapping to update any remaining import statements:
 
-**Pattern**: 
+**Pattern**:
+
 - `agoras.core.<platform>` → `agoras.platforms.<platform>`
 - `agoras.core.base` → `agoras.core.interfaces`
 - `agoras.core.logger` → `agoras.common.logger`
@@ -382,6 +395,7 @@ Use this mapping to update any remaining import statements:
 ## Verification
 
 All files listed above have been:
+
 - ✓ Migrated to new package structure
 - ✓ Tested in new location (Week 3, Day 3: 151 tests passing)
 - ✓ Manually verified (Week 3, Days 4-5: 70 tests passing)

@@ -1,0 +1,21 @@
+# DEPRECATED: This file is no longer used
+
+This setup.py file referenced the old monolithic package structure which has been removed.
+
+The proper setup.py file for agoras v2.0 is located at:
+  packages/cli/setup.py
+
+To install the CLI:
+  pip install packages/cli/
+
+Or in development mode:
+  pip install -e packages/cli
+
+The new modular structure consists of 5 packages:
+  - agoras-common (packages/common/)
+  - agoras-media (packages/media/)
+  - agoras-core (packages/core/)
+  - agoras-platforms (packages/platforms/)
+  - agoras (CLI) (packages/cli/)
+
+For more information, see MIGRATION.rst

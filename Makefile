@@ -64,20 +64,20 @@ clean-docs:
 	rm -fr docs/_build
 
 lint: start
-	@$(exec_on_docker) flake8 agoras
+	@$(exec_on_docker) sh -c "cd packages && tox -e lint"
 
 format: start
-	@$(exec_on_docker) autopep8 --in-place --recursive --aggressive --aggressive agoras tests
+	@$(exec_on_docker) autopep8 --in-place --recursive --aggressive --aggressive packages/*/src/agoras
 
 lint-and-format: start
-	@$(exec_on_docker) autopep8 --in-place --recursive --aggressive --aggressive agoras tests
-	@$(exec_on_docker) flake8 agoras
+	@$(exec_on_docker) autopep8 --in-place --recursive --aggressive --aggressive packages/*/src/agoras
+	@$(exec_on_docker) sh -c "cd packages && tox -e lint"
 
 test: start
-	@$(exec_on_docker) python3 -m unittest -v -f
+	@$(exec_on_docker) sh -c "cd packages && pytest common/tests media/tests core/tests platforms/tests cli/tests -v"
 
 test-all: start
-	@$(exec_on_docker) tox
+	@$(exec_on_docker) sh -c "cd packages && tox -e all"
 
 functional-test: start
 	# @$(exec_on_docker) bash test.sh twitter
@@ -87,10 +87,8 @@ functional-test: start
 	@$(exec_on_docker) bash test.sh discord
 
 coverage: start
-	@$(exec_on_docker) coverage run --source agoras -m unittest -v -f
-	@$(exec_on_docker) coverage report -m
-	@$(exec_on_docker) coverage html
-	@$(BROWSER) htmlcov/index.html
+	@$(exec_on_docker) sh -c "cd packages && tox -e coverage"
+	@$(BROWSER) packages/htmlcov/index.html
 
 docs:
 	@$(exec_on_docker) make -C docs clean

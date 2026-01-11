@@ -6,6 +6,7 @@
 ## Summary
 
 **Total Removal**:
+
 - **Files**: 101 Python files + directories
 - **Lines of Code**: 22,841 lines
 - **Disk Space**: ~2-3 MB of source code
@@ -35,7 +36,7 @@
 | CLI Layer | 23 | ~4,300 | Parsers, converters, validators, entry point |
 | Commands | 2 | ~85 | Legacy publish command |
 | Tests | 13 | ~1,650 | Old test files (migrated to packages) |
-| Module Init Files | 9 | ~150 | __init__.py files |
+| Module Init Files | 9 | ~150 | **init**.py files |
 | **TOTAL** | **103** | **~21,685** | **All migrated and redundant** |
 
 ## Impact on Repository
@@ -56,7 +57,7 @@ Current repo structure:
 │   ├── platforms/
 │   └── cli/
 └── tests/
-    ├── cli/ (11 files, 1,576 lines) 
+    ├── cli/ (11 files, 1,576 lines)
     ├── test_core_*.py (2 files, 71 lines)
     └── *.sh (5 scripts - kept)
 
@@ -103,6 +104,7 @@ Reduction: ~23,000 lines removed (100% redundant code eliminated)
 - CLI code **restructured** with better organization
 
 **Example**: Old `agoras/core/facebook.py` (407 lines) became:
+
 - `packages/platforms/.../facebook/wrapper.py` (407 lines)
 - `packages/platforms/.../facebook/api.py` (moved from agoras/core/api/facebook.py)
 - `packages/platforms/.../facebook/client.py` (moved from agoras/core/api/clients/facebook.py)
@@ -113,11 +115,13 @@ Reduction: ~23,000 lines removed (100% redundant code eliminated)
 ### Storage Impact
 
 **Disk Space**:
+
 - Source code: ~2-3 MB
 - Git history: Preserved (no additional space saved)
 - Build artifacts: Will vary
 
 **Network Impact**:
+
 - Git clone: No change (history preserved)
 - Package downloads: Smaller (users install only what they need)
 
@@ -149,6 +153,7 @@ Reduction: ~23,000 lines removed (100% redundant code eliminated)
 ### Low Risk Removal
 
 **Why Safe**:
+
 1. All 22,841 lines verified migrated
 2. 151 automated tests passing in new structure
 3. 70 manual tests passing
@@ -158,6 +163,7 @@ Reduction: ~23,000 lines removed (100% redundant code eliminated)
 **Confidence Level**: 99% safe
 
 **Remaining 1% Risk**:
+
 - Hidden dependencies in untested code paths
 - External scripts we haven't found
 - Documentation with hardcoded old paths
@@ -176,6 +182,7 @@ Reduction: ~23,000 lines removed (100% redundant code eliminated)
 ### Verification After Cleanup
 
 Run same tests as Week 3:
+
 - Unit tests: Should still have 151/171 passing
 - Manual tests: Should still have 70/70 passing
 - Entry point: Should still work
@@ -194,6 +201,7 @@ Run same tests as Week 3:
 ## Conclusion
 
 **Cleanup is well-scoped and safe**:
+
 - Removing 103 files (22,841 lines) of redundant code
 - All functionality verified in new structure
 - Low risk due to comprehensive testing

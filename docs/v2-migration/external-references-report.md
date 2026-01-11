@@ -10,6 +10,7 @@
 **File**: [`setup.py`](../../setup.py)
 
 **Current References**:
+
 ```python
 # Line 22-23: Imports from old agoras/__init__.py
 from agoras import (__author__, __email__, __version__, __url__, __description__)
@@ -25,6 +26,7 @@ entry_points={'console_scripts': ('agoras = agoras.cli:main',)},
 ```
 
 **Action Needed** (Day 3):
+
 ```python
 # Option A: Remove this file entirely (recommended)
 # The CLI is now in packages/cli/setup.py with proper entry point
@@ -42,15 +44,17 @@ entry_points={'console_scripts': ('agoras = agoras.cli:main',)},
 **File**: [`tox.ini`](../../tox.ini)
 
 **Current References**:
+
 ```ini
 # Line 7: References old agoras directory
 PYTHONPATH = {toxinidir}:{toxinidir}/agoras
 
-# Line 14: Coverage for old structure  
+# Line 14: Coverage for old structure
 coverage run --source agoras -m unittest -v -f
 ```
 
 **Action Needed** (Day 3):
+
 ```ini
 # Option A: Remove and use packages/tox.ini instead (recommended)
 # packages/tox.ini is already configured for new structure
@@ -72,6 +76,7 @@ commands = pytest common/tests media/tests core/tests platforms/tests cli/tests 
 **Status**: Need to check if it references old structure
 
 **Action**: Review in Day 3 and update any references to:
+
 - Old test paths
 - Old build targets
 - Old coverage paths
@@ -83,6 +88,7 @@ commands = pytest common/tests media/tests core/tests platforms/tests cli/tests 
 **Status**: Need to check if it references old structure
 
 **Action**: Review in Day 3 and update any:
+
 - COPY commands referencing agoras/
 - RUN commands with old paths
 - Entry point references
@@ -94,12 +100,14 @@ commands = pytest common/tests media/tests core/tests platforms/tests cli/tests 
 **Status**: Likely has patterns for old structure
 
 **Potential References**:
+
 ```
 agoras.egg-info/
 *.egg-info
 ```
 
 **Action**: Review and ensure patterns cover new structure:
+
 ```
 packages/*/*.egg-info
 packages/*/build/
@@ -111,12 +119,13 @@ packages/*/dist/
 **Files Needing Review** (Day 5):
 
 - `README.rst` - Main documentation
-- `CONTRIBUTING.rst` - Contributor guide  
+- `CONTRIBUTING.rst` - Contributor guide
 - `docs/` - All documentation
 - `CLI_PARAMETERS.md` - CLI reference
 - `USAGE.rst` - Usage guide
 
 **Common Issues**:
+
 - Code examples using old imports
 - File path references
 - Installation instructions
@@ -145,6 +154,7 @@ packages/*/dist/
 ### Day 3: Configuration Updates
 
 **Files to Update/Remove**:
+
 1. `setup.py` - REMOVE (use packages/cli/setup.py)
 2. `tox.ini` - REMOVE (use packages/tox.ini)
 3. `Makefile` - UPDATE if it exists
@@ -154,6 +164,7 @@ packages/*/dist/
 ### Day 5: Documentation Updates
 
 **Files to Update**:
+
 1. `README.rst` - Update for modular structure
 2. `CONTRIBUTING.rst` - Update development setup
 3. `docs/` - Update all code examples
@@ -204,10 +215,12 @@ make test  # or equivalent
 ### Day 3 Actions
 
 **Remove** (Recommended):
+
 - `setup.py` - Obsolete, conflicts with packages/cli/setup.py
 - `tox.ini` - Obsolete, use packages/tox.ini
 
 **Update** (If Present):
+
 - `Makefile` - Point to packages/
 - `Dockerfile` - Update paths
 - `.gitignore` - Verify patterns
@@ -215,8 +228,9 @@ make test  # or equivalent
 ### Day 5 Actions
 
 **Update** (Required):
+
 - All documentation files
-- Code examples  
+- Code examples
 - Import statements
 - File path references
 
