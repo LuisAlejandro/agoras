@@ -37,7 +37,7 @@ setup(
         'tweepy==4.16.0',
         'python-facebook-api==0.20.1',
         'linkedin-api-client==0.3.0',
-        'beautifulsoup4==4.13.4',
+        'beautifulsoup4==4.14.3',
         'discord.py==2.6.4',
         'google-api-python-client==2.188.0',
         'google-api-core>=2.0.0',
