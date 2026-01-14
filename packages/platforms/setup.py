@@ -41,7 +41,7 @@ setup(
         'discord.py==2.5.0',
         'google-api-python-client==2.110.0',
         'google-auth-oauthlib==1.1.0',
-        'google-auth-httplib2==0.1.1',
+        'google-auth-httplib2==0.3.0',
         'oauth2client==4.1.3',
         'platformdirs==4.3.6',
         'authlib==1.6.6',
