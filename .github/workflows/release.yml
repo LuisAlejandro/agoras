@@ -121,7 +121,7 @@ jobs:
 
       # Upload all distribution files to the GitHub release as assets
       - name: Upload release assets
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/dist-common/*
