@@ -1,7 +1,7 @@
 LinkedIn credentials
 ====================
 
-.. versionchanged:: 1.6
+.. versionchanged:: 2.0
    LinkedIn now uses OAuth 2.0 authentication. You no longer need to manually generate access tokens.
 
 Agoras needs the following OAuth app credentials from LinkedIn to access its API:

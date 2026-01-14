@@ -46,25 +46,45 @@ Current version: 1.1.3
 
 .. note::
 
-   **Agoras v2.0 Coming Soon!**
+   **Agoras v2.0 Now Available!**
 
-   The next major version of Agoras will introduce:
+   Version 2.0 introduces major improvements:
 
    - **Modular Architecture**: Split into 5 separate packages for better maintainability
    - **New Platforms**: Telegram, WhatsApp, Threads, and X (Twitter rebrand) support
    - **OAuth2 Infrastructure**: Automatic callback server for easier authentication
    - **Enhanced CLI**: Platform-specific commands with improved validation
 
-   The develop branch contains v2.0 features. Package split is the final feature before release.
-   See `MIGRATION.md <MIGRATION.md>`_ for upgrade guidance.
+   **Breaking Changes:** Import paths and package structure have changed.
+   See `MIGRATION.rst <MIGRATION.rst>`_ for detailed upgrade instructions.
 
 Agoras is a python utility that helps publish and delete posts on the most
-popular social networks (Twitter, Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, and Threads).
+popular social networks (X (formerly Twitter), Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, Threads, Telegram, and WhatsApp).
 
 This repository stores the application. There's also `GitHub actions`_
 that you can incorporate into your workflows.
 
 For more information, please read the `full documentation`_.
+
+What's New in v2.0
+===================
+
+Agoras v2.0 introduces a **modular architecture** that splits the monolithic package into 5 independent PyPI packages:
+
+- **agoras-common**: Shared utilities, logging, and constants
+- **agoras-media**: Image and video processing
+- **agoras-core**: Abstract interfaces (SocialNetwork), Feed, and Sheet logic
+- **agoras-platforms**: Platform implementations (Facebook, Twitter, etc.)
+- **agoras**: Command-line interface (depends on all above)
+
+**Key Features:**
+
+- **New Platforms**: Telegram, WhatsApp, Threads, and X (Twitter rebrand)
+- **OAuth2 Callback Server**: Automatic local server for easier authentication
+- **Enhanced CLI**: Platform-first commands (``agoras twitter post`` instead of ``agoras publish --network twitter``)
+- **Modular Installation**: Install only what you need, or use ``pip install agoras`` for everything
+
+**Breaking Changes:** Import paths and CLI commands have changed. See `MIGRATION.rst <MIGRATION.rst>`_ for upgrade instructions.
 
 Getting started
 ===============
@@ -83,6 +103,38 @@ If you want to install the development version (not recomended), you can
 install directlty from GitHub like this::
 
     $ pip install --upgrade https://github.com/LuisAlejandro/agoras/archive/develop.tar.gz
+
+Modular Installation (v2.0+)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Starting with v2.0, Agoras is split into 5 separate packages for better modularity.
+The main CLI package automatically installs all dependencies::
+
+    $ pip install agoras  # Installs all 5 packages
+
+For selective installation (advanced users only)::
+
+    $ pip install agoras-common     # Just utilities and logging
+    $ pip install agoras-media      # Common + media processing
+    $ pip install agoras-core       # Common + media + core interfaces
+    $ pip install agoras-platforms  # All above + platform implementations
+    $ pip install agoras            # Everything including CLI
+
+**Package Architecture:**
+
+- ``agoras-common``: Utilities, logging, shared constants
+- ``agoras-media``: Image and video processing
+- ``agoras-core``: Abstract interfaces (SocialNetwork), Feed, Sheet logic
+- ``agoras-platforms``: Platform implementations (Twitter, Facebook, etc.)
+- ``agoras``: Command-line interface (depends on all above)
+
+**When to use each package:**
+
+- Most users: ``pip install agoras`` (installs everything including CLI)
+- Python integrations: ``pip install agoras-platforms`` (no CLI, all platforms)
+- Custom platforms: ``pip install agoras-core`` (interfaces only)
+- Media processing: ``pip install agoras-media`` (no social features)
+- Utilities only: ``pip install agoras-common`` (minimal dependencies)
 
 Using the application
 ---------------------
@@ -113,9 +165,9 @@ See platform-specific commands::
 Supported Platforms
 ~~~~~~~~~~~~~~~~~~~
 
-Agoras supports 8 social networks with intuitive platform-first commands:
+Agoras supports 11 platforms with intuitive platform-first commands:
 
-- **Twitter**: ``agoras twitter <action>`` - Full action set (post, video, like, share, delete)
+- **X (formerly Twitter)**: ``agoras x <action>`` - Full action set (post, video, like, share, delete)
 - **Facebook**: ``agoras facebook <action>`` - Full action set (post, video, like, share, delete)
 - **Instagram**: ``agoras instagram <action>`` - Post and video actions
 - **LinkedIn**: ``agoras linkedin <action>`` - Full action set (post, video, like, share, delete)
@@ -123,6 +175,8 @@ Agoras supports 8 social networks with intuitive platform-first commands:
 - **YouTube**: ``agoras youtube <action>`` - Video platform (video, like, delete)
 - **TikTok**: ``agoras tiktok <action>`` - Video platform (video, delete)
 - **Threads**: ``agoras threads <action>`` - Meta's platform (post, video, share, reply, analytics, moderation)
+- **Telegram**: ``agoras telegram <action>`` - Send messages, photos, videos, polls, and documents
+- **WhatsApp**: ``agoras whatsapp <action>`` - Send messages via WhatsApp Business API
 
 Automation Commands
 ~~~~~~~~~~~~~~~~~~~

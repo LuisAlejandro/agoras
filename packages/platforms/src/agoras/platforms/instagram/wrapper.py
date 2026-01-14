@@ -62,8 +62,9 @@ class Instagram(SocialNetwork):
         """
         Initialize Instagram API client.
 
-        This method sets up the Instagram API client with configuration.
+        Tries to load credentials from CLI params, environment variables, or storage.
         """
+        # Try params/environment first
         self.instagram_access_token = self._get_config_value('instagram_access_token', 'INSTAGRAM_ACCESS_TOKEN')
         self.instagram_client_id = self._get_config_value('instagram_client_id', 'INSTAGRAM_CLIENT_ID')
         self.instagram_client_secret = self._get_config_value('instagram_client_secret', 'INSTAGRAM_CLIENT_SECRET')
@@ -74,8 +75,43 @@ class Instagram(SocialNetwork):
         self.instagram_video_url = self._get_config_value('instagram_video_url', 'INSTAGRAM_VIDEO_URL')
         self.instagram_video_caption = self._get_config_value('instagram_video_caption', 'INSTAGRAM_VIDEO_CAPTION')
 
+        # If credentials not provided, try loading from storage
+        # Instagram needs user_id (object_id), client_id, client_secret, and refresh_token to authenticate
+        if not all([self.instagram_object_id, self.instagram_client_id, self.instagram_client_secret, self.instagram_refresh_token]):
+            from .auth import InstagramAuthManager
+            auth_manager = InstagramAuthManager(
+                user_id=self.instagram_object_id or '',
+                client_id=self.instagram_client_id or '',
+                client_secret=self.instagram_client_secret or ''
+            )
+
+            if auth_manager._load_credentials_from_storage():
+                # Fill in missing credentials from storage
+                if not self.instagram_object_id:
+                    self.instagram_object_id = auth_manager.user_id
+                if not self.instagram_client_id:
+                    self.instagram_client_id = auth_manager.client_id
+                if not self.instagram_client_secret:
+                    self.instagram_client_secret = auth_manager.client_secret
+                if not self.instagram_refresh_token:
+                    self.instagram_refresh_token = auth_manager.refresh_token
+
+        # If we have the required credentials, authenticate to get access token
+        if self.instagram_object_id and self.instagram_client_id and self.instagram_client_secret and self.instagram_refresh_token:
+            from .auth import InstagramAuthManager
+            auth_manager = InstagramAuthManager(
+                user_id=self.instagram_object_id,
+                client_id=self.instagram_client_id,
+                client_secret=self.instagram_client_secret,
+                refresh_token=self.instagram_refresh_token
+            )
+            authenticated = await auth_manager.authenticate()
+            if authenticated:
+                self.instagram_access_token = auth_manager.access_token
+
+        # Validate all credentials are now available
         if not self.instagram_access_token:
-            raise Exception('Instagram access token is required.')
+            raise Exception("Not authenticated. Please run 'agoras instagram authorize' first.")
 
         # Initialize Instagram API
         self.api = InstagramAPI(
@@ -273,6 +309,31 @@ class Instagram(SocialNetwork):
         self._output_status(post_id)
         return post_id
 
+    async def authorize_credentials(self):
+        """
+        Authorize and store Instagram credentials for future use.
+
+        Returns:
+            bool: True if authorization successful
+        """
+        from .auth import InstagramAuthManager
+
+        object_id = self._get_config_value('instagram_object_id', 'INSTAGRAM_OBJECT_ID')
+        client_id = self._get_config_value('instagram_client_id', 'INSTAGRAM_CLIENT_ID')
+        client_secret = self._get_config_value('instagram_client_secret', 'INSTAGRAM_CLIENT_SECRET')
+
+        auth_manager = InstagramAuthManager(
+            user_id=object_id,
+            client_id=client_id,
+            client_secret=client_secret
+        )
+
+        result = await auth_manager.authorize()
+        if result:
+            print(result)
+            return True
+        return False
+
     # Override action handlers to use Instagram-specific parameter names
     async def _handle_like_action(self):
         """Handle like action with Instagram-specific parameter extraction."""
@@ -315,7 +376,13 @@ async def main_async(kwargs):
 
     # Create Instagram instance with configuration
     instance = Instagram(**kwargs)
-    # Execute the action using the base class method
+
+    # Handle authorize action separately (doesn't need client initialization)
+    if action == 'authorize':
+        success = await instance.authorize_credentials()
+        return 0 if success else 1
+
+    # Execute other actions using the base class method
     await instance.execute_action(action)
     await instance.disconnect()
 

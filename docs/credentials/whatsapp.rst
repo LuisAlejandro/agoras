@@ -297,6 +297,30 @@ Business Verification Delays
 - **Status check**: Monitor verification status in Meta Business Manager
 - **Support**: Contact Meta support if verification is delayed beyond expected time
 
+Test your setup
+---------------
+
+You can test if your WhatsApp Business API is properly configured:
+
+1. Make sure you have your access token and phone number ID
+2. First, authorize your WhatsApp credentials:
+
+   ::
+
+         agoras whatsapp authorize \
+               --access-token "your_access_token_here" \
+               --phone-number-id "your_phone_number_id_here"
+
+3. Then send a test message (credentials are now stored):
+
+   ::
+
+         agoras whatsapp post \
+               --recipient "+1234567890" \
+               --text "Hello from Agoras!"
+
+4. Check if the message appears in WhatsApp
+
 Environment Variables
 ---------------------
 
@@ -307,15 +331,33 @@ For security, store credentials in environment variables:
     export WHATSAPP_ACCESS_TOKEN="your_access_token_here"
     export WHATSAPP_PHONE_NUMBER_ID="your_phone_number_id_here"
     export WHATSAPP_BUSINESS_ACCOUNT_ID="your_business_account_id_here"  # Optional
-    export WHATSAPP_RECIPIENT="+1234567890"  # E.164 format
 
-Then use Agoras without specifying credentials in commands:
+Then run authorize to store them:
 
 ::
 
-    agoras whatsapp post \
-      --text "Hello from Agoras!" \
-      --link "https://example.com"
+    agoras whatsapp authorize
+
+Agoras parameters
+-----------------
+
++------------------------+---------------------------+--------------------------------+
+| WhatsApp credential    | Agoras parameter          | Required for                   |
++========================+===========================+================================+
+| Access Token           | --access-token            | authorize (required)           |
+|                        |                           | post/video/etc (optional)      |
++------------------------+---------------------------+--------------------------------+
+| Phone Number ID        | --phone-number-id         | authorize (required)           |
+|                        |                           | post/video/etc (optional)      |
++------------------------+---------------------------+--------------------------------+
+| Business Account ID    | --business-account-id     | authorize (optional)           |
++------------------------+---------------------------+--------------------------------+
+| Recipient Number       | --recipient               | All messaging actions          |
++------------------------+---------------------------+--------------------------------+
+
+**Important**: Run ``agoras whatsapp authorize`` first to store your credentials securely. After authorization, you can use post, video, contact, location, document, audio, and template actions without providing access token and phone number ID each time.
+
+**Note**: The recipient phone number must be provided with each message action as it varies per message. It is not stored during authorization.
 
 Security Best Practices
 -----------------------

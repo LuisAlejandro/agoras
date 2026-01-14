@@ -9,14 +9,14 @@ set -exuo pipefail
 
 source ../secrets.env
 
-if [ "${1}" == "twitter" ]; then
-    SCHEDULE_TWEET_ID=$(
+if [ "${1}" == "x" ]; then
+    SCHEDULE_X_ID=$(
         agoras utils schedule-run \
-            --network twitter \
-            --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \
-            --twitter-consumer-secret "${TWITTER_CONSUMER_SECRET}" \
-            --twitter-oauth-token "${TWITTER_OAUTH_TOKEN}" \
-            --twitter-oauth-secret "${TWITTER_OAUTH_SECRET}" \
+            --network x \
+            --x-consumer-key "${TWITTER_CONSUMER_KEY}" \
+            --x-consumer-secret "${TWITTER_CONSUMER_SECRET}" \
+            --x-oauth-token "${TWITTER_OAUTH_TOKEN}" \
+            --x-oauth-secret "${TWITTER_OAUTH_SECRET}" \
             --max-count 1 \
             --sheets-id "${GOOGLE_SHEETS_ID}" \
             --sheets-name "${GOOGLE_SHEETS_NAME}" \
@@ -26,27 +26,17 @@ if [ "${1}" == "twitter" ]; then
 
     sleep 5
 
-    [ -n "${SCHEDULE_TWEET_ID}" ] && agoras publish \
-        --network twitter \
-        --action delete \
-        --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \
-        --twitter-consumer-secret "${TWITTER_CONSUMER_SECRET}" \
-        --twitter-oauth-token "${TWITTER_OAUTH_TOKEN}" \
-        --twitter-oauth-secret "${TWITTER_OAUTH_SECRET}" \
-        --tweet-id "${SCHEDULE_TWEET_ID}" || true
+    [ -n "${SCHEDULE_X_ID}" ] && agoras x delete \
+        --consumer-key "${TWITTER_CONSUMER_KEY}" \
+        --consumer-secret "${TWITTER_CONSUMER_SECRET}" \
+        --oauth-token "${TWITTER_OAUTH_TOKEN}" \
+        --oauth-secret "${TWITTER_OAUTH_SECRET}" \
+        --post-id "${SCHEDULE_X_ID}" || true
 
 elif [ "${1}" == "tiktok" ]; then
-    agoras publish \
-        --network tiktok \
-        --action authorize \
-        --tiktok-username "${TIKTOK_USERNAME}" \
-        --tiktok-client-key "${TIKTOK_CLIENT_KEY}" \
-        --tiktok-client-secret "${TIKTOK_CLIENT_SECRET}"
-
     SCHEDULE_TIKTOK_ID=$(
-        agoras publish \
+        agoras utils schedule-run \
             --network tiktok \
-            --action schedule \
             --tiktok-username "${TIKTOK_USERNAME}" \
             --tiktok-client-key "${TIKTOK_CLIENT_KEY}" \
             --tiktok-client-secret "${TIKTOK_CLIENT_SECRET}" \
@@ -62,9 +52,8 @@ elif [ "${1}" == "tiktok" ]; then
 
 elif [ "${1}" == "youtube" ]; then
     SCHEDULE_YOUTUBE_ID=$(
-        agoras publish \
+        agoras utils schedule-run \
             --network youtube \
-            --action schedule \
             --youtube-client-id "${YOUTUBE_CLIENT_ID}" \
             --youtube-client-secret "${YOUTUBE_CLIENT_SECRET}" \
             --max-count 1 \
@@ -76,12 +65,10 @@ elif [ "${1}" == "youtube" ]; then
 
     sleep 5
 
-    [ -n "${SCHEDULE_YOUTUBE_ID}" ] && agoras publish \
-        --network youtube \
-        --action delete \
-        --youtube-client-id "${YOUTUBE_CLIENT_ID}" \
-        --youtube-client-secret "${YOUTUBE_CLIENT_SECRET}" \
-        --youtube-video-id "${SCHEDULE_YOUTUBE_ID}" || true
+    [ -n "${SCHEDULE_YOUTUBE_ID}" ] && agoras youtube delete \
+        --client-id "${YOUTUBE_CLIENT_ID}" \
+        --client-secret "${YOUTUBE_CLIENT_SECRET}" \
+        --video-id "${SCHEDULE_YOUTUBE_ID}" || true
 
 elif [ "${1}" == "facebook" ]; then
     SCHEDULE_FACEBOOK_ID=$(
@@ -98,12 +85,9 @@ elif [ "${1}" == "facebook" ]; then
 
     sleep 5
 
-    [ -n "${SCHEDULE_FACEBOOK_ID}" ] && agoras publish \
-        --network facebook \
-        --action delete \
-        --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
-        --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-        --facebook-post-id "${SCHEDULE_FACEBOOK_ID}" || true
+    [ -n "${SCHEDULE_FACEBOOK_ID}" ] && agoras facebook delete \
+        --access-token "${FACEBOOK_ACCESS_TOKEN}" \
+        --post-id "${SCHEDULE_FACEBOOK_ID}" || true
 
 elif [ "${1}" == "instagram" ]; then
     SCHEDULE_INSTAGRAM_ID=$(
@@ -123,9 +107,8 @@ elif [ "${1}" == "instagram" ]; then
 
 elif [ "${1}" == "discord" ]; then
     SCHEDULE_DISCORD_ID=$(
-        agoras publish \
+        agoras utils schedule-run \
             --network discord \
-            --action schedule \
             --discord-bot-token "${DISCORD_BOT_TOKEN}" \
             --discord-server-name "${DISCORD_SERVER_NAME}" \
             --discord-channel-name "${DISCORD_CHANNEL_NAME}" \
@@ -138,13 +121,11 @@ elif [ "${1}" == "discord" ]; then
 
     sleep 5
 
-    [ -n "${SCHEDULE_DISCORD_ID}" ] && agoras publish \
-        --network discord \
-        --action delete \
-        --discord-bot-token "${DISCORD_BOT_TOKEN}" \
-        --discord-server-name "${DISCORD_SERVER_NAME}" \
-        --discord-channel-name "${DISCORD_CHANNEL_NAME}" \
-        --discord-post-id "${SCHEDULE_DISCORD_ID}" || true
+    [ -n "${SCHEDULE_DISCORD_ID}" ] && agoras discord delete \
+        --bot-token "${DISCORD_BOT_TOKEN}" \
+        --server-name "${DISCORD_SERVER_NAME}" \
+        --channel-name "${DISCORD_CHANNEL_NAME}" \
+        --post-id "${SCHEDULE_DISCORD_ID}" || true
 
 elif [ "${1}" == "linkedin" ]; then
     SCHEDULE_LINKEDIN_ID=$(
@@ -162,15 +143,13 @@ elif [ "${1}" == "linkedin" ]; then
 
     sleep 5
 
-    [ -n "${SCHEDULE_LINKEDIN_ID}" ] && agoras publish \
-        --network linkedin \
-        --action delete \
-        --linkedin-client-id "${LINKEDIN_CLIENT_ID}" \
-        --linkedin-client-secret "${LINKEDIN_CLIENT_SECRET}" \
-        --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
-        --linkedin-post-id "${SCHEDULE_LINKEDIN_ID}" || true
+    [ -n "${SCHEDULE_LINKEDIN_ID}" ] && agoras linkedin delete \
+        --client-id "${LINKEDIN_CLIENT_ID}" \
+        --client-secret "${LINKEDIN_CLIENT_SECRET}" \
+        --access-token "${LINKEDIN_ACCESS_TOKEN}" \
+        --post-id "${SCHEDULE_LINKEDIN_ID}" || true
 
 else
     echo "Unsupported platform ${1}"
-    echo "Usage: $0 {twitter|tiktok|youtube|facebook|instagram|discord|linkedin}"
+    echo "Usage: $0 {x|tiktok|youtube|facebook|instagram|discord|linkedin}"
 fi

@@ -17,27 +17,46 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+import os
 from typing import Optional
 
 import discord
 
 from agoras.core.auth import BaseAuthManager
+from agoras.core.auth.exceptions import AuthenticationError
+
 from .client import DiscordAPIClient
 
 
 class DiscordAuthManager(BaseAuthManager):
     """Discord authentication manager using bot token authentication."""
 
-    def __init__(self, bot_token: str, server_name: str, channel_name: str):
+    def __init__(
+            self,
+            bot_token: Optional[str] = None,
+            server_name: Optional[str] = None,
+            channel_name: Optional[str] = None):
         """
         Initialize Discord authentication manager.
 
         Args:
-            bot_token (str): Discord bot token
-            server_name (str): Discord server/guild name
-            channel_name (str): Discord channel name
+            bot_token (str, optional): Discord bot token
+            server_name (str, optional): Discord server/guild name
+            channel_name (str, optional): Discord channel name
         """
         super().__init__()
+        # Try loading from storage first if credentials not provided
+        if not bot_token or not server_name or not channel_name:
+            loaded = self._load_credentials_from_storage()
+            if loaded:
+                # Use loaded credentials if available
+                if not bot_token:
+                    bot_token = getattr(self, 'bot_token', None)
+                if not server_name:
+                    server_name = getattr(self, 'server_name', None)
+                if not channel_name:
+                    channel_name = getattr(self, 'channel_name', None)
+
         self.bot_token = bot_token
         self.server_name = server_name
         self.channel_name = channel_name
@@ -80,22 +99,38 @@ class DiscordAuthManager(BaseAuthManager):
 
     async def authorize(self) -> Optional[str]:
         """
-        Discord doesn't use OAuth authorization - bot tokens are provided directly.
-        This method validates the bot token and returns it if valid.
+        Authorize Discord by validating and storing bot token credentials.
+
+        Accepts credentials from parameters or environment variables, validates them,
+        and stores them securely for future use.
 
         Returns:
-            str: The bot token if valid, None otherwise
+            str: Success message if authorization successful, None otherwise
         """
-        if not self._validate_credentials():
-            raise Exception('Discord bot token and server/channel names are required.')
+        # Get credentials from parameters or environment variables
+        bot_token = self.bot_token or os.environ.get('DISCORD_BOT_TOKEN')
+        server_name = self.server_name or os.environ.get('DISCORD_SERVER_NAME')
+        channel_name = self.channel_name or os.environ.get('DISCORD_CHANNEL_NAME')
 
-        try:
-            if await self._validate_bot_token():
-                self._save_validation_cache()
-                return self.bot_token
-            return None
-        except Exception:
-            return None
+        if not bot_token or not server_name or not channel_name:
+            raise Exception('Discord bot token, server name, and channel name are required. '
+                            'Provide via parameters or environment variables (DISCORD_BOT_TOKEN, '
+                            'DISCORD_SERVER_NAME, DISCORD_CHANNEL_NAME).')
+
+        # Set credentials for validation
+        self.bot_token = bot_token
+        self.server_name = server_name
+        self.channel_name = channel_name
+
+        # Validate credentials
+        if not await self._validate_bot_token():
+            raise Exception('Discord bot token validation failed. Please check your credentials.')
+
+        # Save credentials to secure storage
+        self._save_credentials_to_storage(bot_token, server_name, channel_name)
+        self._save_validation_cache()
+
+        return "Authorization successful. Credentials stored securely."
 
     async def _validate_bot_token(self) -> bool:
         """
@@ -213,7 +248,68 @@ class DiscordAuthManager(BaseAuthManager):
 
     def _get_cache_filename(self) -> str:
         """Get cache filename for storing validation results."""
-        return f'discord-{self.server_name}-{self.channel_name}.json'
+        if self.server_name and self.channel_name:
+            return f'discord-{self.server_name}-{self.channel_name}.json'
+        return 'discord-bot.json'
+
+    def _get_platform_name(self) -> str:
+        """Get the platform name for this auth manager."""
+        return 'discord'
+
+    def _get_token_identifier(self) -> str:
+        """Get unique identifier for token storage."""
+        if self.server_name and self.channel_name:
+            return f"{self.server_name}-{self.channel_name}"
+        return "default"
+
+    def _save_credentials_to_storage(self, bot_token: str, server_name: str, channel_name: str):
+        """
+        Save Discord credentials to secure storage.
+
+        Args:
+            bot_token (str): Discord bot token
+            server_name (str): Discord server name
+            channel_name (str): Discord channel name
+        """
+        platform_name = self._get_platform_name()
+        identifier = f"{server_name}-{channel_name}"
+
+        token_data = {
+            'bot_token': bot_token,
+            'server_name': server_name,
+            'channel_name': channel_name
+        }
+
+        self.token_storage.save_token(platform_name, identifier, token_data)
+
+    def _load_credentials_from_storage(self) -> bool:
+        """
+        Load Discord credentials from secure storage.
+
+        Returns:
+            bool: True if credentials were loaded, False otherwise
+        """
+        platform_name = self._get_platform_name()
+
+        # Try to load with default identifier first
+        identifier = "default"
+        token_data = self.token_storage.load_token(platform_name, identifier)
+
+        if not token_data:
+            # If no default, try to find any stored token
+            tokens = self.token_storage.list_tokens(platform_name)
+            if tokens:
+                # Use the first available token
+                identifier = tokens[0][1]
+                token_data = self.token_storage.load_token(platform_name, identifier)
+
+        if token_data:
+            self.bot_token = token_data.get('bot_token')
+            self.server_name = token_data.get('server_name')
+            self.channel_name = token_data.get('channel_name')
+            return bool(self.bot_token and self.server_name and self.channel_name)
+
+        return False
 
     def _load_cached_validation(self):
         """Load cached validation data if available."""

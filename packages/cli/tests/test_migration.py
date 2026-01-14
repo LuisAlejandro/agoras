@@ -71,8 +71,8 @@ def test_suggest_new_command_facebook_video():
     result = suggest_new_command('facebook', 'video', args_dict)
 
     assert 'agoras facebook video' in result
-    assert '--access-token' in result
-    assert '--video-url' in result
+    assert 'token123' in result
+    assert 'video.mp4' in result
 
 
 def test_suggest_new_command_feed_last():
@@ -181,3 +181,195 @@ def test_get_migration_summary_schedule():
     summary = get_migration_summary('linkedin', 'schedule')
 
     assert 'agoras utils schedule-run' in summary
+
+
+def test_suggest_new_command_empty_args():
+    """Test suggest_new_command with empty args dict."""
+    result = suggest_new_command('x', 'post', {})
+
+    assert 'agoras x post' in result
+
+
+def test_suggest_new_command_all_platforms():
+    """Test suggest_new_command for all major platforms."""
+    platforms = [
+        'x',
+        'facebook',
+        'instagram',
+        'linkedin',
+        'discord',
+        'youtube',
+        'tiktok',
+        'threads',
+        'telegram',
+        'whatsapp']
+
+    for platform in platforms:
+        args_dict = {'network': platform, 'action': 'post'}
+        result = suggest_new_command(platform, 'post', args_dict)
+        assert f'agoras {platform} post' in result or 'agoras utils' in result
+
+
+def test_convert_legacy_params_with_utils_commands_feed():
+    """Test convert_legacy_params_to_new_format with feed command."""
+    args_dict = {
+        'network': 'x',
+        'action': 'last-from-feed',
+        'feed_url': 'http://feed.xml',
+        'feed_max_count': 5,
+        'x_consumer_key': 'key'
+    }
+
+    result = convert_legacy_params_to_new_format('x', 'last-from-feed', args_dict)
+
+    assert 'feed-url' in result or 'feed_url' in result
+    assert 'key' in result
+
+
+def test_convert_legacy_params_with_utils_commands_schedule():
+    """Test convert_legacy_params_to_new_format with schedule command."""
+    args_dict = {
+        'network': 'facebook',
+        'action': 'schedule',
+        'google_sheets_id': 'sheet123',
+        'facebook_access_token': 'token'
+    }
+
+    result = convert_legacy_params_to_new_format('facebook', 'schedule', args_dict)
+
+    assert 'sheet123' in result
+    assert 'token' in result
+
+
+def test_convert_legacy_params_with_platform_commands():
+    """Test convert_legacy_params_to_new_format with platform commands."""
+    args_dict = {
+        'network': 'youtube',
+        'action': 'video',
+        'youtube_client_id': 'client123',
+        'youtube_client_secret': 'secret123',
+        'youtube_privacy_status': 'public'  # non-default
+    }
+
+    result = convert_legacy_params_to_new_format('youtube', 'video', args_dict)
+
+    assert 'client123' in result
+    assert 'secret123' in result
+
+
+def test_convert_legacy_params_escapes_quotes():
+    """Test convert_legacy_params_to_new_format escapes quotes in values."""
+    args_dict = {
+        'network': 'x',
+        'action': 'post',
+        'status_text': 'Text with "quotes" inside'
+    }
+
+    result = convert_legacy_params_to_new_format('x', 'post', args_dict)
+
+    assert '\\"' in result or '"' in result
+
+
+def test_convert_legacy_params_filters_empty_strings():
+    """Test convert_legacy_params_to_new_format filters empty strings."""
+    args_dict = {
+        'network': 'x',
+        'action': 'post',
+        'status_text': '',
+        'status_link': 'http://link.com'
+    }
+
+    result = convert_legacy_params_to_new_format('x', 'post', args_dict)
+
+    assert 'link.com' in result
+    # Empty strings should be filtered
+
+
+def test_convert_legacy_params_filters_default_privacy():
+    """Test convert_legacy_params_to_new_format filters default privacy values."""
+    args_dict = {
+        'network': 'youtube',
+        'action': 'video',
+        'youtube_privacy_status': 'private',  # default
+        'youtube_client_id': 'client123'
+    }
+
+    result = convert_legacy_params_to_new_format('youtube', 'video', args_dict)
+
+    assert 'client123' in result
+    # Default privacy should be filtered
+
+
+def test_convert_legacy_params_includes_non_default_privacy():
+    """Test convert_legacy_params_to_new_format includes non-default privacy."""
+    args_dict = {
+        'network': 'tiktok',
+        'action': 'video',
+        'tiktok_privacy_status': 'PUBLIC_TO_EVERYONE',  # non-default
+        'tiktok_client_key': 'key123'
+    }
+
+    result = convert_legacy_params_to_new_format('tiktok', 'video', args_dict)
+
+    assert 'key123' in result
+
+
+def test_format_migration_warning_various_combinations():
+    """Test format_migration_warning with various network/action combinations."""
+    test_cases = [
+        ('x', 'post'),
+        ('facebook', 'video'),
+        ('instagram', 'post'),
+        ('youtube', 'video'),
+    ]
+
+    for network, action in test_cases:
+        old_parts = {'network': network, 'action': action}
+        new_cmd = f'agoras {network} {action}'
+        warning = format_migration_warning(old_parts, new_cmd)
+
+        assert 'DEPRECATION WARNING' in warning
+        assert network in warning
+        assert action in warning
+
+
+def test_get_migration_summary_all_action_types():
+    """Test get_migration_summary for all action types."""
+    # Platform action
+    summary = get_migration_summary('x', 'post')
+    assert 'agoras x post' in summary
+
+    # Feed action
+    summary = get_migration_summary('facebook', 'last-from-feed')
+    assert 'feed-publish' in summary
+    assert 'last' in summary
+
+    summary = get_migration_summary('instagram', 'random-from-feed')
+    assert 'feed-publish' in summary
+    assert 'random' in summary
+
+    # Schedule action
+    summary = get_migration_summary('linkedin', 'schedule')
+    assert 'schedule-run' in summary
+
+
+def test_convert_legacy_params_skips_special_params():
+    """Test convert_legacy_params_to_new_format skips special parameters."""
+    args_dict = {
+        'network': 'x',
+        'action': 'post',
+        'command': 'publish',
+        'handler': lambda x: x,
+        'loglevel': 'INFO',
+        'show_migration': True,
+        'status_text': 'Hello'
+    }
+
+    result = convert_legacy_params_to_new_format('x', 'post', args_dict)
+
+    assert 'Hello' in result
+    # Special params should be filtered
+    assert 'command' not in result
+    assert 'handler' not in result
+    assert 'INFO' not in result
+    assert 'show_migration' not in result

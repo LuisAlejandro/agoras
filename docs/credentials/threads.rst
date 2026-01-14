@@ -1,7 +1,7 @@
 Threads credentials
 ===================
 
-.. versionadded:: 1.6
+.. versionadded:: 2.0
    Threads platform support added to Agoras with OAuth 2.0 authentication.
 
 Agoras needs the following OAuth app credentials to access the Threads API:

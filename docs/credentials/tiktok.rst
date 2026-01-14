@@ -120,7 +120,7 @@ For example, if your profile shows @myawesomehandle, use ``myawesomehandle``
 Authorize Agoras
 ----------------
 
-.. versionchanged:: 1.6
+.. versionchanged:: 2.0
    TikTok now uses OAuth 2.0 "authorize first" workflow.
 
 Before you can post content, you need to authorize Agoras to access your TikTok account::

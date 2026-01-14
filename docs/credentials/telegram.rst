@@ -88,14 +88,14 @@ For Private Chats (Direct Messages)
 1. Start a conversation with **@userinfobot**
 2. Send any message to the bot
 3. The bot will reply with your user ID
-4. Use this ID as ``--telegram-chat-id``
+4. Use this ID as ``--chat-id``
 
 **Method 2: Using @getidsbot**
 
 1. Start a conversation with **@getidsbot**
 2. Forward any message from the chat you want to use
 3. The bot will reply with the chat ID
-4. Use this ID as ``--telegram-chat-id``
+4. Use this ID as ``--chat-id``
 
 **Note**: For private chats, the chat ID is the same as your user ID (a positive number).
 
@@ -107,7 +107,7 @@ For Groups
 1. Add **@getidsbot** to your group
 2. Send any message in the group
 3. The bot will reply with the group ID
-4. Use this ID as ``--telegram-chat-id``
+4. Use this ID as ``--chat-id``
 
 **Method 2: Using Telegram Web/Desktop**
 
@@ -128,7 +128,7 @@ For Channels
 1. Add **@getidsbot** to your channel as an administrator
 2. Post any message in the channel
 3. The bot will reply with the channel ID
-4. Use this ID as ``--telegram-chat-id``
+4. Use this ID as ``--chat-id``
 
 **Method 2: Using Telegram Web/Desktop**
 
@@ -183,6 +183,51 @@ You can set up bot commands using @BotFather:
 
 **Note**: Bot commands are optional and not required for Agoras functionality.
 
+Test your bot
+------------
+
+You can test if your bot is properly configured:
+
+1. Make sure you have your bot token from @BotFather
+2. Find your chat ID using @userinfobot or @getidsbot
+3. First, authorize your bot credentials:
+
+   ::
+
+         agoras telegram authorize \
+               --bot-token "your_bot_token_here" \
+               --chat-id "your_chat_id_here"
+
+4. Then try a simple post command (credentials are now stored):
+
+   ::
+
+         agoras telegram post \
+               --text "Hello, Telegram!"
+
+5. Check if the message appears in your Telegram chat
+
+CI/CD Setup
+-----------
+
+For CI/CD environments where you need to use Telegram credentials:
+
+1. Set environment variables in your CI/CD pipeline::
+
+      export TELEGRAM_BOT_TOKEN="your_bot_token_here"
+      export TELEGRAM_CHAT_ID="your_chat_id_here"
+
+2. Agoras will automatically use these environment variables when credentials are not provided via command-line parameters.
+
+3. You can also authorize once locally and the credentials will be stored securely in ``~/.agoras/tokens/``, which can be used in CI/CD if the token storage is accessible.
+
+**Security Best Practices for CI/CD**:
+- Store credentials in your CI/CD platform's secret management system (GitHub Secrets, GitLab CI/CD Variables, etc.)
+- Never commit tokens to version control
+- Use different bot tokens for different environments (dev, staging, production)
+- Rotate tokens periodically using @BotFather's ``/revoke`` command
+- Limit bot permissions to only what's required
+
 Security Best Practices
 -----------------------
 
@@ -220,6 +265,25 @@ Security Best Practices
   - 1 message per second to the same chat
 - Agoras handles rate limiting automatically
 - Avoid sending too many messages in a short time
+
+Agoras parameters
+-----------------
+
++------------------------+---------------------------+--------------------------------+
+| Telegram credential    | Agoras parameter          | Required for                   |
++========================+===========================+================================+
+| Bot Token              | --bot-token               | authorize (required)           |
+|                        |                           | post/video/delete (optional)   |
++------------------------+---------------------------+--------------------------------+
+| Chat ID                | --chat-id                 | authorize (required)           |
+|                        |                           | post/video/delete (optional)   |
++------------------------+---------------------------+--------------------------------+
+| Message ID             | --post-id                 | delete/edit actions only       |
++------------------------+---------------------------+--------------------------------+
+
+**Important**: Run ``agoras telegram authorize`` first to store your credentials securely. After authorization, you can use post, video, delete, and other actions without providing credentials each time.
+
+**Note**: Message ID is only needed for delete and edit actions. Parse mode and other optional parameters are still accepted but not stored.
 
 Troubleshooting
 ---------------

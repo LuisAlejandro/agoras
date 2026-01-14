@@ -13,7 +13,7 @@ Actions
 Authorization
 -------------
 
-.. versionadded:: 1.6
+.. versionadded:: 2.0
    OAuth 2.0 "authorize first" workflow
 
 Before performing any actions, you must authorize Agoras to access your Instagram account::

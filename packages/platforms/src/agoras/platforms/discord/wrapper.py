@@ -18,9 +18,10 @@
 
 import asyncio
 
-from .api import DiscordAPI
-from agoras.core.interfaces import SocialNetwork
 from agoras.common.utils import parse_metatags
+from agoras.core.interfaces import SocialNetwork
+
+from .api import DiscordAPI
 
 
 class Discord(SocialNetwork):
@@ -52,17 +53,30 @@ class Discord(SocialNetwork):
         Initialize Discord API client.
 
         This method sets up the Discord API client with configuration.
+        Tries to load credentials from storage if not provided via parameters.
         """
         self.discord_bot_token = self._get_config_value('discord_bot_token', 'DISCORD_BOT_TOKEN')
         self.discord_server_name = self._get_config_value('discord_server_name', 'DISCORD_SERVER_NAME')
         self.discord_channel_name = self._get_config_value('discord_channel_name', 'DISCORD_CHANNEL_NAME')
 
+        # If credentials not provided, try loading from storage
+        if not self.discord_bot_token or not self.discord_server_name or not self.discord_channel_name:
+            from .auth import DiscordAuthManager
+            auth_manager = DiscordAuthManager()
+            if auth_manager._load_credentials_from_storage():
+                if not self.discord_bot_token:
+                    self.discord_bot_token = auth_manager.bot_token
+                if not self.discord_server_name:
+                    self.discord_server_name = auth_manager.server_name
+                if not self.discord_channel_name:
+                    self.discord_channel_name = auth_manager.channel_name
+
         if not self.discord_bot_token:
-            raise Exception('Discord bot token is required.')
+            raise Exception("Not authenticated. Please run 'agoras discord authorize' first.")
         if not self.discord_server_name:
-            raise Exception('Discord server name is required.')
+            raise Exception("Not authenticated. Please run 'agoras discord authorize' first.")
         if not self.discord_channel_name:
-            raise Exception('Discord channel name is required.')
+            raise Exception("Not authenticated. Please run 'agoras discord authorize' first.")
 
         # Initialize Discord API
         self.api = DiscordAPI(
@@ -282,6 +296,31 @@ class Discord(SocialNetwork):
         self._output_status(message_id)
         return message_id
 
+    async def authorize_credentials(self):
+        """
+        Authorize and store Discord credentials for future use.
+
+        Returns:
+            bool: True if authorization successful
+        """
+        from .auth import DiscordAuthManager
+
+        bot_token = self._get_config_value('discord_bot_token', 'DISCORD_BOT_TOKEN')
+        server_name = self._get_config_value('discord_server_name', 'DISCORD_SERVER_NAME')
+        channel_name = self._get_config_value('discord_channel_name', 'DISCORD_CHANNEL_NAME')
+
+        auth_manager = DiscordAuthManager(
+            bot_token=bot_token,
+            server_name=server_name,
+            channel_name=channel_name
+        )
+
+        result = await auth_manager.authorize()
+        if result:
+            print(result)
+            return True
+        return False
+
 
 async def main_async(kwargs):
     """
@@ -297,7 +336,13 @@ async def main_async(kwargs):
 
     # Create Discord instance with configuration
     instance = Discord(**kwargs)
-    # Execute the action using the base class method
+
+    # Handle authorize action separately (doesn't need client initialization)
+    if action == 'authorize':
+        success = await instance.authorize_credentials()
+        return 0 if success else 1
+
+    # Execute other actions using the base class method
     await instance.execute_action(action)
     await instance.disconnect()
 

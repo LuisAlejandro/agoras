@@ -16,27 +16,39 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+import os
 from typing import Any, Dict, Optional
 
 from telegram import Bot
 from telegram.error import TelegramError
 
 from agoras.core.auth import BaseAuthManager
+from agoras.core.auth.exceptions import AuthenticationError
+
 from .client import TelegramAPIClient
 
 
 class TelegramAuthManager(BaseAuthManager):
     """Telegram authentication manager using bot token authentication."""
 
-    def __init__(self, bot_token: str, chat_id: Optional[str] = None):
+    def __init__(self, bot_token: Optional[str] = None, chat_id: Optional[str] = None):
         """
         Initialize Telegram authentication manager.
 
         Args:
-            bot_token (str): Telegram bot token from @BotFather
+            bot_token (str, optional): Telegram bot token from @BotFather
             chat_id (str, optional): Target chat ID (user, group, or channel)
         """
         super().__init__()
+        # Try loading from storage first if credentials not provided
+        if not bot_token:
+            loaded = self._load_credentials_from_storage()
+            if loaded:
+                if not bot_token:
+                    bot_token = getattr(self, 'bot_token', None)
+                if not chat_id:
+                    chat_id = getattr(self, 'chat_id', None)
+
         self.bot_token = bot_token
         self.chat_id = chat_id
 
@@ -72,21 +84,34 @@ class TelegramAuthManager(BaseAuthManager):
 
     async def authorize(self) -> Optional[str]:
         """
-        Telegram doesn't use OAuth authorization - bot tokens are provided directly.
-        This method validates the bot token and returns it if valid.
+        Authorize Telegram by validating and storing bot token credentials.
+
+        Accepts credentials from parameters or environment variables, validates them,
+        and stores them securely for future use.
 
         Returns:
-            str: The bot token if valid, None otherwise
+            str: Success message if authorization successful, None otherwise
         """
-        if not self._validate_credentials():
-            raise Exception('Telegram bot token is required.')
+        # Get credentials from parameters or environment variables
+        bot_token = self.bot_token or os.environ.get('TELEGRAM_BOT_TOKEN')
+        chat_id = self.chat_id or os.environ.get('TELEGRAM_CHAT_ID')
 
-        try:
-            if await self._validate_bot_token():
-                return self.bot_token
-            return None
-        except Exception:
-            return None
+        if not bot_token:
+            raise Exception('Telegram bot token is required. '
+                            'Provide via parameter or environment variable (TELEGRAM_BOT_TOKEN).')
+
+        # Set credentials for validation
+        self.bot_token = bot_token
+        self.chat_id = chat_id
+
+        # Validate credentials
+        if not await self._validate_bot_token():
+            raise Exception('Telegram bot token validation failed. Please check your credentials.')
+
+        # Save credentials to secure storage
+        self._save_credentials_to_storage(bot_token, chat_id)
+
+        return "Authorization successful. Credentials stored securely."
 
     async def _validate_bot_token(self) -> bool:
         """
@@ -189,5 +214,57 @@ class TelegramAuthManager(BaseAuthManager):
             username = self._cached_bot_info.get('username')
             if username:
                 return username
-        # Fallback to token hash
-        return str(hash(self.bot_token))
+        # Fallback to token hash if bot_token exists
+        if self.bot_token:
+            return str(hash(self.bot_token))
+        return "default"
+
+    def _save_credentials_to_storage(self, bot_token: str, chat_id: Optional[str] = None):
+        """
+        Save Telegram credentials to secure storage.
+
+        Args:
+            bot_token (str): Telegram bot token
+            chat_id (str, optional): Telegram chat ID
+        """
+        platform_name = self._get_platform_name()
+
+        # Use bot username as identifier if available, otherwise use token hash
+        identifier = self._get_token_identifier()
+        if identifier == "default" and self.bot_token:
+            identifier = str(hash(bot_token))
+
+        token_data = {
+            'bot_token': bot_token,
+            'chat_id': chat_id
+        }
+
+        self.token_storage.save_token(platform_name, identifier, token_data)
+
+    def _load_credentials_from_storage(self) -> bool:
+        """
+        Load Telegram credentials from secure storage.
+
+        Returns:
+            bool: True if credentials were loaded, False otherwise
+        """
+        platform_name = self._get_platform_name()
+
+        # Try to load with default identifier first
+        identifier = "default"
+        token_data = self.token_storage.load_token(platform_name, identifier)
+
+        if not token_data:
+            # If no default, try to find any stored token
+            tokens = self.token_storage.list_tokens(platform_name)
+            if tokens:
+                # Use the first available token
+                identifier = tokens[0][1]
+                token_data = self.token_storage.load_token(platform_name, identifier)
+
+        if token_data:
+            self.bot_token = token_data.get('bot_token')
+            self.chat_id = token_data.get('chat_id')
+            return bool(self.bot_token)
+
+        return False

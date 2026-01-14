@@ -2,7 +2,7 @@ Usage for Facebook
 ==================
 
 .. note::
-   **New in version 1.5**: Facebook commands now use the intuitive ``agoras facebook`` format.
+   **New in version 2.0**: Facebook commands now use the intuitive ``agoras facebook`` format.
    See the :doc:`migration guide <migration>` for upgrading from ``agoras publish``.
 
 Facebook is a social network that allows you to share text, images and videos with your friends, family and followers. Agoras can publish posts, like posts, share posts and delete posts on Facebook by using a popular `Facebook Graph API client <https://github.com/sns-sdks/python-facebook>`_.
@@ -20,7 +20,7 @@ Available Actions
 Authorization
 -------------
 
-.. versionadded:: 1.6
+.. versionadded:: 2.0
    OAuth 2.0 "authorize first" workflow
 
 Before performing any actions, you must authorize Agoras to access your Facebook account::
@@ -57,7 +57,7 @@ Post to Facebook
 .. note::
    You must run ``agoras facebook authorize`` first before using this command.
 
-.. versionchanged:: 1.5
+.. versionchanged:: 2.0
    Parameters simplified: ``--text`` instead of ``--status-text``, ``--image-1`` instead of ``--status-image-url-1``
 
 .. note::

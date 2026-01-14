@@ -148,10 +148,13 @@ Agoras parameters
 +---------------------+------------------------------+
 | Google credential   | Agoras parameter             |
 +=====================+==============================+
-| client_email        | --google-sheets-client-email |
+| client_email        | --sheets-client-email       |
 +---------------------+------------------------------+
-| private_key         | --google-sheets-private-key  |
+| private_key         | --sheets-private-key         |
 +---------------------+------------------------------+
+
+.. deprecated:: 2.0
+   The ``--google-sheets-*`` parameters are deprecated. Use ``--sheets-*`` parameters instead.
 
 
 

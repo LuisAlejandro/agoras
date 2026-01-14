@@ -19,8 +19,9 @@
 import asyncio
 from typing import List
 
-from .api import TelegramAPI
 from agoras.core.interfaces import SocialNetwork
+
+from .api import TelegramAPI
 
 
 class Telegram(SocialNetwork):
@@ -58,22 +59,34 @@ class Telegram(SocialNetwork):
         Initialize Telegram API client.
 
         This method sets up the Telegram API client with configuration.
+        Tries to load credentials from storage if not provided via parameters.
         """
         # Get configuration values
         self.telegram_bot_token = self._get_config_value('telegram_bot_token', 'TELEGRAM_BOT_TOKEN')
         self.telegram_chat_id = self._get_config_value('telegram_chat_id', 'TELEGRAM_CHAT_ID')
 
+        # If credentials not provided, try loading from storage
+        if not self.telegram_bot_token:
+            from .auth import TelegramAuthManager
+            auth_manager = TelegramAuthManager()
+            if auth_manager._load_credentials_from_storage():
+                if not self.telegram_bot_token:
+                    self.telegram_bot_token = auth_manager.bot_token
+                if not self.telegram_chat_id:
+                    self.telegram_chat_id = auth_manager.chat_id
+
         # Optional configuration
         self.telegram_parse_mode = self._get_config_value('telegram_parse_mode', 'TELEGRAM_PARSE_MODE') or 'HTML'
-        self.telegram_reply_to_message_id = self._get_config_value('telegram_reply_to_message_id', 'TELEGRAM_REPLY_TO_MESSAGE_ID')
+        self.telegram_reply_to_message_id = self._get_config_value(
+            'telegram_reply_to_message_id', 'TELEGRAM_REPLY_TO_MESSAGE_ID')
         self.telegram_message_id = self._get_config_value('telegram_message_id', 'TELEGRAM_MESSAGE_ID')
 
         # Validation
         if not self.telegram_bot_token:
-            raise Exception('Telegram bot token is required.')
+            raise Exception("Not authenticated. Please run 'agoras telegram authorize' first.")
 
         if not self.telegram_chat_id:
-            raise Exception('Telegram chat ID is required.')
+            raise Exception("Not authenticated. Please run 'agoras telegram authorize' first.")
 
         # Initialize Telegram API
         self.api = TelegramAPI(self.telegram_bot_token, self.telegram_chat_id)
@@ -436,6 +449,29 @@ class Telegram(SocialNetwork):
         self._output_status(message_id)
         return message_id
 
+    async def authorize_credentials(self):
+        """
+        Authorize and store Telegram credentials for future use.
+
+        Returns:
+            bool: True if authorization successful
+        """
+        from .auth import TelegramAuthManager
+
+        bot_token = self._get_config_value('telegram_bot_token', 'TELEGRAM_BOT_TOKEN')
+        chat_id = self._get_config_value('telegram_chat_id', 'TELEGRAM_CHAT_ID')
+
+        auth_manager = TelegramAuthManager(
+            bot_token=bot_token,
+            chat_id=chat_id
+        )
+
+        result = await auth_manager.authorize()
+        if result:
+            print(result)
+            return True
+        return False
+
 
 async def main_async(kwargs):
     """
@@ -451,7 +487,13 @@ async def main_async(kwargs):
 
     # Create Telegram instance with configuration
     instance = Telegram(**kwargs)
-    # Execute the action using the base class method
+
+    # Handle authorize action separately (doesn't need client initialization)
+    if action == 'authorize':
+        success = await instance.authorize_credentials()
+        return 0 if success else 1
+
+    # Execute other actions using the base class method
     await instance.execute_action(action)
     await instance.disconnect()
 

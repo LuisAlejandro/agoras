@@ -16,15 +16,7 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        include:
-          - python-version: "3.9"
-            toxenv: "py39"
-          - python-version: "3.10"
-            toxenv: "py310"
-          - python-version: "3.11"
-            toxenv: "py311"
-          - python-version: "3.12"
-            toxenv: "py312"
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -39,15 +31,13 @@ jobs:
       - name: Installing dependencies
         run: |
           python3 -m pip install -r requirements-dev.txt
-          python3 -m pip install -r requirements.txt
 
-      - name: Measuring coverage
+      - name: Measuring coverage (all packages)
         env:
-          TOXENV: ${{ matrix.toxenv }}
           PYTHON_VERSION: ${{ matrix.python-version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          tox -e ${TOXENV}
+          tox -e coverage
 
       - name: Coveralls Parallel
         uses: coverallsapp/github-action@v2

@@ -2,8 +2,8 @@ Using Agoras
 ============
 
 .. note::
-   **New in version 1.5**: Agoras introduces a new, more intuitive CLI structure.
-   **New in version 1.6**: OAuth 2.0 "authorize first" workflow for enhanced security.
+   **New in version 2.0**: Agoras introduces a new, more intuitive CLI structure.
+   **New in version 2.0**: OAuth 2.0 "authorize first" workflow for enhanced security.
    See the :doc:`migration guide <migration>` for upgrading from the legacy ``agoras publish`` command.
 
 Command Overview
@@ -18,7 +18,7 @@ Agoras provides three types of commands:
 OAuth 2.0 Authentication Workflow
 ----------------------------------
 
-.. versionadded:: 1.6
+.. versionadded:: 2.0
 
 For OAuth 2.0 platforms (Facebook, Instagram, LinkedIn, YouTube, TikTok, Threads), you must authorize Agoras before performing any actions:
 
@@ -47,6 +47,51 @@ For OAuth 2.0 platforms (Facebook, Instagram, LinkedIn, YouTube, TikTok, Threads
 
 See platform-specific credential guides for detailed setup instructions.
 
+Error Handling
+--------------
+
+.. versionadded:: 2.0
+
+Agoras v2.0 provides clearer error messages and validation:
+
+**Example - Missing required parameter**::
+
+    $ agoras x post --text "Hello"
+    Error: Missing required parameter: --consumer-key
+
+**Example - Invalid action**::
+
+    $ agoras x invalid-action
+    Error: Unknown action 'invalid-action' for platform 'x'.
+    Available actions: authorize, post, video, like, share, delete
+
+Automatic Token Refresh
+-----------------------
+
+.. versionadded:: 2.0
+
+OAuth 2.0 platforms automatically refresh expired tokens::
+
+    # Tokens are automatically refreshed when needed
+    agoras facebook post --text "Hello"  # Uses stored credentials
+    # If token expired, it's automatically refreshed
+
+CI/CD Integration
+-----------------
+
+.. versionadded:: 2.0
+
+Agoras supports environment variables for CI/CD pipelines::
+
+    # Set environment variables
+    export FACEBOOK_CLIENT_ID="your_id"
+    export FACEBOOK_CLIENT_SECRET="your_secret"
+
+    # Use in commands (parameters can be omitted if env vars are set)
+    agoras facebook authorize \
+      --app-id "$FACEBOOK_APP_ID" \
+      --object-id "$FACEBOOK_OBJECT_ID"
+
 Platform Commands
 ~~~~~~~~~~~~~~~~~
 
@@ -54,7 +99,7 @@ Post directly to social networks with intuitive, platform-first commands::
 
     agoras <platform> <action> [options]
 
-**Supported platforms**: x (formerly Twitter), facebook, instagram, linkedin, discord, youtube, tiktok, threads
+**Supported platforms**: x (formerly Twitter), facebook, instagram, linkedin, discord, youtube, tiktok, threads, telegram, whatsapp
 
 **Example**::
 
@@ -127,7 +172,7 @@ Like a tweet::
       --oauth-secret "$TWITTER_OAUTH_SECRET" \
       --post-id "1234567890"
 
-.. deprecated:: 1.5
+.. deprecated:: 2.0
    The ``agoras twitter`` command is deprecated. Use ``agoras x`` instead.
 
 Facebook
@@ -182,6 +227,107 @@ Send a message to a Discord channel::
       --channel-name "general" \
       --text "Hello from Agoras!"
 
+Instagram
+~~~~~~~~~
+
+First, authorize Agoras to access your Instagram account::
+
+    agoras instagram authorize \
+      --client-id "$INSTAGRAM_CLIENT_ID" \
+      --client-secret "$INSTAGRAM_CLIENT_SECRET" \
+      --object-id "$INSTAGRAM_ACCOUNT_ID"
+
+Then post to Instagram::
+
+    agoras instagram post \
+      --object-id "$INSTAGRAM_ACCOUNT_ID" \
+      --image-1 "https://example.com/image.jpg" \
+      --text "Hello from Agoras!"
+
+Upload a video::
+
+    agoras instagram video \
+      --object-id "$INSTAGRAM_ACCOUNT_ID" \
+      --video-url "https://example.com/video.mp4" \
+      --text "My Instagram video"
+
+LinkedIn
+~~~~~~~~
+
+First, authorize Agoras to access your LinkedIn account::
+
+    agoras linkedin authorize \
+      --client-id "$LINKEDIN_CLIENT_ID" \
+      --client-secret "$LINKEDIN_CLIENT_SECRET"
+
+Then post to LinkedIn::
+
+    agoras linkedin post \
+      --text "Hello from Agoras on LinkedIn!" \
+      --link "https://example.com"
+
+Upload a video::
+
+    agoras linkedin video \
+      --video-url "https://example.com/video.mp4" \
+      --text "My LinkedIn video"
+
+TikTok
+~~~~~~
+
+First, authorize Agoras to access your TikTok account::
+
+    agoras tiktok authorize \
+      --client-id "$TIKTOK_CLIENT_ID" \
+      --client-secret "$TIKTOK_CLIENT_SECRET"
+
+Then upload a video::
+
+    agoras tiktok video \
+      --video-url "https://example.com/video.mp4" \
+      --privacy "PUBLIC_TO_EVERYONE" \
+      --text "My TikTok video"
+
+Threads
+~~~~~~~
+
+First, authorize Agoras to access your Threads account::
+
+    agoras threads authorize \
+      --client-id "$THREADS_CLIENT_ID" \
+      --client-secret "$THREADS_CLIENT_SECRET"
+
+Then post to Threads::
+
+    agoras threads post \
+      --text "Hello from Agoras on Threads!"
+
+Share a post::
+
+    agoras threads share \
+      --post-id "1234567890"
+
+Telegram
+~~~~~~~~
+
+Send a message to a Telegram channel::
+
+    agoras telegram post \
+      --bot-token "$TELEGRAM_BOT_TOKEN" \
+      --chat-id "$TELEGRAM_CHAT_ID" \
+      --text "Hello from Agoras!"
+
+WhatsApp
+~~~~~~~~
+
+Send a message via WhatsApp Business API::
+
+    agoras whatsapp post \
+      --access-token "$WHATSAPP_ACCESS_TOKEN" \
+      --phone-number-id "$WHATSAPP_PHONE_NUMBER_ID" \
+      --to "$RECIPIENT_PHONE_NUMBER" \
+      --text "Hello from Agoras!"
+
 Feed Automation
 ~~~~~~~~~~~~~~~
 
@@ -224,6 +370,8 @@ Detailed Platform Guides
 - :doc:`YouTube <youtube>` - Video platform (video, like, delete)
 - :doc:`TikTok <tiktok>` - Video platform (video, delete)
 - :doc:`Threads <threads>` - Meta's text platform (post, video, share)
+- :doc:`Telegram <telegram>` - Bot-based messaging (post, video, delete)
+- :doc:`WhatsApp <whatsapp>` - Business API messaging (post, video)
 
 Feed Automation
 ---------------
@@ -246,7 +394,7 @@ Legacy Format (Deprecated)
 ---------------------------
 
 .. warning::
-   The ``agoras publish`` command is deprecated and will be removed in Agoras 2.0.
+   The ``agoras publish`` command is deprecated in Agoras 2.0.
    Please migrate to the new platform-first commands.
 
 The legacy command format is still supported with deprecation warnings::

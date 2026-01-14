@@ -7,9 +7,9 @@ ARG GID=1000
 RUN apt-get update && \
     apt-get install sudo git make jq
 
-ADD requirements.txt requirements-dev.txt /root/
-RUN pip3 install -r /root/requirements.txt -r /root/requirements-dev.txt
-RUN rm -rf /root/requirements.txt /root/requirements-dev.txt
+ADD requirements-dev.txt /root/
+RUN pip3 install -r /root/requirements-dev.txt
+RUN rm -rf /root/requirements-dev.txt
 
 RUN EXISTUSER=$(getent passwd | awk -F':' '$3 == '$UID' {print $1}') && \
     [ -n "${EXISTUSER}" ] && deluser ${EXISTUSER} || true
@@ -29,15 +29,5 @@ RUN mkdir -p \
         /home/agoras/.cache/pip
 
 WORKDIR /home/agoras/app
-
-# Copy packages directory for v2.0 modular structure
-COPY --chown=agoras:agoras packages/ /home/agoras/app/packages/
-
-# Install all packages in development mode
-RUN pip3 install -e packages/common \
-    -e packages/media \
-    -e packages/core \
-    -e packages/platforms \
-    -e packages/cli
 
 CMD ["tail", "-f", "/dev/null"]

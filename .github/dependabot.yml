@@ -6,6 +6,36 @@ updates:
     interval: weekly
     day: tuesday
     time: "01:00"
+- package-ecosystem: pip
+  directory: "/packages/cli"
+  schedule:
+    interval: weekly
+    day: tuesday
+    time: "01:00"
+- package-ecosystem: pip
+  directory: "/packages/common"
+  schedule:
+    interval: weekly
+    day: tuesday
+    time: "01:00"
+- package-ecosystem: pip
+  directory: "/packages/core"
+  schedule:
+    interval: weekly
+    day: tuesday
+    time: "01:00"
+- package-ecosystem: pip
+  directory: "/packages/media"
+  schedule:
+    interval: weekly
+    day: tuesday
+    time: "01:00"
+- package-ecosystem: pip
+  directory: "/packages/platforms"
+  schedule:
+    interval: weekly
+    day: tuesday
+    time: "01:00"
 - package-ecosystem: github-actions
   directory: "/"
   schedule:

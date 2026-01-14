@@ -43,12 +43,10 @@ def test_facebook_post_requires_object_id():
 
     args = root_parser.parse_args([
         'facebook', 'post',
-        '--access-token', 'token',
         '--object-id', 'page123',
         '--text', 'Hello Facebook'
     ])
 
-    assert args.access_token == 'token'
     assert args.object_id == 'page123'
     assert args.text == 'Hello Facebook'
 
@@ -62,7 +60,6 @@ def test_facebook_video_has_extra_options():
 
     args = root_parser.parse_args([
         'facebook', 'video',
-        '--access-token', 'token',
         '--object-id', 'page123',
         '--video-url', 'video.mp4',
         '--video-title', 'Title',
@@ -85,7 +82,6 @@ def test_facebook_share_has_profile_id():
 
     args = root_parser.parse_args([
         'facebook', 'share',
-        '--access-token', 'token',
         '--post-id', 'post123',
         '--profile-id', 'profile456'
     ])

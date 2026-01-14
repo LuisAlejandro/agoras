@@ -2,7 +2,7 @@ RSS Feed Automation
 ===================
 
 .. note::
-   **New in version 1.5**: Feed automation now uses ``agoras utils feed-publish`` command.
+   **New in version 2.0**: Feed automation now uses ``agoras utils feed-publish`` command.
    See the :doc:`migration guide <migration>` for upgrading from ``agoras publish --action last-from-feed``.
 
 Agoras can automatically publish content from RSS/Atom feeds to any supported social network. This is useful for automatically sharing blog posts, news articles, or other syndicated content.
@@ -83,7 +83,7 @@ X (formerly Twitter)::
       --x-oauth-token "$TOKEN" \
       --x-oauth-secret "$OAUTH_SECRET"
 
-.. deprecated:: 1.5
+.. deprecated:: 2.0
    The ``--network twitter`` and ``--twitter-*`` parameters are deprecated. Use ``--network x`` and ``--x-*`` parameters instead.
 
 Facebook::

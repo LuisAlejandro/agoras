@@ -29,7 +29,7 @@ from .client import XAPIClient
 class XAuthManager(BaseAuthManager):
     """X authentication manager using Authlib OAuth1Session for OAuth 1.0a."""
 
-    def __init__(self, consumer_key: str, consumer_secret: str,
+    def __init__(self, consumer_key: str = '', consumer_secret: str = '',
                  oauth_token: Optional[str] = None, oauth_secret: Optional[str] = None):
         """
         Initialize X authentication manager.
@@ -43,13 +43,13 @@ class XAuthManager(BaseAuthManager):
         super().__init__()
         self.consumer_key = consumer_key
         self.consumer_secret = consumer_secret
-        self.oauth_token = oauth_token or self._load_oauth_token_from_cache()
-        self.oauth_secret = oauth_secret or self._load_oauth_secret_from_cache()
+        self.oauth_token = oauth_token
+        self.oauth_secret = oauth_secret
 
         # Authlib OAuth1Session configuration for Twitter
         self.oauth_session = OAuth1Session(
-            client_id=self.consumer_key,
-            client_secret=self.consumer_secret,
+            client_id=self.consumer_key or '',
+            client_secret=self.consumer_secret or '',
             token=self.oauth_token if self.oauth_token and self.oauth_secret else None,
             token_secret=self.oauth_secret if self.oauth_token and self.oauth_secret else None
         )
@@ -64,12 +64,13 @@ class XAuthManager(BaseAuthManager):
         if not self._validate_basic_credentials():
             return False
 
-        # If we don't have oauth tokens, need to authorize first
+        # If we don't have oauth tokens, try loading from storage first
         if not self.oauth_token or not self.oauth_secret:
-            tokens = await self.authorize()
-            if not tokens:
-                return False
-            self.oauth_token, self.oauth_secret = tokens
+            if not self._load_credentials_from_storage():
+                # If not in storage, need to authorize
+                result = await self.authorize()
+                if not result:
+                    return False
 
         try:
             # For Twitter OAuth 1.0a, we use the oauth_token as the access_token
@@ -88,16 +89,22 @@ class XAuthManager(BaseAuthManager):
         except Exception:
             return False
 
-    async def authorize(self) -> Optional[tuple]:
+    async def authorize(self) -> Optional[str]:
         """
-        Run X OAuth 1.0a authorization flow using Authlib.
+        Authorize X account and store credentials.
 
         Returns:
-            tuple or None: (oauth_token, oauth_secret) if successful, None if failed
+            str: Success message if authorization successful, None otherwise
         """
         if not self._validate_basic_credentials():
             raise Exception('X consumer key and secret are required for authorization.')
 
+        # If OAuth tokens are already provided, just save them
+        if self.oauth_token and self.oauth_secret:
+            self._save_credentials_to_storage()
+            return "Authorization successful. Credentials stored securely."
+
+        # Otherwise, run OAuth flow to get tokens
         try:
             def _sync_authorize():
                 # Step 1: Fetch request token
@@ -129,14 +136,23 @@ class XAuthManager(BaseAuthManager):
                 oauth_token = access_token['oauth_token']
                 oauth_secret = access_token['oauth_token_secret']
 
-                # Save tokens to cache
-                self._save_tokens_to_cache(oauth_token, oauth_secret)
-
                 return oauth_token, oauth_secret
 
-            return await asyncio.to_thread(_sync_authorize)
-        except Exception:
-            return None
+            tokens = await asyncio.to_thread(_sync_authorize)
+            if not tokens:
+                return None
+
+            oauth_token, oauth_secret = tokens
+            self.oauth_token = oauth_token
+            self.oauth_secret = oauth_secret
+
+            # Save all credentials to storage
+            self._save_credentials_to_storage()
+
+            return "Authorization successful. Credentials stored securely."
+
+        except Exception as e:
+            raise Exception(f'X authorization failed: {str(e)}')
 
     def _create_client(self) -> XAPIClient:
         """Create X API client instance."""
@@ -165,28 +181,52 @@ class XAuthManager(BaseAuthManager):
         """Validate that all required credentials are present."""
         return all([self.consumer_key, self.consumer_secret, self.oauth_token, self.oauth_secret])
 
-    def _get_cache_filename(self) -> str:
-        """Get cache filename for storing OAuth tokens."""
-        # Use consumer key as identifier since tokens are user-specific
+    def _get_platform_name(self) -> str:
+        """Get platform name for token storage."""
+        return "x"
+
+    def _get_token_identifier(self) -> str:
+        """Get token identifier (use consumer key hash)."""
         import hashlib
-        key_hash = hashlib.md5(self.consumer_key.encode()).hexdigest()[:8]
-        return f'x-{key_hash}.json'
+        if self.consumer_key:
+            return hashlib.md5(self.consumer_key.encode()).hexdigest()[:8]
+        return "default"
 
-    def _load_oauth_token_from_cache(self) -> Optional[str]:
-        """Load OAuth token from cache file."""
-        cache_file = self._get_cache_filename()
-        return self._load_token_from_cache(cache_file, 'x_oauth_token')
+    def _save_credentials_to_storage(self):
+        """Save all X credentials to secure storage."""
+        platform_name = self._get_platform_name()
+        identifier = self._get_token_identifier()
 
-    def _load_oauth_secret_from_cache(self) -> Optional[str]:
-        """Load OAuth secret from cache file."""
-        cache_file = self._get_cache_filename()
-        return self._load_token_from_cache(cache_file, 'x_oauth_secret')
-
-    def _save_tokens_to_cache(self, oauth_token: str, oauth_secret: str):
-        """Save OAuth tokens to cache file."""
-        cache_file = self._get_cache_filename()
-        data = {
-            'x_oauth_token': oauth_token,
-            'x_oauth_secret': oauth_secret
+        token_data = {
+            'consumer_key': self.consumer_key,
+            'consumer_secret': self.consumer_secret,
+            'oauth_token': self.oauth_token,
+            'oauth_secret': self.oauth_secret
         }
-        self._save_cache_data(cache_file, data)
+
+        self.token_storage.save_token(platform_name, identifier, token_data)
+
+    def _load_credentials_from_storage(self) -> bool:
+        """Load X credentials from secure storage."""
+        platform_name = self._get_platform_name()
+
+        # Try default identifier first
+        identifier = self._get_token_identifier()
+        token_data = self.token_storage.load_token(platform_name, identifier)
+
+        if not token_data:
+            # Try to find any stored token
+            tokens = self.token_storage.list_tokens(platform_name)
+            if tokens:
+                identifier = tokens[0][1]
+                token_data = self.token_storage.load_token(platform_name, identifier)
+
+        if token_data:
+            self.consumer_key = token_data.get('consumer_key')
+            self.consumer_secret = token_data.get('consumer_secret')
+            self.oauth_token = token_data.get('oauth_token')
+            self.oauth_secret = token_data.get('oauth_secret')
+            return bool(all([self.consumer_key, self.consumer_secret,
+                            self.oauth_token, self.oauth_secret]))
+
+        return False

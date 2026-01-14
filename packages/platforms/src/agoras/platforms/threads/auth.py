@@ -105,8 +105,10 @@ class ThreadsAuthManager(BaseAuthManager):
                     'or AGORAS_THREADS_USER_ID not set.'
                 )
 
-            # Save both token and user_id to storage
-            self._save_tokens_to_storage(refresh_token, user_id_env)
+            # Save all credentials to storage
+            self.refresh_token = refresh_token
+            self.user_id = user_id_env
+            self._save_credentials_to_storage(refresh_token, user_id_env)
             print("Successfully seeded Threads credentials from environment variables.")
             return refresh_token
         except Exception as e:
@@ -164,8 +166,10 @@ class ThreadsAuthManager(BaseAuthManager):
                 if not user_id:
                     raise Exception('No user ID in Threads response')
 
-                # Save both token and user_id to storage
-                self._save_tokens_to_storage(long_lived_token, user_id)
+                # Save all credentials to storage
+                self.refresh_token = long_lived_token
+                self.user_id = user_id
+                self._save_credentials_to_storage(long_lived_token, user_id)
                 return long_lived_token
 
             return await asyncio.to_thread(_sync_exchange)
@@ -264,9 +268,52 @@ class ThreadsAuthManager(BaseAuthManager):
         self._save_refresh_token_to_storage(refresh_token)
 
     def _save_tokens_to_storage(self, refresh_token: str, user_id: str):
-        """Save both refresh token and user ID to secure storage."""
+        """Save both refresh token and user ID to secure storage. DEPRECATED - use _save_credentials_to_storage."""
+        self._save_credentials_to_storage(refresh_token, user_id)
+
+    def _save_credentials_to_storage(self, refresh_token: str, user_id: str):
+        """Save all Threads credentials to secure storage."""
+        platform_name = self._get_platform_name()
+        identifier = self._get_token_identifier()
+
         token_data = {
+            'app_id': self.app_id,
+            'app_secret': self.app_secret,
+            'redirect_uri': self.redirect_uri,
             'refresh_token': refresh_token,
             'user_id': user_id
         }
-        self.token_storage.save_token('threads', self.app_id, token_data)
+
+        self.token_storage.save_token(platform_name, identifier, token_data)
+
+    def _load_credentials_from_storage(self) -> bool:
+        """Load Threads credentials from secure storage."""
+        platform_name = self._get_platform_name()
+
+        # Try default identifier first
+        identifier = self._get_token_identifier()
+        token_data = self.token_storage.load_token(platform_name, identifier)
+
+        if not token_data:
+            # Try to find any stored token
+            tokens = self.token_storage.list_tokens(platform_name)
+            if tokens:
+                identifier = tokens[0][1]
+                token_data = self.token_storage.load_token(platform_name, identifier)
+
+        if token_data:
+            # Only update if not already set (allow override from constructor)
+            if not self.app_id:
+                self.app_id = token_data.get('app_id')
+            if not self.app_secret:
+                self.app_secret = token_data.get('app_secret')
+            if not self.redirect_uri:
+                self.redirect_uri = token_data.get('redirect_uri')
+            if not self.refresh_token:
+                self.refresh_token = token_data.get('refresh_token')
+            if not self.user_id:
+                self.user_id = token_data.get('user_id')
+
+            return bool(all([self.app_id, self.app_secret, self.redirect_uri, self.refresh_token]))
+
+        return False

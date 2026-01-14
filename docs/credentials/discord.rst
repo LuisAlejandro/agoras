@@ -132,19 +132,23 @@ Test your bot
 You can test if your bot is properly configured:
 
 1. Make sure the bot is online (green status) in your server member list
-2. Try a simple post command:
+2. First, authorize your bot credentials:
 
    ::
 
-         agoras publish \
-               --network "discord" \
-               --action "post" \
-               --discord-bot-token "your_bot_token_here" \
-               --discord-server-name "Your Server Name" \
-               --discord-channel-name "general" \
-               --status-text "Hello, Discord!"
+         agoras discord authorize \
+               --bot-token "your_bot_token_here" \
+               --server-name "Your Server Name" \
+               --channel-name "general"
 
-3. Check if the message appears in your Discord channel
+3. Then try a simple post command (credentials are now stored):
+
+   ::
+
+         agoras discord post \
+               --text "Hello, Discord!"
+
+4. Check if the message appears in your Discord channel
 
 Enable Developer Mode (for message IDs)
 ---------------------------------------
@@ -158,22 +162,49 @@ To get message IDs for like and delete actions:
 
 .. image:: images/discord-9.png
 
+CI/CD Setup
+-----------
+
+For CI/CD environments where you need to use Discord credentials:
+
+1. Set environment variables in your CI/CD pipeline::
+
+      export DISCORD_BOT_TOKEN="your_bot_token_here"
+      export DISCORD_SERVER_NAME="Your Server Name"
+      export DISCORD_CHANNEL_NAME="general"
+
+2. Agoras will automatically use these environment variables when credentials are not provided via command-line parameters.
+
+3. You can also authorize once locally and the credentials will be stored securely in ``~/.agoras/tokens/``, which can be used in CI/CD if the token storage is accessible.
+
+**Security Best Practices for CI/CD**:
+- Store credentials in your CI/CD platform's secret management system (GitHub Secrets, GitLab CI/CD Variables, etc.)
+- Never commit tokens to version control
+- Use different bot tokens for different environments (dev, staging, production)
+- Rotate tokens periodically
+- Limit bot permissions to only what's required
+
 Agoras parameters
 -----------------
 
-+------------------------+---------------------------+
-| Discord credential     | Agoras parameter          |
-+========================+===========================+
-| Bot Token              | --discord-bot-token       |
-+------------------------+---------------------------+
-| Server Name            | --discord-server-name     |
-+------------------------+---------------------------+
-| Channel Name           | --discord-channel-name    |
-+------------------------+---------------------------+
-| Message ID             | --discord-post-id         |
-+------------------------+---------------------------+
++------------------------+---------------------------+--------------------------------+
+| Discord credential     | Agoras parameter          | Required for                   |
++========================+===========================+================================+
+| Bot Token              | --bot-token               | authorize (required)           |
+|                        |                           | post/video/delete (optional)   |
++------------------------+---------------------------+--------------------------------+
+| Server Name            | --server-name             | authorize (required)           |
+|                        |                           | post/video/delete (optional)   |
++------------------------+---------------------------+--------------------------------+
+| Channel Name           | --channel-name           | authorize (required)           |
+|                        |                           | post/video/delete (optional)   |
++------------------------+---------------------------+--------------------------------+
+| Message ID             | --post-id                 | delete action only             |
++------------------------+---------------------------+--------------------------------+
 
-**Note**: Message ID is only needed for like and delete actions.
+**Important**: Run ``agoras discord authorize`` first to store your credentials securely. After authorization, you can use post, video, and delete actions without providing credentials each time.
+
+**Note**: Message ID is only needed for delete actions. You can get message IDs by enabling Developer Mode in Discord settings.
 
 Troubleshooting
 ---------------
@@ -207,4 +238,4 @@ Troubleshooting
 - Verify the file format is supported
 - Ensure the file size doesn't exceed Discord's limits (8MB/50MB)
 
-For more help, consult the `Discord Developer Documentation <https://discord.com/developers/docs>`_. 
+For more help, consult the `Discord Developer Documentation <https://discord.com/developers/docs>`_.

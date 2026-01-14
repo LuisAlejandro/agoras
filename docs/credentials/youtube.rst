@@ -6,7 +6,7 @@ This document covers credentials for both Google Sheets (for scheduling) and You
 YouTube OAuth 2.0 Credentials
 ------------------------------
 
-.. versionadded:: 1.6
+.. versionadded:: 2.0
    YouTube now uses OAuth 2.0 "authorize first" workflow.
 
 Agoras needs the following OAuth app credentials from Google to access YouTube:
@@ -59,7 +59,7 @@ CI/CD Setup (Headless Authorization)
 For CI/CD environments where interactive browser authorization isn't possible:
 
 1. Run ``agoras youtube authorize`` locally first to generate a refresh token.
-2. Extract the refresh token from ``~/.agoras/tokens/youtube-{user_id}.token`` (decrypted).
+2. Extract the refresh token from ``~/.agoras/tokens/youtube-{client_id}.token`` (decrypted).
 3. Set environment variables in your CI/CD pipeline::
 
       export AGORAS_YOUTUBE_REFRESH_TOKEN="your_refresh_token_here"
@@ -133,7 +133,8 @@ Enable access to APIs in project
 In the next step, we will need to enable access to APIs for our project.
 The project will need to have access to:
 
-- YouTube Data API v3
+- Google Drive API
+- Google Sheets API
 
 Why do we need to give additional access to Google Drive API? It’s
 because Google Sheets are stored in Google Drive. Changes made on Sheets
@@ -227,10 +228,13 @@ Agoras parameters
 +---------------------+------------------------------+
 | Google credential   | Agoras parameter             |
 +=====================+==============================+
-| client_email        | --google-sheets-client-email |
+| client_email        | --sheets-client-email       |
 +---------------------+------------------------------+
-| private_key         | --google-sheets-private-key  |
+| private_key         | --sheets-private-key         |
 +---------------------+------------------------------+
+
+.. deprecated:: 2.0
+   The ``--google-sheets-*`` parameters are deprecated. Use ``--sheets-*`` parameters instead.
 
 
 

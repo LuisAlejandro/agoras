@@ -294,6 +294,167 @@ Step 6: Test Your Integration
 3. Test posting to each platform you use
 4. Check error handling and logging
 
+CI/CD Migration
+---------------
+
+If you use Agoras in your CI/CD pipeline, update your workflows:
+
+GitHub Actions
+~~~~~~~~~~~~~~
+
+**Before (v1.1.3):**
+
+.. code-block:: yaml
+
+    - name: Install Agoras
+      run: pip install agoras==1.1.3
+
+    - name: Post to social media
+      run: |
+        agoras publish --network facebook --action post \
+          --facebook-access-token "${{ secrets.FB_TOKEN }}" \
+          --status-text "Deployed!"
+
+**After (v2.0.0):**
+
+.. code-block:: yaml
+
+    - name: Install Agoras
+      run: pip install "agoras>=2.0.0"
+
+    - name: Post to social media
+      run: |
+        agoras facebook post \
+          --facebook-access-token "${{ secrets.FB_TOKEN }}" \
+          --status-text "Deployed!"
+
+Dependency Pinning
+~~~~~~~~~~~~~~~~~~
+
+For reproducible builds:
+
+.. code-block:: bash
+
+    # Pin exact version
+    agoras==2.0.0
+
+    # Pin major version (recommended)
+    agoras>=2.0.0,<3.0.0
+
+    # Install specific sub-packages (advanced)
+    agoras-common==2.0.0
+    agoras-media==2.0.0
+    agoras-core==2.0.0
+    agoras-platforms==2.0.0
+    agoras==2.0.0
+
+Docker/Container Environments
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Update your Dockerfile:
+
+.. code-block:: dockerfile
+
+    # Before
+    RUN pip install agoras==1.1.3
+
+    # After
+    RUN pip install "agoras>=2.0.0"
+
+Test Migration
+--------------
+
+Update Your Test Imports
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Before (v1.1.3):**
+
+.. code-block:: python
+
+    # tests/test_facebook.py
+    from agoras.core.facebook import Facebook
+    from agoras.core.media import MediaFactory
+    from agoras.core.utils import parse_metatags
+
+    def test_facebook_post():
+        fb = Facebook(facebook_access_token='test_token')
+        fb.post(status_text='Test')
+
+**After (v2.0.0):**
+
+.. code-block:: python
+
+    # tests/test_facebook.py
+    import pytest
+    from agoras.platforms.facebook import Facebook
+    from agoras.media import MediaFactory
+    from agoras.common.utils import parse_metatags
+
+    @pytest.mark.asyncio
+    async def test_facebook_post():
+        fb = Facebook(facebook_access_token='test_token')
+        await fb._initialize_client()
+        try:
+            await fb.post(status_text='Test')
+        finally:
+            await fb.disconnect()
+
+Mock Strategy Changes
+~~~~~~~~~~~~~~~~~~~~~
+
+Update mocks for async methods:
+
+.. code-block:: python
+
+    # Before (v1.1.3)
+    from unittest.mock import Mock, patch
+
+    @patch('agoras.core.facebook.Facebook.post')
+    def test_post(mock_post):
+        mock_post.return_value = {'id': '123'}
+        fb = Facebook(facebook_access_token='test')
+        result = fb.post(status_text='Test')
+        assert result['id'] == '123'
+
+    # After (v2.0.0)
+    from unittest.mock import AsyncMock, patch
+    import pytest
+
+    @pytest.mark.asyncio
+    @patch('agoras.platforms.facebook.Facebook.post', new_callable=AsyncMock)
+    async def test_post(mock_post):
+        mock_post.return_value = {'id': '123'}
+        fb = Facebook(facebook_access_token='test')
+        await fb._initialize_client()
+        try:
+            result = await fb.post(status_text='Test')
+            assert result['id'] == '123'
+        finally:
+            await fb.disconnect()
+
+Pytest Configuration
+~~~~~~~~~~~~~~~~~~~~
+
+Add pytest-asyncio to your test dependencies:
+
+.. code-block:: bash
+
+    # requirements-dev.txt or test dependencies
+    pytest>=7.0.0
+    pytest-asyncio>=0.21.0
+    pytest-cov>=4.0.0
+
+Update pytest.ini:
+
+.. code-block:: ini
+
+    [pytest]
+    asyncio_mode = auto
+    testpaths = tests
+    python_files = test_*.py
+    python_classes = Test*
+    python_functions = test_*
+
 Platform-Specific Notes
 -----------------------
 

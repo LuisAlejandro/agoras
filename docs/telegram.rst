@@ -1,6 +1,10 @@
 Usage for Telegram
 ==================
 
+.. note::
+   **New in version 2.0**: Telegram commands now use the intuitive ``agoras telegram`` format.
+   See the :doc:`migration guide <migration>` for upgrading from ``agoras publish``.
+
 Telegram is a cloud-based instant messaging and voice-over-IP service. Agoras can publish messages, videos, images, documents, audio files, polls, and manage scheduled content on Telegram using the official `python-telegram-bot library <https://python-telegram-bot.org/>`_.
 
 **Important**: Telegram uses bot tokens for authentication. You must create a Telegram bot using @BotFather, obtain a bot token, and find the chat ID (user, group, or channel) before using these features. Like and share functionality are not supported by Agoras for Telegram.
@@ -13,51 +17,50 @@ Publish a Telegram message
 
 This command will send a message to a Telegram chat using your bot. The message can include text, links, and up to 4 images. Multiple images will be sent as a media group (album).
 
-::
+**New format** (Agoras 2.0+)::
 
-      agoras publish \
-            --network "telegram" \
-            --action "post" \
-            --telegram-bot-token "${TELEGRAM_BOT_TOKEN}" \
-            --telegram-chat-id "${TELEGRAM_CHAT_ID}" \
-            --status-text "${STATUS_TEXT}" \
-            --status-link "${STATUS_LINK}" \
-            --status-image-url-1 "${STATUS_IMAGE_URL_1}" \
-            --status-image-url-2 "${STATUS_IMAGE_URL_2}" \
-            --status-image-url-3 "${STATUS_IMAGE_URL_3}" \
-            --status-image-url-4 "${STATUS_IMAGE_URL_4}"
+    agoras telegram post \
+      --bot-token "${TELEGRAM_BOT_TOKEN}" \
+      --chat-id "${TELEGRAM_CHAT_ID}" \
+      --text "${STATUS_TEXT}" \
+      --link "${STATUS_LINK}" \
+      --image-1 "${STATUS_IMAGE_URL_1}" \
+      --image-2 "${STATUS_IMAGE_URL_2}" \
+      --image-3 "${STATUS_IMAGE_URL_3}" \
+      --image-4 "${STATUS_IMAGE_URL_4}"
 
 Parameters:
 
-- ``--telegram-bot-token``: Your Telegram bot token from @BotFather (required)
-- ``--telegram-chat-id``: Target chat ID (user, group, or channel) (required)
-- ``--status-text``: The text content of your message
-- ``--status-link``: A URL to include in the message
-- ``--status-image-url-X``: URLs pointing to downloadable images (JPEG, PNG, JPG)
+- ``--bot-token``: Your Telegram bot token from @BotFather (required)
+- ``--chat-id``: Target chat ID (user, group, or channel) (required)
+- ``--text``: The text content of your message
+- ``--link``: A URL to include in the message
+- ``--image-X``: URLs pointing to downloadable images (JPEG, PNG, JPG)
 
-**Note**: You must provide at least one of ``--status-text``, ``--status-link``, or ``--status-image-url-1``.
+**Note**: You must provide at least one of ``--text``, ``--link``, or ``--image-1``.
+
+.. deprecated:: 2.0
+   The ``agoras publish --network "telegram"`` command is deprecated. Use ``agoras telegram post`` instead.
 
 Publish a Telegram video
 -------------------------
 
 This command will upload and send a video file to a Telegram chat. The video can include a caption.
 
-::
+**New format** (Agoras 2.0+)::
 
-      agoras publish \
-            --network "telegram" \
-            --action "video" \
-            --telegram-bot-token "${TELEGRAM_BOT_TOKEN}" \
-            --telegram-chat-id "${TELEGRAM_CHAT_ID}" \
-            --video-url "${VIDEO_URL}" \
-            --video-title "${VIDEO_TITLE}" \
-            --status-text "${STATUS_TEXT}"
+    agoras telegram video \
+      --bot-token "${TELEGRAM_BOT_TOKEN}" \
+      --chat-id "${TELEGRAM_CHAT_ID}" \
+      --video-url "${VIDEO_URL}" \
+      --video-title "${VIDEO_TITLE}" \
+      --text "${STATUS_TEXT}"
 
 Parameters:
 
 - ``--video-url``: URL pointing to a downloadable video file (required)
-- ``--video-title``: Title for the video (optional, used as caption if status-text not provided)
-- ``--status-text``: Caption text for the video (optional)
+- ``--video-title``: Title for the video (optional, used as caption if text not provided)
+- ``--text``: Caption text for the video (optional)
 
 **Video requirements**:
 - **Supported formats**: MP4, MOV, WebM, AVI, MKV
@@ -69,20 +72,18 @@ Edit a Telegram message
 
 This command will edit the text of an existing Telegram message. Only text messages can be edited (not media messages).
 
-::
+**New format** (Agoras 2.0+)::
 
-      agoras publish \
-            --network "telegram" \
-            --action "edit" \
-            --telegram-bot-token "${TELEGRAM_BOT_TOKEN}" \
-            --telegram-chat-id "${TELEGRAM_CHAT_ID}" \
-            --telegram-message-id "${TELEGRAM_MESSAGE_ID}" \
-            --status-text "${NEW_TEXT}"
+    agoras telegram edit \
+      --bot-token "${TELEGRAM_BOT_TOKEN}" \
+      --chat-id "${TELEGRAM_CHAT_ID}" \
+      --message-id "${TELEGRAM_MESSAGE_ID}" \
+      --text "${NEW_TEXT}"
 
 Parameters:
 
-- ``--telegram-message-id``: ID of the message to edit (required)
-- ``--status-text``: New message text (required)
+- ``--message-id``: ID of the message to edit (required)
+- ``--text``: New message text (required)
 
 **Note**: You can only edit text messages. Media messages (photos, videos, documents) cannot be edited.
 
@@ -91,22 +92,20 @@ Send a Telegram poll
 
 This command will create and send a poll to a Telegram chat. Polls can be anonymous or public, and support 2-10 options.
 
-::
+**New format** (Agoras 2.0+)::
 
-      agoras publish \
-            --network "telegram" \
-            --action "poll" \
-            --telegram-bot-token "${TELEGRAM_BOT_TOKEN}" \
-            --telegram-chat-id "${TELEGRAM_CHAT_ID}" \
-            --telegram-poll-question "${POLL_QUESTION}" \
-            --telegram-poll-options "${POLL_OPTIONS}" \
-            --telegram-poll-anonymous "${IS_ANONYMOUS}"
+    agoras telegram poll \
+      --bot-token "${TELEGRAM_BOT_TOKEN}" \
+      --chat-id "${TELEGRAM_CHAT_ID}" \
+      --poll-question "${POLL_QUESTION}" \
+      --poll-options "${POLL_OPTIONS}" \
+      --poll-anonymous "${IS_ANONYMOUS}"
 
 Parameters:
 
-- ``--telegram-poll-question``: Poll question (up to 300 characters) (required)
-- ``--telegram-poll-options``: Comma-separated list of poll options (2-10 options, each up to 100 characters) (required)
-- ``--telegram-poll-anonymous``: Whether poll is anonymous (true/false, default: true)
+- ``--poll-question``: Poll question (up to 300 characters) (required)
+- ``--poll-options``: Comma-separated list of poll options (2-10 options, each up to 100 characters) (required)
+- ``--poll-anonymous``: Whether poll is anonymous (true/false, default: true)
 
 **Poll requirements**:
 - **Question length**: Up to 300 characters
@@ -119,20 +118,18 @@ Send a Telegram document
 
 This command will send a document file to a Telegram chat. Documents can include PDFs, Word documents, spreadsheets, and other file types.
 
-::
+**New format** (Agoras 2.0+)::
 
-      agoras publish \
-            --network "telegram" \
-            --action "document" \
-            --telegram-bot-token "${TELEGRAM_BOT_TOKEN}" \
-            --telegram-chat-id "${TELEGRAM_CHAT_ID}" \
-            --telegram-document-url "${DOCUMENT_URL}" \
-            --status-text "${CAPTION}"
+    agoras telegram document \
+      --bot-token "${TELEGRAM_BOT_TOKEN}" \
+      --chat-id "${TELEGRAM_CHAT_ID}" \
+      --document-url "${DOCUMENT_URL}" \
+      --text "${CAPTION}"
 
 Parameters:
 
-- ``--telegram-document-url``: URL of document file to send (required)
-- ``--status-text``: Document caption (optional, up to 1024 characters)
+- ``--document-url``: URL of document file to send (required)
+- ``--text``: Document caption (optional, up to 1024 characters)
 
 **Document requirements**:
 - **File size limit**: 50MB
@@ -144,26 +141,24 @@ Send a Telegram audio file
 
 This command will send an audio file to a Telegram chat. Audio files can include MP3, OGG, and other audio formats.
 
-::
+**New format** (Agoras 2.0+)::
 
-      agoras publish \
-            --network "telegram" \
-            --action "audio" \
-            --telegram-bot-token "${TELEGRAM_BOT_TOKEN}" \
-            --telegram-chat-id "${TELEGRAM_CHAT_ID}" \
-            --telegram-audio-url "${AUDIO_URL}" \
-            --status-text "${CAPTION}" \
-            --telegram-audio-duration "${DURATION}" \
-            --telegram-audio-performer "${PERFORMER}" \
-            --telegram-audio-title "${TITLE}"
+    agoras telegram audio \
+      --bot-token "${TELEGRAM_BOT_TOKEN}" \
+      --chat-id "${TELEGRAM_CHAT_ID}" \
+      --audio-url "${AUDIO_URL}" \
+      --text "${CAPTION}" \
+      --audio-duration "${DURATION}" \
+      --audio-performer "${PERFORMER}" \
+      --audio-title "${TITLE}"
 
 Parameters:
 
-- ``--telegram-audio-url``: URL of audio file to send (required)
-- ``--status-text``: Audio caption (optional, up to 1024 characters)
-- ``--telegram-audio-duration``: Audio duration in seconds (optional)
-- ``--telegram-audio-performer``: Performer name (optional)
-- ``--telegram-audio-title``: Track title (optional)
+- ``--audio-url``: URL of audio file to send (required)
+- ``--text``: Audio caption (optional, up to 1024 characters)
+- ``--audio-duration``: Audio duration in seconds (optional)
+- ``--audio-performer``: Performer name (optional)
+- ``--audio-title``: Track title (optional)
 
 **Audio requirements**:
 - **File size limit**: 50MB
@@ -175,18 +170,16 @@ Delete a Telegram message
 
 This command will delete an existing Telegram message. The bot must have permission to delete messages in the chat.
 
-::
+**New format** (Agoras 2.0+)::
 
-      agoras publish \
-            --network "telegram" \
-            --action "delete" \
-            --telegram-bot-token "${TELEGRAM_BOT_TOKEN}" \
-            --telegram-chat-id "${TELEGRAM_CHAT_ID}" \
-            --telegram-message-id "${TELEGRAM_MESSAGE_ID}"
+    agoras telegram delete \
+      --bot-token "${TELEGRAM_BOT_TOKEN}" \
+      --chat-id "${TELEGRAM_CHAT_ID}" \
+      --message-id "${TELEGRAM_MESSAGE_ID}"
 
 Parameters:
 
-- ``--telegram-message-id``: ID of the message to delete (required)
+- ``--message-id``: ID of the message to delete (required)
 
 **Note**: Like and share functionality are not supported for Telegram.
 
@@ -197,16 +190,16 @@ This command will parse an RSS feed located at ``--feed-url``, and publish the l
 
 Please read about how the RSS feed should be structured in the :doc:`RSS feed section <rss>`. This ensures that the feed is correctly parsed and that the post content is properly formatted.
 
-::
+**New format** (Agoras 2.0+)::
 
-      agoras publish \
-            --network "telegram" \
-            --action "last-from-feed" \
-            --telegram-bot-token "${TELEGRAM_BOT_TOKEN}" \
-            --telegram-chat-id "${TELEGRAM_CHAT_ID}" \
-            --feed-url "${FEED_URL}" \
-            --max-count "${MAX_COUNT}" \
-            --post-lookback "${POST_LOOKBACK}"
+    agoras utils feed-publish \
+      --network telegram \
+      --mode last \
+      --feed-url "${FEED_URL}" \
+      --max-count "${MAX_COUNT}" \
+      --post-lookback "${POST_LOOKBACK}" \
+      --telegram-bot-token "${TELEGRAM_BOT_TOKEN}" \
+      --telegram-chat-id "${TELEGRAM_CHAT_ID}"
 
 Post a random content from an RSS feed into Telegram
 -----------------------------------------------------
@@ -215,26 +208,26 @@ This command will parse an RSS feed at ``--feed-url`` and publish one random ent
 
 Please read about how the RSS feed should be structured in the :doc:`RSS feed section <rss>`. This ensures that the feed is correctly parsed and that the post content is properly formatted.
 
-::
+**New format** (Agoras 2.0+)::
 
-      agoras publish \
-            --network "telegram" \
-            --action "random-from-feed" \
-            --telegram-bot-token "${TELEGRAM_BOT_TOKEN}" \
-            --telegram-chat-id "${TELEGRAM_CHAT_ID}" \
-            --feed-url "${FEED_URL}" \
-            --max-post-age "${MAX_POST_AGE}"
+    agoras utils feed-publish \
+      --network telegram \
+      --mode random \
+      --feed-url "${FEED_URL}" \
+      --max-post-age "${MAX_POST_AGE}" \
+      --telegram-bot-token "${TELEGRAM_BOT_TOKEN}" \
+      --telegram-chat-id "${TELEGRAM_CHAT_ID}"
 
 Schedule a Telegram post
 -------------------------
 
-This command will scan a sheet ``--google-sheets-name`` of a Google spreadsheet with id ``--google-sheets-id``, that's authorized by ``--google-sheets-client-email`` and ``--google-sheets-private-key``. Messages will be published to the Telegram chat using your bot.
+This command will scan a sheet ``--sheets-name`` of a Google spreadsheet with id ``--sheets-id``, that's authorized by ``--sheets-client-email`` and ``--sheets-private-key``. Messages will be published to the Telegram chat using your bot.
 
 The order of the columns of the spreadsheet is crucial to the correct functioning of the command. Here's how the information should be organized:
 
-+--------------------+--------------------+---------------------------+---------------------------+---------------------------+---------------------------+-------------------------+-------------------+------------------------------+
-| ``--status-text``  | ``--status-link``  | ``--status-image-url-1``  | ``--status-image-url-2``  | ``--status-image-url-3``  | ``--status-image-url-4``  | date (%d-%m-%Y format)  | time (%H format)  | status (draft or published)  |
-+--------------------+--------------------+---------------------------+---------------------------+---------------------------+---------------------------+-------------------------+-------------------+------------------------------+
++-------------+------------+------------+------------+------------+------------+-------------------------+-------------------+------------------------------+
+| ``--text``  | ``--link`` | ``--image-1`` | ``--image-2`` | ``--image-3`` | ``--image-4`` | date (%d-%m-%Y format)  | time (%H format)  | status (draft or published)  |
++-------------+------------+------------+------------+------------+------------+-------------------------+-------------------+------------------------------+
 
 As you can see, the first 6 columns correspond to the parameters of the "post" command, the date and time columns correspond to the specific time that you want to publish this message, and the status column tells the script if this message is ready to be published (draft status) or if it was already published and should be skipped (published status).
 
@@ -248,17 +241,16 @@ This schedule entry would be published at 17:00h of 21-11-2022 with text "This i
 
 For this command to work, it should be executed hourly by a cron script.
 
-::
+**New format** (Agoras 2.0+)::
 
-      agoras publish \
-            --network "telegram" \
-            --action "schedule" \
-            --telegram-bot-token "${TELEGRAM_BOT_TOKEN}" \
-            --telegram-chat-id "${TELEGRAM_CHAT_ID}" \
-            --google-sheets-id "${GOOGLE_SHEETS_ID}" \
-            --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
-            --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-            --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
+    agoras utils schedule-run \
+      --network telegram \
+      --sheets-id "${GOOGLE_SHEETS_ID}" \
+      --sheets-name "${GOOGLE_SHEETS_NAME}" \
+      --sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
+      --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" \
+      --telegram-bot-token "${TELEGRAM_BOT_TOKEN}" \
+      --telegram-chat-id "${TELEGRAM_CHAT_ID}"
 
 Telegram Features and Limitations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -310,12 +302,10 @@ When you create a Telegram message with Agoras, it will print the message ID (in
 
 ::
 
-      $ agoras publish \
-            --network telegram \
-            --action post \
-            --telegram-bot-token XXXXX \
-            --telegram-chat-id YYYYY \
-            --status-text "This is a test post"
+      $ agoras telegram post \
+            --bot-token XXXXX \
+            --chat-id YYYYY \
+            --text "This is a test post"
       $ {"id":"123456789"}
 
 ``123456789`` is the message ID.
@@ -324,7 +314,7 @@ When you create a Telegram message with Agoras, it will print the message ID (in
 
 1. Forward a message from the chat to @userinfobot or @getidsbot
 2. The bot will reply with the chat ID and message ID
-3. Use the message ID with ``--telegram-message-id``
+3. Use the message ID with ``--message-id``
 
 Chat ID Discovery
 ~~~~~~~~~~~~~~~~~~
@@ -332,19 +322,19 @@ Chat ID Discovery
 **For Private Chats**:
   - Start a conversation with @userinfobot
   - The bot will reply with your user ID
-  - Use this ID as ``--telegram-chat-id``
+  - Use this ID as ``--chat-id``
 
 **For Groups**:
   - Add @getidsbot to your group
   - Send any message in the group
   - The bot will reply with the group ID
-  - Use this ID as ``--telegram-chat-id``
+  - Use this ID as ``--chat-id``
 
 **For Channels**:
   - Add @getidsbot to your channel as an administrator
   - Post any message in the channel
   - The bot will reply with the channel ID
-  - Use this ID as ``--telegram-chat-id``
+  - Use this ID as ``--chat-id``
 
 **Note**: Channel IDs start with ``-100``, group IDs start with ``-``, and user IDs are positive numbers.
 

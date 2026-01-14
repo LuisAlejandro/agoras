@@ -30,14 +30,7 @@ X (formerly Twitter)
 * ``--oauth-token`` - X OAuth token (required for most actions)
 * ``--oauth-secret`` - X OAuth secret (required for most actions)
 
-**Utils commands**:
-
-* ``--x-consumer-key`` (primary)
-* ``--x-consumer-secret`` (primary)
-* ``--x-oauth-token`` (primary)
-* ``--x-oauth-secret`` (primary)
-
-.. deprecated:: 1.5
+.. deprecated:: 2.0
    The ``--twitter-*`` parameters in utils commands are deprecated. Use ``--x-*`` parameters instead.
 
 .. note::
@@ -46,7 +39,7 @@ X (formerly Twitter)
 Facebook
 --------
 
-.. versionchanged:: 1.6
+.. versionchanged:: 2.0
    Facebook now uses OAuth 2.0. Token parameters removed. Run ``agoras facebook authorize`` first.
 
 **Platform commands** (``agoras facebook``):
@@ -57,18 +50,13 @@ Facebook
 * ``--app-id`` - Facebook App ID (required for authorize)
 * ``--object-id`` - Facebook page or profile ID (required for authorize and post/video)
 
-**Utils commands**:
-
-* ``--facebook-object-id``
-* ``--facebook-app-id``
-
 .. note::
    OAuth platforms require authorization via ``agoras <platform> authorize`` before use.
 
 Instagram
 ---------
 
-.. versionchanged:: 1.6
+.. versionchanged:: 2.0
    Instagram now uses OAuth 2.0. Token parameters removed. Run ``agoras instagram authorize`` first.
 
 **Platform commands** (``agoras instagram``):
@@ -78,17 +66,13 @@ Instagram
 * ``--client-secret`` - Facebook App client secret (required for authorize)
 * ``--object-id`` - Facebook user ID for Instagram business account (required for authorize and post/video)
 
-**Utils commands**:
-
-* ``--instagram-object-id``
-
 .. note::
    OAuth platforms require authorization via ``agoras <platform> authorize`` before use.
 
 LinkedIn
 --------
 
-.. versionchanged:: 1.6
+.. versionchanged:: 2.0
    LinkedIn now uses OAuth 2.0. Token parameters removed. Run ``agoras linkedin authorize`` first.
 
 **Platform commands** (``agoras linkedin``):
@@ -97,10 +81,6 @@ LinkedIn
 * ``--client-id`` - LinkedIn App client ID (required for authorize)
 * ``--client-secret`` - LinkedIn App client secret (required for authorize)
 * ``--object-id`` - LinkedIn user/organization ID (required for authorize)
-
-**Utils commands**:
-
-* (No platform-specific parameters needed after authorization)
 
 .. note::
    OAuth platforms require authorization via ``agoras <platform> authorize`` before use.
@@ -114,16 +94,10 @@ Discord
 * ``--server-name`` - Discord server/guild name (required)
 * ``--channel-name`` - Discord channel name (required)
 
-**Utils commands**:
-
-* ``--discord-bot-token``
-* ``--discord-server-name``
-* ``--discord-channel-name``
-
 YouTube
 -------
 
-.. versionchanged:: 1.6
+.. versionchanged:: 2.0
    YouTube now uses OAuth 2.0 "authorize first" workflow. Run ``agoras youtube authorize`` first.
 
 **Platform commands** (``agoras youtube``):
@@ -132,17 +106,13 @@ YouTube
 * ``--client-id`` - YouTube (Google) OAuth client ID (required for authorize)
 * ``--client-secret`` - YouTube (Google) OAuth client secret (required for authorize)
 
-**Utils commands**:
-
-* (No platform-specific parameters needed after authorization)
-
 .. note::
    OAuth platforms require authorization via ``agoras <platform> authorize`` before use.
 
 TikTok
 ------
 
-.. versionchanged:: 1.6
+.. versionchanged:: 2.0
    TikTok now uses OAuth 2.0. Token parameters removed. Run ``agoras tiktok authorize`` first.
 
 **Platform commands** (``agoras tiktok``):
@@ -152,17 +122,13 @@ TikTok
 * ``--client-secret`` - TikTok client secret (required for authorize)
 * ``--username`` - TikTok username (required for authorize)
 
-**Utils commands**:
-
-* ``--tiktok-username``
-
 .. note::
    OAuth platforms require authorization via ``agoras <platform> authorize`` before use.
 
 Threads
 -------
 
-.. versionchanged:: 1.6
+.. versionchanged:: 2.0
    Threads now uses OAuth 2.0. Token parameters removed. Run ``agoras threads authorize`` first.
 
 **Platform commands** (``agoras threads``):
@@ -170,26 +136,56 @@ Threads
 * ``authorize`` - OAuth 2.0 authorization action (required first step)
 * ``--app-id`` - Threads (Meta) App ID (required for authorize)
 * ``--app-secret`` - Threads (Meta) App secret (required for authorize)
-* ``--redirect-uri`` - OAuth redirect URI (required for authorize, default: ``http://localhost:3456/callback``)
-
-**Threads-specific parameters**:
-
-* ``--threads-post-id`` - Threads post ID (for share action)
-* ``--threads-who-can-reply`` - Who can reply to post: ``everyone``, ``following``, ``mentioned`` (for post action)
-
-**Utils commands**:
-
-* ``--threads-app-id``
-* ``--threads-app-secret``
-* ``--threads-refresh-token``
-* ``--redirect-uri`` - OAuth redirect URI (required for authorize, e.g., http://localhost:3456/callback)
-
-**Utils commands**:
-
-* (No platform-specific parameters needed after authorization)
+* ``--redirect-uri`` - OAuth redirect URI (required for authorize, e.g., ``http://localhost:3456/callback``)
 
 .. note::
    OAuth platforms require authorization via ``agoras <platform> authorize`` before use.
+
+Telegram
+--------
+
+**Platform commands** (``agoras telegram``):
+
+* ``--bot-token`` - Telegram bot token from @BotFather (required)
+* ``--chat-id`` - Target chat ID (user, group, or channel) (required)
+* ``--message-id`` - Message ID for edit/delete actions (required for edit/delete)
+
+**Telegram-specific parameters**:
+
+* ``--parse-mode`` - Message parse mode: ``HTML``, ``Markdown``, ``MarkdownV2``, or ``None`` (default: HTML)
+* ``--question`` - Poll question (up to 300 characters, for poll action)
+* ``--options`` - Comma-separated poll options (2-10 options, for poll action)
+* ``--anonymous`` - Whether poll is anonymous (default: true, for poll action)
+* ``--document-url`` - Document file URL (for document action)
+* ``--caption`` - Document or audio caption (optional, for document/audio actions)
+* ``--audio-url`` - Audio file URL (for audio action)
+* ``--duration`` - Audio duration in seconds (optional, for audio action)
+* ``--performer`` - Performer name (optional, for audio action)
+* ``--title`` - Track title (optional, for audio action)
+
+WhatsApp
+--------
+
+**Platform commands** (``agoras whatsapp``):
+
+* ``--access-token`` - Meta Graph API access token (required)
+* ``--phone-number-id`` - WhatsApp Business phone number ID (required)
+* ``--recipient`` - Target recipient phone number in E.164 format, e.g., +1234567890 (required)
+
+**WhatsApp-specific parameters**:
+
+* ``--contact-name`` - Contact name for contact card (for contact action)
+* ``--contact-phone`` - Contact phone number in E.164 format (for contact action)
+* ``--latitude`` - Latitude coordinate (-90 to 90, for location action)
+* ``--longitude`` - Longitude coordinate (-180 to 180, for location action)
+* ``--location-name`` - Name of the location (optional, for location action)
+* ``--document-url`` - Document file URL (for document action)
+* ``--caption`` - Document caption (optional, for document action)
+* ``--filename`` - Document filename (optional, for document action)
+* ``--template-name`` - Template name (for template action)
+* ``--language-code`` - Template language code (ISO 639-1 format, default: en, for template action)
+* ``--template-components`` - Template components as JSON string (optional, for template action)
+* ``--business-account-id`` - WhatsApp Business Account ID (optional)
 
 Content Parameters
 ==================
@@ -266,6 +262,87 @@ Facebook
 Utils Command Parameters
 ========================
 
+Platform Authentication Parameters
+----------------------------------
+
+These parameters are used in utils commands (``agoras utils feed-publish`` and ``agoras utils schedule-run``) with platform prefixes.
+
+X (formerly Twitter)
+~~~~~~~~~~~~~~~~~~~~
+
+* ``--x-consumer-key`` - X API consumer key
+* ``--x-consumer-secret`` - X API consumer secret
+* ``--x-oauth-token`` - X OAuth token
+* ``--x-oauth-secret`` - X OAuth secret
+
+.. deprecated:: 2.0
+   The ``--twitter-*`` parameters in utils commands are deprecated. Use ``--x-*`` parameters instead.
+
+Facebook
+~~~~~~~~
+
+* ``--facebook-access-token`` - Facebook access token
+* ``--facebook-object-id`` - Facebook page or profile ID
+* ``--facebook-app-id`` - Facebook App ID
+
+Instagram
+~~~~~~~~~
+
+* ``--instagram-access-token`` - Instagram access token
+* ``--instagram-object-id`` - Instagram business account ID
+* ``--instagram-client-id`` - Facebook App client ID (Instagram uses Facebook OAuth)
+* ``--instagram-client-secret`` - Facebook App client secret
+
+LinkedIn
+~~~~~~~~
+
+* ``--linkedin-access-token`` - LinkedIn access token
+* ``--linkedin-client-id`` - LinkedIn App client ID
+* ``--linkedin-client-secret`` - LinkedIn App client secret
+
+Discord
+~~~~~~~
+
+* ``--discord-bot-token`` - Discord bot token
+* ``--discord-server-name`` - Discord server/guild name
+* ``--discord-channel-name`` - Discord channel name
+
+YouTube
+~~~~~~~
+
+* ``--youtube-client-id`` - YouTube (Google) OAuth client ID
+* ``--youtube-client-secret`` - YouTube (Google) OAuth client secret
+
+TikTok
+~~~~~~
+
+* ``--tiktok-client-key`` - TikTok App client key
+* ``--tiktok-client-secret`` - TikTok App client secret
+* ``--tiktok-access-token`` - TikTok access token
+* ``--tiktok-refresh-token`` - TikTok refresh token
+* ``--tiktok-username`` - TikTok username
+
+Threads
+~~~~~~~
+
+* ``--threads-app-id`` - Threads (Meta) App ID
+* ``--threads-app-secret`` - Threads (Meta) App secret
+* ``--threads-refresh-token`` - Threads refresh token
+
+Telegram
+~~~~~~~~
+
+* ``--telegram-bot-token`` - Telegram bot token from @BotFather
+* ``--telegram-chat-id`` - Target chat ID (user, group, or channel)
+
+WhatsApp
+~~~~~~~~
+
+* ``--whatsapp-access-token`` - Meta Graph API access token
+* ``--whatsapp-phone-number-id`` - WhatsApp Business phone number ID
+* ``--whatsapp-business-account-id`` - WhatsApp Business Account ID
+* ``--whatsapp-recipient`` - Target recipient phone number in E.164 format
+
 Feed Automation
 ---------------
 
@@ -290,4 +367,4 @@ Legacy Parameters
 
 The legacy ``agoras publish`` command uses the original parameter names with platform prefixes. These are maintained for backward compatibility but are deprecated.
 
-See the :doc:`migration guide <../migration>` for a complete mapping of legacy to new parameters.
+See the :doc:`../migration` for a complete mapping of legacy to new parameters.

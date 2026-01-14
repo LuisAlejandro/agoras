@@ -68,9 +68,9 @@ class TikTok(SocialNetwork):
         """
         Initialize TikTok API client.
 
-        This method sets up the TikTok API client with configuration.
+        Tries to load credentials from CLI params, environment variables, or storage.
         """
-        # Get configuration values
+        # Try params/environment first
         self.tiktok_username = self._get_config_value('tiktok_username', 'TIKTOK_USERNAME')
         self.tiktok_client_key = self._get_config_value('tiktok_client_key', 'TIKTOK_CLIENT_KEY')
         self.tiktok_client_secret = self._get_config_value('tiktok_client_secret', 'TIKTOK_CLIENT_SECRET')
@@ -96,16 +96,32 @@ class TikTok(SocialNetwork):
         self.brand_organic = self._convert_bool(self.brand_organic, False)
         self.brand_content = self._convert_bool(self.brand_content, False)
 
-        if not self.tiktok_username:
-            raise Exception('TikTok username is required.')
+        # If credentials not provided, try loading from storage
+        # TikTok needs username, client_key, client_secret, and refresh_token to authenticate
+        if not all([self.tiktok_username, self.tiktok_client_key, self.tiktok_client_secret]):
+            from .auth import TikTokAuthManager
+            auth_manager = TikTokAuthManager(
+                username=self.tiktok_username or '',
+                client_key=self.tiktok_client_key or '',
+                client_secret=self.tiktok_client_secret or ''
+            )
 
-        if not self.tiktok_client_key:
-            raise Exception('TikTok client key is required.')
+            if auth_manager._load_credentials_from_storage():
+                # Fill in missing credentials from storage
+                if not self.tiktok_username:
+                    self.tiktok_username = auth_manager.username
+                if not self.tiktok_client_key:
+                    self.tiktok_client_key = auth_manager.client_key
+                if not self.tiktok_client_secret:
+                    self.tiktok_client_secret = auth_manager.client_secret
+                if not self.tiktok_refresh_token:
+                    self.tiktok_refresh_token = auth_manager.refresh_token
 
-        if not self.tiktok_client_secret:
-            raise Exception('TikTok client secret is required.')
+        # Validate all credentials are now available
+        if not all([self.tiktok_username, self.tiktok_client_key, self.tiktok_client_secret]):
+            raise Exception("Not authenticated. Please run 'agoras tiktok authorize' first.")
 
-        # Initialize TikTok API (it will handle loading refresh token from cache if needed)
+        # Initialize TikTok API
         self.api = TikTokAPI(
             self.tiktok_username,
             self.tiktok_client_key,
@@ -384,6 +400,31 @@ class TikTok(SocialNetwork):
         """Handle delete action - not supported for TikTok."""
         await self.delete(None)
 
+    async def authorize_credentials(self):
+        """
+        Authorize and store TikTok credentials for future use.
+
+        Returns:
+            bool: True if authorization successful
+        """
+        from .auth import TikTokAuthManager
+
+        username = self._get_config_value('tiktok_username', 'TIKTOK_USERNAME')
+        client_key = self._get_config_value('tiktok_client_key', 'TIKTOK_CLIENT_KEY')
+        client_secret = self._get_config_value('tiktok_client_secret', 'TIKTOK_CLIENT_SECRET')
+
+        auth_manager = TikTokAuthManager(
+            username=username,
+            client_key=client_key,
+            client_secret=client_secret
+        )
+
+        result = await auth_manager.authorize()
+        if result:
+            print(result)
+            return True
+        return False
+
 
 async def main_async(kwargs):
     """
@@ -399,7 +440,13 @@ async def main_async(kwargs):
 
     # Create TikTok instance with configuration
     instance = TikTok(**kwargs)
-    # Execute the action using the base class method
+
+    # Handle authorize action separately (doesn't need client initialization)
+    if action == 'authorize':
+        success = await instance.authorize_credentials()
+        return 0 if success else 1
+
+    # Execute other actions using the base class method
     await instance.execute_action(action)
     await instance.disconnect()
 

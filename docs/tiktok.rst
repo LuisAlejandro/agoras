@@ -15,7 +15,7 @@ Actions
 Authorization
 -------------
 
-.. versionadded:: 1.6
+.. versionadded:: 2.0
    OAuth 2.0 "authorize first" workflow
 
 Before you can publish content to TikTok, you must authorize Agoras to access your TikTok account. This is a one-time setup process that uses OAuth 2.0 authentication. You'll need your TikTok developer app credentials (read about how to get credentials :doc:`here <credentials/tiktok>`).
@@ -103,18 +103,18 @@ This command will parse an RSS feed located at ``--feed-url``, and publish the l
 
 Please read about how the RSS feed should be structured in the :doc:`RSS feed section <rss>`. This ensures that the feed is correctly parsed and that video content is properly formatted.
 
-::
+**New format** (Agoras 2.0+)::
 
-      agoras publish \
-            --network "tiktok" \
-            --action "last-from-feed" \
-            --tiktok-username "${TIKTOK_USERNAME}" \
-            --tiktok-client-key "${TIKTOK_CLIENT_KEY}" \
-            --tiktok-client-secret "${TIKTOK_CLIENT_SECRET}" \
-            --feed-url "${FEED_URL}" \
-            --max-count "${MAX_COUNT}" \
-            --post-lookback "${POST_LOOKBACK}" \
-            --tiktok-privacy-status "${TIKTOK_PRIVACY_STATUS}"
+    agoras utils feed-publish \
+      --network tiktok \
+      --mode last \
+      --feed-url "${FEED_URL}" \
+      --max-count "${MAX_COUNT}" \
+      --post-lookback "${POST_LOOKBACK}" \
+      --tiktok-username "${TIKTOK_USERNAME}" \
+      --tiktok-client-key "${TIKTOK_CLIENT_KEY}" \
+      --tiktok-client-secret "${TIKTOK_CLIENT_SECRET}" \
+      --tiktok-privacy-status "${TIKTOK_PRIVACY_STATUS}"
 
 Post a random video from an RSS feed into TikTok
 ------------------------------------------------
@@ -123,22 +123,22 @@ This command will parse an RSS feed at ``--feed-url`` and publish one random vid
 
 Please read about how the RSS feed should be structured in the :doc:`RSS feed section <rss>`. This ensures that the feed is correctly parsed and that video content is properly formatted.
 
-::
+**New format** (Agoras 2.0+)::
 
-      agoras publish \
-            --network "tiktok" \
-            --action "random-from-feed" \
-            --tiktok-username "${TIKTOK_USERNAME}" \
-            --tiktok-client-key "${TIKTOK_CLIENT_KEY}" \
-            --tiktok-client-secret "${TIKTOK_CLIENT_SECRET}" \
-            --feed-url "${FEED_URL}" \
-            --max-post-age "${MAX_POST_AGE}" \
-            --tiktok-privacy-status "${TIKTOK_PRIVACY_STATUS}"
+    agoras utils feed-publish \
+      --network tiktok \
+      --mode random \
+      --feed-url "${FEED_URL}" \
+      --max-post-age "${MAX_POST_AGE}" \
+      --tiktok-username "${TIKTOK_USERNAME}" \
+      --tiktok-client-key "${TIKTOK_CLIENT_KEY}" \
+      --tiktok-client-secret "${TIKTOK_CLIENT_SECRET}" \
+      --tiktok-privacy-status "${TIKTOK_PRIVACY_STATUS}"
 
 Schedule a TikTok post
 ---------------------
 
-This command will scan a sheet ``--google-sheets-name`` of a Google spreadsheet with id ``--google-sheets-id``, that's authorized by ``--google-sheets-client-email`` and ``--google-sheets-private-key``. Videos will be published using the TikTok account authorized by your credentials.
+This command will scan a sheet ``--sheets-name`` of a Google spreadsheet with id ``--sheets-id``, that's authorized by ``--sheets-client-email`` and ``--sheets-private-key``. Videos will be published using the TikTok account authorized by your credentials.
 
 The order of the columns of the spreadsheet is crucial to the correct functioning of the command. Here's how the information should be organized:
 
@@ -158,18 +158,17 @@ This schedule entry would be published at 17:00h of 21-11-2022 with the specifie
 
 For this command to work, it should be executed hourly by a cron script.
 
-::
+**New format** (Agoras 2.0+)::
 
-      agoras publish \
-            --network "tiktok" \
-            --action "schedule" \
-            --tiktok-username "${TIKTOK_USERNAME}" \
-            --tiktok-client-key "${TIKTOK_CLIENT_KEY}" \
-            --tiktok-client-secret "${TIKTOK_CLIENT_SECRET}" \
-            --google-sheets-id "${GOOGLE_SHEETS_ID}" \
-            --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
-            --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-            --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
+    agoras utils schedule-run \
+      --network tiktok \
+      --sheets-id "${GOOGLE_SHEETS_ID}" \
+      --sheets-name "${GOOGLE_SHEETS_NAME}" \
+      --sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
+      --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" \
+      --tiktok-username "${TIKTOK_USERNAME}" \
+      --tiktok-client-key "${TIKTOK_CLIENT_KEY}" \
+      --tiktok-client-secret "${TIKTOK_CLIENT_SECRET}"
 
 Brand Content and Promotional Content
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -208,14 +207,10 @@ When you create a TikTok post with Agoras, it will print the publish ID (in JSON
 
 ::
 
-      $ agoras publish \
-            --network tiktok \
-            --action video \
-            --tiktok-username myusername \
-            --tiktok-client-key XXXXX \
-            --tiktok-client-secret XXXXX \
-            --tiktok-video-url "https://example.com/video.mp4" \
-            --tiktok-title "My awesome video"
+      $ agoras tiktok video \
+            --username myusername \
+            --video-url "https://example.com/video.mp4" \
+            --title "My awesome video"
       $ {"id":"NNNNNNNNNNN"}
 
 ``NNNNNNNNNNN`` is the publish ID that can be used to track the post status.

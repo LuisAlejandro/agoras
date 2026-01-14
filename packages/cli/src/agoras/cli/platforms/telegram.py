@@ -60,57 +60,57 @@ def create_telegram_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     # Post action
     post = actions.add_parser(
         'post',
-        help='Send a message to Telegram chat'
+        help='Send a message to Telegram chat. Requires prior authorization via "agoras telegram authorize".'
     )
-    _add_telegram_auth_options(post)
+    _add_telegram_auth_options(post, required=False)
     add_common_content_options(post, images=4)
 
     # Video action
     video = actions.add_parser(
         'video',
-        help='Send a video to Telegram chat'
+        help='Send a video to Telegram chat. Requires prior authorization via "agoras telegram authorize".'
     )
-    _add_telegram_auth_options(video)
+    _add_telegram_auth_options(video, required=False)
     add_video_options(video)
 
     # Edit action
     edit = actions.add_parser(
         'edit',
-        help='Edit an existing Telegram message'
+        help='Edit an existing Telegram message. Requires prior authorization via "agoras telegram authorize".'
     )
-    _add_telegram_auth_options(edit)
+    _add_telegram_auth_options(edit, required=False)
     _add_telegram_edit_options(edit)
 
     # Poll action
     poll = actions.add_parser(
         'poll',
-        help='Send a poll to Telegram chat'
+        help='Send a poll to Telegram chat. Requires prior authorization via "agoras telegram authorize".'
     )
-    _add_telegram_auth_options(poll)
+    _add_telegram_auth_options(poll, required=False)
     _add_telegram_poll_options(poll)
 
     # Document action
     document = actions.add_parser(
         'document',
-        help='Send a document file to Telegram chat'
+        help='Send a document file to Telegram chat. Requires prior authorization via "agoras telegram authorize".'
     )
-    _add_telegram_auth_options(document)
+    _add_telegram_auth_options(document, required=False)
     _add_telegram_document_options(document)
 
     # Audio action
     audio = actions.add_parser(
         'audio',
-        help='Send an audio file to Telegram chat'
+        help='Send an audio file to Telegram chat. Requires prior authorization via "agoras telegram authorize".'
     )
-    _add_telegram_auth_options(audio)
+    _add_telegram_auth_options(audio, required=False)
     _add_telegram_audio_options(audio)
 
     # Delete action
     delete = actions.add_parser(
         'delete',
-        help='Delete a Telegram message'
+        help='Delete a Telegram message. Requires prior authorization via "agoras telegram authorize".'
     )
-    _add_telegram_auth_options(delete)
+    _add_telegram_auth_options(delete, required=False)
     _add_post_id_option(delete)
 
     # Set handler
@@ -119,12 +119,13 @@ def create_telegram_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     return parser
 
 
-def _add_telegram_auth_options(parser: ArgumentParser):
+def _add_telegram_auth_options(parser: ArgumentParser, required: bool = True):
     """
     Add Telegram authentication options.
 
     Args:
         parser: ArgumentParser to add options to
+        required: Whether credentials are required (True for authorize, False for other actions)
     """
     auth = parser.add_argument_group(
         'Telegram Authentication',
@@ -132,15 +133,15 @@ def _add_telegram_auth_options(parser: ArgumentParser):
     )
     auth.add_argument(
         '--bot-token',
-        required=True,
+        required=required,
         metavar='<token>',
-        help='Telegram bot token from @BotFather'
+        help='Telegram bot token from @BotFather' + (' (optional if already authorized)' if not required else '')
     )
     auth.add_argument(
         '--chat-id',
-        required=True,
+        required=required,
         metavar='<id>',
-        help='Target chat ID (user, group, or channel)'
+        help='Target chat ID (user, group, or channel)' + (' (optional if already authorized)' if not required else '')
     )
     auth.add_argument(
         '--parse-mode',

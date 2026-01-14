@@ -1,87 +1,99 @@
-agoras.core subpackage
-======================
+agoras.core package
+===================
+
+The ``agoras.core`` package provides abstract interfaces, business logic, and shared infrastructure for all Agoras platform implementations.
+
+Package Overview
+----------------
+
+This package provides:
+- Abstract ``SocialNetwork`` interface that all platforms must implement
+- Base API classes for platform API clients
+- Authentication infrastructure (OAuth2, token storage, callback server)
+- Feed management for RSS/Atom feed automation
+- Sheet management for Google Sheets scheduling
+
+**Dependencies:** Requires ``agoras-common`` and ``agoras-media``.
+
+agoras.core package
+-------------------
 
 .. automodule:: agoras.core
     :members:
-    :private-members:
-    :special-members:
+    :undoc-members:
+    :show-inheritance:
 
-agoras.core.base module
------------------------
+agoras.core.interfaces module
+-----------------------------
 
-.. automodule:: agoras.core.base
+Abstract interface that all social network platforms must implement.
+
+.. automodule:: agoras.core.interfaces
     :members:
-    :private-members:
-    :special-members:
+    :undoc-members:
+    :show-inheritance:
 
-agoras.core.discord module
---------------------------
-
-.. automodule:: agoras.core.discord
-    :members:
-    :private-members:
-    :special-members:
-
-agoras.core.facebook module
----------------------------
-
-.. automodule:: agoras.core.facebook
-    :members:
-    :private-members:
-    :special-members:
-
-agoras.core.instagram module
+agoras.core.api_base module
 ----------------------------
 
-.. automodule:: agoras.core.instagram
+Base API class for platform API client implementations.
+
+.. automodule:: agoras.core.api_base
     :members:
-    :private-members:
-    :special-members:
+    :undoc-members:
+    :show-inheritance:
 
-agoras.core.linkedin module
----------------------------
-
-.. automodule:: agoras.core.linkedin
-    :members:
-    :private-members:
-    :special-members:
-
-agoras.core.logger module
--------------------------
-
-.. automodule:: agoras.core.logger
-    :members:
-    :private-members:
-    :special-members:
-
-agoras.core.tiktok module
--------------------------
-
-.. automodule:: agoras.core.tiktok
-    :members:
-    :private-members:
-    :special-members:
-
-agoras.core.twitter module
---------------------------
-
-.. automodule:: agoras.core.twitter
-    :members:
-    :private-members:
-    :special-members:
-
-agoras.core.utils module
+agoras.core.auth package
 ------------------------
 
-.. automodule:: agoras.core.utils
-    :members:
-    :private-members:
-    :special-members:
+OAuth2 authentication infrastructure for Agoras.
 
-agoras.core.youtube module
---------------------------
+This package provides base classes and utilities for OAuth2 authentication across all social media platforms.
 
-.. automodule:: agoras.core.youtube
+agoras.core.auth package
+-------------------------
+
+.. automodule:: agoras.core.auth
     :members:
-    :private-members:
-    :special-members: 
+    :undoc-members:
+    :show-inheritance:
+
+agoras.core.auth.base module
+-----------------------------
+
+Base authentication manager for OAuth2 flows.
+
+.. automodule:: agoras.core.auth.base
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+agoras.core.auth.storage module
+--------------------------------
+
+Secure token storage for OAuth2 credentials.
+
+.. automodule:: agoras.core.auth.storage
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+agoras.core.auth.callback_server module
+----------------------------------------
+
+OAuth2 callback server for handling authorization redirects.
+
+.. automodule:: agoras.core.auth.callback_server
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+agoras.core.auth.exceptions module
+-----------------------------------
+
+Authentication-related exceptions.
+
+.. automodule:: agoras.core.auth.exceptions
+    :members:
+    :undoc-members:
+    :show-inheritance:

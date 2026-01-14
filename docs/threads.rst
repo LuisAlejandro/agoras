@@ -2,7 +2,7 @@ Using Agoras with Threads
 ==========================
 
 .. note::
-   **New in version 1.5**: Threads platform support added to Agoras CLI.
+   **New in version 2.0**: Threads platform support added to Agoras CLI.
 
 Threads is Meta's text-based conversation platform. Agoras provides full CLI support for posting, sharing, and managing Threads content.
 
@@ -37,7 +37,7 @@ Quick Start
 Authorization
 ~~~~~~~~~~~~~
 
-.. versionadded:: 1.6
+.. versionadded:: 2.0
    OAuth 2.0 "authorize first" workflow
 
 Before performing any actions, you must authorize Agoras to access your Threads account::
@@ -101,7 +101,7 @@ Share/repost a Threads post::
 Using Environment Variables
 ----------------------------
 
-.. versionchanged:: 1.6
+.. versionchanged:: 2.0
    Environment variables are no longer needed for OAuth platforms after authorization.
 
 After running ``agoras threads authorize``, credentials are stored securely and you can use shorter commands::
@@ -143,12 +143,15 @@ Scheduling Posts
 
 Schedule Threads posts using Google Sheets integration::
 
-    agoras threads schedule \
-      --google-sheets-id "${GOOGLE_SHEETS_ID}" \
-      --google-sheets-name "Threads" \
-      --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-      --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" \
-      --max-count 10
+    agoras utils schedule-run \
+      --network threads \
+      --sheets-id "${GOOGLE_SHEETS_ID}" \
+      --sheets-name "Threads" \
+      --sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
+      --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
+
+.. note::
+   You must run ``agoras threads authorize`` first before using this command.
 
 The Google Sheets format for Threads posts should have the following columns in order:
 

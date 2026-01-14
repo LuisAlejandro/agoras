@@ -62,8 +62,9 @@ class YouTube(SocialNetwork):
         """
         Initialize YouTube API client.
 
-        This method sets up the YouTube API client with OAuth configuration.
+        Tries to load credentials from CLI params, environment variables, or storage.
         """
+        # Try params/environment first
         self.youtube_client_id = self._get_config_value('youtube_client_id', 'YOUTUBE_CLIENT_ID')
         self.youtube_client_secret = self._get_config_value('youtube_client_secret', 'YOUTUBE_CLIENT_SECRET')
         self.youtube_video_id = self._get_config_value('youtube_video_id', 'YOUTUBE_VIDEO_ID')
@@ -75,8 +76,25 @@ class YouTube(SocialNetwork):
         self.youtube_keywords = self._get_config_value('youtube_keywords', 'YOUTUBE_KEYWORDS')
         self.youtube_video_url = self._get_config_value('youtube_video_url', 'YOUTUBE_VIDEO_URL')
 
-        if not self.youtube_client_id or not self.youtube_client_secret:
-            raise Exception('YouTube client ID and secret are required.')
+        # If credentials not provided, try loading from storage
+        # YouTube needs client_id and client_secret to authenticate
+        if not all([self.youtube_client_id, self.youtube_client_secret]):
+            from .auth import YouTubeAuthManager
+            auth_manager = YouTubeAuthManager(
+                client_id=self.youtube_client_id or '',
+                client_secret=self.youtube_client_secret or ''
+            )
+
+            if auth_manager._load_credentials_from_storage():
+                # Fill in missing credentials from storage
+                if not self.youtube_client_id:
+                    self.youtube_client_id = auth_manager.client_id
+                if not self.youtube_client_secret:
+                    self.youtube_client_secret = auth_manager.client_secret
+
+        # Validate all credentials are now available
+        if not all([self.youtube_client_id, self.youtube_client_secret]):
+            raise Exception("Not authenticated. Please run 'agoras youtube authorize' first.")
 
         # Initialize YouTube API
         self.api = YouTubeAPI(
@@ -361,6 +379,29 @@ class YouTube(SocialNetwork):
 
         await self.video(status_text, video_url, video_title)
 
+    async def authorize_credentials(self):
+        """
+        Authorize and store YouTube credentials for future use.
+
+        Returns:
+            bool: True if authorization successful
+        """
+        from .auth import YouTubeAuthManager
+
+        client_id = self._get_config_value('youtube_client_id', 'YOUTUBE_CLIENT_ID')
+        client_secret = self._get_config_value('youtube_client_secret', 'YOUTUBE_CLIENT_SECRET')
+
+        auth_manager = YouTubeAuthManager(
+            client_id=client_id,
+            client_secret=client_secret
+        )
+
+        result = await auth_manager.authorize()
+        if result:
+            print(result)
+            return True
+        return False
+
 
 async def main_async(kwargs):
     """
@@ -376,7 +417,13 @@ async def main_async(kwargs):
 
     # Create YouTube instance with configuration
     instance = YouTube(**kwargs)
-    # Execute the action using the base class method
+
+    # Handle authorize action separately (doesn't need client initialization)
+    if action == 'authorize':
+        success = await instance.authorize_credentials()
+        return 0 if success else 1
+
+    # Execute other actions using the base class method
     await instance.execute_action(action)
     await instance.disconnect()
 

@@ -1,4 +1,15 @@
-name: Push
+# GitHub Actions Workflow for Agoras v2.0 (Multi-Package)
+# This workflow runs on every push to master/develop
+#
+# Responsibilities:
+# 1. Test all 5 packages independently
+# 2. Run integration tests
+# 3. Run linting
+# 4. Aggregate coverage
+#
+# Publishing to PyPI is handled by release.yml when a GitHub release is created
+
+name: Push (v2.0 Multi-Package)
 
 on:
   push:
@@ -7,20 +18,14 @@ on:
       - develop
 
 jobs:
-  build:
-    name: Build
+  # Job 1: Build and test each package
+  test-packages:
+    name: Test ${{ matrix.package }} (Python ${{ matrix.python-version }})
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        include:
-          - python-version: "3.9"
-            toxenv: "py39"
-          - python-version: "3.10"
-            toxenv: "py310"
-          - python-version: "3.11"
-            toxenv: "py311"
-          - python-version: "3.12"
-            toxenv: "py312"
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        package: ["common", "media", "core", "platforms", "cli"]
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -30,31 +35,110 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Installing dependencies
+      - name: Install dependencies in order
         run: |
-          python3 -m pip install -r requirements-dev.txt
-          python3 -m pip install -r requirements.txt
+          cd packages
+          python3 -m pip install -r ../requirements-dev.txt
 
-      - name: Measuring coverage
-        env:
-          TOXENV: ${{ matrix.toxenv }}
-          PYTHON_VERSION: ${{ matrix.python-version }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Install packages in dependency order
+          python3 -m pip install -e common/
+
+          if [[ "${{ matrix.package }}" != "common" ]]; then
+            python3 -m pip install -e media/
+          fi
+
+          if [[ "${{ matrix.package }}" == "core" || "${{ matrix.package }}" == "platforms" || "${{ matrix.package }}" == "cli" ]]; then
+            python3 -m pip install -e core/
+          fi
+
+          if [[ "${{ matrix.package }}" == "platforms" || "${{ matrix.package }}" == "cli" ]]; then
+            python3 -m pip install -e platforms/
+          fi
+
+          if [[ "${{ matrix.package }}" == "cli" ]]; then
+            python3 -m pip install -e cli/
+          fi
+
+      - name: Run tests for ${{ matrix.package }}
         run: |
-          tox -e ${TOXENV}
+          cd packages/${{ matrix.package }}
+          pytest tests/ -v --cov=agoras --cov-report=term-missing --cov-report=lcov
+        continue-on-error: false
 
-      - name: Coveralls Parallel
+      - name: Upload coverage to Coveralls
         uses: coverallsapp/github-action@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          flag-name: run-py${{ matrix.python-version }}
-          path-to-lcov: ./.lcov
+          flag-name: ${{ matrix.package }}-py${{ matrix.python-version }}
+          path-to-lcov: packages/${{ matrix.package }}/coverage.lcov
           parallel: true
 
-  finish:
-    name: Finish
+  # Job 2: Integration test (all packages together)
+  test-integration:
+    name: Integration Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-22.04
-    needs: build
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install all packages
+        run: |
+          cd packages
+          python3 -m pip install -r ../requirements-dev.txt
+          python3 -m pip install -e common/
+          python3 -m pip install -e media/
+          python3 -m pip install -e core/
+          python3 -m pip install -e platforms/
+          python3 -m pip install -e cli/
+
+      - name: Run integration tests
+        run: |
+          cd packages
+          pytest cli/tests/ -v -k integration
+
+      - name: Test CLI entry point
+        run: |
+          agoras --version
+          agoras --help
+
+  # Job 3: Linting
+  lint:
+    name: Lint All Packages
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install linting tools
+        run: |
+          python3 -m pip install flake8 pydocstyle
+
+      - name: Lint all packages
+        run: |
+          flake8 packages/common/src/agoras
+          flake8 packages/media/src/agoras
+          flake8 packages/core/src/agoras
+          flake8 packages/platforms/src/agoras
+          flake8 packages/cli/src/agoras
+
+  # Job 4: Finish coverage
+  finish-coverage:
+    name: Finish Coverage
+    runs-on: ubuntu-22.04
+    needs: test-packages
     steps:
       - name: Coveralls Finished
         uses: coverallsapp/github-action@v2

@@ -54,17 +54,44 @@ class X(SocialNetwork):
         """
         Initialize X API client.
 
-        This method sets up the X API client with OAuth configuration.
+        Tries to load credentials from CLI params, environment variables, or storage.
         """
+        # Try params/environment first
         self.twitter_consumer_key = self._get_config_value('twitter_consumer_key', 'TWITTER_CONSUMER_KEY')
         self.twitter_consumer_secret = self._get_config_value('twitter_consumer_secret', 'TWITTER_CONSUMER_SECRET')
         self.twitter_oauth_token = self._get_config_value('twitter_oauth_token', 'TWITTER_OAUTH_TOKEN')
         self.twitter_oauth_secret = self._get_config_value('twitter_oauth_secret', 'TWITTER_OAUTH_SECRET')
         self.tweet_id = self._get_config_value('tweet_id', 'TWEET_ID')
 
+        # If any credentials missing, try loading from storage
         if not all([self.twitter_consumer_key, self.twitter_consumer_secret,
                    self.twitter_oauth_token, self.twitter_oauth_secret]):
-            raise Exception('All X OAuth credentials are required.')
+            from .auth import XAuthManager
+            auth_manager = XAuthManager(
+                consumer_key=self.twitter_consumer_key or '',
+                consumer_secret=self.twitter_consumer_secret or ''
+            )
+
+            if auth_manager._load_credentials_from_storage():
+                # Fill in missing credentials from storage
+                if not self.twitter_consumer_key:
+                    self.twitter_consumer_key = auth_manager.consumer_key
+                if not self.twitter_consumer_secret:
+                    self.twitter_consumer_secret = auth_manager.consumer_secret
+                if not self.twitter_oauth_token:
+                    self.twitter_oauth_token = auth_manager.oauth_token
+                if not self.twitter_oauth_secret:
+                    self.twitter_oauth_secret = auth_manager.oauth_secret
+
+        # Validate all credentials are now available
+        if not self.twitter_consumer_key:
+            raise Exception("Not authenticated. Please run 'agoras x authorize' first.")
+        if not self.twitter_consumer_secret:
+            raise Exception("Not authenticated. Please run 'agoras x authorize' first.")
+        if not self.twitter_oauth_token:
+            raise Exception("Not authenticated. Please run 'agoras x authorize' first.")
+        if not self.twitter_oauth_secret:
+            raise Exception("Not authenticated. Please run 'agoras x authorize' first.")
 
         # Initialize X API
         self.api = XAPI(
@@ -74,6 +101,33 @@ class X(SocialNetwork):
             self.twitter_oauth_secret
         )
         await self.api.authenticate()
+
+    async def authorize_credentials(self):
+        """
+        Authorize and store X credentials for future use.
+
+        Returns:
+            bool: True if authorization successful
+        """
+        from .auth import XAuthManager
+
+        consumer_key = self._get_config_value('twitter_consumer_key', 'TWITTER_CONSUMER_KEY')
+        consumer_secret = self._get_config_value('twitter_consumer_secret', 'TWITTER_CONSUMER_SECRET')
+        oauth_token = self._get_config_value('twitter_oauth_token', 'TWITTER_OAUTH_TOKEN')
+        oauth_secret = self._get_config_value('twitter_oauth_secret', 'TWITTER_OAUTH_SECRET')
+
+        auth_manager = XAuthManager(
+            consumer_key=consumer_key,
+            consumer_secret=consumer_secret,
+            oauth_token=oauth_token,
+            oauth_secret=oauth_secret
+        )
+
+        result = await auth_manager.authorize()
+        if result:
+            print(result)
+            return True
+        return False
 
     async def disconnect(self):
         """

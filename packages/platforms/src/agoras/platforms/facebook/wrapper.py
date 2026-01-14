@@ -60,8 +60,9 @@ class Facebook(SocialNetwork):
         """
         Initialize Facebook API client.
 
-        This method sets up the Facebook API client with configuration.
+        Tries to load credentials from CLI params, environment variables, or storage.
         """
+        # Try params/environment first
         self.facebook_access_token = self._get_config_value('facebook_access_token', 'FACEBOOK_ACCESS_TOKEN')
         self.facebook_client_id = self._get_config_value('facebook_client_id', 'FACEBOOK_CLIENT_ID')
         self.facebook_client_secret = self._get_config_value('facebook_client_secret', 'FACEBOOK_CLIENT_SECRET')
@@ -71,8 +72,43 @@ class Facebook(SocialNetwork):
         self.facebook_profile_id = self._get_config_value('facebook_profile_id', 'FACEBOOK_PROFILE_ID')
         self.facebook_app_id = self._get_config_value('facebook_app_id', 'FACEBOOK_APP_ID')
 
+        # If credentials not provided, try loading from storage
+        # Facebook needs user_id (object_id), client_id, client_secret, and refresh_token to authenticate
+        if not all([self.facebook_object_id, self.facebook_client_id, self.facebook_client_secret, self.facebook_refresh_token]):
+            from .auth import FacebookAuthManager
+            auth_manager = FacebookAuthManager(
+                user_id=self.facebook_object_id or '',
+                client_id=self.facebook_client_id or '',
+                client_secret=self.facebook_client_secret or ''
+            )
+
+            if auth_manager._load_credentials_from_storage():
+                # Fill in missing credentials from storage
+                if not self.facebook_object_id:
+                    self.facebook_object_id = auth_manager.user_id
+                if not self.facebook_client_id:
+                    self.facebook_client_id = auth_manager.client_id
+                if not self.facebook_client_secret:
+                    self.facebook_client_secret = auth_manager.client_secret
+                if not self.facebook_refresh_token:
+                    self.facebook_refresh_token = auth_manager.refresh_token
+
+        # If we have the required credentials, authenticate to get access token
+        if self.facebook_object_id and self.facebook_client_id and self.facebook_client_secret and self.facebook_refresh_token:
+            from .auth import FacebookAuthManager
+            auth_manager = FacebookAuthManager(
+                user_id=self.facebook_object_id,
+                client_id=self.facebook_client_id,
+                client_secret=self.facebook_client_secret,
+                refresh_token=self.facebook_refresh_token
+            )
+            authenticated = await auth_manager.authenticate()
+            if authenticated:
+                self.facebook_access_token = auth_manager.access_token
+
+        # Validate all credentials are now available
         if not self.facebook_access_token:
-            raise Exception('Facebook access token is required.')
+            raise Exception("Not authenticated. Please run 'agoras facebook authorize' first.")
 
         # Initialize Facebook API
         self.api = FacebookAPI(
@@ -342,6 +378,32 @@ class Facebook(SocialNetwork):
         self._output_status(post_id)
         return post_id
 
+    async def authorize_credentials(self):
+        """
+        Authorize and store Facebook credentials for future use.
+
+        Returns:
+            bool: True if authorization successful
+        """
+        from .auth import FacebookAuthManager
+
+        object_id = self._get_config_value('facebook_object_id', 'FACEBOOK_OBJECT_ID')
+        client_id = self._get_config_value('facebook_client_id', 'FACEBOOK_CLIENT_ID')
+        client_secret = self._get_config_value('facebook_client_secret', 'FACEBOOK_CLIENT_SECRET')
+        app_id = self._get_config_value('facebook_app_id', 'FACEBOOK_APP_ID')
+
+        auth_manager = FacebookAuthManager(
+            user_id=object_id,
+            client_id=client_id,
+            client_secret=client_secret
+        )
+
+        result = await auth_manager.authorize()
+        if result:
+            print(result)
+            return True
+        return False
+
     # Override action handlers to use Facebook-specific parameter names
     async def _handle_like_action(self):
         """Handle like action with Facebook-specific parameter extraction."""
@@ -391,7 +453,12 @@ async def main_async(kwargs):
     # Create Facebook instance with configuration
     instance = Facebook(**kwargs)
 
-    # Execute the action using the base class method
+    # Handle authorize action separately (doesn't need client initialization)
+    if action == 'authorize':
+        success = await instance.authorize_credentials()
+        return 0 if success else 1
+
+    # Execute other actions using the base class method
     await instance.execute_action(action)
     await instance.disconnect()
 

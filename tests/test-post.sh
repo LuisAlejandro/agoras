@@ -9,9 +9,9 @@ set -exuo pipefail
 
 source ../secrets.env
 
-if [ "${1}" == "twitter" ]; then
-    POST_TWITTER_ID=$(
-        agoras twitter post \
+if [ "${1}" == "x" ]; then
+    POST_X_ID=$(
+        agoras x post \
             --consumer-key "${TWITTER_CONSUMER_KEY}" \
             --consumer-secret "${TWITTER_CONSUMER_SECRET}" \
             --oauth-token "${TWITTER_OAUTH_TOKEN}" \
@@ -22,18 +22,14 @@ if [ "${1}" == "twitter" ]; then
 
     sleep 5
 
-    [ -n "${POST_TWITTER_ID}" ] && agoras twitter delete \
+    [ -n "${POST_X_ID}" ] && agoras x delete \
         --consumer-key "${TWITTER_CONSUMER_KEY}" \
         --consumer-secret "${TWITTER_CONSUMER_SECRET}" \
         --oauth-token "${TWITTER_OAUTH_TOKEN}" \
         --oauth-secret "${TWITTER_OAUTH_SECRET}" \
-        --post-id "${POST_TWITTER_ID}" || true
+        --post-id "${POST_X_ID}" || true
 
 elif [ "${1}" == "tiktok" ]; then
-    agoras tiktok authorize \
-        --client-key "${TIKTOK_CLIENT_KEY}" \
-        --client-secret "${TIKTOK_CLIENT_SECRET}"
-
     POST_TIKTOK_ID=$(
         agoras tiktok video \
             --client-key "${TIKTOK_CLIENT_KEY}" \
@@ -194,7 +190,49 @@ elif [ "${1}" == "linkedin" ]; then
         --access-token "${LINKEDIN_ACCESS_TOKEN}" \
         --post-id "${POST_LINKEDIN_ID}" || true
 
+elif [ "${1}" == "threads" ]; then
+    POST_THREADS_ID=$(
+        agoras threads post \
+            --app-id "${THREADS_APP_ID}" \
+            --app-secret "${THREADS_APP_SECRET}" \
+            --redirect-uri "${THREADS_REDIRECT_URI}" \
+            --text "${THREADS_STATUS_TEXT}" \
+            --image-1 "${THREADS_STATUS_IMAGE_URL_1}" | jq --unbuffered '.' | jq -r '.id'
+    )
+
+    echo "Threads post test created with ID: ${POST_THREADS_ID}"
+    echo "Note: Threads does not support delete or like actions"
+
+elif [ "${1}" == "telegram" ]; then
+    POST_TELEGRAM_ID=$(
+        agoras telegram post \
+            --bot-token "${TELEGRAM_BOT_TOKEN}" \
+            --chat-id "${TELEGRAM_CHAT_ID}" \
+            --text "${TELEGRAM_STATUS_TEXT}" \
+            --image-1 "${TELEGRAM_STATUS_IMAGE_URL_1}" | jq --unbuffered '.' | jq -r '.id'
+    )
+
+    sleep 5
+
+    [ -n "${POST_TELEGRAM_ID}" ] && agoras telegram delete \
+        --bot-token "${TELEGRAM_BOT_TOKEN}" \
+        --chat-id "${TELEGRAM_CHAT_ID}" \
+        --post-id "${POST_TELEGRAM_ID}" || true
+
+elif [ "${1}" == "whatsapp" ]; then
+    POST_WHATSAPP_ID=$(
+        agoras whatsapp post \
+            --access-token "${WHATSAPP_ACCESS_TOKEN}" \
+            --phone-number-id "${WHATSAPP_PHONE_NUMBER_ID}" \
+            --recipient "${WHATSAPP_RECIPIENT}" \
+            --text "${WHATSAPP_STATUS_TEXT}" \
+            --image-1 "${WHATSAPP_STATUS_IMAGE_URL_1}" | jq --unbuffered '.' | jq -r '.id'
+    )
+
+    echo "WhatsApp post test created with ID: ${POST_WHATSAPP_ID}"
+    echo "Note: WhatsApp does not support delete, like, or share actions"
+
 else
     echo "Unsupported platform ${1}"
-    echo "Usage: $0 {twitter|tiktok|facebook-video|youtube|facebook|instagram|discord|linkedin}"
+    echo "Usage: $0 {x|tiktok|facebook-video|youtube|facebook|instagram|discord|linkedin|threads|telegram|whatsapp}"
 fi

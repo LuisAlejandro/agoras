@@ -57,8 +57,9 @@ class LinkedIn(SocialNetwork):
         """
         Initialize LinkedIn API client.
 
-        This method sets up the LinkedIn API client with configuration.
+        Tries to load credentials from CLI params, environment variables, or storage.
         """
+        # Try params/environment first
         self.linkedin_access_token = self._get_config_value('linkedin_access_token', 'LINKEDIN_ACCESS_TOKEN')
         self.linkedin_client_id = self._get_config_value('linkedin_client_id', 'LINKEDIN_CLIENT_ID')
         self.linkedin_client_secret = self._get_config_value('linkedin_client_secret', 'LINKEDIN_CLIENT_SECRET')
@@ -66,8 +67,43 @@ class LinkedIn(SocialNetwork):
         self.linkedin_object_id = self._get_config_value('linkedin_object_id', 'LINKEDIN_OBJECT_ID')
         self.linkedin_post_id = self._get_config_value('linkedin_post_id', 'LINKEDIN_POST_ID')
 
+        # If credentials not provided, try loading from storage
+        # LinkedIn needs user_id (object_id), client_id, client_secret, and refresh_token to authenticate
+        if not all([self.linkedin_object_id, self.linkedin_client_id, self.linkedin_client_secret, self.linkedin_refresh_token]):
+            from .auth import LinkedInAuthManager
+            auth_manager = LinkedInAuthManager(
+                user_id=self.linkedin_object_id or '',
+                client_id=self.linkedin_client_id or '',
+                client_secret=self.linkedin_client_secret or ''
+            )
+
+            if auth_manager._load_credentials_from_storage():
+                # Fill in missing credentials from storage
+                if not self.linkedin_object_id:
+                    self.linkedin_object_id = auth_manager.user_id
+                if not self.linkedin_client_id:
+                    self.linkedin_client_id = auth_manager.client_id
+                if not self.linkedin_client_secret:
+                    self.linkedin_client_secret = auth_manager.client_secret
+                if not self.linkedin_refresh_token:
+                    self.linkedin_refresh_token = auth_manager.refresh_token
+
+        # If we have the required credentials, authenticate to get access token
+        if self.linkedin_object_id and self.linkedin_client_id and self.linkedin_client_secret and self.linkedin_refresh_token:
+            from .auth import LinkedInAuthManager
+            auth_manager = LinkedInAuthManager(
+                user_id=self.linkedin_object_id,
+                client_id=self.linkedin_client_id,
+                client_secret=self.linkedin_client_secret,
+                refresh_token=self.linkedin_refresh_token
+            )
+            authenticated = await auth_manager.authenticate()
+            if authenticated:
+                self.linkedin_access_token = auth_manager.access_token
+
+        # Validate all credentials are now available
         if not self.linkedin_access_token:
-            raise Exception('LinkedIn access token is required.')
+            raise Exception("Not authenticated. Please run 'agoras linkedin authorize' first.")
 
         # Initialize LinkedIn API
         self.api = LinkedInAPI(
@@ -268,6 +304,31 @@ class LinkedIn(SocialNetwork):
     # random-from-feed, and schedule actions with the correct parameter names.
     # No need to override them for LinkedIn.
 
+    async def authorize_credentials(self):
+        """
+        Authorize and store LinkedIn credentials for future use.
+
+        Returns:
+            bool: True if authorization successful
+        """
+        from .auth import LinkedInAuthManager
+
+        object_id = self._get_config_value('linkedin_object_id', 'LINKEDIN_OBJECT_ID')
+        client_id = self._get_config_value('linkedin_client_id', 'LINKEDIN_CLIENT_ID')
+        client_secret = self._get_config_value('linkedin_client_secret', 'LINKEDIN_CLIENT_SECRET')
+
+        auth_manager = LinkedInAuthManager(
+            user_id=object_id,
+            client_id=client_id,
+            client_secret=client_secret
+        )
+
+        result = await auth_manager.authorize()
+        if result:
+            print(result)
+            return True
+        return False
+
 
 async def main_async(kwargs):
     """
@@ -283,7 +344,13 @@ async def main_async(kwargs):
 
     # Create LinkedIn instance with configuration
     instance = LinkedIn(**kwargs)
-    # Execute the action using the base class method
+
+    # Handle authorize action separately (doesn't need client initialization)
+    if action == 'authorize':
+        success = await instance.authorize_credentials()
+        return 0 if success else 1
+
+    # Execute other actions using the base class method
     await instance.execute_action(action)
     await instance.disconnect()
 

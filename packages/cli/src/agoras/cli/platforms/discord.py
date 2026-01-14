@@ -60,25 +60,25 @@ def create_discord_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     # Post action
     post = actions.add_parser(
         'post',
-        help='Send a message to Discord channel'
+        help='Send a message to Discord channel. Requires prior authorization via "agoras discord authorize".'
     )
-    _add_discord_auth_options(post)
+    _add_discord_auth_options(post, required=False)
     add_common_content_options(post, images=4)
 
     # Video action
     video = actions.add_parser(
         'video',
-        help='Send a video to Discord channel'
+        help='Send a video to Discord channel. Requires prior authorization via "agoras discord authorize".'
     )
-    _add_discord_auth_options(video)
+    _add_discord_auth_options(video, required=False)
     _add_video_options(video)
 
     # Delete action
     delete = actions.add_parser(
         'delete',
-        help='Delete a Discord message'
+        help='Delete a Discord message. Requires prior authorization via "agoras discord authorize".'
     )
-    _add_discord_auth_options(delete)
+    _add_discord_auth_options(delete, required=False)
     _add_post_id_option(delete)
 
     # Set handler
@@ -87,12 +87,13 @@ def create_discord_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     return parser
 
 
-def _add_discord_auth_options(parser: ArgumentParser):
+def _add_discord_auth_options(parser: ArgumentParser, required: bool = True):
     """
     Add Discord authentication options.
 
     Args:
         parser: ArgumentParser to add options to
+        required: Whether credentials are required (True for authorize, False for other actions)
     """
     auth = parser.add_argument_group(
         'Discord Authentication',
@@ -100,21 +101,21 @@ def _add_discord_auth_options(parser: ArgumentParser):
     )
     auth.add_argument(
         '--bot-token',
-        required=True,
+        required=required,
         metavar='<token>',
-        help='Discord bot token'
+        help='Discord bot token' + (' (optional if already authorized)' if not required else '')
     )
     auth.add_argument(
         '--server-name',
-        required=True,
+        required=required,
         metavar='<name>',
-        help='Discord server (guild) name'
+        help='Discord server (guild) name' + (' (optional if already authorized)' if not required else '')
     )
     auth.add_argument(
         '--channel-name',
-        required=True,
+        required=required,
         metavar='<name>',
-        help='Discord channel name'
+        help='Discord channel name' + (' (optional if already authorized)' if not required else '')
     )
 
 

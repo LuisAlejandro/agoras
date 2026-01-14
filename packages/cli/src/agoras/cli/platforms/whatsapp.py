@@ -50,60 +50,67 @@ def create_whatsapp_parser(subparsers: _SubParsersAction) -> ArgumentParser:
         required=True
     )
 
+    # Authorize action
+    authorize = actions.add_parser(
+        'authorize',
+        help='Set up WhatsApp Business API credentials'
+    )
+    _add_whatsapp_authorize_options(authorize)
+
     # Post action
     post = actions.add_parser(
         'post',
-        help='Send a text/image message via WhatsApp'
+        help='Send a text/image message via WhatsApp. Requires prior authorization via "agoras whatsapp authorize".'
     )
-    _add_whatsapp_auth_options(post)
+    _add_whatsapp_auth_options(post, required=False)
     add_common_content_options(post, images=4)
 
     # Video action
     video = actions.add_parser(
         'video',
-        help='Send a video message via WhatsApp'
+        help='Send a video message via WhatsApp. Requires prior authorization via "agoras whatsapp authorize".'
     )
-    _add_whatsapp_auth_options(video)
+    _add_whatsapp_auth_options(video, required=False)
     add_video_options(video)
 
     # Contact action
     contact = actions.add_parser(
         'contact',
-        help='Send a contact card via WhatsApp'
+        help='Send a contact card via WhatsApp. Requires prior authorization via "agoras whatsapp authorize".'
     )
-    _add_whatsapp_auth_options(contact)
+    _add_whatsapp_auth_options(contact, required=False)
     _add_contact_options(contact)
 
     # Location action
     location = actions.add_parser(
         'location',
-        help='Send a location message via WhatsApp'
+        help='Send a location message via WhatsApp. Requires prior authorization via "agoras whatsapp authorize".'
     )
-    _add_whatsapp_auth_options(location)
+    _add_whatsapp_auth_options(location, required=False)
     _add_location_options(location)
 
     # Document action
     document = actions.add_parser(
         'document',
-        help='Send a document file via WhatsApp'
+        help='Send a document file via WhatsApp. Requires prior authorization via "agoras whatsapp authorize".'
     )
-    _add_whatsapp_auth_options(document)
+    _add_whatsapp_auth_options(document, required=False)
     _add_document_options(document)
 
     # Audio action
     audio = actions.add_parser(
         'audio',
-        help='Send an audio file via WhatsApp'
+        help='Send an audio file via WhatsApp. Requires prior authorization via "agoras whatsapp authorize".'
     )
-    _add_whatsapp_auth_options(audio)
+    _add_whatsapp_auth_options(audio, required=False)
     _add_audio_options(audio)
 
     # Template action
     template = actions.add_parser(
         'template',
-        help='Send a template message via WhatsApp'
+        help='Send a template message via WhatsApp. Requires prior authorization via "agoras whatsapp authorize".'
     )
-    _add_whatsapp_auth_options(template)
+    _add_whatsapp_auth_options(template, required=False)
     _add_template_options(template)
 
     # Set handler
@@ -112,9 +119,9 @@ def create_whatsapp_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     return parser
 
 
-def _add_whatsapp_auth_options(parser: ArgumentParser):
+def _add_whatsapp_authorize_options(parser: ArgumentParser):
     """
-    Add WhatsApp authentication options.
+    Add WhatsApp authorization options (for authorize action).
 
     Args:
         parser: ArgumentParser to add options to
@@ -134,6 +141,37 @@ def _add_whatsapp_auth_options(parser: ArgumentParser):
         required=True,
         metavar='<id>',
         help='WhatsApp Business phone number ID'
+    )
+    auth.add_argument(
+        '--business-account-id',
+        metavar='<id>',
+        help='WhatsApp Business Account ID (optional)'
+    )
+
+
+def _add_whatsapp_auth_options(parser: ArgumentParser, required: bool = True):
+    """
+    Add WhatsApp authentication options.
+
+    Args:
+        parser: ArgumentParser to add options to
+        required: Whether credentials are required (True for authorize, False for other actions)
+    """
+    auth = parser.add_argument_group(
+        'WhatsApp Authentication',
+        'WhatsApp Business API credentials from Meta Business Manager'
+    )
+    auth.add_argument(
+        '--access-token',
+        required=required,
+        metavar='<token>',
+        help='Meta Graph API access token' + (' (optional if already authorized)' if not required else '')
+    )
+    auth.add_argument(
+        '--phone-number-id',
+        required=required,
+        metavar='<id>',
+        help='WhatsApp Business phone number ID' + (' (optional if already authorized)' if not required else '')
     )
     auth.add_argument(
         '--business-account-id',

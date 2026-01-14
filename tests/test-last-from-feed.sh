@@ -9,15 +9,15 @@ set -exuo pipefail
 
 source ../secrets.env
 
-if [ "${1}" == "twitter" ]; then
-    LAST_FROM_FEED_TWEET_ID=$(
+if [ "${1}" == "x" ]; then
+    LAST_FROM_FEED_X_ID=$(
         agoras utils feed-publish \
-            --network twitter \
+            --network x \
             --mode last \
-            --twitter-consumer-key "${TWITTER_CONSUMER_KEY}" \
-            --twitter-consumer-secret "${TWITTER_CONSUMER_SECRET}" \
-            --twitter-oauth-token "${TWITTER_OAUTH_TOKEN}" \
-            --twitter-oauth-secret "${TWITTER_OAUTH_SECRET}" \
+            --x-consumer-key "${TWITTER_CONSUMER_KEY}" \
+            --x-consumer-secret "${TWITTER_CONSUMER_SECRET}" \
+            --x-oauth-token "${TWITTER_OAUTH_TOKEN}" \
+            --x-oauth-secret "${TWITTER_OAUTH_SECRET}" \
             --feed-url "${FEED_URL}" \
             --max-count 1 \
             --post-lookback "${POST_LOOKBACK}" | jq --unbuffered '.' | jq -r '.id'
@@ -25,18 +25,14 @@ if [ "${1}" == "twitter" ]; then
 
     sleep 5
 
-    [ -n "${LAST_FROM_FEED_TWEET_ID}" ] && agoras twitter delete \
+    [ -n "${LAST_FROM_FEED_X_ID}" ] && agoras x delete \
         --consumer-key "${TWITTER_CONSUMER_KEY}" \
         --consumer-secret "${TWITTER_CONSUMER_SECRET}" \
         --oauth-token "${TWITTER_OAUTH_TOKEN}" \
         --oauth-secret "${TWITTER_OAUTH_SECRET}" \
-        --post-id "${LAST_FROM_FEED_TWEET_ID}" || true
+        --post-id "${LAST_FROM_FEED_X_ID}" || true
 
 elif [ "${1}" == "tiktok" ]; then
-    agoras tiktok authorize \
-        --client-key "${TIKTOK_CLIENT_KEY}" \
-        --client-secret "${TIKTOK_CLIENT_SECRET}"
-
     LAST_FROM_FEED_TIKTOK_ID=$(
         agoras utils feed-publish \
             --network tiktok \
@@ -149,5 +145,5 @@ elif [ "${1}" == "linkedin" ]; then
 
 else
     echo "Unsupported platform ${1}"
-    echo "Usage: $0 {twitter|tiktok|youtube|facebook|instagram|discord|linkedin}"
+    echo "Usage: $0 {x|tiktok|youtube|facebook|instagram|discord|linkedin}"
 fi

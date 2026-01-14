@@ -79,7 +79,8 @@ class LinkedInAuthManager(BaseAuthManager):
             # Update refresh token if new one provided
             if token_data.get('refresh_token') and token_data['refresh_token'] != self.refresh_token:
                 self.refresh_token = token_data['refresh_token']
-                self._save_refresh_token_to_storage(self.refresh_token)
+                # Save all credentials to storage
+                self._save_credentials_to_storage()
 
             # Create client and get user info
             if self.access_token:
@@ -119,7 +120,9 @@ class LinkedInAuthManager(BaseAuthManager):
                     'Headless mode enabled but AGORAS_LINKEDIN_REFRESH_TOKEN not set.'
                 )
 
-            self._save_refresh_token_to_storage(refresh_token)
+            self.refresh_token = refresh_token
+            # Save all credentials to storage
+            self._save_credentials_to_storage()
             print("Successfully seeded LinkedIn credentials from environment variables.")
             return refresh_token
         except Exception as e:
@@ -156,13 +159,17 @@ class LinkedInAuthManager(BaseAuthManager):
 
                 refresh_token = token.get('refresh_token')
                 if refresh_token:
-                    self._save_refresh_token_to_storage(refresh_token)
+                    self.refresh_token = refresh_token
+                    # Save all credentials to storage
+                    self._save_credentials_to_storage()
                     return refresh_token
                 else:
                     # LinkedIn might not always return refresh tokens
                     access_token = token.get('access_token')
                     if access_token:
-                        self._save_refresh_token_to_storage(access_token)
+                        self.refresh_token = access_token
+                        # Save all credentials to storage
+                        self._save_credentials_to_storage()
                         return access_token
                     raise Exception('No refresh token or access token in LinkedIn response')
 
@@ -256,3 +263,47 @@ class LinkedInAuthManager(BaseAuthManager):
     def _save_refresh_token_to_cache(self, refresh_token: str):
         """Save refresh token to secure storage. DEPRECATED - use _save_refresh_token_to_storage."""
         self._save_refresh_token_to_storage(refresh_token)
+
+    def _save_credentials_to_storage(self):
+        """Save all LinkedIn credentials to secure storage."""
+        platform_name = self._get_platform_name()
+        identifier = self._get_token_identifier()
+
+        token_data = {
+            'user_id': self.user_id,
+            'client_id': self.client_id,
+            'client_secret': self.client_secret,
+            'refresh_token': self.refresh_token
+        }
+
+        self.token_storage.save_token(platform_name, identifier, token_data)
+
+    def _load_credentials_from_storage(self) -> bool:
+        """Load LinkedIn credentials from secure storage."""
+        platform_name = self._get_platform_name()
+
+        # Try default identifier first
+        identifier = self._get_token_identifier()
+        token_data = self.token_storage.load_token(platform_name, identifier)
+
+        if not token_data:
+            # Try to find any stored token
+            tokens = self.token_storage.list_tokens(platform_name)
+            if tokens:
+                identifier = tokens[0][1]
+                token_data = self.token_storage.load_token(platform_name, identifier)
+
+        if token_data:
+            # Only update if not already set (allow override from constructor)
+            if not self.user_id:
+                self.user_id = token_data.get('user_id')
+            if not self.client_id:
+                self.client_id = token_data.get('client_id')
+            if not self.client_secret:
+                self.client_secret = token_data.get('client_secret')
+            if not self.refresh_token:
+                self.refresh_token = token_data.get('refresh_token')
+
+            return bool(all([self.user_id, self.client_id, self.client_secret, self.refresh_token]))
+
+        return False

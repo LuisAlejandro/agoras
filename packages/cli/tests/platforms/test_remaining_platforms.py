@@ -48,8 +48,8 @@ def test_instagram_limited_actions():
     # Should work: post
     args = root_parser.parse_args([
         'instagram', 'post',
-        '--access-token', 'token',
-        '--object-id', 'account123'
+        '--object-id', 'account123',
+        '--text', 'Hello Instagram'
     ])
     assert args.action == 'post'
 
@@ -73,7 +73,7 @@ def test_linkedin_full_actions():
     # Test various actions
     args = root_parser.parse_args([
         'linkedin', 'post',
-        '--access-token', 'token'
+        '--text', 'Hello LinkedIn'
     ])
     assert args.action == 'post'
 
@@ -125,8 +125,6 @@ def test_youtube_video_only():
     # Should work: video
     args = root_parser.parse_args([
         'youtube', 'video',
-        '--client-id', 'client',
-        '--client-secret', 'secret',
         '--video-url', 'video.mp4'
     ])
     assert args.action == 'video'
@@ -141,8 +139,6 @@ def test_youtube_video_options():
 
     args = root_parser.parse_args([
         'youtube', 'video',
-        '--client-id', 'client',
-        '--client-secret', 'secret',
         '--video-url', 'video.mp4',
         '--title', 'Video Title',
         '--description', 'Description',
@@ -176,9 +172,6 @@ def test_tiktok_video_only():
 
     args = root_parser.parse_args([
         'tiktok', 'video',
-        '--client-key', 'key',
-        '--client-secret', 'secret',
-        '--access-token', 'token',
         '--video-url', 'video.mp4'
     ])
     assert args.action == 'video'
@@ -193,9 +186,6 @@ def test_tiktok_privacy_options():
 
     args = root_parser.parse_args([
         'tiktok', 'video',
-        '--client-key', 'key',
-        '--client-secret', 'secret',
-        '--access-token', 'token',
         '--video-url', 'video.mp4',
         '--privacy', 'PUBLIC_TO_EVERYONE'
     ])
@@ -222,12 +212,11 @@ def test_threads_actions():
     # Test post action
     args = root_parser.parse_args([
         'threads', 'post',
-        '--app-id', 'app123',
-        '--app-secret', 'secret456',
-        '--refresh-token', 'token789'
+        '--text', 'Hello Threads',
+        '--image-1', 'img.jpg'
     ])
     assert args.action == 'post'
-    assert args.app_id == 'app123'
+    assert args.text == 'Hello Threads'
 
 
 def test_threads_share_action():
@@ -239,9 +228,6 @@ def test_threads_share_action():
 
     args = root_parser.parse_args([
         'threads', 'share',
-        '--app-id', 'app',
-        '--app-secret', 'secret',
-        '--refresh-token', 'token',
         '--post-id', 'post123'
     ])
 

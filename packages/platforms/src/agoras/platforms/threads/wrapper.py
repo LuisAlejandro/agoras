@@ -57,9 +57,9 @@ class Threads(SocialNetwork):
         """
         Initialize Threads API client.
 
-        This method sets up the Threads API client with configuration.
+        Tries to load credentials from CLI params, environment variables, or storage.
         """
-        # Get configuration values
+        # Try params/environment first
         self.threads_app_id = self._get_config_value('threads_app_id', 'THREADS_APP_ID')
         self.threads_app_secret = self._get_config_value('threads_app_secret', 'THREADS_APP_SECRET')
         self.threads_redirect_uri = self._get_config_value('threads_redirect_uri', 'THREADS_REDIRECT_URI')
@@ -73,17 +73,32 @@ class Threads(SocialNetwork):
         # Action-specific attributes
         self.threads_post_id = self._get_config_value('threads_post_id', 'THREADS_POST_ID')
 
-        # Validate required credentials
-        if not self.threads_app_id:
-            raise Exception('Threads app ID is required.')
+        # If credentials not provided, try loading from storage
+        # Threads needs app_id, app_secret, redirect_uri, and refresh_token to authenticate
+        if not all([self.threads_app_id, self.threads_app_secret, self.threads_redirect_uri]):
+            from .auth import ThreadsAuthManager
+            auth_manager = ThreadsAuthManager(
+                app_id=self.threads_app_id or '',
+                app_secret=self.threads_app_secret or '',
+                redirect_uri=self.threads_redirect_uri or ''
+            )
 
-        if not self.threads_app_secret:
-            raise Exception('Threads app secret is required.')
+            if auth_manager._load_credentials_from_storage():
+                # Fill in missing credentials from storage
+                if not self.threads_app_id:
+                    self.threads_app_id = auth_manager.app_id
+                if not self.threads_app_secret:
+                    self.threads_app_secret = auth_manager.app_secret
+                if not self.threads_redirect_uri:
+                    self.threads_redirect_uri = auth_manager.redirect_uri
+                if not self.threads_refresh_token:
+                    self.threads_refresh_token = auth_manager.refresh_token
 
-        if not self.threads_redirect_uri:
-            raise Exception('Threads redirect URI is required.')
+        # Validate all credentials are now available
+        if not all([self.threads_app_id, self.threads_app_secret, self.threads_redirect_uri]):
+            raise Exception("Not authenticated. Please run 'agoras threads authorize' first.")
 
-        # Initialize Threads API (it will handle loading refresh token from cache if needed)
+        # Initialize Threads API
         self.api = ThreadsAPI(
             self.threads_app_id,
             self.threads_app_secret,
@@ -215,6 +230,31 @@ class Threads(SocialNetwork):
         """Handle delete action - not supported for Threads."""
         await self.delete(None)
 
+    async def authorize_credentials(self):
+        """
+        Authorize and store Threads credentials for future use.
+
+        Returns:
+            bool: True if authorization successful
+        """
+        from .auth import ThreadsAuthManager
+
+        app_id = self._get_config_value('threads_app_id', 'THREADS_APP_ID')
+        app_secret = self._get_config_value('threads_app_secret', 'THREADS_APP_SECRET')
+        redirect_uri = self._get_config_value('threads_redirect_uri', 'THREADS_REDIRECT_URI')
+
+        auth_manager = ThreadsAuthManager(
+            app_id=app_id,
+            app_secret=app_secret,
+            redirect_uri=redirect_uri
+        )
+
+        result = await auth_manager.authorize()
+        if result:
+            print(result)
+            return True
+        return False
+
     async def execute_action(self, action):
         """
         Execute the specified action asynchronously.
@@ -265,7 +305,13 @@ async def main_async(kwargs):
 
     # Create Threads instance with configuration
     instance = Threads(**kwargs)
-    # Execute the action using the base class method
+
+    # Handle authorize action separately (doesn't need client initialization)
+    if action == 'authorize':
+        success = await instance.authorize_credentials()
+        return 0 if success else 1
+
+    # Execute other actions using the base class method
     await instance.execute_action(action)
     await instance.disconnect()
 

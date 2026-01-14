@@ -19,8 +19,9 @@
 import asyncio
 from typing import List, Optional
 
-from .api import WhatsAppAPI
 from agoras.core.interfaces import SocialNetwork
+
+from .api import WhatsAppAPI
 
 
 class WhatsApp(SocialNetwork):
@@ -58,11 +59,25 @@ class WhatsApp(SocialNetwork):
         Initialize WhatsApp API client.
 
         This method sets up the WhatsApp API client with configuration.
+        Tries to load credentials from storage if not provided via parameters.
         """
         # Get configuration using existing pattern
         self.whatsapp_access_token = self._get_config_value('whatsapp_access_token', 'WHATSAPP_ACCESS_TOKEN')
         self.whatsapp_phone_number_id = self._get_config_value('whatsapp_phone_number_id', 'WHATSAPP_PHONE_NUMBER_ID')
-        self.whatsapp_business_account_id = self._get_config_value('whatsapp_business_account_id', 'WHATSAPP_BUSINESS_ACCOUNT_ID')
+        self.whatsapp_business_account_id = self._get_config_value(
+            'whatsapp_business_account_id', 'WHATSAPP_BUSINESS_ACCOUNT_ID')
+
+        # If credentials not provided, try loading from storage
+        if not self.whatsapp_access_token or not self.whatsapp_phone_number_id:
+            from .auth import WhatsAppAuthManager
+            auth_manager = WhatsAppAuthManager()
+            if auth_manager._load_credentials_from_storage():
+                if not self.whatsapp_access_token:
+                    self.whatsapp_access_token = auth_manager.access_token
+                if not self.whatsapp_phone_number_id:
+                    self.whatsapp_phone_number_id = auth_manager.phone_number_id
+                if not self.whatsapp_business_account_id:
+                    self.whatsapp_business_account_id = auth_manager.business_account_id
 
         # Required recipient for messaging
         self.whatsapp_recipient = self._get_config_value('whatsapp_recipient', 'WHATSAPP_RECIPIENT')
@@ -72,7 +87,7 @@ class WhatsApp(SocialNetwork):
 
         # Validation
         if not all([self.whatsapp_access_token, self.whatsapp_phone_number_id]):
-            raise Exception('WhatsApp access token and phone number ID are required.')
+            raise Exception("Not authenticated. Please run 'agoras whatsapp authorize' first.")
 
         if not self.whatsapp_recipient:
             raise Exception('WhatsApp recipient phone number is required.')
@@ -130,7 +145,7 @@ class WhatsApp(SocialNetwork):
                 for i, image in enumerate(images):
                     if image.content and image.file_type:
                         # First image gets the full caption, others get minimal caption
-                        caption = message_text if i == 0 else f"Image {i+1}"
+                        caption = message_text if i == 0 else f"Image {i + 1}"
 
                         message_id = await self.api.send_image(
                             to=self.whatsapp_recipient,
@@ -228,7 +243,7 @@ class WhatsApp(SocialNetwork):
         if video.file_type.mime not in supported_formats:
             video.cleanup()
             raise Exception(f'Invalid video type "{video.file_type.mime}" for {video_url}. '
-                          f'WhatsApp supports MP4 and 3GP formats.')
+                            f'WhatsApp supports MP4 and 3GP formats.')
 
         try:
             # Send video with caption (status_text)
@@ -267,7 +282,7 @@ class WhatsApp(SocialNetwork):
         return message_id
 
     async def send_location(self, latitude: float, longitude: float,
-                           name: str = None) -> str:
+                            name: str = None) -> str:
         """
         Send a location message.
 
@@ -291,7 +306,11 @@ class WhatsApp(SocialNetwork):
         self._output_status(message_id)
         return message_id
 
-    async def send_document(self, document_url: str, caption: Optional[str] = None, filename: Optional[str] = None) -> str:
+    async def send_document(
+            self,
+            document_url: str,
+            caption: Optional[str] = None,
+            filename: Optional[str] = None) -> str:
         """
         Send a document message.
 
@@ -341,7 +360,11 @@ class WhatsApp(SocialNetwork):
         self._output_status(message_id)
         return message_id
 
-    async def send_template(self, template_name: str, language_code: str = "en", components: Optional[List] = None) -> str:
+    async def send_template(
+            self,
+            template_name: str,
+            language_code: str = "en",
+            components: Optional[List] = None) -> str:
         """
         Send a template message.
 
@@ -465,6 +488,31 @@ class WhatsApp(SocialNetwork):
 
         await self.send_template(template_name, language_code=language_code, components=components)
 
+    async def authorize_credentials(self):
+        """
+        Authorize and store WhatsApp credentials for future use.
+
+        Returns:
+            bool: True if authorization successful
+        """
+        from .auth import WhatsAppAuthManager
+
+        access_token = self._get_config_value('whatsapp_access_token', 'WHATSAPP_ACCESS_TOKEN')
+        phone_number_id = self._get_config_value('whatsapp_phone_number_id', 'WHATSAPP_PHONE_NUMBER_ID')
+        business_account_id = self._get_config_value('whatsapp_business_account_id', 'WHATSAPP_BUSINESS_ACCOUNT_ID')
+
+        auth_manager = WhatsAppAuthManager(
+            access_token=access_token,
+            phone_number_id=phone_number_id,
+            business_account_id=business_account_id
+        )
+
+        result = await auth_manager.authorize()
+        if result:
+            print(result)
+            return True
+        return False
+
     async def execute_action(self, action):
         """
         Execute the specified action asynchronously.
@@ -479,6 +527,13 @@ class WhatsApp(SocialNetwork):
         """
         if action == '':
             raise Exception('Action is a required argument.')
+
+        # Handle authorize action separately (doesn't need client initialization)
+        if action == 'authorize':
+            success = await self.authorize_credentials()
+            if not success:
+                raise Exception('WhatsApp authorization failed.')
+            return
 
         # Initialize client before executing other actions
         await self._initialize_client()
@@ -528,9 +583,12 @@ async def main_async(kwargs):
     # Create WhatsApp instance with configuration
     instance = WhatsApp(**kwargs)
 
-    # Execute the action using the base class method
+    # Execute the action (authorize is handled in execute_action)
     await instance.execute_action(action)
-    await instance.disconnect()
+
+    # Only disconnect if client was initialized (not for authorize action)
+    if action != 'authorize':
+        await instance.disconnect()
 
 
 def main(kwargs):

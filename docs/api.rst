@@ -26,9 +26,12 @@ Subpackages
 .. toctree::
    :maxdepth: 2
 
-   api/commands
+   api/common
+   api/media
    api/core
    api/core_api
    api/core_feed
-   api/core_media
    api/core_sheet
+   api/platforms
+   api/cli
+   api/commands

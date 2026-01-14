@@ -2,7 +2,7 @@ Using the application
 ---------------------
 
 .. note::
-   **New in version 1.5**: Agoras introduces a new, intuitive CLI structure.
+   **New in version 2.0**: Agoras introduces a new, intuitive CLI structure.
    Use ``agoras <platform> <action>`` instead of ``agoras publish --network <platform> --action <action>``.
 
    Example: ``agoras twitter post`` instead of ``agoras publish --network twitter --action post``

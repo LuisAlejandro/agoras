@@ -27,10 +27,9 @@ from agoras.cli.validator import ActionValidator
 
 def test_main_help_shows_all_commands():
     """Test that main help shows all platform commands."""
-    parser, args = commandline(['--help'])
-
-    # Parse succeeds (help will exit normally)
-    assert parser is not None
+    with pytest.raises(SystemExit) as exc_info:
+        parser, args = commandline(['--help'])
+    assert exc_info.value.code == 0
 
 
 def test_all_platforms_accessible():
@@ -39,20 +38,23 @@ def test_all_platforms_accessible():
                  'discord', 'youtube', 'tiktok', 'threads']
 
     for platform in platforms:
-        parser, args = commandline([platform, '--help'])
-        assert parser is not None
+        with pytest.raises(SystemExit) as exc_info:
+            parser, args = commandline([platform, '--help'])
+        assert exc_info.value.code == 0
 
 
 def test_utils_command_accessible():
     """Test that utils command is accessible."""
-    parser, args = commandline(['utils', '--help'])
-    assert parser is not None
+    with pytest.raises(SystemExit) as exc_info:
+        parser, args = commandline(['utils', '--help'])
+    assert exc_info.value.code == 0
 
 
 def test_legacy_publish_still_works():
     """Test that legacy publish command still works."""
-    parser, args = commandline(['publish', '--help'])
-    assert parser is not None
+    with pytest.raises(SystemExit) as exc_info:
+        parser, args = commandline(['publish', '--help'])
+    assert exc_info.value.code == 0
 
 
 def test_x_post_complete_flow():
@@ -95,15 +97,12 @@ def test_youtube_video_complete_flow():
     """Test complete YouTube video command parsing."""
     parser, args = commandline([
         'youtube', 'video',
-        '--client-id', 'client',
-        '--client-secret', 'secret',
         '--video-url', 'video.mp4',
         '--title', 'My Video',
         '--privacy', 'public'
     ])
 
     assert args.action == 'video'
-    assert args.client_id == 'client'
     assert args.video_url == 'video.mp4'
     assert args.title == 'My Video'
     assert args.privacy == 'public'
@@ -116,13 +115,13 @@ def test_utils_feed_publish_complete_flow():
         '--network', 'x',
         '--mode', 'last',
         '--feed-url', 'https://example.com/feed.xml',
-        '--twitter-consumer-key', 'key'
+        '--x-consumer-key', 'key'
     ])
 
-    assert args.network == 'twitter'
+    assert args.network == 'x'
     assert args.mode == 'last'
     assert args.feed_url == 'https://example.com/feed.xml'
-    assert args.twitter_consumer_key == 'key'
+    assert args.x_consumer_key == 'key'
 
 
 def test_utils_schedule_run_complete_flow():
@@ -158,13 +157,13 @@ def test_threads_new_platform_accessible():
     """Test that new Threads platform is accessible."""
     parser, args = commandline([
         'threads', 'post',
-        '--app-id', 'app123',
-        '--app-secret', 'secret',
-        '--refresh-token', 'token'
+        '--text', 'Hello Threads',
+        '--image-1', 'img.jpg'
     ])
 
     assert args.action == 'post'
-    assert args.app_id == 'app123'
+    assert args.text == 'Hello Threads'
+    assert args.image_1 == 'img.jpg'
 
 
 def test_action_validation_integration():

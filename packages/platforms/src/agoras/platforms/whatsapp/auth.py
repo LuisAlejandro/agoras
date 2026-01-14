@@ -17,26 +17,40 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+import os
 from typing import Any, Dict, Optional
 
 from agoras.core.auth import BaseAuthManager
+from agoras.core.auth.exceptions import AuthenticationError
+
 from .client import WhatsAppAPIClient
 
 
 class WhatsAppAuthManager(BaseAuthManager):
     """WhatsApp authentication manager using Meta Graph API with direct access token authentication."""
 
-    def __init__(self, access_token: str, phone_number_id: str,
+    def __init__(self, access_token: Optional[str] = None, phone_number_id: Optional[str] = None,
                  business_account_id: Optional[str] = None):
         """
         Initialize WhatsApp authentication manager.
 
         Args:
-            access_token (str): Meta Graph API access token
-            phone_number_id (str): WhatsApp Business phone number ID
+            access_token (str, optional): Meta Graph API access token
+            phone_number_id (str, optional): WhatsApp Business phone number ID
             business_account_id (str, optional): WhatsApp Business Account ID
         """
         super().__init__()
+        # Try loading from storage first if credentials not provided
+        if not access_token or not phone_number_id:
+            loaded = self._load_credentials_from_storage()
+            if loaded:
+                if not access_token:
+                    access_token = getattr(self, 'access_token', None)
+                if not phone_number_id:
+                    phone_number_id = getattr(self, 'phone_number_id', None)
+                if not business_account_id:
+                    business_account_id = getattr(self, 'business_account_id', None)
+
         self.access_token = access_token
         self.phone_number_id = phone_number_id
         self.business_account_id = business_account_id
@@ -68,22 +82,37 @@ class WhatsAppAuthManager(BaseAuthManager):
 
     async def authorize(self) -> Optional[str]:
         """
-        WhatsApp Business API uses direct access tokens (no OAuth flow).
+        Authorize WhatsApp by validating and storing access token credentials.
 
-        For WhatsApp, tokens are obtained from Meta Business Manager.
-        This method is provided for interface compatibility but does not
-        perform OAuth authorization.
+        Accepts credentials from parameters or environment variables, validates them,
+        and stores them securely for future use.
 
         Returns:
-            str or None: Access token if provided, None otherwise
+            str: Success message if authorization successful, None otherwise
         """
-        if not self._validate_credentials():
-            raise Exception('WhatsApp credentials are required for authorization.')
+        # Get credentials from parameters or environment variables
+        access_token = self.access_token or os.environ.get('WHATSAPP_ACCESS_TOKEN')
+        phone_number_id = self.phone_number_id or os.environ.get('WHATSAPP_PHONE_NUMBER_ID')
+        business_account_id = self.business_account_id or os.environ.get('WHATSAPP_BUSINESS_ACCOUNT_ID')
 
-        # WhatsApp uses direct access tokens, so we just validate and return
-        if await self._validate_access_token():
-            return self.access_token
-        return None
+        if not access_token or not phone_number_id:
+            raise Exception('WhatsApp access token and phone number ID are required. '
+                            'Provide via parameters or environment variables (WHATSAPP_ACCESS_TOKEN, '
+                            'WHATSAPP_PHONE_NUMBER_ID).')
+
+        # Set credentials for validation
+        self.access_token = access_token
+        self.phone_number_id = phone_number_id
+        self.business_account_id = business_account_id
+
+        # Validate credentials
+        if not await self._validate_access_token():
+            raise Exception('WhatsApp access token validation failed. Please check your credentials.')
+
+        # Save credentials to secure storage
+        self._save_credentials_to_storage(access_token, phone_number_id, business_account_id)
+
+        return "Authorization successful. Credentials stored securely."
 
     async def _validate_access_token(self) -> bool:
         """
@@ -191,4 +220,56 @@ class WhatsAppAuthManager(BaseAuthManager):
         Returns:
             str: Phone number ID as unique identifier
         """
-        return self.phone_number_id
+        if self.phone_number_id:
+            return self.phone_number_id
+        return "default"
+
+    def _save_credentials_to_storage(self, access_token: str, phone_number_id: str,
+                                     business_account_id: Optional[str] = None):
+        """
+        Save WhatsApp credentials to secure storage.
+
+        Args:
+            access_token (str): Meta Graph API access token
+            phone_number_id (str): WhatsApp Business phone number ID
+            business_account_id (str, optional): WhatsApp Business Account ID
+        """
+        platform_name = self._get_platform_name()
+        identifier = phone_number_id
+
+        token_data = {
+            'access_token': access_token,
+            'phone_number_id': phone_number_id,
+            'business_account_id': business_account_id
+        }
+
+        self.token_storage.save_token(platform_name, identifier, token_data)
+
+    def _load_credentials_from_storage(self) -> bool:
+        """
+        Load WhatsApp credentials from secure storage.
+
+        Returns:
+            bool: True if credentials were loaded, False otherwise
+        """
+        platform_name = self._get_platform_name()
+
+        # Try to load with default identifier first
+        identifier = "default"
+        token_data = self.token_storage.load_token(platform_name, identifier)
+
+        if not token_data:
+            # If no default, try to find any stored token
+            tokens = self.token_storage.list_tokens(platform_name)
+            if tokens:
+                # Use the first available token
+                identifier = tokens[0][1]
+                token_data = self.token_storage.load_token(platform_name, identifier)
+
+        if token_data:
+            self.access_token = token_data.get('access_token')
+            self.phone_number_id = token_data.get('phone_number_id')
+            self.business_account_id = token_data.get('business_account_id')
+            return bool(self.access_token and self.phone_number_id)
+
+        return False

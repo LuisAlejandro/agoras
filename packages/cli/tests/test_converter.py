@@ -84,7 +84,6 @@ def test_convert_facebook_to_legacy():
     converter = ParameterConverter('facebook')
     args = Namespace(
         action='video',
-        access_token='token123',
         object_id='page456',
         video_url='http://example.com/video.mp4',
         video_title='My Video',
@@ -95,7 +94,6 @@ def test_convert_facebook_to_legacy():
 
     assert legacy['network'] == 'facebook'
     assert legacy['action'] == 'video'
-    assert legacy['facebook_access_token'] == 'token123'
     assert legacy['facebook_object_id'] == 'page456'
     assert legacy['facebook_video_url'] == 'http://example.com/video.mp4'
     assert legacy['facebook_video_title'] == 'My Video'

@@ -45,23 +45,50 @@ that you can incorporate into your workflows.
 
 For more information, please read the `full documentation`_.
 
+What's New in v2.0
+==================
+
+Agoras v2.0 represents a major architectural shift from a monolithic package to a modular 5-package structure. This allows you to install only the components you need.
+
+**Package Structure:**
+
+.. code-block:: text
+
+   agoras (CLI)
+   └── agoras-platforms
+       └── agoras-core
+           ├── agoras-media
+           └── agoras-common
+
+**Key Improvements:**
+
+- **Modular Architecture**: Install only what you need (e.g., ``agoras-core`` for custom integrations)
+- **New Platforms**: Telegram, WhatsApp, Threads, and X support
+- **Better Authentication**: Built-in OAuth 2.0 callback server
+- **Improved CLI**: Platform-first commands (``agoras x post``)
+
+For detailed migration instructions, see :doc:`migration`.
+
 .. note::
 
-   **v2.0 Development in Progress**
+   **Agoras v2.0 Now Available!**
 
-   Agoras v2.0 will introduce a modular architecture, splitting the monolithic package into 5 separate PyPI packages.
+   Version 2.0 introduces a modular architecture with 5 separate packages for better maintainability and flexibility.
 
-   **New features in v2.0:**
+   **What's New:**
 
-   - Support for Telegram, WhatsApp, Threads, and X (Twitter rebrand)
-   - OAuth2 callback server for easier authentication
-   - Async/await pattern throughout
-   - Enhanced CLI with platform-specific commands
+   - Modular package structure (agoras-common, agoras-media, agoras-core, agoras-platforms, agoras)
+   - New platforms: Telegram, WhatsApp, Threads, and X (Twitter rebrand)
+   - OAuth 2.0 callback server for easier authentication
+   - Enhanced CLI with platform-first commands
 
-   For migration guidance, see the `Migration Guide <https://github.com/LuisAlejandro/agoras/blob/develop/MIGRATION.md>`_.
+   **Breaking Changes:** Import paths and CLI syntax have changed. See :doc:`migration` for upgrade instructions.
 
 Table of Contents
 -----------------
+
+Getting Started
+~~~~~~~~~~~~~~~
 
 .. toctree::
    :maxdepth: 2
@@ -69,6 +96,13 @@ Table of Contents
    installation
    usage
    migration
+
+Platform Guides
+~~~~~~~~~~~~~~~
+
+.. toctree::
+   :maxdepth: 2
+
    x
    facebook
    instagram
@@ -79,6 +113,13 @@ Table of Contents
    threads
    telegram
    whatsapp
+
+Getting Credentials
+~~~~~~~~~~~~~~~~~~
+
+.. toctree::
+   :maxdepth: 2
+
    credentials/x
    credentials/facebook
    credentials/instagram
@@ -89,8 +130,22 @@ Table of Contents
    credentials/telegram
    credentials/whatsapp
    credentials/google
+
+Advanced Topics
+~~~~~~~~~~~~~~~
+
+.. toctree::
+   :maxdepth: 2
+
    rss
    api
+
+Developer Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. toctree::
+   :maxdepth: 2
+
    contributing
    authors
    history

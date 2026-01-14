@@ -36,7 +36,7 @@ help:
 	@echo "test-all - run tests on every Python version with tox"
 	@echo "coverage - check code coverage quickly with the default Python"
 	@echo "docs - generate Sphinx HTML documentation, including API docs"
-	@echo "release - package and upload a release"
+	@echo "pypi-upload - package and upload a release"
 	@echo "dist - package"
 	@echo "install - install the package to the active Python's site-packages"
 
@@ -64,20 +64,17 @@ clean-docs:
 	rm -fr docs/_build
 
 lint: start
-	@$(exec_on_docker) sh -c "cd packages && tox -e lint"
+	@$(exec_on_docker) tox -e lint
 
 format: start
 	@$(exec_on_docker) autopep8 --in-place --recursive --aggressive --aggressive packages/*/src/agoras
 
 lint-and-format: start
 	@$(exec_on_docker) autopep8 --in-place --recursive --aggressive --aggressive packages/*/src/agoras
-	@$(exec_on_docker) sh -c "cd packages && tox -e lint"
+	@$(exec_on_docker) tox -e lint
 
 test: start
-	@$(exec_on_docker) sh -c "cd packages && pytest common/tests media/tests core/tests platforms/tests cli/tests -v"
-
-test-all: start
-	@$(exec_on_docker) sh -c "cd packages && tox -e all"
+	@$(exec_on_docker) tox -e all
 
 functional-test: start
 	# @$(exec_on_docker) bash test.sh twitter
@@ -87,8 +84,8 @@ functional-test: start
 	@$(exec_on_docker) bash test.sh discord
 
 coverage: start
-	@$(exec_on_docker) sh -c "cd packages && tox -e coverage"
-	@$(BROWSER) packages/htmlcov/index.html
+	@$(exec_on_docker) tox -e coverage
+	@$(BROWSER) htmlcov/index.html
 
 docs:
 	@$(exec_on_docker) make -C docs clean
@@ -98,7 +95,7 @@ docs:
 servedocs: docs start
 	@$(exec_on_docker) watchmedo shell-command -p '*.rst' -c 'make -C docs html' -R -D .
 
-release: clean start dist
+pypi-upload: clean start dist
 	@twine upload dist/*
 
 dist: clean start

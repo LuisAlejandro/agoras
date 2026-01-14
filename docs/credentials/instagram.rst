@@ -1,7 +1,7 @@
 Instagram credentials
 =====================
 
-.. versionchanged:: 1.6
+.. versionchanged:: 2.0
    Instagram now uses OAuth 2.0 authentication via Facebook Graph API. You no longer need to manually generate access tokens.
 
 Agoras needs the following OAuth app credentials to access the Instagram Graph API:
