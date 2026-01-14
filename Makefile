@@ -67,9 +67,11 @@ lint: start
 	@$(exec_on_docker) tox -e lint
 
 format: start
+	@$(exec_on_docker) autoflake --in-place --recursive --remove-all-unused-imports --remove-unused-variables --ignore-init-module-imports packages/*/src/agoras
 	@$(exec_on_docker) autopep8 --in-place --recursive --aggressive --aggressive packages/*/src/agoras
 
 lint-and-format: start
+	@$(exec_on_docker) autoflake --in-place --recursive --remove-all-unused-imports --remove-unused-variables --ignore-init-module-imports packages/*/src/agoras
 	@$(exec_on_docker) autopep8 --in-place --recursive --aggressive --aggressive packages/*/src/agoras
 	@$(exec_on_docker) tox -e lint
 

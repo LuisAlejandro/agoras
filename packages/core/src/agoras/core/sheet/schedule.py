@@ -119,4 +119,4 @@ class ScheduleSheet(Sheet):
         # Update the sheet with new states
         await self.write_all(updated_rows, clear_first=True)
 
-        return posts_to_publish 
+        return posts_to_publish

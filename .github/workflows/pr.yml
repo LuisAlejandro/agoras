@@ -11,6 +11,28 @@ on:
       - develop
 
 jobs:
+  lint:
+    name: Linting
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installing dependencies
+        run: |
+          python3 -m pip install -r requirements-dev.txt
+
+      - name: Running linter
+        run: |
+          tox -e lint
+
   unit:
     name: Unit tests
     runs-on: ubuntu-22.04
@@ -47,10 +69,44 @@ jobs:
           path-to-lcov: ./.lcov
           parallel: true
 
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install all packages
+        run: |
+          cd packages
+          python3 -m pip install -r ../requirements-dev.txt
+          python3 -m pip install -e common/
+          python3 -m pip install -e media/
+          python3 -m pip install -e core/
+          python3 -m pip install -e platforms/
+          python3 -m pip install -e cli/
+
+      - name: Run integration tests
+        run: |
+          cd packages
+          pytest cli/tests/ -v -k integration
+
+      - name: Test CLI entry point
+        run: |
+          agoras --version
+          agoras --help
+
   finish:
     name: Finish
     runs-on: ubuntu-22.04
-    needs: unit
+    needs: [lint, unit, integration]
     steps:
       - name: Coveralls Finished
         uses: coverallsapp/github-action@v2

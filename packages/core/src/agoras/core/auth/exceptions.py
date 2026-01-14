@@ -25,4 +25,3 @@ class AuthenticationError(Exception):
     requiring users to explicitly run the authorize action before attempting
     other actions.
     """
-    pass

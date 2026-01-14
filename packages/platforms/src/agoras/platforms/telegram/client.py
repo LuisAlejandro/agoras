@@ -22,8 +22,6 @@ from telegram import Bot
 from telegram.constants import ParseMode
 from telegram.error import TelegramError
 
-from agoras.common import __version__
-
 
 class TelegramAPIClient:
     """
@@ -107,7 +105,7 @@ class TelegramAPIClient:
             raise Exception(f"Unexpected error sending message: {e}") from e
 
     def send_photo(self, chat_id: str, photo, caption: Optional[str] = None,
-                    parse_mode: Optional[str] = None) -> Dict[str, Any]:
+                   parse_mode: Optional[str] = None) -> Dict[str, Any]:
         """
         Send photo with optional caption.
 
@@ -140,10 +138,10 @@ class TelegramAPIClient:
             raise Exception(f"Unexpected error sending photo: {e}") from e
 
     def send_video(self, chat_id: str, video, caption: Optional[str] = None,
-                    parse_mode: Optional[str] = None,
-                    duration: Optional[int] = None,
-                    width: Optional[int] = None,
-                    height: Optional[int] = None) -> Dict[str, Any]:
+                   parse_mode: Optional[str] = None,
+                   duration: Optional[int] = None,
+                   width: Optional[int] = None,
+                   height: Optional[int] = None) -> Dict[str, Any]:
         """
         Send video with optional caption.
 

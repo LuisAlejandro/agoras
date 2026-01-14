@@ -124,4 +124,4 @@ class FeedManager:
         if not all_items:
             return None
 
-        return random.choice(all_items) 
+        return random.choice(all_items)

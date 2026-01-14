@@ -129,4 +129,4 @@ class MediaFactory:
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
-        return video, images 
+        return video, images

@@ -89,4 +89,4 @@ class SheetRow:
 
     def to_list(self):
         """Convert row to list."""
-        return self.data.copy() 
+        return self.data.copy()

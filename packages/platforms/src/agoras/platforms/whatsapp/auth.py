@@ -21,7 +21,6 @@ import os
 from typing import Any, Dict, Optional
 
 from agoras.core.auth import BaseAuthManager
-from agoras.core.auth.exceptions import AuthenticationError
 
 from .client import WhatsAppAPIClient
 

@@ -18,8 +18,9 @@
 
 import asyncio
 
-from .api import FacebookAPI
 from agoras.core.interfaces import SocialNetwork
+
+from .api import FacebookAPI
 
 
 class Facebook(SocialNetwork):
@@ -74,7 +75,10 @@ class Facebook(SocialNetwork):
 
         # If credentials not provided, try loading from storage
         # Facebook needs user_id (object_id), client_id, client_secret, and refresh_token to authenticate
-        if not all([self.facebook_object_id, self.facebook_client_id, self.facebook_client_secret, self.facebook_refresh_token]):
+        if not all([self.facebook_object_id,
+                    self.facebook_client_id,
+                    self.facebook_client_secret,
+                    self.facebook_refresh_token]):
             from .auth import FacebookAuthManager
             auth_manager = FacebookAuthManager(
                 user_id=self.facebook_object_id or '',
@@ -94,7 +98,10 @@ class Facebook(SocialNetwork):
                     self.facebook_refresh_token = auth_manager.refresh_token
 
         # If we have the required credentials, authenticate to get access token
-        if self.facebook_object_id and self.facebook_client_id and self.facebook_client_secret and self.facebook_refresh_token:
+        if (self.facebook_object_id and
+                self.facebook_client_id and
+                self.facebook_client_secret and
+                self.facebook_refresh_token):
             from .auth import FacebookAuthManager
             auth_manager = FacebookAuthManager(
                 user_id=self.facebook_object_id,
@@ -390,7 +397,7 @@ class Facebook(SocialNetwork):
         object_id = self._get_config_value('facebook_object_id', 'FACEBOOK_OBJECT_ID')
         client_id = self._get_config_value('facebook_client_id', 'FACEBOOK_CLIENT_ID')
         client_secret = self._get_config_value('facebook_client_secret', 'FACEBOOK_CLIENT_SECRET')
-        app_id = self._get_config_value('facebook_app_id', 'FACEBOOK_APP_ID')
+        self._get_config_value('facebook_app_id', 'FACEBOOK_APP_ID')
 
         auth_manager = FacebookAuthManager(
             user_id=object_id,

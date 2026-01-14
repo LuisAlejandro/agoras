@@ -28,7 +28,6 @@ class OAuthCallbackHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format, *args):
         """Suppress default HTTP server logging."""
-        pass
 
     def do_GET(self):
         """Handle GET request from OAuth callback."""

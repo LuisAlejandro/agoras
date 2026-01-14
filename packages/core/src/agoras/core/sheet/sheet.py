@@ -372,4 +372,4 @@ class Sheet:
             'title': self._spreadsheet.title if self._spreadsheet else None,
             'worksheet_name': self._worksheet.title if self._worksheet else None,
             'url': self._spreadsheet.url if self._spreadsheet else None
-        } 
+        }

@@ -91,4 +91,4 @@ class SheetManager:
             if name in self.sheets:
                 write_tasks.append(self.sheets[name].write_all(data))
 
-        await asyncio.gather(*write_tasks, return_exceptions=True) 
+        await asyncio.gather(*write_tasks, return_exceptions=True)

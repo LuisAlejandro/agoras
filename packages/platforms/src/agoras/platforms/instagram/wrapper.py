@@ -18,8 +18,9 @@
 
 import asyncio
 
-from .api import InstagramAPI
 from agoras.core.interfaces import SocialNetwork
+
+from .api import InstagramAPI
 
 
 class Instagram(SocialNetwork):
@@ -77,7 +78,10 @@ class Instagram(SocialNetwork):
 
         # If credentials not provided, try loading from storage
         # Instagram needs user_id (object_id), client_id, client_secret, and refresh_token to authenticate
-        if not all([self.instagram_object_id, self.instagram_client_id, self.instagram_client_secret, self.instagram_refresh_token]):
+        if not all([self.instagram_object_id,
+                    self.instagram_client_id,
+                    self.instagram_client_secret,
+                    self.instagram_refresh_token]):
             from .auth import InstagramAuthManager
             auth_manager = InstagramAuthManager(
                 user_id=self.instagram_object_id or '',
@@ -97,7 +101,10 @@ class Instagram(SocialNetwork):
                     self.instagram_refresh_token = auth_manager.refresh_token
 
         # If we have the required credentials, authenticate to get access token
-        if self.instagram_object_id and self.instagram_client_id and self.instagram_client_secret and self.instagram_refresh_token:
+        if (self.instagram_object_id and
+                self.instagram_client_id and
+                self.instagram_client_secret and
+                self.instagram_refresh_token):
             from .auth import InstagramAuthManager
             auth_manager = InstagramAuthManager(
                 user_id=self.instagram_object_id,

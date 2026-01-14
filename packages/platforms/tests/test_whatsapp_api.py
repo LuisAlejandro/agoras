@@ -40,10 +40,6 @@ def whatsapp_api():
         api.client.send_message = MagicMock(return_value={'message_id': 'msg-123'})
         api.client.send_image = MagicMock(return_value={'message_id': 'msg-124'})
         api.client.send_video = MagicMock(return_value={'message_id': 'msg-125'})
-        api.client.send_document = MagicMock(return_value={'message_id': 'msg-126'})
-        api.client.send_audio = MagicMock(return_value={'message_id': 'msg-127'})
-        api.client.send_contact = MagicMock(return_value={'message_id': 'msg-128'})
-        api.client.send_location = MagicMock(return_value={'message_id': 'msg-129'})
         api.client.send_template = MagicMock(return_value={'message_id': 'msg-130'})
         api.client.get_object = MagicMock(return_value={
             'data': [{'id': 'profile-123', 'name': 'Business Name'}]
@@ -110,46 +106,6 @@ async def test_whatsapp_api_send_video(whatsapp_api):
 
     assert result == 'msg-125'
     whatsapp_api.client.send_video.assert_called_once_with('+1234567890', 'http://video.mp4', caption='Video caption')
-
-
-@pytest.mark.asyncio
-async def test_whatsapp_api_send_document(whatsapp_api):
-    """Test WhatsAppAPI send_document."""
-    result = await whatsapp_api.send_document('+1234567890', 'http://doc.pdf', caption='Document', filename='doc.pdf')
-
-    assert result == 'msg-126'
-    whatsapp_api.client.send_document.assert_called_once_with(
-        '+1234567890', 'http://doc.pdf', caption='Document', filename='doc.pdf'
-    )
-
-
-@pytest.mark.asyncio
-async def test_whatsapp_api_send_audio(whatsapp_api):
-    """Test WhatsAppAPI send_audio."""
-    result = await whatsapp_api.send_audio('+1234567890', 'http://audio.mp3')
-
-    assert result == 'msg-127'
-    whatsapp_api.client.send_audio.assert_called_once_with('+1234567890', 'http://audio.mp3')
-
-
-@pytest.mark.asyncio
-async def test_whatsapp_api_send_contact(whatsapp_api):
-    """Test WhatsAppAPI send_contact."""
-    result = await whatsapp_api.send_contact('+1234567890', 'John Doe', '+9876543210')
-
-    assert result == 'msg-128'
-    whatsapp_api.client.send_contact.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_whatsapp_api_send_location(whatsapp_api):
-    """Test WhatsAppAPI send_location."""
-    result = await whatsapp_api.send_location('+1234567890', 40.7128, -74.0060, name='New York', address='NYC')
-
-    assert result == 'msg-129'
-    whatsapp_api.client.send_location.assert_called_once_with(
-        '+1234567890', 40.7128, -74.0060, name='New York', address='NYC'
-    )
 
 
 @pytest.mark.asyncio
@@ -264,18 +220,6 @@ async def test_whatsapp_api_not_authenticated(whatsapp_api):
 
 
 @pytest.mark.asyncio
-async def test_whatsapp_api_invalid_phone_number(whatsapp_api):
-    """Test WhatsAppAPI validates phone number format."""
-    # Test invalid latitude
-    with pytest.raises(Exception, match='Invalid latitude'):
-        await whatsapp_api.send_location('+1234567890', 100, -74.0060)
-
-    # Test invalid longitude
-    with pytest.raises(Exception, match='Invalid longitude'):
-        await whatsapp_api.send_location('+1234567890', 40.7128, 200)
-
-
-@pytest.mark.asyncio
 async def test_whatsapp_api_template_name_required(whatsapp_api):
     """Test WhatsAppAPI requires template name."""
     with pytest.raises(Exception, match='Template name is required'):
@@ -283,28 +227,6 @@ async def test_whatsapp_api_template_name_required(whatsapp_api):
 
 
 # Additional Edge Cases and Error Handling
-
-@pytest.mark.asyncio
-async def test_whatsapp_api_send_document_without_filename(whatsapp_api):
-    """Test WhatsAppAPI send_document without filename."""
-    result = await whatsapp_api.send_document('+1234567890', 'http://doc.pdf', caption='Document')
-
-    assert result == 'msg-126'
-    whatsapp_api.client.send_document.assert_called_once_with(
-        '+1234567890', 'http://doc.pdf', caption='Document', filename=None
-    )
-
-
-@pytest.mark.asyncio
-async def test_whatsapp_api_send_location_without_name_address(whatsapp_api):
-    """Test WhatsAppAPI send_location without optional name/address."""
-    result = await whatsapp_api.send_location('+1234567890', 40.7128, -74.0060)
-
-    assert result == 'msg-129'
-    whatsapp_api.client.send_location.assert_called_once_with(
-        '+1234567890', 40.7128, -74.0060, name=None, address=None
-    )
-
 
 @pytest.mark.asyncio
 async def test_whatsapp_api_send_template_with_components(whatsapp_api):
@@ -377,36 +299,6 @@ async def test_whatsapp_api_get_business_profile_error_handling(whatsapp_api):
 
 
 @pytest.mark.asyncio
-async def test_whatsapp_api_send_location_boundary_values(whatsapp_api):
-    """Test WhatsAppAPI send_location with boundary coordinate values."""
-    # Test minimum latitude
-    result = await whatsapp_api.send_location('+1234567890', -90.0, 0.0)
-    assert result == 'msg-129'
-
-    # Test maximum latitude
-    result = await whatsapp_api.send_location('+1234567890', 90.0, 0.0)
-    assert result == 'msg-129'
-
-    # Test minimum longitude
-    result = await whatsapp_api.send_location('+1234567890', 0.0, -180.0)
-    assert result == 'msg-129'
-
-    # Test maximum longitude
-    result = await whatsapp_api.send_location('+1234567890', 0.0, 180.0)
-    assert result == 'msg-129'
-
-
-@pytest.mark.asyncio
-async def test_whatsapp_api_send_contact_formats_name(whatsapp_api):
-    """Test WhatsAppAPI send_contact formats contact name correctly."""
-    result = await whatsapp_api.send_contact('+1234567890', 'John Michael Doe', '+9876543210')
-
-    assert result == 'msg-128'
-    # Verify contact was called (name formatting happens in client)
-    whatsapp_api.client.send_contact.assert_called_once()
-
-
-@pytest.mark.asyncio
 async def test_whatsapp_api_disconnect_handles_none_client(whatsapp_api):
     """Test WhatsAppAPI disconnect handles None client gracefully."""
     whatsapp_api.client = None
@@ -426,12 +318,8 @@ async def test_whatsapp_api_all_send_methods_use_rate_limiting(whatsapp_api):
     await whatsapp_api.send_message('+1234567890', 'Test')
     await whatsapp_api.send_image('+1234567890', 'http://image.jpg')
     await whatsapp_api.send_video('+1234567890', 'http://video.mp4')
-    await whatsapp_api.send_document('+1234567890', 'http://doc.pdf')
-    await whatsapp_api.send_audio('+1234567890', 'http://audio.mp3')
-    await whatsapp_api.send_contact('+1234567890', 'John', '+9876543210')
-    await whatsapp_api.send_location('+1234567890', 0.0, 0.0)
     await whatsapp_api.send_template('+1234567890', 'template')
     await whatsapp_api.get_business_profile()
 
     # Rate limit should be called for each method
-    assert whatsapp_api._rate_limit_check.call_count == 9
+    assert whatsapp_api._rate_limit_check.call_count == 5

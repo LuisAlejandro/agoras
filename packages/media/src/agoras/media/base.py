@@ -59,7 +59,6 @@ class Media(ABC):
         Returns:
             list: List of allowed MIME types
         """
-        pass
 
     async def download(self):
         """
@@ -174,7 +173,6 @@ class Media(ABC):
         """
         Validate media content. Override in subclasses for specific validation.
         """
-        pass
 
     def get_file_size(self):
         """

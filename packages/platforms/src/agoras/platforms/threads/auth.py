@@ -68,7 +68,7 @@ class ThreadsAuthManager(BaseAuthManager):
                 self.user_info = await self._get_user_info()
 
             return True
-        except Exception as e:
+        except Exception:
             # Log error for debugging but don't expose to user
             # Following the pattern from TikTokAuthManager
             return False

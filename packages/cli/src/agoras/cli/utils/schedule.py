@@ -196,6 +196,100 @@ def _add_all_platform_auth_options(parser: ArgumentParser):
     whatsapp_auth.add_argument('--whatsapp-recipient', metavar='<phone>')
 
 
+def _normalize_network(network):
+    """
+    Normalize network parameter, handling twitter deprecation.
+
+    Args:
+        network: Network name from args
+
+    Returns:
+        Normalized network name
+    """
+    import sys
+    if network == 'twitter':
+        print("Warning: --network=twitter is deprecated. Use --network=x instead.", file=sys.stderr)
+        return 'x'
+    return network
+
+
+def _map_deprecated_twitter_params(args):
+    """
+    Map deprecated twitter-* parameters to x-* format.
+
+    Args:
+        args: Parsed command-line arguments
+    """
+    import sys
+
+    twitter_params_mapped = False
+    param_mappings = [
+        ('twitter_consumer_key', 'x_consumer_key', '--twitter-consumer-key', '--x-consumer-key', True),
+        ('twitter_consumer_secret', 'x_consumer_secret', '--twitter-consumer-secret', '--x-consumer-secret', False),
+        ('twitter_oauth_token', 'x_oauth_token', '--twitter-oauth-token', '--x-oauth-token', False),
+        ('twitter_oauth_secret', 'x_oauth_secret', '--twitter-oauth-secret', '--x-oauth-secret', False),
+    ]
+
+    for old_attr, new_attr, old_param, new_param, always_warn in param_mappings:
+        if hasattr(args, old_attr) and getattr(args, old_attr):
+            should_warn = always_warn or not twitter_params_mapped
+            if should_warn:
+                print(f"Warning: {old_param} is deprecated. Use {new_param} instead.", file=sys.stderr)
+                twitter_params_mapped = True
+            if not hasattr(args, new_attr) or not getattr(args, new_attr):
+                setattr(args, new_attr, getattr(args, old_attr))
+
+
+def _map_x_to_legacy_twitter(args):
+    """
+    Map x-* parameters to legacy twitter_* format for backward compatibility.
+
+    Args:
+        args: Parsed command-line arguments
+    """
+    param_mappings = [
+        ('x_consumer_key', 'twitter_consumer_key'),
+        ('x_consumer_secret', 'twitter_consumer_secret'),
+        ('x_oauth_token', 'twitter_oauth_token'),
+        ('x_oauth_secret', 'twitter_oauth_secret'),
+    ]
+
+    for new_attr, old_attr in param_mappings:
+        if hasattr(args, new_attr) and getattr(args, new_attr):
+            setattr(args, old_attr, getattr(args, new_attr))
+
+
+def _build_legacy_args(args, network):
+    """
+    Build legacy args dictionary for schedule action.
+
+    Args:
+        args: Parsed command-line arguments
+        network: Normalized network name
+
+    Returns:
+        Dictionary of legacy arguments
+    """
+    legacy_args = {
+        'action': 'schedule',
+        'google_sheets_id': args.sheets_id,
+        'google_sheets_name': args.sheets_name,
+        'google_sheets_client_email': args.sheets_client_email,
+        'google_sheets_private_key': args.sheets_private_key,
+    }
+
+    if network:
+        legacy_args['network'] = network
+
+    # Add all platform-specific auth (pass through with original names)
+    excluded_keys = {'handler', *legacy_args.keys()}
+    for key, value in vars(args).items():
+        if value is not None and key not in excluded_keys:
+            legacy_args[key] = value
+
+    return legacy_args
+
+
 def _handle_schedule_run(args: Namespace):
     """
     Handle schedule run by calling legacy publish command.
@@ -206,66 +300,8 @@ def _handle_schedule_run(args: Namespace):
     Returns:
         Exit status from core execution
     """
-    import sys
-
-    # Handle network parameter deprecation
-    network = args.network
-    if network == 'twitter':
-        print("Warning: --network=twitter is deprecated. Use --network=x instead.", file=sys.stderr)
-        network = 'x'
-
-    # Map deprecated twitter-* parameters to x-* or legacy twitter_* format
-    twitter_params_mapped = False
-    if hasattr(args, 'twitter_consumer_key') and args.twitter_consumer_key:
-        print("Warning: --twitter-consumer-key is deprecated. Use --x-consumer-key instead.", file=sys.stderr)
-        if not hasattr(args, 'x_consumer_key') or not args.x_consumer_key:
-            args.x_consumer_key = args.twitter_consumer_key
-        twitter_params_mapped = True
-
-    if hasattr(args, 'twitter_consumer_secret') and args.twitter_consumer_secret:
-        if not twitter_params_mapped:
-            print("Warning: --twitter-consumer-secret is deprecated. Use --x-consumer-secret instead.", file=sys.stderr)
-        if not hasattr(args, 'x_consumer_secret') or not args.x_consumer_secret:
-            args.x_consumer_secret = args.twitter_consumer_secret
-
-    if hasattr(args, 'twitter_oauth_token') and args.twitter_oauth_token:
-        if not twitter_params_mapped:
-            print("Warning: --twitter-oauth-token is deprecated. Use --x-oauth-token instead.", file=sys.stderr)
-        if not hasattr(args, 'x_oauth_token') or not args.x_oauth_token:
-            args.x_oauth_token = args.twitter_oauth_token
-
-    if hasattr(args, 'twitter_oauth_secret') and args.twitter_oauth_secret:
-        if not twitter_params_mapped:
-            print("Warning: --twitter-oauth-secret is deprecated. Use --x-oauth-secret instead.", file=sys.stderr)
-        if not hasattr(args, 'x_oauth_secret') or not args.x_oauth_secret:
-            args.x_oauth_secret = args.twitter_oauth_secret
-
-    # Map x-* parameters to legacy twitter_* format for backward compatibility
-    if hasattr(args, 'x_consumer_key') and args.x_consumer_key:
-        args.twitter_consumer_key = args.x_consumer_key
-    if hasattr(args, 'x_consumer_secret') and args.x_consumer_secret:
-        args.twitter_consumer_secret = args.x_consumer_secret
-    if hasattr(args, 'x_oauth_token') and args.x_oauth_token:
-        args.twitter_oauth_token = args.x_oauth_token
-    if hasattr(args, 'x_oauth_secret') and args.x_oauth_secret:
-        args.twitter_oauth_secret = args.x_oauth_secret
-
-    # Build legacy args for schedule action
-    legacy_args = {
-        'action': 'schedule',
-        'google_sheets_id': args.sheets_id,
-        'google_sheets_name': args.sheets_name,
-        'google_sheets_client_email': args.sheets_client_email,
-        'google_sheets_private_key': args.sheets_private_key,
-    }
-
-    # Add network if specified
-    if network:
-        legacy_args['network'] = network
-
-    # Add all platform-specific auth (pass through with original names)
-    for key, value in vars(args).items():
-        if value is not None and key not in legacy_args and key not in ['handler']:
-            legacy_args[key] = value
-
+    network = _normalize_network(args.network)
+    _map_deprecated_twitter_params(args)
+    _map_x_to_legacy_twitter(args)
+    legacy_args = _build_legacy_args(args, network)
     return publish_main(**legacy_args)

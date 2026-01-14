@@ -23,7 +23,6 @@ from telegram import Bot
 from telegram.error import TelegramError
 
 from agoras.core.auth import BaseAuthManager
-from agoras.core.auth.exceptions import AuthenticationError
 
 from .client import TelegramAPIClient
 

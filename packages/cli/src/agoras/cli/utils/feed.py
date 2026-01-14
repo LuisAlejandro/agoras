@@ -206,6 +206,51 @@ def _add_all_platform_auth_options(parser: ArgumentParser):
     whatsapp_auth.add_argument('--whatsapp-recipient', metavar='<phone>')
 
 
+def _map_deprecated_twitter_params(args: Namespace):
+    """
+    Map deprecated twitter-* parameters to x-* parameters.
+
+    Args:
+        args: Parsed command-line arguments
+    """
+    import sys
+
+    param_mappings = [
+        ('twitter_consumer_key', 'x_consumer_key', '--twitter-consumer-key', '--x-consumer-key'),
+        ('twitter_consumer_secret', 'x_consumer_secret', '--twitter-consumer-secret', '--x-consumer-secret'),
+        ('twitter_oauth_token', 'x_oauth_token', '--twitter-oauth-token', '--x-oauth-token'),
+        ('twitter_oauth_secret', 'x_oauth_secret', '--twitter-oauth-secret', '--x-oauth-secret'),
+    ]
+
+    warned = False
+    for old_attr, new_attr, old_param, new_param in param_mappings:
+        if hasattr(args, old_attr) and getattr(args, old_attr, None):
+            if not warned:
+                print(f"Warning: {old_param} is deprecated. Use {new_param} instead.", file=sys.stderr)
+                warned = True
+            if not hasattr(args, new_attr) or not getattr(args, new_attr, None):
+                setattr(args, new_attr, getattr(args, old_attr))
+
+
+def _map_x_to_twitter_params(args: Namespace):
+    """
+    Map x-* parameters to legacy twitter_* format for backward compatibility.
+
+    Args:
+        args: Parsed command-line arguments
+    """
+    param_mappings = [
+        ('x_consumer_key', 'twitter_consumer_key'),
+        ('x_consumer_secret', 'twitter_consumer_secret'),
+        ('x_oauth_token', 'twitter_oauth_token'),
+        ('x_oauth_secret', 'twitter_oauth_secret'),
+    ]
+
+    for new_attr, old_attr in param_mappings:
+        if hasattr(args, new_attr) and getattr(args, new_attr, None):
+            setattr(args, old_attr, getattr(args, new_attr))
+
+
 def _handle_feed_publish(args: Namespace):
     """
     Handle feed publish by calling legacy publish command.
@@ -224,41 +269,11 @@ def _handle_feed_publish(args: Namespace):
         print("Warning: --network=twitter is deprecated. Use --network=x instead.", file=sys.stderr)
         network = 'x'
 
-    # Map deprecated twitter-* parameters to x-* or legacy twitter_* format
-    twitter_params_mapped = False
-    if hasattr(args, 'twitter_consumer_key') and args.twitter_consumer_key:
-        print("Warning: --twitter-consumer-key is deprecated. Use --x-consumer-key instead.", file=sys.stderr)
-        if not hasattr(args, 'x_consumer_key') or not args.x_consumer_key:
-            args.x_consumer_key = args.twitter_consumer_key
-        twitter_params_mapped = True
-
-    if hasattr(args, 'twitter_consumer_secret') and args.twitter_consumer_secret:
-        if not twitter_params_mapped:
-            print("Warning: --twitter-consumer-secret is deprecated. Use --x-consumer-secret instead.", file=sys.stderr)
-        if not hasattr(args, 'x_consumer_secret') or not args.x_consumer_secret:
-            args.x_consumer_secret = args.twitter_consumer_secret
-
-    if hasattr(args, 'twitter_oauth_token') and args.twitter_oauth_token:
-        if not twitter_params_mapped:
-            print("Warning: --twitter-oauth-token is deprecated. Use --x-oauth-token instead.", file=sys.stderr)
-        if not hasattr(args, 'x_oauth_token') or not args.x_oauth_token:
-            args.x_oauth_token = args.twitter_oauth_token
-
-    if hasattr(args, 'twitter_oauth_secret') and args.twitter_oauth_secret:
-        if not twitter_params_mapped:
-            print("Warning: --twitter-oauth-secret is deprecated. Use --x-oauth-secret instead.", file=sys.stderr)
-        if not hasattr(args, 'x_oauth_secret') or not args.x_oauth_secret:
-            args.x_oauth_secret = args.twitter_oauth_secret
+    # Map deprecated twitter-* parameters to x-*
+    _map_deprecated_twitter_params(args)
 
     # Map x-* parameters to legacy twitter_* format for backward compatibility
-    if hasattr(args, 'x_consumer_key') and args.x_consumer_key:
-        args.twitter_consumer_key = args.x_consumer_key
-    if hasattr(args, 'x_consumer_secret') and args.x_consumer_secret:
-        args.twitter_consumer_secret = args.x_consumer_secret
-    if hasattr(args, 'x_oauth_token') and args.x_oauth_token:
-        args.twitter_oauth_token = args.x_oauth_token
-    if hasattr(args, 'x_oauth_secret') and args.x_oauth_secret:
-        args.twitter_oauth_secret = args.x_oauth_secret
+    _map_x_to_twitter_params(args)
 
     # Determine action based on mode
     action = 'last-from-feed' if args.mode == 'last' else 'random-from-feed'
@@ -274,8 +289,9 @@ def _handle_feed_publish(args: Namespace):
     }
 
     # Add all platform-specific auth (pass through with original names)
+    excluded_keys = {'network', 'mode', 'handler'}
     for key, value in vars(args).items():
-        if value is not None and key not in legacy_args and key not in ['network', 'mode', 'handler']:
+        if value is not None and key not in legacy_args and key not in excluded_keys:
             legacy_args[key] = value
 
     return publish_main(**legacy_args)

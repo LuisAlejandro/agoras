@@ -11,6 +11,7 @@ coverage==7.9.1
 flake8==7.3.0
 pydocstyle==6.3.0
 autopep8==2.3.2
+autoflake==2.3.1
 
 # Build Tools
 build==1.2.2.post1

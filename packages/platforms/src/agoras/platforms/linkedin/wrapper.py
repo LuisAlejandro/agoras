@@ -18,9 +18,10 @@
 
 import asyncio
 
-from .api import LinkedInAPI
-from agoras.core.interfaces import SocialNetwork
 from agoras.common.utils import parse_metatags
+from agoras.core.interfaces import SocialNetwork
+
+from .api import LinkedInAPI
 
 
 class LinkedIn(SocialNetwork):
@@ -69,7 +70,10 @@ class LinkedIn(SocialNetwork):
 
         # If credentials not provided, try loading from storage
         # LinkedIn needs user_id (object_id), client_id, client_secret, and refresh_token to authenticate
-        if not all([self.linkedin_object_id, self.linkedin_client_id, self.linkedin_client_secret, self.linkedin_refresh_token]):
+        if not all([self.linkedin_object_id,
+                    self.linkedin_client_id,
+                    self.linkedin_client_secret,
+                    self.linkedin_refresh_token]):
             from .auth import LinkedInAuthManager
             auth_manager = LinkedInAuthManager(
                 user_id=self.linkedin_object_id or '',
@@ -89,7 +93,10 @@ class LinkedIn(SocialNetwork):
                     self.linkedin_refresh_token = auth_manager.refresh_token
 
         # If we have the required credentials, authenticate to get access token
-        if self.linkedin_object_id and self.linkedin_client_id and self.linkedin_client_secret and self.linkedin_refresh_token:
+        if (self.linkedin_object_id and
+                self.linkedin_client_id and
+                self.linkedin_client_secret and
+                self.linkedin_refresh_token):
             from .auth import LinkedInAuthManager
             auth_manager = LinkedInAuthManager(
                 user_id=self.linkedin_object_id,

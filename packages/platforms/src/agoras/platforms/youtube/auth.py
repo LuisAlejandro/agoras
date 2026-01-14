@@ -17,8 +17,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
-import json
-import os
 import secrets
 import webbrowser
 from typing import Optional

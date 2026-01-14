@@ -329,156 +329,8 @@ class WhatsAppAPI(BaseAPI):
         """
         raise Exception('Share not supported for WhatsApp')
 
-    async def send_document(self, to: str, document_url: str, caption: Optional[str] = None, filename: Optional[str] = None) -> str:
-        """
-        Send a document message via WhatsApp.
-
-        Args:
-            to (str): Recipient phone number in E.164 format (e.g., +1234567890)
-            document_url (str): Publicly accessible HTTPS URL of the document
-            caption (str, optional): Document caption text
-            filename (str, optional): Document filename
-
-        Returns:
-            str: Message ID
-
-        Raises:
-            Exception: If document sending fails
-        """
-        self.auth_manager.ensure_authenticated()
-
-        if not self.client:
-            raise Exception('WhatsApp API not authenticated')
-
-        await self._rate_limit_check('send_document', 1.0)
-
-        try:
-            def _sync_send():
-                response = self.client.send_document(to, document_url, caption=caption, filename=filename)
-                return response['message_id']
-
-            return await asyncio.to_thread(_sync_send)
-        except Exception as e:
-            self._handle_api_error(e, 'WhatsApp send_document')
-            raise
-
-    async def send_audio(self, to: str, audio_url: str) -> str:
-        """
-        Send an audio message via WhatsApp.
-
-        Args:
-            to (str): Recipient phone number in E.164 format (e.g., +1234567890)
-            audio_url (str): Publicly accessible HTTPS URL of the audio file
-
-        Returns:
-            str: Message ID
-
-        Raises:
-            Exception: If audio sending fails
-        """
-        self.auth_manager.ensure_authenticated()
-
-        if not self.client:
-            raise Exception('WhatsApp API not authenticated')
-
-        await self._rate_limit_check('send_audio', 1.0)
-
-        try:
-            def _sync_send():
-                response = self.client.send_audio(to, audio_url)
-                return response['message_id']
-
-            return await asyncio.to_thread(_sync_send)
-        except Exception as e:
-            self._handle_api_error(e, 'WhatsApp send_audio')
-            raise
-
-    async def send_contact(self, to: str, contact_name: str, phone_number: str) -> str:
-        """
-        Send a contact card message via WhatsApp.
-
-        Args:
-            to (str): Recipient phone number in E.164 format (e.g., +1234567890)
-            contact_name (str): Name of the contact
-            phone_number (str): Phone number of the contact (E.164 format)
-
-        Returns:
-            str: Message ID
-
-        Raises:
-            Exception: If contact sending fails
-        """
-        self.auth_manager.ensure_authenticated()
-
-        if not self.client:
-            raise Exception('WhatsApp API not authenticated')
-
-        await self._rate_limit_check('send_contact', 1.0)
-
-        try:
-            def _sync_send():
-                # Format contact data for WhatsApp API
-                # Extract first name from full name (simple approach)
-                first_name = contact_name.split()[0] if contact_name else ""
-                contacts = [{
-                    "name": {
-                        "formatted_name": contact_name,
-                        "first_name": first_name
-                    },
-                    "phones": [{
-                        "phone": phone_number,
-                        "type": "CELL"
-                    }]
-                }]
-                response = self.client.send_contact(to, contacts)
-                return response['message_id']
-
-            return await asyncio.to_thread(_sync_send)
-        except Exception as e:
-            self._handle_api_error(e, 'WhatsApp send_contact')
-            raise
-
-    async def send_location(self, to: str, latitude: float, longitude: float, name: Optional[str] = None, address: Optional[str] = None) -> str:
-        """
-        Send a location message via WhatsApp.
-
-        Args:
-            to (str): Recipient phone number in E.164 format (e.g., +1234567890)
-            latitude (float): Latitude coordinate (-90 to 90)
-            longitude (float): Longitude coordinate (-180 to 180)
-            name (str, optional): Location name
-            address (str, optional): Location address
-
-        Returns:
-            str: Message ID
-
-        Raises:
-            Exception: If location sending fails
-        """
-        self.auth_manager.ensure_authenticated()
-
-        if not self.client:
-            raise Exception('WhatsApp API not authenticated')
-
-        # Validate coordinates
-        if not (-90 <= latitude <= 90):
-            raise Exception(f'Invalid latitude: {latitude}. Must be between -90 and 90.')
-        if not (-180 <= longitude <= 180):
-            raise Exception(f'Invalid longitude: {longitude}. Must be between -180 and 180.')
-
-        await self._rate_limit_check('send_location', 1.0)
-
-        try:
-            def _sync_send():
-                response = self.client.send_location(to, latitude, longitude, name=name, address=address)
-                return response['message_id']
-
-            return await asyncio.to_thread(_sync_send)
-        except Exception as e:
-            self._handle_api_error(e, 'WhatsApp send_location')
-            raise
-
-    async def send_template(self, to: str, template_name: str, language_code: str = "en", components: Optional[List[Dict]] = None) -> str:
+    async def send_template(self, to: str, template_name: str, language_code: str = "en",
+                            components: Optional[List[Dict]] = None) -> str:
         """
         Send a template message via WhatsApp.
 
@@ -506,7 +358,8 @@ class WhatsAppAPI(BaseAPI):
 
         try:
             def _sync_send():
-                response = self.client.send_template(to, template_name, language_code=language_code, components=components)
+                response = self.client.send_template(
+                    to, template_name, language_code=language_code, components=components)
                 return response['message_id']
 
             return await asyncio.to_thread(_sync_send)

@@ -259,107 +259,6 @@ class WhatsApp(SocialNetwork):
         self._output_status(message_id)
         return message_id
 
-    async def send_contact(self, contact_name: str, phone_number: str) -> str:
-        """
-        Send a contact card message.
-
-        Args:
-            contact_name (str): Name of the contact
-            phone_number (str): Phone number of the contact (E.164 format)
-
-        Returns:
-            str: Message ID
-        """
-        if not self.api:
-            raise Exception('WhatsApp API not initialized')
-
-        message_id = await self.api.send_contact(
-            to=self.whatsapp_recipient,
-            contact_name=contact_name,
-            phone_number=phone_number
-        )
-        self._output_status(message_id)
-        return message_id
-
-    async def send_location(self, latitude: float, longitude: float,
-                            name: str = None) -> str:
-        """
-        Send a location message.
-
-        Args:
-            latitude (float): Latitude coordinate (-90 to 90)
-            longitude (float): Longitude coordinate (-180 to 180)
-            name (str, optional): Location name
-
-        Returns:
-            str: Message ID
-        """
-        if not self.api:
-            raise Exception('WhatsApp API not initialized')
-
-        message_id = await self.api.send_location(
-            to=self.whatsapp_recipient,
-            latitude=latitude,
-            longitude=longitude,
-            name=name
-        )
-        self._output_status(message_id)
-        return message_id
-
-    async def send_document(
-            self,
-            document_url: str,
-            caption: Optional[str] = None,
-            filename: Optional[str] = None) -> str:
-        """
-        Send a document message.
-
-        Args:
-            document_url (str): Publicly accessible HTTPS URL of the document
-            caption (str, optional): Document caption text
-            filename (str, optional): Document filename
-
-        Returns:
-            str: Message ID
-        """
-        if not self.api:
-            raise Exception('WhatsApp API not initialized')
-
-        if not document_url:
-            raise Exception('Document URL is required.')
-
-        message_id = await self.api.send_document(
-            to=self.whatsapp_recipient,
-            document_url=document_url,
-            caption=caption,
-            filename=filename
-        )
-        self._output_status(message_id)
-        return message_id
-
-    async def send_audio(self, audio_url: str) -> str:
-        """
-        Send an audio message.
-
-        Args:
-            audio_url (str): Publicly accessible HTTPS URL of the audio file
-
-        Returns:
-            str: Message ID
-        """
-        if not self.api:
-            raise Exception('WhatsApp API not initialized')
-
-        if not audio_url:
-            raise Exception('Audio URL is required.')
-
-        message_id = await self.api.send_audio(
-            to=self.whatsapp_recipient,
-            audio_url=audio_url
-        )
-        self._output_status(message_id)
-        return message_id
-
     async def send_template(
             self,
             template_name: str,
@@ -423,57 +322,6 @@ class WhatsApp(SocialNetwork):
             raise Exception('Video URL is required for video action.')
 
         await self.video(status_text, video_url, video_title)
-
-    async def _handle_contact_action(self):
-        """Handle contact action with WhatsApp-specific parameter extraction."""
-        contact_name = self._get_config_value('whatsapp_contact_name', 'WHATSAPP_CONTACT_NAME')
-        contact_phone = self._get_config_value('whatsapp_contact_phone', 'WHATSAPP_CONTACT_PHONE')
-
-        if not contact_name:
-            raise Exception('Contact name is required for contact action.')
-        if not contact_phone:
-            raise Exception('Contact phone number is required for contact action.')
-
-        await self.send_contact(contact_name, contact_phone)
-
-    async def _handle_location_action(self):
-        """Handle location action with WhatsApp-specific parameter extraction."""
-        latitude_str = self._get_config_value('whatsapp_latitude', 'WHATSAPP_LATITUDE')
-        longitude_str = self._get_config_value('whatsapp_longitude', 'WHATSAPP_LONGITUDE')
-        location_name = self._get_config_value('whatsapp_location_name', 'WHATSAPP_LOCATION_NAME')
-
-        if not latitude_str:
-            raise Exception('Latitude is required for location action.')
-        if not longitude_str:
-            raise Exception('Longitude is required for location action.')
-
-        try:
-            latitude = float(latitude_str)
-            longitude = float(longitude_str)
-        except ValueError:
-            raise Exception('Latitude and longitude must be valid numbers.')
-
-        await self.send_location(latitude, longitude, name=location_name)
-
-    async def _handle_document_action(self):
-        """Handle document action with WhatsApp-specific parameter extraction."""
-        document_url = self._get_config_value('whatsapp_document_url', 'WHATSAPP_DOCUMENT_URL')
-        caption = self._get_config_value('whatsapp_document_caption', 'WHATSAPP_DOCUMENT_CAPTION')
-        filename = self._get_config_value('whatsapp_document_filename', 'WHATSAPP_DOCUMENT_FILENAME')
-
-        if not document_url:
-            raise Exception('Document URL is required for document action.')
-
-        await self.send_document(document_url, caption=caption, filename=filename)
-
-    async def _handle_audio_action(self):
-        """Handle audio action with WhatsApp-specific parameter extraction."""
-        audio_url = self._get_config_value('whatsapp_audio_url', 'WHATSAPP_AUDIO_URL')
-
-        if not audio_url:
-            raise Exception('Audio URL is required for audio action.')
-
-        await self.send_audio(audio_url)
 
     async def _handle_template_action(self):
         """Handle template action with WhatsApp-specific parameter extraction."""
@@ -548,14 +396,6 @@ class WhatsApp(SocialNetwork):
             await self._handle_delete_action()
         elif action == 'video':
             await self._handle_video_action()
-        elif action == 'contact':
-            await self._handle_contact_action()
-        elif action == 'location':
-            await self._handle_location_action()
-        elif action == 'document':
-            await self._handle_document_action()
-        elif action == 'audio':
-            await self._handle_audio_action()
         elif action == 'template':
             await self._handle_template_action()
         elif action == 'last-from-feed':

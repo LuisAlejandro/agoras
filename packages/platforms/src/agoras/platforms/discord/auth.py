@@ -23,7 +23,6 @@ from typing import Optional
 import discord
 
 from agoras.core.auth import BaseAuthManager
-from agoras.core.auth.exceptions import AuthenticationError
 
 from .client import DiscordAPIClient
 

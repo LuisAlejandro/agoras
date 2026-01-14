@@ -197,7 +197,6 @@ class BaseAuthManager(ABC):
         Returns:
             bool: True if authentication successful, False otherwise
         """
-        pass
 
     @abstractmethod
     async def authorize(self) -> Optional[Any]:
@@ -207,7 +206,6 @@ class BaseAuthManager(ABC):
         Returns:
             Any: Platform-specific authorization result (token, tuple, etc.)
         """
-        pass
 
     @abstractmethod
     def _validate_credentials(self) -> bool:
@@ -217,7 +215,6 @@ class BaseAuthManager(ABC):
         Returns:
             bool: True if all required credentials are present
         """
-        pass
 
     @abstractmethod
     def _create_client(self, *args, **kwargs):
@@ -227,7 +224,6 @@ class BaseAuthManager(ABC):
         Returns:
             API client instance for the platform
         """
-        pass
 
     @abstractmethod
     async def _get_user_info(self) -> Dict[str, Any]:
@@ -237,7 +233,6 @@ class BaseAuthManager(ABC):
         Returns:
             dict: User information from the platform
         """
-        pass
 
     @abstractmethod
     def _get_cache_filename(self) -> str:
@@ -249,7 +244,6 @@ class BaseAuthManager(ABC):
         Returns:
             str: Cache filename
         """
-        pass
 
     @abstractmethod
     def _get_platform_name(self) -> str:
@@ -259,7 +253,6 @@ class BaseAuthManager(ABC):
         Returns:
             str: Platform name (e.g., 'facebook', 'instagram')
         """
-        pass
 
     @abstractmethod
     def _get_token_identifier(self) -> str:
@@ -269,7 +262,6 @@ class BaseAuthManager(ABC):
         Returns:
             str: Unique identifier for this authentication session
         """
-        pass
 
     # Common utility methods for token caching (DEPRECATED)
     def _load_token_from_cache(self, cache_file: str, token_key: str) -> Optional[str]:

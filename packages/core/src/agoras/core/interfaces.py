@@ -53,14 +53,12 @@ class SocialNetwork(ABC):
         This method must be implemented by each social network to set up
         their specific API clients and authentication.
         """
-        pass
 
     @abstractmethod
     async def disconnect(self):
         """
         Disconnect from the social network.
         """
-        pass
 
     @abstractmethod
     async def post(self, status_text, status_link,
@@ -80,7 +78,6 @@ class SocialNetwork(ABC):
         Returns:
             str: Post ID
         """
-        pass
 
     @abstractmethod
     async def like(self, post_id):
@@ -93,7 +90,6 @@ class SocialNetwork(ABC):
         Returns:
             str: Post ID
         """
-        pass
 
     @abstractmethod
     async def delete(self, post_id):
@@ -106,7 +102,6 @@ class SocialNetwork(ABC):
         Returns:
             str: Post ID
         """
-        pass
 
     @abstractmethod
     async def share(self, post_id):
@@ -119,7 +114,6 @@ class SocialNetwork(ABC):
         Returns:
             str: Post ID
         """
-        pass
 
     async def video(self, status_text, video_url, video_title):
         """

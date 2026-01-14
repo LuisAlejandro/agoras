@@ -53,14 +53,12 @@ class BaseAPI(ABC):
         Raises:
             Exception: If authentication fails
         """
-        pass
 
     @abstractmethod
     async def disconnect(self):
         """
         Disconnect from the API and clean up resources.
         """
-        pass
 
     def is_authenticated(self):
         """
@@ -113,7 +111,6 @@ class BaseAPI(ABC):
         Raises:
             Exception: If posting fails
         """
-        pass
 
     @abstractmethod
     async def like(self, post_id, *args, **kwargs):
@@ -129,7 +126,6 @@ class BaseAPI(ABC):
         Raises:
             Exception: If liking fails or not supported
         """
-        pass
 
     @abstractmethod
     async def delete(self, post_id, *args, **kwargs):
@@ -145,7 +141,6 @@ class BaseAPI(ABC):
         Raises:
             Exception: If deletion fails or not supported
         """
-        pass
 
     @abstractmethod
     async def share(self, post_id, *args, **kwargs):
@@ -161,4 +156,3 @@ class BaseAPI(ABC):
         Raises:
             Exception: If sharing fails or not supported
         """
-        pass
