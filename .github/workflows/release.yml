@@ -1,15 +1,3 @@
-# GitHub Actions Workflow for Publishing Agoras Releases
-# This workflow is triggered when a GitHub release is created (by release.sh or hotfix.sh)
-#
-# Responsibilities:
-# 1. Build all 5 packages in dependency order
-# 2. Publish packages to PyPI using trusted publishing (OIDC)
-# 3. Upload build artifacts to the GitHub release
-#
-# Prerequisites:
-# - GitHub release must be created first (done by release.sh/hotfix.sh)
-# - PyPI trusted publishing must be configured for this repository
-#
 name: Publish Release
 
 on:
@@ -164,3 +152,24 @@ jobs:
       - name: Test import
         run: |
           python3 -c "import agoras.common; import agoras.media; import agoras.core; import agoras.platforms; import agoras.cli"
+
+  # Job 4: Trigger ReadTheDocs webhook
+  trigger-readthedocs:
+    name: Trigger ReadTheDocs Build
+    runs-on: ubuntu-22.04
+    needs: publish-to-pypi
+    steps:
+      - name: Trigger ReadTheDocs webhook
+        env:
+          RTD_WEBHOOK_URL: ${{ secrets.RTD_WEBHOOK_URL }}
+          RTD_WEBHOOK_TOKEN: ${{ secrets.RTD_WEBHOOK_TOKEN }}
+        run: |
+          if [ -n "$RTD_WEBHOOK_URL" ] && [ -n "$RTD_WEBHOOK_TOKEN" ]; then
+            curl -X POST \
+              -d "branches=${{ github.event.release.tag_name }}" \
+              -d "token=$RTD_WEBHOOK_TOKEN" \
+              "$RTD_WEBHOOK_URL"
+            echo "Triggered ReadTheDocs build for version ${{ github.event.release.tag_name }}"
+          else
+            echo "ReadTheDocs webhook secrets not configured, skipping webhook trigger"
+          fi

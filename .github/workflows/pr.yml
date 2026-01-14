@@ -103,10 +103,42 @@ jobs:
           agoras --version
           agoras --help
 
+  docs:
+    name: Documentation
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install all packages
+        run: |
+          cd packages
+          python3 -m pip install -r ../requirements-dev.txt
+          python3 -m pip install -e common/
+          python3 -m pip install -e media/
+          python3 -m pip install -e core/
+          python3 -m pip install -e platforms/
+          python3 -m pip install -e cli/
+
+      - name: Install documentation dependencies
+        run: |
+          python3 -m pip install -r docs/requirements.txt
+
+      - name: Build documentation
+        run: |
+          make -C docs html
+
   finish:
     name: Finish
     runs-on: ubuntu-22.04
-    needs: [lint, unit, integration]
+    needs: [lint, unit, integration, docs]
     steps:
       - name: Coveralls Finished
         uses: coverallsapp/github-action@v2
