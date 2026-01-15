@@ -45,7 +45,7 @@ setup(
         'google-auth-oauthlib>=1.2.0',
         'google-auth-httplib2==0.3.0',
         'oauth2client==4.1.3',
-        'platformdirs==4.3.6',
+        'platformdirs==4.4.0',
         'authlib==1.6.6',
         'threadspipepy>=0.4.5',
         'cryptography>=42.0.0',
