@@ -17,8 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from setuptools import setup, find_namespace_packages
-
+from setuptools import find_namespace_packages, setup
 
 setup(
     name='agoras-platforms',
@@ -37,7 +36,6 @@ setup(
         'tweepy==4.16.0',
         'python-facebook-api==0.20.1',
         'linkedin-api-client==0.3.0',
-        'beautifulsoup4==4.13.4',
         'discord.py==2.5.0',
         'google-api-python-client==2.188.0',
         'google-api-core>=2.0.0',

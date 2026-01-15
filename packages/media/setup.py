@@ -17,8 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from setuptools import setup, find_namespace_packages
-
+from setuptools import find_namespace_packages, setup
 
 setup(
     name='agoras-media',
@@ -35,7 +34,6 @@ setup(
     install_requires=[
         'agoras-common>=2.0.0',
         'filetype==1.2.0',
-        'requests==2.32.4',
         'opencv-python-headless==4.12.0.88',
         'Pillow>=10.0.0',
     ],
