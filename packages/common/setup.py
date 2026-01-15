@@ -33,7 +33,7 @@ setup(
     python_requires='>=3.9',
     install_requires=[
         'requests==2.32.4',
-        'beautifulsoup4==4.13.4',
+        'beautifulsoup4==4.14.3',
     ],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
