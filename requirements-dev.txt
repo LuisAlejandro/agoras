@@ -2,8 +2,8 @@
 # Used during development and testing of the monorepo
 
 # Testing
-pytest==8.3.4
-pytest-asyncio==0.24.0
+pytest==8.4.2
+pytest-asyncio==1.2.0
 pytest-cov==6.0.0
 coverage==7.9.1
 
@@ -14,7 +14,7 @@ autopep8==2.3.2
 autoflake==2.3.1
 
 # Build Tools
-build==1.2.2.post1
+build==1.4.0
 setuptools==80.9.0
 wheel==0.45.1
 
