@@ -30,7 +30,7 @@ setup(
     long_description_content_type='text/x-rst',
     packages=find_namespace_packages(where='src'),
     package_dir={'': 'src'},
-    python_requires='>=3.9',
+    python_requires='>=3.10',
     install_requires=[
         'agoras-core>=2.0.0',
         'tweepy==4.16.0',
@@ -55,10 +55,11 @@ setup(
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
         'Programming Language :: Python :: 3.12',
+        'Programming Language :: Python :: 3.13',
+        'Programming Language :: Python :: 3.14',
     ],
     keywords=[
         'social networks', 'twitter', 'facebook', 'instagram', 'linkedin',
