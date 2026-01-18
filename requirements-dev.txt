@@ -5,7 +5,7 @@
 pytest==8.4.2
 pytest-asyncio==1.2.0
 pytest-cov==6.0.0
-coverage==7.9.1
+coverage==7.13.1
 
 # Code Quality
 flake8==7.3.0
@@ -32,4 +32,4 @@ twine==6.1.0
 bumpversion==0.6.0
 
 # CI/CD
-coveralls==4.0.1
+coveralls==4.0.2
