@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,13 +23,15 @@ from typing import Optional
 from authlib.integrations.requests_client import OAuth1Session
 
 from agoras.core.auth import BaseAuthManager
+from agoras.core.auth.callback_server import OAuthCallbackServer
+
 from .client import XAPIClient
 
 
 class XAuthManager(BaseAuthManager):
     """X authentication manager using Authlib OAuth1Session for OAuth 1.0a."""
 
-    def __init__(self, consumer_key: str = '', consumer_secret: str = '',
+    def __init__(self, consumer_key: Optional[str] = None, consumer_secret: Optional[str] = None,
                  oauth_token: Optional[str] = None, oauth_secret: Optional[str] = None):
         """
         Initialize X authentication manager.
@@ -46,14 +48,6 @@ class XAuthManager(BaseAuthManager):
         self.oauth_token = oauth_token
         self.oauth_secret = oauth_secret
 
-        # Authlib OAuth1Session configuration for Twitter
-        self.oauth_session = OAuth1Session(
-            client_id=self.consumer_key or '',
-            client_secret=self.consumer_secret or '',
-            token=self.oauth_token if self.oauth_token and self.oauth_secret else None,
-            token_secret=self.oauth_secret if self.oauth_token and self.oauth_secret else None
-        )
-
     async def authenticate(self) -> bool:
         """
         Authenticate with X API using OAuth 1.0a credentials.
@@ -61,32 +55,25 @@ class XAuthManager(BaseAuthManager):
         Returns:
             bool: True if authentication successful, False otherwise
         """
-        if not self._validate_basic_credentials():
-            return False
-
-        # If we don't have oauth tokens, try loading from storage first
-        if not self.oauth_token or not self.oauth_secret:
-            if not self._load_credentials_from_storage():
-                # If not in storage, need to authorize
-                result = await self.authorize()
-                if not result:
-                    return False
+        # Validate all credentials are present (fail fast if missing)
+        if not self._validate_credentials():
+            raise Exception('X OAuth tokens are required for authentication. Please run "agoras x authorize" first.')
 
         try:
             # For Twitter OAuth 1.0a, we use the oauth_token as the access_token
             self.access_token = self.oauth_token
 
-            # Update OAuth session with tokens
-            self.oauth_session.token = self.oauth_token
-            self.oauth_session.token_secret = self.oauth_secret
-
-            # Create client and get user info
+            # Create client and authenticate it
             if self.access_token and self.oauth_token and self.oauth_secret:
                 self.client = self._create_client()
-                self.user_info = await self._get_user_info()
+                await self.client.authenticate()
 
             return True
-        except Exception:
+        except Exception as e:
+            # Log the error for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.debug(f'X authentication failed: {str(e)}', exc_info=True)
             return False
 
     async def authorize(self) -> Optional[str]:
@@ -104,50 +91,58 @@ class XAuthManager(BaseAuthManager):
             self._save_credentials_to_storage()
             return "Authorization successful. Credentials stored securely."
 
-        # Otherwise, run OAuth flow to get tokens
-        try:
-            def _sync_authorize():
-                # Step 1: Fetch request token
-                request_token_url = 'https://api.twitter.com/oauth/request_token'
-                self.oauth_session.redirect_uri = "http://localhost:3459/callback"
+        # Interactive mode with callback server
+        return await self._authorize_interactive()
 
+    async def _authorize_interactive(self) -> Optional[str]:
+        """Authorize using local callback server (interactive mode)."""
+        try:
+            # Create OAuth session for authorization
+            self.oauth_session = OAuth1Session(
+                client_id=self.consumer_key,
+                client_secret=self.consumer_secret
+            )
+
+            callback_server = OAuthCallbackServer(
+                oauth_version='1.0a',
+                port=3456
+            )
+            redirect_uri = "https://localhost:3456/callback"
+
+            def _sync_oauth_flow():
+                # Fetch request token
+                request_token_url = 'https://api.x.com/oauth/request_token'
+                self.oauth_session.redirect_uri = redirect_uri
                 request_token = self.oauth_session.fetch_request_token(request_token_url)
 
-                # Step 2: Redirect to authorization URL
-                authorization_url = 'https://api.twitter.com/oauth/authorize'
-                auth_url = self.oauth_session.create_authorization_url(
-                    authorization_url,
-                    request_token['oauth_token']
-                )
+                # Create authorization URL and open browser
+                authorization_url = 'https://api.x.com/oauth/authorize'
+                auth_url = f"{authorization_url}?oauth_token={request_token['oauth_token']}"
 
                 print("Opening browser for X authorization...")
                 print(f"Authorization URL: {auth_url}")
                 webbrowser.open(auth_url)
 
-                # Wait for user to complete authorization and provide callback URL
-                callback_url = input("Please complete authorization in browser and paste the callback URL here: ")
+                return True
 
-                # Step 3: Parse authorization response and fetch access token
+            # Execute sync OAuth setup (fetch token, open browser)
+            await asyncio.to_thread(_sync_oauth_flow)
+
+            # Wait for callback from browser
+            callback_path = await callback_server.start_and_wait(timeout=300)
+            callback_url = f"http://localhost:{callback_server.port}{callback_path}"
+
+            # Complete OAuth flow (parse callback and fetch access token)
+            def _sync_complete_oauth():
                 self.oauth_session.parse_authorization_response(callback_url)
-
-                access_token_url = 'https://api.twitter.com/oauth/access_token'
+                access_token_url = 'https://api.x.com/oauth/access_token'
                 access_token = self.oauth_session.fetch_access_token(access_token_url)
 
-                oauth_token = access_token['oauth_token']
-                oauth_secret = access_token['oauth_token_secret']
+                self.oauth_token = access_token['oauth_token']
+                self.oauth_secret = access_token['oauth_token_secret']
+                self._save_credentials_to_storage()
 
-                return oauth_token, oauth_secret
-
-            tokens = await asyncio.to_thread(_sync_authorize)
-            if not tokens:
-                return None
-
-            oauth_token, oauth_secret = tokens
-            self.oauth_token = oauth_token
-            self.oauth_secret = oauth_secret
-
-            # Save all credentials to storage
-            self._save_credentials_to_storage()
+            await asyncio.to_thread(_sync_complete_oauth)
 
             return "Authorization successful. Credentials stored securely."
 
@@ -170,6 +165,9 @@ class XAuthManager(BaseAuthManager):
         """Get user information from X API."""
         if not self.client:
             raise Exception('No client available')
+
+        # Authenticate the client first
+        await self.client.authenticate()
 
         return await self.client.get_user_info()
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@ from argparse import ArgumentParser, _SubParsersAction
 
 from .feed import create_feed_publish_parser
 from .schedule import create_schedule_run_parser
+from .tokens import create_tokens_parser
 
 
 def create_utils_parser(subparsers: _SubParsersAction) -> ArgumentParser:
@@ -52,5 +53,6 @@ def create_utils_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     # Add subcommands
     create_feed_publish_parser(utils_subparsers)
     create_schedule_run_parser(utils_subparsers)
+    create_tokens_parser(utils_subparsers)
 
     return parser

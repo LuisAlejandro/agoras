@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,29 +17,27 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
-import os
 import secrets
 import webbrowser
 from typing import Any, Dict, Optional
 
-from threadspipepy.threadspipe import ThreadsPipe
-
-from .client import ThreadsAPIClient
 from agoras.core.auth import BaseAuthManager
 from agoras.core.auth.callback_server import OAuthCallbackServer
 
+from .client import ThreadsAPIClient
+
 
 class ThreadsAuthManager(BaseAuthManager):
-    """Threads authentication manager using OAuth 2.0 flow with threadspipepy."""
+    """Threads authentication manager using OAuth 2.0 flow."""
 
-    def __init__(self, app_id: str, app_secret: str, redirect_uri: str,
+    def __init__(self, app_id: str, app_secret: str,
                  refresh_token: Optional[str] = None):
         """Initialize Threads authentication manager."""
         super().__init__()
         self.app_id = app_id
         self.app_secret = app_secret
-        self.redirect_uri = redirect_uri
-        self.refresh_token = refresh_token or self._load_refresh_token_from_cache()
+        self.redirect_uri = "https://localhost:3456/callback"
+        self.refresh_token = refresh_token or self._load_refresh_token_from_storage()
         self.user_id = None
 
     async def authenticate(self) -> bool:
@@ -75,10 +73,9 @@ class ThreadsAuthManager(BaseAuthManager):
 
     async def authorize(self) -> Optional[str]:
         """
-        Run Threads OAuth authorization flow using threadspipepy.
+        Run Threads OAuth authorization flow.
 
-        Supports both interactive mode (with local callback server) and
-        headless mode (using environment variables for CI/CD).
+        Uses interactive mode with local callback server.
 
         Returns:
             str or None: The refresh token if successful, None if failed
@@ -86,61 +83,29 @@ class ThreadsAuthManager(BaseAuthManager):
         if not self._validate_credentials():
             raise Exception('Threads app ID, app secret, and redirect URI are required for authorization.')
 
-        # Check for headless mode (CI/CD)
-        if self._check_headless_mode():
-            return await self._authorize_headless()
-
         # Interactive mode with callback server
         return await self._authorize_interactive()
-
-    async def _authorize_headless(self) -> Optional[str]:
-        """Authorize using environment variables (CI/CD mode)."""
-        try:
-            refresh_token = self._load_refresh_token_from_env()
-            user_id_env = os.environ.get('AGORAS_THREADS_USER_ID')
-
-            if not refresh_token or not user_id_env:
-                raise Exception(
-                    'Headless mode enabled but AGORAS_THREADS_REFRESH_TOKEN '
-                    'or AGORAS_THREADS_USER_ID not set.'
-                )
-
-            # Save all credentials to storage
-            self.refresh_token = refresh_token
-            self.user_id = user_id_env
-            self._save_credentials_to_storage(refresh_token, user_id_env)
-            print("Successfully seeded Threads credentials from environment variables.")
-            return refresh_token
-        except Exception as e:
-            print(f"Headless authorization failed: {e}")
-            return None
 
     async def _authorize_interactive(self) -> Optional[str]:
         """Authorize using local callback server (interactive mode)."""
         try:
             state = secrets.token_urlsafe(32)
-            callback_server = OAuthCallbackServer(expected_state=state)
-            port = await callback_server.get_available_port()
-            dynamic_redirect_uri = f"http://localhost:{port}/callback"
+            callback_server = OAuthCallbackServer(expected_state=state, port=3456)
 
-            # Create ThreadsPipe instance for authorization
-            threads_pipe = ThreadsPipe(
-                user_id="",
-                access_token=""
+            # Use the provided redirect URI (must be HTTPS)
+            redirect_uri = self.redirect_uri
+
+            # Create authorization URL directly using Meta's Threads OAuth endpoint
+            print("Creating authorization URL directly...")
+            auth_url = (
+                f"https://threads.net/oauth/authorize?"
+                f"client_id={self.app_id}&"
+                f"redirect_uri={redirect_uri}&"
+                f"scope=threads_basic,threads_content_publish&"
+                f"response_type=code&"
+                f"state={state}"
             )
-
-            # Get authorization URL (ThreadsPipe doesn't support state parameter directly)
-            # We'll append it to the URL manually
-            auth_url = threads_pipe.get_auth_token(
-                app_id=self.app_id,
-                redirect_uri=dynamic_redirect_uri
-            )
-
-            # Append state parameter for CSRF protection
-            if '?' in auth_url:
-                auth_url += f"&state={state}"
-            else:
-                auth_url += f"?state={state}"
+            print(f"Authorization URL: {auth_url}")
 
             print("Opening browser for Threads authorization...")
             print(f"If browser doesn't open automatically, visit: {auth_url}")
@@ -148,29 +113,52 @@ class ThreadsAuthManager(BaseAuthManager):
 
             auth_code = await callback_server.start_and_wait(timeout=300)
 
+            if not auth_code:
+                raise Exception("No authorization code received from OAuth callback")
+
             def _sync_exchange():
-                # Exchange authorization code for tokens
-                tokens = threads_pipe.get_access_tokens(
-                    app_id=self.app_id,
-                    app_secret=self.app_secret,
-                    auth_code=auth_code,
-                    redirect_uri=dynamic_redirect_uri
-                )
+                try:
+                    # Exchange authorization code for tokens
+                    print(f"Exchanging code for tokens with app_id={self.app_id[:10]}...")
+                    print(f"Auth code: {auth_code[:20] if auth_code else 'None'}...")
+                    print(f"Redirect URI: {redirect_uri}")
 
-                long_lived_token = tokens.get('access_token')
-                user_id = tokens.get('user_id')
+                    # Exchange authorization code for tokens using direct Meta API call
+                    import requests
 
-                if not long_lived_token:
-                    raise Exception('No access token in Threads response')
+                    token_url = "https://graph.threads.net/oauth/access_token"
+                    token_data = {
+                        'client_id': self.app_id,
+                        'client_secret': self.app_secret,
+                        'grant_type': 'authorization_code',
+                        'redirect_uri': redirect_uri,
+                        'code': auth_code
+                    }
 
-                if not user_id:
-                    raise Exception('No user ID in Threads response')
+                    response = requests.post(token_url, data=token_data, timeout=30)
 
-                # Save all credentials to storage
-                self.refresh_token = long_lived_token
-                self.user_id = user_id
-                self._save_credentials_to_storage(long_lived_token, user_id)
-                return long_lived_token
+                    if response.status_code != 200:
+                        raise Exception(f"Token exchange failed: HTTP {response.status_code} - {response.text}")
+
+                    tokens = response.json()
+
+                    if not isinstance(tokens, dict):
+                        raise Exception(f"Invalid token response format: {type(tokens)}")
+
+                    long_lived_token = tokens.get('access_token')
+                    user_id = tokens.get('user_id')
+
+                    if not long_lived_token or not user_id:
+                        raise Exception('Invalid token response: missing access_token or user_id')
+
+                    # Save all credentials to storage
+                    self.refresh_token = long_lived_token
+                    self.user_id = user_id
+                    self._save_credentials_to_storage(long_lived_token, user_id)
+                    return long_lived_token
+
+                except Exception as e:
+                    raise Exception(f"Token exchange failed: {str(e)}")
 
             return await asyncio.to_thread(_sync_exchange)
         except Exception as e:
@@ -229,11 +217,7 @@ class ThreadsAuthManager(BaseAuthManager):
 
     def _validate_credentials(self) -> bool:
         """Validate that all required credentials are present."""
-        return all([self.app_id, self.app_secret, self.redirect_uri])
-
-    def _get_cache_filename(self) -> str:
-        """Get cache filename for storing refresh token. DEPRECATED."""
-        return f'threads-{self.app_id}.json'
+        return all([self.app_id, self.app_secret])
 
     def _get_platform_name(self) -> str:
         """Get the platform name for this auth manager."""
@@ -243,33 +227,12 @@ class ThreadsAuthManager(BaseAuthManager):
         """Get unique identifier for token storage."""
         return self.app_id
 
-    def _load_refresh_token_from_cache(self) -> Optional[str]:
-        """
-        Load refresh token from secure storage.
-
-        Note: Despite the name, this method loads from SecureTokenStorage,
-        not from deprecated cache files. The name is kept for compatibility
-        with the base class interface.
-        """
-        token_data = self.token_storage.load_token('threads', self.app_id)
-        if token_data:
-            return token_data.get('refresh_token')
-        return None
-
     def _load_user_id_from_storage(self) -> Optional[str]:
         """Load user ID from secure storage."""
         token_data = self.token_storage.load_token('threads', self.app_id)
         if token_data:
             return token_data.get('user_id')
         return None
-
-    def _save_refresh_token_to_cache(self, refresh_token: str):
-        """Save refresh token to secure storage. DEPRECATED - use _save_tokens_to_storage."""
-        self._save_refresh_token_to_storage(refresh_token)
-
-    def _save_tokens_to_storage(self, refresh_token: str, user_id: str):
-        """Save both refresh token and user ID to secure storage. DEPRECATED - use _save_credentials_to_storage."""
-        self._save_credentials_to_storage(refresh_token, user_id)
 
     def _save_credentials_to_storage(self, refresh_token: str, user_id: str):
         """Save all Threads credentials to secure storage."""
@@ -279,7 +242,6 @@ class ThreadsAuthManager(BaseAuthManager):
         token_data = {
             'app_id': self.app_id,
             'app_secret': self.app_secret,
-            'redirect_uri': self.redirect_uri,
             'refresh_token': refresh_token,
             'user_id': user_id
         }
@@ -307,13 +269,11 @@ class ThreadsAuthManager(BaseAuthManager):
                 self.app_id = token_data.get('app_id')
             if not self.app_secret:
                 self.app_secret = token_data.get('app_secret')
-            if not self.redirect_uri:
-                self.redirect_uri = token_data.get('redirect_uri')
             if not self.refresh_token:
                 self.refresh_token = token_data.get('refresh_token')
             if not self.user_id:
                 self.user_id = token_data.get('user_id')
 
-            return bool(all([self.app_id, self.app_secret, self.redirect_uri, self.refresh_token]))
+            return bool(all([self.app_id, self.app_secret, self.refresh_token]))
 
         return False

@@ -34,7 +34,7 @@ This will:
 
 After authorization, you can perform actions without providing tokens. Credentials are automatically refreshed when needed.
 
-For CI/CD environments, see :doc:`credentials/linkedin` for headless authorization setup.
+For CI/CD environments, see :doc:`credentials/linkedin` for unattended execution setup.
 
 Publish a LinkedIn post
 -----------------------

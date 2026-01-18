@@ -3,6 +3,9 @@ Complete Parameter Reference
 
 This reference documents all parameters available in Agoras CLI commands.
 
+.. note::
+   For a comprehensive reference including environment variables and unattended execution parameters, see :doc:`platform-arguments-envvars`.
+
 Platform Commands vs Utils Commands
 ------------------------------------
 
@@ -136,7 +139,6 @@ Threads
 * ``authorize`` - OAuth 2.0 authorization action (required first step)
 * ``--app-id`` - Threads (Meta) App ID (required for authorize)
 * ``--app-secret`` - Threads (Meta) App secret (required for authorize)
-* ``--redirect-uri`` - OAuth redirect URI (required for authorize, e.g., ``http://localhost:3456/callback``)
 
 .. note::
    OAuth platforms require authorization via ``agoras <platform> authorize`` before use.
@@ -148,20 +150,11 @@ Telegram
 
 * ``--bot-token`` - Telegram bot token from @BotFather (required)
 * ``--chat-id`` - Target chat ID (user, group, or channel) (required)
-* ``--message-id`` - Message ID for edit/delete actions (required for edit/delete)
+* ``--message-id`` - Message ID for delete action (required for delete)
 
 **Telegram-specific parameters**:
 
 * ``--parse-mode`` - Message parse mode: ``HTML``, ``Markdown``, ``MarkdownV2``, or ``None`` (default: HTML)
-* ``--question`` - Poll question (up to 300 characters, for poll action)
-* ``--options`` - Comma-separated poll options (2-10 options, for poll action)
-* ``--anonymous`` - Whether poll is anonymous (default: true, for poll action)
-* ``--document-url`` - Document file URL (for document action)
-* ``--caption`` - Document or audio caption (optional, for document/audio actions)
-* ``--audio-url`` - Audio file URL (for audio action)
-* ``--duration`` - Audio duration in seconds (optional, for audio action)
-* ``--performer`` - Performer name (optional, for audio action)
-* ``--title`` - Track title (optional, for audio action)
 
 WhatsApp
 --------
@@ -174,14 +167,6 @@ WhatsApp
 
 **WhatsApp-specific parameters**:
 
-* ``--contact-name`` - Contact name for contact card (for contact action)
-* ``--contact-phone`` - Contact phone number in E.164 format (for contact action)
-* ``--latitude`` - Latitude coordinate (-90 to 90, for location action)
-* ``--longitude`` - Longitude coordinate (-180 to 180, for location action)
-* ``--location-name`` - Name of the location (optional, for location action)
-* ``--document-url`` - Document file URL (for document action)
-* ``--caption`` - Document caption (optional, for document action)
-* ``--filename`` - Document filename (optional, for document action)
 * ``--template-name`` - Template name (for template action)
 * ``--language-code`` - Template language code (ISO 639-1 format, default: en, for template action)
 * ``--template-components`` - Template components as JSON string (optional, for template action)
@@ -296,9 +281,9 @@ Instagram
 LinkedIn
 ~~~~~~~~
 
-* ``--linkedin-access-token`` - LinkedIn access token
 * ``--linkedin-client-id`` - LinkedIn App client ID
 * ``--linkedin-client-secret`` - LinkedIn App client secret
+* ``--linkedin-refresh-token`` - LinkedIn refresh token (optional, can be loaded from storage)
 
 Discord
 ~~~~~~~

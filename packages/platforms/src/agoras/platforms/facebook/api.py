@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,8 +18,9 @@
 
 from typing import Any, Dict, List, Optional
 
-from .auth import FacebookAuthManager
 from agoras.core.api_base import BaseAPI
+
+from .auth import FacebookAuthManager
 
 
 class FacebookAPI(BaseAPI):
@@ -79,6 +80,54 @@ class FacebookAPI(BaseAPI):
         self.client = self.auth_manager.client
         self._authenticated = True
         return self
+
+    async def check_if_page(self, object_id: str) -> bool:
+        """
+        Check if the given object_id represents a Facebook Page.
+
+        Args:
+            object_id (str): Facebook object ID to check
+
+        Returns:
+            bool: True if object is a Facebook Page, False otherwise
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception('Facebook API not authenticated')
+
+        await self._rate_limit_check('check_if_page', 0.1)
+
+        try:
+            return await self.client.is_page(object_id)
+        except Exception as e:
+            self._handle_api_error(e, 'Facebook page check')
+            raise
+
+    async def get_page_token(self, object_id: str) -> str:
+        """
+        Exchange user access token for page access token.
+
+        Args:
+            object_id (str): Facebook Page ID
+
+        Returns:
+            str: Page access token
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception('Facebook API not authenticated')
+
+        await self._rate_limit_check('get_page_token', 0.5)
+
+        try:
+            # We need to pass the current user access token to get page token
+            user_token = self.auth_manager.access_token
+            return await self.client.get_page_access_token(object_id, user_token)
+        except Exception as e:
+            self._handle_api_error(e, 'Facebook page token exchange')
+            raise
 
     async def disconnect(self):
         """

@@ -36,7 +36,7 @@ This will:
 
 After successful authorization, your refresh token will be stored locally and used for future requests. Credentials are automatically refreshed when needed.
 
-For CI/CD environments, see :doc:`credentials/tiktok` for headless authorization setup.
+For CI/CD environments, see :doc:`credentials/tiktok` for unattended execution setup.
 
 Publish a TikTok video
 ----------------------

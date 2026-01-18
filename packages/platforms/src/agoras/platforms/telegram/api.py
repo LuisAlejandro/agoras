@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,8 +19,9 @@
 import asyncio
 from typing import Any, Dict, List, Optional
 
-from .auth import TelegramAuthManager
 from agoras.core.api_base import BaseAPI
+
+from .auth import TelegramAuthManager
 
 
 class TelegramAPI(BaseAPI):
@@ -111,11 +112,8 @@ class TelegramAPI(BaseAPI):
         if not self.client:
             raise Exception('Telegram client not available')
 
-        def _sync_get_info():
-            return self.client.get_me()
-
         try:
-            return await asyncio.to_thread(_sync_get_info)
+            return await self.client.get_me()
         except Exception as e:
             self._handle_api_error(e, 'Telegram get bot info')
             raise
@@ -144,16 +142,13 @@ class TelegramAPI(BaseAPI):
 
         await self._rate_limit_check('send_message', 1.0)
 
-        def _sync_send():
-            response = self.client.send_message(
+        try:
+            response = await self.client.send_message(
                 chat_id=chat_id,
                 text=text,
                 parse_mode=parse_mode
             )
             return str(response['message_id'])
-
-        try:
-            return await asyncio.to_thread(_sync_send)
         except Exception as e:
             self._handle_api_error(e, 'Telegram send message')
             raise
@@ -206,17 +201,14 @@ class TelegramAPI(BaseAPI):
         if not photo_content:
             raise Exception('No photo content available')
 
-        def _sync_send():
-            response = self.client.send_photo(
+        try:
+            response = await self.client.send_photo(
                 chat_id=chat_id,
                 photo=photo_content,
                 caption=caption,
                 parse_mode=parse_mode
             )
             return str(response['message_id'])
-
-        try:
-            return await asyncio.to_thread(_sync_send)
         except Exception as e:
             self._handle_api_error(e, 'Telegram send photo')
             raise
@@ -265,17 +257,14 @@ class TelegramAPI(BaseAPI):
         if not video_content:
             raise Exception('No video content available')
 
-        def _sync_send():
-            response = self.client.send_video(
+        try:
+            response = await self.client.send_video(
                 chat_id=chat_id,
                 video=video_content,
                 caption=caption,
                 parse_mode=parse_mode
             )
             return str(response['message_id'])
-
-        try:
-            return await asyncio.to_thread(_sync_send)
         except Exception as e:
             self._handle_api_error(e, 'Telegram send video')
             raise
@@ -302,12 +291,9 @@ class TelegramAPI(BaseAPI):
 
         await self._rate_limit_check('delete_message', 0.5)
 
-        def _sync_delete():
-            self.client.delete_message(chat_id=chat_id, message_id=int(message_id))
-            return str(message_id)
-
         try:
-            return await asyncio.to_thread(_sync_delete)
+            await self.client.delete_message(chat_id=chat_id, message_id=int(message_id))
+            return str(message_id)
         except Exception as e:
             self._handle_api_error(e, 'Telegram delete message')
             raise
@@ -393,200 +379,6 @@ class TelegramAPI(BaseAPI):
         """
         raise Exception('Share not supported for Telegram')
 
-    async def edit_message(self, chat_id: str, message_id: int, text: str,
-                           parse_mode: Optional[str] = None) -> str:
-        """
-        Edit message text asynchronously.
-
-        Args:
-            chat_id (str): Chat ID where the message is located
-            message_id (int): ID of the message to edit
-            text (str): New message text
-            parse_mode (str, optional): Parse mode for text
-
-        Returns:
-            str: Message ID
-
-        Raises:
-            Exception: If message editing fails
-        """
-        if not self._authenticated:
-            await self.authenticate()
-
-        if not self.client:
-            raise Exception('Telegram client not available')
-
-        await self._rate_limit_check('edit_message', 1.0)
-
-        def _sync_edit():
-            response = self.client.edit_message_text(
-                chat_id=chat_id,
-                message_id=int(message_id),
-                text=text,
-                parse_mode=parse_mode
-            )
-            return str(response['message_id'])
-
-        try:
-            return await asyncio.to_thread(_sync_edit)
-        except Exception as e:
-            self._handle_api_error(e, 'Telegram edit message')
-            raise
-
-    async def send_poll(self, chat_id: str, question: str, options: List[str],
-                        is_anonymous: bool = True,
-                        allows_multiple_answers: bool = False) -> str:
-        """
-        Send poll asynchronously.
-
-        Args:
-            chat_id (str): Target chat ID (user, group, or channel)
-            question (str): Poll question (up to 300 characters)
-            options (List[str]): List of poll options (2-10 options)
-            is_anonymous (bool): Whether poll is anonymous
-            allows_multiple_answers (bool): Whether multiple answers allowed
-
-        Returns:
-            str: Message ID
-
-        Raises:
-            Exception: If poll sending fails
-        """
-        if not self._authenticated:
-            await self.authenticate()
-
-        if not self.client:
-            raise Exception('Telegram client not available')
-
-        await self._rate_limit_check('send_poll', 1.0)
-
-        def _sync_send():
-            response = self.client.send_poll(
-                chat_id=chat_id,
-                question=question,
-                options=options,
-                is_anonymous=is_anonymous,
-                allows_multiple_answers=allows_multiple_answers
-            )
-            return str(response['message_id'])
-
-        try:
-            return await asyncio.to_thread(_sync_send)
-        except Exception as e:
-            self._handle_api_error(e, 'Telegram send poll')
-            raise
-
-    async def send_document(self, chat_id: str, document_url: Optional[str] = None,
-                            document_content: Optional[bytes] = None,
-                            caption: Optional[str] = None,
-                            parse_mode: Optional[str] = None) -> str:
-        """
-        Send document with Media system integration.
-
-        Args:
-            chat_id (str): Target chat ID (user, group, or channel)
-            document_url (str, optional): URL to download document from (uses Media system)
-            document_content (bytes, optional): Direct bytes content (bypasses Media system)
-            caption (str, optional): Document caption
-            parse_mode (str, optional): Parse mode for caption
-
-        Returns:
-            str: Message ID
-
-        Raises:
-            Exception: If document sending fails
-        """
-        if not self._authenticated:
-            await self.authenticate()
-
-        if not self.client:
-            raise Exception('Telegram client not available')
-
-        await self._rate_limit_check('send_document', 1.0)
-
-        # If URL provided, download using Media system
-        # For documents, we can use URL directly with python-telegram-bot
-        if document_url and not document_content:
-            # Use URL directly - python-telegram-bot handles URL downloads
-            document_content = document_url
-
-        if not document_content:
-            raise Exception('No document content or URL available')
-
-        def _sync_send():
-            response = self.client.send_document(
-                chat_id=chat_id,
-                document=document_content,
-                caption=caption,
-                parse_mode=parse_mode
-            )
-            return str(response['message_id'])
-
-        try:
-            return await asyncio.to_thread(_sync_send)
-        except Exception as e:
-            self._handle_api_error(e, 'Telegram send document')
-            raise
-
-    async def send_audio(self, chat_id: str, audio_url: Optional[str] = None,
-                         audio_content: Optional[bytes] = None,
-                         caption: Optional[str] = None,
-                         parse_mode: Optional[str] = None,
-                         duration: Optional[int] = None,
-                         performer: Optional[str] = None,
-                         title: Optional[str] = None) -> str:
-        """
-        Send audio with Media system integration.
-
-        Args:
-            chat_id (str): Target chat ID (user, group, or channel)
-            audio_url (str, optional): URL to download audio from (uses Media system)
-            audio_content (bytes, optional): Direct bytes content (bypasses Media system)
-            caption (str, optional): Audio caption
-            parse_mode (str, optional): Parse mode for caption
-            duration (int, optional): Audio duration in seconds
-            performer (str, optional): Performer name
-            title (str, optional): Track title
-
-        Returns:
-            str: Message ID
-
-        Raises:
-            Exception: If audio sending fails
-        """
-        if not self._authenticated:
-            await self.authenticate()
-
-        if not self.client:
-            raise Exception('Telegram client not available')
-
-        await self._rate_limit_check('send_audio', 1.0)
-
-        # If URL provided, use URL directly - python-telegram-bot handles URL downloads
-        if audio_url and not audio_content:
-            audio_content = audio_url
-
-        if not audio_content:
-            raise Exception('No audio content or URL available')
-
-        def _sync_send():
-            response = self.client.send_audio(
-                chat_id=chat_id,
-                audio=audio_content,
-                caption=caption,
-                parse_mode=parse_mode,
-                duration=duration,
-                performer=performer,
-                title=title
-            )
-            return str(response['message_id'])
-
-        try:
-            return await asyncio.to_thread(_sync_send)
-        except Exception as e:
-            self._handle_api_error(e, 'Telegram send audio')
-            raise
-
     async def send_media_group(self, chat_id: str, media: List[Dict[str, Any]]) -> List[str]:
         """
         Send multiple media items as an album (media group).
@@ -609,16 +401,13 @@ class TelegramAPI(BaseAPI):
 
         await self._rate_limit_check('send_media_group', 1.0)
 
-        def _sync_send():
-            response = self.client.send_media_group(
+        try:
+            response = await self.client.send_media_group(
                 chat_id=chat_id,
                 media=media
             )
             # Return list of message IDs
             return [str(msg['message_id']) for msg in response]
-
-        try:
-            return await asyncio.to_thread(_sync_send)
         except Exception as e:
             self._handle_api_error(e, 'Telegram send media group')
             raise

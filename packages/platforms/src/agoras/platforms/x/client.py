@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -69,28 +69,59 @@ class XAPIClient:
             raise Exception('All X OAuth credentials are required.')
 
         try:
+            # Ensure all tokens are strings (not None or other types)
+            consumer_key = str(self.consumer_key) if self.consumer_key else None
+            consumer_secret = str(self.consumer_secret) if self.consumer_secret else None
+            oauth_token = str(self.oauth_token) if self.oauth_token else None
+            oauth_secret = str(self.oauth_secret) if self.oauth_secret else None
+
+            if not all([consumer_key, consumer_secret, oauth_token, oauth_secret]):
+                raise Exception('All X OAuth credentials are required and must be non-empty strings.')
+
             # Set up OAuth 1.0a authentication
+            # Note: access_token and access_token_secret must be keyword arguments in Tweepy 4.x
             auth = OAuth1UserHandler(
-                self.consumer_key, self.consumer_secret,
-                self.oauth_token, self.oauth_secret
+                consumer_key, consumer_secret,
+                access_token=oauth_token,
+                access_token_secret=oauth_secret
             )
+
+            # Verify the access tokens are set correctly on the auth object
+            if not hasattr(auth, 'access_token') or auth.access_token != oauth_token:
+                # If tokens aren't set correctly, try using set_access_token as fallback
+                auth.set_access_token(oauth_token, oauth_secret)
+
+            # Clear any request_token that might be set (from OAuth flow)
+            # This ensures we're using access tokens, not request tokens
+            if hasattr(auth, 'request_token') and auth.request_token:
+                auth.request_token = None
 
             # Create both v1.1 and v2 clients
-            self.client_v1 = API(auth)
+            self.client_v1 = API(auth, wait_on_rate_limit=False)
             self.client_v2 = Client(
-                consumer_key=self.consumer_key,
-                consumer_secret=self.consumer_secret,
-                access_token=self.oauth_token,
-                access_token_secret=self.oauth_secret
+                consumer_key=consumer_key,
+                consumer_secret=consumer_secret,
+                access_token=oauth_token,
+                access_token_secret=oauth_secret,
+                wait_on_rate_limit=False
             )
 
-            # Verify credentials using v1 client
-            await asyncio.to_thread(self._verify_credentials)
+            # Skip credential verification - other platforms don't verify during auth
+            # Invalid tokens will fail during actual API calls with clearer errors
             self._authenticated = True
             return True
 
         except Exception as e:
-            raise Exception(f'X authentication failed: {str(e)}')
+            error_msg = str(e)
+            # Check if this is the specific "missing_token" error which might indicate
+            # an issue with how Tweepy is handling the tokens internally
+            if "missing_token" in error_msg or "oauth_token is missing" in error_msg:
+                raise Exception(
+                    f'X authentication failed: Invalid or expired access tokens. '
+                    f'Please re-authorize using "agoras x authorize". '
+                    f'Technical error: {error_msg}'
+                )
+            raise Exception(f'X authentication failed: {error_msg}')
 
     def disconnect(self):
         """
@@ -110,9 +141,18 @@ class XAPIClient:
         if not self.client_v1:
             raise Exception('X v1 client not initialized')
 
-        user = self.client_v1.verify_credentials()
-        if not user:
-            raise Exception('Failed to verify X credentials')
+        try:
+            user = self.client_v1.verify_credentials()
+            if not user:
+                raise Exception('Failed to verify X credentials')
+        except Exception as e:
+            # Re-raise with more context
+            error_msg = str(e)
+            # Check if this is the specific "missing_token" error
+            if "missing_token" in error_msg or "oauth_token is missing" in error_msg:
+                raise Exception(
+                    f'X credential verification failed. The access token may be invalid or expired. Error: {error_msg}')
+            raise
 
     async def get_user_info(self) -> dict:
         """

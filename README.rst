@@ -175,7 +175,7 @@ Agoras supports 11 platforms with intuitive platform-first commands:
 - **YouTube**: ``agoras youtube <action>`` - Video platform (video, like, delete)
 - **TikTok**: ``agoras tiktok <action>`` - Video platform (video, delete)
 - **Threads**: ``agoras threads <action>`` - Meta's platform (post, video, share, reply, analytics, moderation)
-- **Telegram**: ``agoras telegram <action>`` - Send messages, photos, videos, polls, and documents
+- **Telegram**: ``agoras telegram <action>`` - Send messages, photos, and videos
 - **WhatsApp**: ``agoras whatsapp <action>`` - Send messages via WhatsApp Business API
 
 Automation Commands
@@ -269,7 +269,7 @@ License
 .. _AUTHORS: AUTHORS.rst
 .. _GPL-3 License: LICENSE
 
-Copyright 2022-2023, agoras Developers (read AUTHORS_ for a full list of copyright holders).
+Copyright (C) 2022-2026, Agoras Developers (read AUTHORS_ for a full list of copyright holders).
 
 Released under a `GPL-3 License`_.
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,19 +17,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
+
 from agoras.core.interfaces import SocialNetwork
-from agoras.platforms import (
-    Discord,
-    Facebook,
-    Instagram,
-    LinkedIn,
-    Telegram,
-    Threads,
-    TikTok,
-    WhatsApp,
-    X,
-    YouTube,
-)
+from agoras.platforms import Discord, Facebook, Instagram, LinkedIn, Telegram, Threads, TikTok, WhatsApp, X, YouTube
 
 
 # Test that all platforms inherit from SocialNetwork

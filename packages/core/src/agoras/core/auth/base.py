@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -87,16 +87,8 @@ class BaseAuthManager(ABC):
             bool: True if successfully loaded and refreshed, False otherwise
         """
         try:
-            # Load token data from secure storage
-            platform_name = self._get_platform_name()
-            identifier = self._get_token_identifier()
-            token_data = self.token_storage.load_token(platform_name, identifier)
-
-            if not token_data:
-                return False
-
             # Extract refresh token
-            refresh_token = token_data.get('refresh_token')
+            refresh_token = self._load_refresh_token_from_storage()
             if not refresh_token:
                 return False
 
@@ -118,24 +110,6 @@ class BaseAuthManager(ABC):
         except Exception:
             return False
 
-    def _save_refresh_token_to_storage(self, refresh_token: str, **metadata):
-        """
-        Save refresh token to secure storage.
-
-        Args:
-            refresh_token (str): The refresh token to save
-            **metadata: Additional metadata to store (expires_at, scopes, etc.)
-        """
-        platform_name = self._get_platform_name()
-        identifier = self._get_token_identifier()
-
-        token_data = {
-            'refresh_token': refresh_token,
-            **metadata
-        }
-
-        self.token_storage.save_token(platform_name, identifier, token_data)
-
     def _load_refresh_token_from_storage(self) -> Optional[str]:
         """
         Load refresh token from secure storage.
@@ -152,19 +126,6 @@ class BaseAuthManager(ABC):
             return token_data.get('refresh_token')
 
         return None
-
-    def _check_headless_mode(self) -> bool:
-        """
-        Check if running in headless/CI mode.
-
-        Headless mode is enabled by setting the AGORAS_{PLATFORM}_HEADLESS
-        environment variable to any non-empty value.
-
-        Returns:
-            bool: True if headless mode is enabled
-        """
-        platform = self._get_platform_name().upper()
-        return bool(os.environ.get(f'AGORAS_{platform}_HEADLESS'))
 
     def _load_refresh_token_from_env(self) -> Optional[str]:
         """
@@ -235,17 +196,6 @@ class BaseAuthManager(ABC):
         """
 
     @abstractmethod
-    def _get_cache_filename(self) -> str:
-        """
-        Get cache filename for storing platform-specific tokens.
-
-        DEPRECATED: Use SecureTokenStorage instead.
-
-        Returns:
-            str: Cache filename
-        """
-
-    @abstractmethod
     def _get_platform_name(self) -> str:
         """
         Get the platform name for this auth manager.
@@ -262,97 +212,6 @@ class BaseAuthManager(ABC):
         Returns:
             str: Unique identifier for this authentication session
         """
-
-    # Common utility methods for token caching (DEPRECATED)
-    def _load_token_from_cache(self, cache_file: str, token_key: str) -> Optional[str]:
-        """
-        Load token from cache file.
-
-        DEPRECATED: This method is deprecated and will be removed in v2.0.
-        Use SecureTokenStorage instead via _load_refresh_token_from_storage().
-
-        Args:
-            cache_file (str): Cache filename
-            token_key (str): Key for the token in the cache file
-
-        Returns:
-            str or None: Token if found, None otherwise
-        """
-        import warnings
-        warnings.warn(
-            "Plaintext token caching is deprecated. "
-            "Please run 'agoras <platform> authorize' to migrate to secure encrypted storage.",
-            DeprecationWarning,
-            stacklevel=2
-        )
-
-        if os.path.exists(cache_file):
-            try:
-                with open(cache_file, 'r') as f:
-                    data = json.load(f)
-                    return data.get(token_key)
-            except Exception:
-                pass
-        return None
-
-    def _save_token_to_cache(self, cache_file: str, token_key: str, token_value: str):
-        """
-        Save token to cache file.
-
-        DEPRECATED: This method is deprecated and will be removed in v2.0.
-        Use SecureTokenStorage instead via _save_refresh_token_to_storage().
-
-        Args:
-            cache_file (str): Cache filename
-            token_key (str): Key for the token in the cache file
-            token_value (str): Token value to save
-        """
-        import warnings
-        warnings.warn(
-            "Plaintext token caching is deprecated. "
-            "Please run 'agoras <platform> authorize' to migrate to secure encrypted storage.",
-            DeprecationWarning,
-            stacklevel=2
-        )
-
-        data = {token_key: token_value}
-        try:
-            with open(cache_file, 'w') as f:
-                json.dump(data, f)
-        except Exception:
-            pass  # Fail silently if can't save cache
-
-    def _load_cache_data(self, cache_file: str) -> Dict[str, Any]:
-        """
-        Load all data from cache file.
-
-        Args:
-            cache_file (str): Cache filename
-
-        Returns:
-            dict: Cache data or empty dict if file doesn't exist or can't be read
-        """
-        if os.path.exists(cache_file):
-            try:
-                with open(cache_file, 'r') as f:
-                    return json.load(f)
-            except Exception:
-                pass
-        return {}
-
-    def _save_cache_data(self, cache_file: str, data: Dict[str, Any]):
-        """
-        Save data to cache file.
-
-        Args:
-            cache_file (str): Cache filename
-            data (dict): Data to save
-        """
-        try:
-            with open(cache_file, 'w') as f:
-                json.dump(data, f)
-        except Exception:
-            pass  # Fail silently if can't save cache
 
     async def _run_sync_in_thread(self, sync_func, *args, **kwargs):
         """

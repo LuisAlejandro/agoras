@@ -31,7 +31,7 @@ Create Google OAuth Credentials for YouTube
    - Click **Create Credentials** > **OAuth client ID**
    - If prompted, configure the OAuth consent screen first
    - Select application type: **Desktop app** or **Web application**
-   - Add authorized redirect URIs: ``http://localhost:3456/callback``
+   - Add authorized redirect URIs: ``https://localhost:3456/callback``
    - Click **Create**
    - Copy the **Client ID** and **Client Secret**
 
@@ -53,19 +53,29 @@ This will:
 
 After authorization, you can use YouTube actions without providing tokens. Credentials are automatically refreshed when needed.
 
-CI/CD Setup (Headless Authorization)
-------------------------------------
+CI/CD Setup (Unattended Execution)
+-----------------------------------
 
-For CI/CD environments where interactive browser authorization isn't possible:
+For CI/CD environments where interactive browser authorization isn't possible, you can skip the ``authorize`` step entirely and provide all required credentials via environment variables.
 
-1. Run ``agoras youtube authorize`` locally first to generate a refresh token.
-2. Extract the refresh token from ``~/.agoras/tokens/youtube-{client_id}.token`` (decrypted).
-3. Set environment variables in your CI/CD pipeline::
+1. Run ``agoras youtube authorize`` locally first to generate a refresh token (one-time setup)
+2. Extract the refresh token using the tokens utility command::
 
-      export AGORAS_YOUTUBE_REFRESH_TOKEN="your_refresh_token_here"
-      export AGORAS_YOUTUBE_HEADLESS=1
+      # First, list tokens to find the identifier (if you don't know it)
+      agoras utils tokens list --platform youtube
 
-4. Agoras will automatically use the refresh token from the environment variable.
+      # Then view all stored credentials
+      agoras utils tokens show --platform youtube --identifier {identifier}
+
+3. Set all required environment variables in your CI/CD pipeline::
+
+      export YOUTUBE_CLIENT_ID="your_client_id"
+      export YOUTUBE_CLIENT_SECRET="your_client_secret"
+      export YOUTUBE_REFRESH_TOKEN="your_refresh_token_here"
+
+4. Run Agoras actions directly without running ``authorize``. All credentials will be loaded from environment variables.
+
+**Note**: For unattended execution, you must provide all required credentials. The refresh token alone is not sufficient - you also need client ID and client secret as shown in the :doc:`../reference/platform-arguments-envvars` documentation.
 
 YouTube Parameters
 ------------------

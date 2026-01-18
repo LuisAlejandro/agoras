@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,16 +16,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from agoras.platforms.x.wrapper import main as x
+from agoras.platforms.discord.wrapper import main as discord
 from agoras.platforms.facebook.wrapper import main as facebook
 from agoras.platforms.instagram.wrapper import main as instagram
 from agoras.platforms.linkedin.wrapper import main as linkedin
-from agoras.platforms.discord.wrapper import main as discord
-from agoras.platforms.youtube.wrapper import main as youtube
-from agoras.platforms.tiktok.wrapper import main as tiktok
-from agoras.platforms.threads.wrapper import main as threads
 from agoras.platforms.telegram.wrapper import main as telegram
+from agoras.platforms.threads.wrapper import main as threads
+from agoras.platforms.tiktok.wrapper import main as tiktok
 from agoras.platforms.whatsapp.wrapper import main as whatsapp
+from agoras.platforms.x.wrapper import main as x
+from agoras.platforms.youtube.wrapper import main as youtube
 
 
 def main(**kwargs):

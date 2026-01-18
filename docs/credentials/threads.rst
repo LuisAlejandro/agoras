@@ -79,13 +79,10 @@ Configure OAuth Settings
 2. Add your OAuth redirect URI:
    - Click "Add Platform" if needed
    - Select "Website"
-   - Add redirect URI: ``http://localhost:3456/callback``
-   - For production, you may need to add your production callback URL
+   - Add redirect URI: ``https://localhost:3456/callback``
 
 .. note::
-   The redirect URI must match exactly what you use in the ``--redirect-uri`` parameter. Common values:
-   - Development: ``http://localhost:3456/callback``
-   - Production: Your production callback URL
+   The redirect URI is fixed to ``https://localhost:3456/callback``.
 
 3. Save changes
 
@@ -149,12 +146,13 @@ The review process typically takes 1-2 weeks. During review, you can continue us
 Authorize Agoras
 ----------------
 
-Once you have your app credentials, authorize Agoras to access your Threads account::
+Once you have your app credentials, authorize Agoras to access your Threads account.
+
+Authorize Agoras to access your Threads account::
 
     agoras threads authorize \
       --app-id "${THREADS_APP_ID}" \
-      --app-secret "${THREADS_APP_SECRET}" \
-      --redirect-uri "http://localhost:3456/callback"
+      --app-secret "${THREADS_APP_SECRET}"
 
 This will:
 
@@ -169,25 +167,30 @@ After authorization, you can use Threads actions without providing tokens. Crede
 
 **Note**: The long-lived token acts as a refresh token in Threads' system. Agoras will automatically refresh it before expiration.
 
-CI/CD Setup (Headless Authorization)
--------------------------------------
+CI/CD Setup (Unattended Execution)
+-----------------------------------
 
-For CI/CD environments where interactive browser authorization isn't possible:
+For CI/CD environments where interactive browser authorization isn't possible, you can skip the ``authorize`` step entirely and provide all required credentials via environment variables.
 
-1. Run ``agoras threads authorize`` locally first to generate a refresh token
-2. Extract the refresh token from ``~/.agoras/tokens/threads-{app_id}.token`` (decrypted)
-3. Set environment variables in your CI/CD pipeline::
+1. Run ``agoras threads authorize`` locally first to generate a refresh token (one-time setup)
+2. Extract the refresh token using the tokens utility command::
 
-      export AGORAS_THREADS_REFRESH_TOKEN="your_refresh_token_here"
-      export AGORAS_THREADS_HEADLESS=1
+      # First, list tokens to find the identifier (if you don't know it)
+      agoras utils tokens list --platform threads
 
-4. Also set your app credentials::
+      # Then view all stored credentials
+      agoras utils tokens show --platform threads --identifier {identifier}
+
+3. Set all required environment variables in your CI/CD pipeline::
 
       export THREADS_APP_ID="your_app_id"
       export THREADS_APP_SECRET="your_app_secret"
-      export THREADS_REDIRECT_URI="http://localhost:3456/callback"
+      export THREADS_REFRESH_TOKEN="your_refresh_token_here"
+      export THREADS_USER_ID="your_user_id"
 
-5. Agoras will automatically use the refresh token from the environment variable
+4. Run Agoras actions directly without running ``authorize``. All credentials will be loaded from environment variables.
+
+**Note**: For unattended execution, you must provide all required credentials. The refresh token alone is not sufficient - you also need app ID, app secret, and user ID as shown in the :doc:`../reference/platform-arguments-envvars` documentation.
 
 Development vs Production
 -------------------------
@@ -217,8 +220,6 @@ Agoras parameters
 +------------------------------+--------------------------+
 | App Secret (Meta App Secret) | --app-secret             |
 +------------------------------+--------------------------+
-| Redirect URI                 | --redirect-uri           |
-+------------------------------+--------------------------+
 | Refresh Token (auto-managed) | --threads-refresh-token  |
 +------------------------------+--------------------------+
 
@@ -231,13 +232,9 @@ Agoras parameters
 +------------------------------+--------------------------+
 | THREADS_APP_SECRET           | Meta App Secret          |
 +------------------------------+--------------------------+
-| THREADS_REDIRECT_URI          | OAuth redirect URI       |
-+------------------------------+--------------------------+
 | THREADS_REFRESH_TOKEN        | Long-lived token (60-day)|
 +------------------------------+--------------------------+
-| AGORAS_THREADS_REFRESH_TOKEN | For CI/CD headless mode  |
-+------------------------------+--------------------------+
-| AGORAS_THREADS_HEADLESS      | Enable headless mode     |
+| AGORAS_THREADS_REFRESH_TOKEN | Refresh token for unattended execution |
 +------------------------------+--------------------------+
 
 **Note**: After authorization, refresh tokens are managed automatically by Agoras. You no longer need to provide tokens for actions.
@@ -253,14 +250,12 @@ Troubleshooting
 
 **"Invalid credentials" error**:
 - Double-check your App ID and App Secret
-- Verify your redirect URI matches exactly in both Meta app settings and your command
 - Make sure you're using the correct app credentials
 - Check that Threads API product is enabled
 
 **"Authorization failed" error**:
 - Make sure you're logged into the correct Facebook/Threads account
 - Check that your app has the required permissions/scopes enabled
-- Verify your redirect URI is correctly configured in Meta app settings
 - Try the authorization process again
 - Clear browser cache and cookies if issues persist
 
@@ -282,9 +277,5 @@ Troubleshooting
 - Check that your app credentials are still valid
 - Verify your app hasn't been disabled or restricted
 
-**"Redirect URI mismatch" error**:
-- Ensure the redirect URI in your command exactly matches the one in Meta app settings
-- Check for trailing slashes or protocol differences (http vs https)
-- Verify the redirect URI is added to your app's allowed redirect URIs list
 
 For more help, consult the `Meta Threads API documentation <https://developers.facebook.com/docs/threads>`_ or report issues at https://github.com/LuisAlejandro/agoras/issues.

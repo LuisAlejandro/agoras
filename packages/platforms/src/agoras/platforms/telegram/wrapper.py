@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ class Telegram(SocialNetwork):
                 - telegram_bot_token: Telegram bot token from @BotFather
                 - telegram_chat_id: Target chat ID (user, group, or channel)
                 - telegram_parse_mode: Message parse mode (HTML, Markdown, MarkdownV2)
-                - telegram_message_id: Message ID for edit/delete actions
+                - telegram_message_id: Message ID for delete action
                 - telegram_reply_to_message_id: Message ID to reply to
         """
         super().__init__(**kwargs)
@@ -245,6 +245,13 @@ class Telegram(SocialNetwork):
             # Clean up downloaded video
             video.cleanup()
 
+    async def _handle_delete_action(self):
+        """Handle delete action with Telegram-specific parameter extraction."""
+        message_id = self._get_config_value('telegram_message_id', 'TELEGRAM_MESSAGE_ID')
+        if not message_id:
+            raise Exception('Message ID is required for delete action.')
+        await self.delete(message_id)
+
     async def like(self, post_id):
         """
         Like is not supported for Telegram.
@@ -292,162 +299,6 @@ class Telegram(SocialNetwork):
             Exception: Share not supported for Telegram
         """
         raise Exception('Share not supported for Telegram')
-
-    async def edit_message(self, message_id: str = None, new_text: str = None) -> str:
-        """
-        Edit a previously sent message.
-
-        Args:
-            message_id (str, optional): ID of the message to edit (uses telegram_message_id if not provided)
-            new_text (str, optional): New message text (uses status_text if not provided)
-
-        Returns:
-            str: Message ID
-        """
-        if not self.api:
-            raise Exception('Telegram API not initialized')
-
-        # Get message_id from parameter or configuration
-        msg_id = message_id or self.telegram_message_id
-        if not msg_id:
-            raise Exception('Message ID is required for editing')
-
-        # Get new_text from parameter or configuration
-        text = new_text or self._get_config_value('status_text', 'STATUS_TEXT')
-        if not text:
-            raise Exception('New message text is required for editing')
-
-        edited_id = await self.api.edit_message(
-            chat_id=self.telegram_chat_id,
-            message_id=int(msg_id),
-            text=text,
-            parse_mode=self.telegram_parse_mode
-        )
-
-        self._output_status(edited_id)
-        return edited_id
-
-    async def send_poll(self, question: str = None, options: List[str] = None,
-                        is_anonymous: bool = True) -> str:
-        """
-        Send a poll to the chat.
-
-        Args:
-            question (str, optional): Poll question (uses telegram_poll_question if not provided)
-            options (List[str], optional): List of poll options (uses telegram_poll_options if not provided)
-            is_anonymous (bool): Whether poll is anonymous
-
-        Returns:
-            str: Message ID
-        """
-        if not self.api:
-            raise Exception('Telegram API not initialized')
-
-        # Get question from parameter or configuration
-        poll_question = question or self._get_config_value('telegram_poll_question', 'TELEGRAM_POLL_QUESTION')
-        if not poll_question:
-            raise Exception('Poll question is required')
-
-        # Get options from parameter or configuration
-        poll_options = options
-        if not poll_options:
-            options_str = self._get_config_value('telegram_poll_options', 'TELEGRAM_POLL_OPTIONS')
-            if options_str:
-                poll_options = [opt.strip() for opt in options_str.split(',')]
-            else:
-                raise Exception('Poll options are required')
-
-        # Validate options
-        if len(poll_options) < 2 or len(poll_options) > 10:
-            raise Exception('Poll must have between 2 and 10 options')
-
-        # Get is_anonymous from configuration if not provided
-        if is_anonymous is True:
-            anonymous_str = self._get_config_value('telegram_poll_anonymous', 'TELEGRAM_POLL_ANONYMOUS')
-            if anonymous_str is not None:
-                is_anonymous = anonymous_str.upper() in ['TRUE', '1', 'YES', 'ON']
-
-        message_id = await self.api.send_poll(
-            chat_id=self.telegram_chat_id,
-            question=poll_question,
-            options=poll_options,
-            is_anonymous=is_anonymous
-        )
-
-        self._output_status(message_id)
-        return message_id
-
-    async def send_document(self, document_url: str = None, caption: str = None) -> str:
-        """
-        Send a document file.
-
-        Args:
-            document_url (str, optional): URL of the document to send (uses telegram_document_url if not provided)
-            caption (str, optional): Document caption
-
-        Returns:
-            str: Message ID
-        """
-        if not self.api:
-            raise Exception('Telegram API not initialized')
-
-        # Get document_url from parameter or configuration
-        doc_url = document_url or self._get_config_value('telegram_document_url', 'TELEGRAM_DOCUMENT_URL')
-        if not doc_url:
-            raise Exception('Document URL is required')
-
-        # Get caption from parameter or configuration
-        doc_caption = caption or self._get_config_value('status_text', 'STATUS_TEXT')
-
-        message_id = await self.api.send_document(
-            chat_id=self.telegram_chat_id,
-            document_url=doc_url,
-            caption=doc_caption,
-            parse_mode=self.telegram_parse_mode
-        )
-
-        self._output_status(message_id)
-        return message_id
-
-    async def send_audio(self, audio_url: str = None, caption: str = None,
-                         duration: int = None, performer: str = None,
-                         title: str = None) -> str:
-        """
-        Send an audio file.
-
-        Args:
-            audio_url (str, optional): URL of the audio to send (uses telegram_audio_url if not provided)
-            caption (str, optional): Audio caption
-            duration (int, optional): Audio duration in seconds
-            performer (str, optional): Performer name
-            title (str, optional): Track title
-
-        Returns:
-            str: Message ID
-        """
-        if not self.api:
-            raise Exception('Telegram API not initialized')
-
-        # Get audio_url from parameter or configuration
-        aud_url = audio_url or self._get_config_value('telegram_audio_url', 'TELEGRAM_AUDIO_URL')
-        if not aud_url:
-            raise Exception('Audio URL is required')
-
-        # Get caption from parameter or configuration
-        aud_caption = caption or self._get_config_value('status_text', 'STATUS_TEXT')
-
-        message_id = await self.api.send_audio(
-            chat_id=self.telegram_chat_id,
-            audio_url=aud_url,
-            caption=aud_caption,
-            parse_mode=self.telegram_parse_mode,
-            duration=duration,
-            performer=performer,
-            title=title
-        )
-
-        self._output_status(message_id)
-        return message_id
 
     async def authorize_credentials(self):
         """

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,9 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import time
 from typing import Any, Dict, List, Optional
 
-from threadspipepy.threadspipe import ThreadsPipe
+import requests
 
 
 class ThreadsAPIClient:
@@ -26,7 +27,7 @@ class ThreadsAPIClient:
     Threads API client for making HTTP requests to Threads endpoints.
 
     Centralizes all Threads API calls including authentication, content publishing,
-    and user profile operations using threadspipepy as the underlying library.
+    and user profile operations using Meta's Threads Graph API.
     """
 
     def __init__(self, access_token: str, user_id: str):
@@ -39,14 +40,7 @@ class ThreadsAPIClient:
         """
         self.access_token = access_token
         self.user_id = user_id
-
-        # Initialize ThreadsPipe with configuration
-        self.api = ThreadsPipe(
-            access_token=access_token,
-            user_id=user_id,
-            handle_hashtags=True,  # Automatic hashtag processing
-            auto_handle_hashtags=False  # Manual control over hashtag processing
-        )
+        self.base_url = "https://graph.threads.net/v1.0"
 
     def get_profile(self) -> Dict[str, Any]:
         """
@@ -65,8 +59,7 @@ class ThreadsAPIClient:
             raise Exception('No user ID available')
 
         try:
-            # ThreadsPipe doesn't have a direct profile method,
-            # so we'll return basic info we have
+            # Return basic info we have (no API call needed for profile)
             profile_data = {
                 'user_id': self.user_id,
                 'access_token_valid': bool(self.access_token)
@@ -80,7 +73,7 @@ class ThreadsAPIClient:
                     file_captions: Optional[List[str]] = None,
                     who_can_reply: str = "everyone") -> Dict[str, Any]:
         """
-        Create a post on Threads.
+        Create a post on Threads using Meta's Graph API.
 
         Args:
             post_text (str): Text content of the post
@@ -100,51 +93,93 @@ class ThreadsAPIClient:
         if not self.user_id:
             raise Exception('No user ID available')
 
-        try:
-            response = self.api.pipe(
-                post=post_text,
-                files=files or [],
-                file_captions=file_captions or [],
-                who_can_reply=who_can_reply
-            )
+        files = files or []
+        file_captions = file_captions or []
 
-            return response
+        try:
+            # Determine post type and build container creation data
+            container_data = {
+                'access_token': self.access_token,
+                'text': post_text,
+                'reply_control': who_can_reply
+            }
+
+            if len(files) == 0:
+                # Text-only post
+                container_data['media_type'] = 'TEXT'
+            elif len(files) == 1:
+                # Single image post
+                container_data['media_type'] = 'IMAGE'
+                container_data['image_url'] = files[0]
+                if file_captions and file_captions[0]:
+                    container_data['alt_text'] = file_captions[0]
+            else:
+                # Carousel post (2-4 images)
+                # First create individual carousel item containers
+                item_ids = []
+                for image_url in files:
+                    item_data = {
+                        'access_token': self.access_token,
+                        'media_type': 'IMAGE',
+                        'image_url': image_url,
+                        'is_carousel_item': True
+                    }
+                    resp = requests.post(
+                        f"{self.base_url}/me/threads",
+                        data=item_data,
+                        timeout=30
+                    )
+                    self._check_response(resp)
+                    item_ids.append(resp.json()['id'])
+
+                # Now create the carousel container
+                container_data['media_type'] = 'CAROUSEL'
+                container_data['children'] = ','.join(item_ids)
+
+            # Create the container
+            resp = requests.post(
+                f"{self.base_url}/me/threads",
+                data=container_data,
+                timeout=30
+            )
+            self._check_response(resp)
+            creation_id = resp.json()['id']
+
+            # Wait a bit for container to be ready (Meta recommends this)
+            time.sleep(2)
+
+            # Publish the container
+            publish_data = {
+                'access_token': self.access_token,
+                'creation_id': creation_id
+            }
+
+            publish_resp = requests.post(
+                f"{self.base_url}/{self.user_id}/threads_publish",
+                data=publish_data,
+                timeout=30
+            )
+            self._check_response(publish_resp)
+
+            return {'id': publish_resp.json()['id']}
+
         except Exception as e:
             raise Exception(f"Failed to create post: {str(e)}")
 
-    def create_reply(self, reply_text: str, reply_to_id: str) -> Dict[str, Any]:
-        """
-        Create a reply to a specific post.
-
-        Args:
-            reply_text (str): Text content of the reply
-            reply_to_id (str): ID of the post to reply to
-
-        Returns:
-            dict: Reply creation response
-
-        Raises:
-            Exception: If reply creation fails or not authenticated
-        """
-        if not self.access_token:
-            raise Exception('No access token available')
-
-        if not self.user_id:
-            raise Exception('No user ID available')
-
-        try:
-            response = self.api.reply(
-                reply_text=reply_text,
-                reply_to_id=reply_to_id
-            )
-
-            return response
-        except Exception as e:
-            raise Exception(f"Failed to create reply: {str(e)}")
+    def _check_response(self, response: requests.Response):
+        """Check API response for errors and raise appropriate exceptions."""
+        if response.status_code != 200:
+            try:
+                error_data = response.json()
+                if 'error' in error_data:
+                    raise Exception(f"API error: {error_data['error'].get('message', str(error_data))}")
+            except ValueError:
+                pass
+            raise Exception(f"HTTP {response.status_code}: {response.text}")
 
     def repost_post(self, post_id: str) -> Dict[str, Any]:
         """
-        Repost an existing post.
+        Repost an existing post using Meta's Graph API.
 
         Args:
             post_id (str): ID of the post to repost
@@ -162,88 +197,15 @@ class ThreadsAPIClient:
             raise Exception('No user ID available')
 
         try:
-            response = self.api.repost(post_id=post_id)
+            data = {'access_token': self.access_token}
 
-            return response
+            response = requests.post(
+                f"{self.base_url}/{post_id}/repost",
+                data=data,
+                timeout=30
+            )
+            self._check_response(response)
+
+            return {'id': response.json()['id']}
         except Exception as e:
             raise Exception(f"Failed to repost: {str(e)}")
-
-    def get_posts(self, limit: int = 25) -> Dict[str, Any]:
-        """
-        Get user's posts.
-
-        Args:
-            limit (int): Maximum number of posts to retrieve
-
-        Returns:
-            dict: Posts data
-
-        Raises:
-            Exception: If API call fails
-        """
-        try:
-            response = self.api.get_posts(limit=limit)
-
-            return response
-        except Exception as e:
-            raise Exception(f"Failed to get posts: {str(e)}")
-
-    def get_post_insights(self, post_id: str) -> Dict[str, Any]:
-        """
-        Get insights/analytics for a specific post.
-
-        Args:
-            post_id (str): ID of the post to get insights for
-
-        Returns:
-            dict: Post insights data
-
-        Raises:
-            Exception: If API call fails
-        """
-        try:
-            response = self.api.get_insights(post_id=post_id)
-
-            return response
-        except Exception as e:
-            raise Exception(f"Failed to get post insights: {str(e)}")
-
-    def hide_reply(self, reply_id: str) -> Dict[str, Any]:
-        """
-        Hide a reply (moderation functionality).
-
-        Args:
-            reply_id (str): ID of the reply to hide
-
-        Returns:
-            dict: Hide reply response
-
-        Raises:
-            Exception: If API call fails
-        """
-        try:
-            response = self.api.hide_reply(reply_id=reply_id)
-
-            return response
-        except Exception as e:
-            raise Exception(f"Failed to hide reply: {str(e)}")
-
-    def unhide_reply(self, reply_id: str) -> Dict[str, Any]:
-        """
-        Unhide a reply (moderation functionality).
-
-        Args:
-            reply_id (str): ID of the reply to unhide
-
-        Returns:
-            dict: Unhide reply response
-
-        Raises:
-            Exception: If API call fails
-        """
-        try:
-            response = self.api.unhide_reply(reply_id=reply_id)
-
-            return response
-        except Exception as e:
-            raise Exception(f"Failed to unhide reply: {str(e)}")

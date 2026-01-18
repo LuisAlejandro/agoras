@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -39,14 +39,10 @@ def telegram_api():
         api.client.send_message = MagicMock(return_value={'message_id': 123})
         api.client.send_photo = MagicMock(return_value={'message_id': 124})
         api.client.send_video = MagicMock(return_value={'message_id': 125})
-        api.client.send_document = MagicMock(return_value={'message_id': 126})
-        api.client.send_audio = MagicMock(return_value={'message_id': 127})
-        api.client.send_poll = MagicMock(return_value={'message_id': 128})
         api.client.send_media_group = MagicMock(return_value=[
             {'message_id': 129}, {'message_id': 130}
         ])
         api.client.delete_message = MagicMock()
-        api.client.edit_message_text = MagicMock(return_value={'message_id': 123})
         api.client.get_me = MagicMock(return_value={'id': 123, 'username': 'testbot'})
         yield api
 
@@ -173,52 +169,6 @@ async def test_telegram_api_send_video_with_url(mock_media_factory, telegram_api
 
 
 @pytest.mark.asyncio
-async def test_telegram_api_send_document(telegram_api):
-    """Test TelegramAPI send_document."""
-    result = await telegram_api.send_document('chat_id', document_content='http://doc.pdf', caption='Document')
-
-    assert result == '126'
-    telegram_api.client.send_document.assert_called_once_with(
-        chat_id='chat_id',
-        document='http://doc.pdf',
-        caption='Document',
-        parse_mode=None
-    )
-
-
-@pytest.mark.asyncio
-async def test_telegram_api_send_audio(telegram_api):
-    """Test TelegramAPI send_audio."""
-    result = await telegram_api.send_audio('chat_id', audio_content='http://audio.mp3', caption='Audio')
-
-    assert result == '127'
-    telegram_api.client.send_audio.assert_called_once_with(
-        chat_id='chat_id',
-        audio='http://audio.mp3',
-        caption='Audio',
-        parse_mode=None,
-        duration=None,
-        performer=None,
-        title=None
-    )
-
-
-@pytest.mark.asyncio
-async def test_telegram_api_send_poll(telegram_api):
-    """Test TelegramAPI send_poll."""
-    result = await telegram_api.send_poll('chat_id', 'Question?', ['Option 1', 'Option 2'])
-
-    assert result == '128'
-    telegram_api.client.send_poll.assert_called_once_with(
-        chat_id='chat_id',
-        question='Question?',
-        options=['Option 1', 'Option 2'],
-        is_anonymous=True,
-        allows_multiple_answers=False
-    )
-
-
-@pytest.mark.asyncio
 async def test_telegram_api_send_media_group(telegram_api):
     """Test TelegramAPI send_media_group."""
     media = [
@@ -256,20 +206,6 @@ async def test_telegram_api_delete_message(telegram_api):
 
     assert result == '123'
     telegram_api.client.delete_message.assert_called_once_with(chat_id='chat_id', message_id=123)
-
-
-@pytest.mark.asyncio
-async def test_telegram_api_edit_message(telegram_api):
-    """Test TelegramAPI edit_message."""
-    result = await telegram_api.edit_message('chat_id', 123, 'Updated text')
-
-    assert result == '123'
-    telegram_api.client.edit_message_text.assert_called_once_with(
-        chat_id='chat_id',
-        message_id=123,
-        text='Updated text',
-        parse_mode=None
-    )
 
 
 @pytest.mark.asyncio
@@ -336,96 +272,6 @@ async def test_telegram_api_bot_token_invalid(mock_auth_class):
 # Additional Tests for Coverage
 
 @pytest.mark.asyncio
-@patch('agoras.media.MediaFactory')
-async def test_telegram_api_send_document_with_url(mock_media_factory, telegram_api):
-    """Test TelegramAPI send_document with URL."""
-    # Document URLs are used directly, no download needed
-    result = await telegram_api.send_document('chat_id', document_url='http://doc.pdf', caption='Document')
-
-    assert result == '126'
-    telegram_api.client.send_document.assert_called_once_with(
-        chat_id='chat_id',
-        document='http://doc.pdf',
-        caption='Document',
-        parse_mode=None
-    )
-
-
-@pytest.mark.asyncio
-async def test_telegram_api_send_document_with_content(telegram_api):
-    """Test TelegramAPI send_document with direct content."""
-    result = await telegram_api.send_document('chat_id', document_content='http://doc.pdf', caption='Document')
-
-    assert result == '126'
-    telegram_api.client.send_document.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_telegram_api_send_audio_with_all_params(telegram_api):
-    """Test TelegramAPI send_audio with all optional parameters."""
-    result = await telegram_api.send_audio(
-        'chat_id',
-        audio_content='http://audio.mp3',
-        caption='Audio caption',
-        parse_mode='HTML',
-        duration=120,
-        performer='Artist Name',
-        title='Song Title'
-    )
-
-    assert result == '127'
-    telegram_api.client.send_audio.assert_called_once_with(
-        chat_id='chat_id',
-        audio='http://audio.mp3',
-        caption='Audio caption',
-        parse_mode='HTML',
-        duration=120,
-        performer='Artist Name',
-        title='Song Title'
-    )
-
-
-@pytest.mark.asyncio
-@patch('agoras.media.MediaFactory')
-async def test_telegram_api_send_audio_with_url(mock_media_factory, telegram_api):
-    """Test TelegramAPI send_audio with URL."""
-    result = await telegram_api.send_audio('chat_id', audio_url='http://audio.mp3', caption='Audio')
-
-    assert result == '127'
-    telegram_api.client.send_audio.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_telegram_api_send_poll_anonymous(telegram_api):
-    """Test TelegramAPI send_poll with anonymous option."""
-    result = await telegram_api.send_poll('chat_id', 'Question?', ['Option 1', 'Option 2'], is_anonymous=False)
-
-    assert result == '128'
-    telegram_api.client.send_poll.assert_called_once_with(
-        chat_id='chat_id',
-        question='Question?',
-        options=['Option 1', 'Option 2'],
-        is_anonymous=False,
-        allows_multiple_answers=False
-    )
-
-
-@pytest.mark.asyncio
-async def test_telegram_api_send_poll_multiple_answers(telegram_api):
-    """Test TelegramAPI send_poll with multiple answers allowed."""
-    result = await telegram_api.send_poll('chat_id', 'Question?', ['A', 'B', 'C'], allows_multiple_answers=True)
-
-    assert result == '128'
-    telegram_api.client.send_poll.assert_called_once_with(
-        chat_id='chat_id',
-        question='Question?',
-        options=['A', 'B', 'C'],
-        is_anonymous=True,
-        allows_multiple_answers=True
-    )
-
-
-@pytest.mark.asyncio
 async def test_telegram_api_send_media_group_single_item(telegram_api):
     """Test TelegramAPI send_media_group with single media item."""
     media = [{'type': 'photo', 'media': 'http://image1.jpg'}]
@@ -453,34 +299,6 @@ async def test_telegram_api_send_media_group_mixed_types(telegram_api):
 
     assert len(result) == 3
     assert result == ['129', '130', '131']
-
-
-@pytest.mark.asyncio
-async def test_telegram_api_edit_message_with_parse_mode(telegram_api):
-    """Test TelegramAPI edit_message with parse mode."""
-    result = await telegram_api.edit_message('chat_id', 123, 'Updated text', parse_mode='Markdown')
-
-    assert result == '123'
-    telegram_api.client.edit_message_text.assert_called_once_with(
-        chat_id='chat_id',
-        message_id=123,
-        text='Updated text',
-        parse_mode='Markdown'
-    )
-
-
-@pytest.mark.asyncio
-async def test_telegram_api_edit_message_html_mode(telegram_api):
-    """Test TelegramAPI edit_message with HTML parse mode."""
-    result = await telegram_api.edit_message('chat_id', 123, '<b>Bold text</b>', parse_mode='HTML')
-
-    assert result == '123'
-    telegram_api.client.edit_message_text.assert_called_once_with(
-        chat_id='chat_id',
-        message_id=123,
-        text='<b>Bold text</b>',
-        parse_mode='HTML'
-    )
 
 
 @pytest.mark.asyncio
@@ -580,40 +398,12 @@ async def test_telegram_api_send_video_no_content_error(telegram_api):
 
 
 @pytest.mark.asyncio
-async def test_telegram_api_send_document_no_content_error(telegram_api):
-    """Test TelegramAPI send_document raises error when no content available."""
-    with pytest.raises(Exception, match='No document content or URL available'):
-        await telegram_api.send_document('chat_id', document_url=None, document_content=None)
-
-
-@pytest.mark.asyncio
-async def test_telegram_api_send_audio_no_content_error(telegram_api):
-    """Test TelegramAPI send_audio raises error when no content available."""
-    with pytest.raises(Exception, match='No audio content or URL available'):
-        await telegram_api.send_audio('chat_id', audio_url=None, audio_content=None)
-
-
-@pytest.mark.asyncio
 async def test_telegram_api_delete_message_converts_to_int(telegram_api):
     """Test TelegramAPI delete_message converts message_id to int."""
     result = await telegram_api.delete_message('chat_id', '123')  # String ID
 
     assert result == '123'
     telegram_api.client.delete_message.assert_called_once_with(chat_id='chat_id', message_id=123)
-
-
-@pytest.mark.asyncio
-async def test_telegram_api_edit_message_converts_to_int(telegram_api):
-    """Test TelegramAPI edit_message converts message_id to int."""
-    result = await telegram_api.edit_message('chat_id', '456', 'Updated text')
-
-    assert result == '123'
-    telegram_api.client.edit_message_text.assert_called_once_with(
-        chat_id='chat_id',
-        message_id=456,
-        text='Updated text',
-        parse_mode=None
-    )
 
 
 @pytest.mark.asyncio
@@ -624,16 +414,12 @@ async def test_telegram_api_all_methods_use_rate_limiting(telegram_api):
     await telegram_api.send_message('chat_id', 'Test')
     await telegram_api.send_photo('chat_id', photo_content=b'data')
     await telegram_api.send_video('chat_id', video_content=b'data')
-    await telegram_api.send_document('chat_id', document_content='http://doc.pdf')
-    await telegram_api.send_audio('chat_id', audio_content='http://audio.mp3')
-    await telegram_api.send_poll('chat_id', 'Q?', ['A', 'B'])
     await telegram_api.send_media_group('chat_id', [{'type': 'photo', 'media': 'http://img.jpg'}])
     await telegram_api.delete_message('chat_id', 123)
-    await telegram_api.edit_message('chat_id', 123, 'Text')
-    # get_bot_info doesn't use rate limiting, so we expect 9 calls
+    # get_bot_info doesn't use rate limiting, so we expect 5 calls
 
     # Rate limit should be called for methods that use it
-    assert telegram_api._rate_limit_check.call_count == 9
+    assert telegram_api._rate_limit_check.call_count == 5
 
 
 # Property Tests

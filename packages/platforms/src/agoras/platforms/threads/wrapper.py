@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,8 +18,9 @@
 
 import asyncio
 
-from .api import ThreadsAPI
 from agoras.core.interfaces import SocialNetwork
+
+from .api import ThreadsAPI
 
 
 class Threads(SocialNetwork):
@@ -38,7 +39,6 @@ class Threads(SocialNetwork):
             **kwargs: Configuration parameters including:
                 - threads_app_id: Threads (Meta) app ID
                 - threads_app_secret: Threads (Meta) app secret
-                - threads_redirect_uri: OAuth redirect URI
                 - threads_refresh_token: Threads refresh token
                 - threads_who_can_reply: Who can reply setting
                 - threads_post_id: Post ID for share actions
@@ -46,7 +46,6 @@ class Threads(SocialNetwork):
         super().__init__(**kwargs)
         self.threads_app_id = None
         self.threads_app_secret = None
-        self.threads_redirect_uri = None
         self.threads_refresh_token = None
         self.threads_who_can_reply = None
         # Action-specific attributes
@@ -62,7 +61,6 @@ class Threads(SocialNetwork):
         # Try params/environment first
         self.threads_app_id = self._get_config_value('threads_app_id', 'THREADS_APP_ID')
         self.threads_app_secret = self._get_config_value('threads_app_secret', 'THREADS_APP_SECRET')
-        self.threads_redirect_uri = self._get_config_value('threads_redirect_uri', 'THREADS_REDIRECT_URI')
         self.threads_refresh_token = self._get_config_value('threads_refresh_token', 'THREADS_REFRESH_TOKEN')
 
         # Configuration options
@@ -74,13 +72,12 @@ class Threads(SocialNetwork):
         self.threads_post_id = self._get_config_value('threads_post_id', 'THREADS_POST_ID')
 
         # If credentials not provided, try loading from storage
-        # Threads needs app_id, app_secret, redirect_uri, and refresh_token to authenticate
-        if not all([self.threads_app_id, self.threads_app_secret, self.threads_redirect_uri]):
+        # Threads needs app_id, app_secret, and refresh_token to authenticate
+        if not all([self.threads_app_id, self.threads_app_secret]):
             from .auth import ThreadsAuthManager
             auth_manager = ThreadsAuthManager(
                 app_id=self.threads_app_id or '',
-                app_secret=self.threads_app_secret or '',
-                redirect_uri=self.threads_redirect_uri or ''
+                app_secret=self.threads_app_secret or ''
             )
 
             if auth_manager._load_credentials_from_storage():
@@ -89,20 +86,17 @@ class Threads(SocialNetwork):
                     self.threads_app_id = auth_manager.app_id
                 if not self.threads_app_secret:
                     self.threads_app_secret = auth_manager.app_secret
-                if not self.threads_redirect_uri:
-                    self.threads_redirect_uri = auth_manager.redirect_uri
                 if not self.threads_refresh_token:
                     self.threads_refresh_token = auth_manager.refresh_token
 
         # Validate all credentials are now available
-        if not all([self.threads_app_id, self.threads_app_secret, self.threads_redirect_uri]):
+        if not all([self.threads_app_id, self.threads_app_secret]):
             raise Exception("Not authenticated. Please run 'agoras threads authorize' first.")
 
         # Initialize Threads API
         self.api = ThreadsAPI(
             self.threads_app_id,
             self.threads_app_secret,
-            self.threads_redirect_uri,
             self.threads_refresh_token
         )
         await self.api.authenticate()
@@ -241,12 +235,10 @@ class Threads(SocialNetwork):
 
         app_id = self._get_config_value('threads_app_id', 'THREADS_APP_ID')
         app_secret = self._get_config_value('threads_app_secret', 'THREADS_APP_SECRET')
-        redirect_uri = self._get_config_value('threads_redirect_uri', 'THREADS_REDIRECT_URI')
 
         auth_manager = ThreadsAuthManager(
             app_id=app_id,
-            app_secret=app_secret,
-            redirect_uri=redirect_uri
+            app_secret=app_secret
         )
 
         result = await auth_manager.authorize()

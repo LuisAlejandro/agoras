@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,9 +26,9 @@ across all social media platforms.
 """
 
 from .base import BaseAuthManager
-from .storage import SecureTokenStorage
-from .callback_server import OAuthCallbackServer, OAuthCallbackHandler
+from .callback_server import OAuthCallbackHandler, OAuthCallbackServer
 from .exceptions import AuthenticationError
+from .storage import SecureTokenStorage
 
 __all__ = [
     'BaseAuthManager',

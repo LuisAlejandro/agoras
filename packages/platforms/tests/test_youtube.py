@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -49,8 +49,14 @@ async def test_youtube_initialize_client(mock_api_class):
 
 
 @pytest.mark.asyncio
-async def test_youtube_initialize_client_missing_credentials():
+@patch('agoras.platforms.youtube.auth.YouTubeAuthManager')
+async def test_youtube_initialize_client_missing_credentials(mock_auth_manager_class):
     """Test YouTube _initialize_client raises exception without credentials."""
+    # Mock auth manager to not load from storage
+    mock_auth_manager = MagicMock()
+    mock_auth_manager._load_credentials_from_storage = MagicMock(return_value=False)
+    mock_auth_manager_class.return_value = mock_auth_manager
+
     youtube = YouTube()
 
     with pytest.raises(Exception, match="Not authenticated"):

@@ -43,7 +43,7 @@ This will:
 
 After authorization, you can perform actions without providing OAuth tokens. Credentials are automatically loaded from storage.
 
-For CI/CD environments, see :doc:`credentials/x` for manual credential setup.
+For CI/CD environments, see :doc:`credentials/x` for unattended execution setup.
 
 Quick Start
 ~~~~~~~~~~~

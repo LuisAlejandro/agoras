@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -44,6 +44,7 @@ class DiscordAPIClient:
         self.channel_name = channel_name
         self.client: Optional[discord.Client] = None
         self._authenticated = False
+        self._fetched_channels = {}  # Store fetched channels by guild name
 
     async def authenticate(self) -> bool:
         """
@@ -64,10 +65,67 @@ class DiscordAPIClient:
         try:
             # Create Discord client instance
             self.client = discord.Client(intents=discord.Intents.all())
-            # Login to Discord
-            await self.client.login(self.bot_token)
-            # Wait until client is ready
-            await self.client.wait_until_ready()
+
+            # Login to Discord with timeout
+            try:
+                await asyncio.wait_for(self.client.login(self.bot_token), timeout=10.0)
+            except asyncio.TimeoutError:
+                raise Exception(
+                    'Discord login timed out. The bot token appears to be invalid or Discord servers are unreachable.')
+
+            # Wait until client is ready with timeout
+            try:
+                await asyncio.wait_for(self.client.wait_until_ready(), timeout=30.0)
+            except asyncio.TimeoutError:
+                # Check if we can fetch guilds directly
+                try:
+
+                    # Try to fetch guilds manually if not loaded
+                    if len(self.client.guilds) == 0 and self.client.user:
+                        try:
+                            # fetch_guilds() returns an async iterator, convert to list
+                            fetched_guilds = [guild async for guild in self.client.fetch_guilds()]
+
+                            if len(fetched_guilds) > 0:
+
+                                # Fetch full guild details including channels
+                                self._fetched_guilds = []
+                                for guild in fetched_guilds:
+                                    try:
+                                        full_guild = await self.client.fetch_guild(guild.id)
+
+                                        # If no channels, try to fetch them separately
+                                        if len(full_guild.text_channels) == 0:
+                                            try:
+                                                channels = await full_guild.fetch_channels()
+                                                text_channels = [
+                                                    c for c in channels if isinstance(
+                                                        c, discord.TextChannel)]
+                                                # Store the fetched channels for later use
+                                                self._fetched_channels[full_guild.name] = text_channels
+                                            except Exception:
+                                                pass
+
+                                        self._fetched_guilds.append(full_guild)
+                                    except Exception:
+                                        # Use the basic guild if full fetch fails
+                                        self._fetched_guilds.append(guild)
+
+                                # Mark as ready since we have guilds
+                                self.client._ready.set()
+                            else:
+                                raise Exception(
+                                    'Discord bot is not added to any servers. Please invite the bot to your Discord server using the OAuth2 URL from the Developer Portal.')
+                        except Exception:
+                            raise Exception(
+                                'Discord authentication failed. Please check your bot token and ensure the bot is invited to your server.')
+                    else:
+                        raise Exception(
+                            'Discord authentication timed out after login. The bot may not have proper permissions or the server/channel may not exist.')
+                except Exception:
+                    raise Exception(
+                        'Discord authentication failed. Please check your bot token and ensure the bot is invited to your server.')
+
             self._authenticated = True
             return True
         except Exception as e:
@@ -104,9 +162,17 @@ class DiscordAPIClient:
         if not self.client:
             raise Exception('Discord client not available')
 
+        # First try the client's guilds list
         for guild in self.client.guilds:
             if guild.name == self.server_name:
                 return guild
+
+        # If not found, try the fetched guilds (for when wait_until_ready timed out)
+        if hasattr(self, '_fetched_guilds'):
+            for guild in self._fetched_guilds:
+                if guild.name == self.server_name:
+                    return guild
+
         raise Exception(f'Guild {self.server_name} not found.')
 
     def _get_channel(self) -> discord.TextChannel:
@@ -123,9 +189,18 @@ class DiscordAPIClient:
             Exception: If channel not found
         """
         guild = self._get_guild()
+
+        # First try the normal text_channels
         for channel in guild.text_channels:
             if channel.name == self.channel_name:
                 return channel
+
+        # If not found, try the fetched text channels (for manually populated guilds)
+        if guild.name in self._fetched_channels:
+            for channel in self._fetched_channels[guild.name]:
+                if channel.name == self.channel_name:
+                    return channel
+
         raise Exception(f'Text channel {self.channel_name} not found.')
 
     async def send_message(self, content: Optional[str] = None,

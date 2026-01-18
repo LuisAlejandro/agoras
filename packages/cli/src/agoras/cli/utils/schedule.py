@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -80,7 +80,7 @@ def create_schedule_run_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     # Platform authentication for all platforms (with prefixes)
     _add_all_platform_auth_options(parser)
 
-    parser.set_defaults(handler=_handle_schedule_run)
+    parser.set_defaults(command=_handle_schedule_run)
 
     return parser
 

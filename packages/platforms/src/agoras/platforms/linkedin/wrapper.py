@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -92,9 +92,8 @@ class LinkedIn(SocialNetwork):
                 if not self.linkedin_refresh_token:
                     self.linkedin_refresh_token = auth_manager.refresh_token
 
-        # If we have the required credentials, authenticate to get access token
-        if (self.linkedin_object_id and
-                self.linkedin_client_id and
+        # If we have the required auth credentials, authenticate to get access token
+        if (self.linkedin_client_id and
                 self.linkedin_client_secret and
                 self.linkedin_refresh_token):
             from .auth import LinkedInAuthManager
@@ -114,7 +113,7 @@ class LinkedIn(SocialNetwork):
 
         # Initialize LinkedIn API
         self.api = LinkedInAPI(
-            self.linkedin_access_token,
+            self.linkedin_object_id,
             self.linkedin_client_id,
             self.linkedin_client_secret,
             self.linkedin_refresh_token

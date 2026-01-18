@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -193,15 +193,6 @@ class WhatsAppAuthManager(BaseAuthManager):
             bool: True if all required credentials are present
         """
         return bool(self.access_token and self.phone_number_id)
-
-    def _get_cache_filename(self) -> str:
-        """
-        Get cache filename for storing refresh token. DEPRECATED.
-
-        Returns:
-            str: Cache filename
-        """
-        return f'whatsapp-{self.phone_number_id}.json'
 
     def _get_platform_name(self) -> str:
         """

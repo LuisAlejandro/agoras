@@ -13,8 +13,9 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import sys
+import alabaster
 import os
+import sys
 
 # If extensions (or modules to document with autodoc) are in another
 # directory, add these directories to sys.path here. If the directory is
@@ -42,11 +43,10 @@ for package_dir in package_src_dirs:
         sys.path.insert(0, package_path)
 
 # Import alabaster for theme
-import alabaster
 
 # Import version and metadata from the common package
 try:
-    from agoras.common.version import __version__, __description__
+    from agoras.common.version import __description__, __version__
 except ImportError as e:
     # Fallback for build scenarios where packages aren't installed
     print(f"Warning: Could not import from agoras.common.version: {e}")
@@ -98,7 +98,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'agoras'
-copyright = u'2022-2023, agoras Developers'
+copyright = u'2022-2026, Agoras Developers'
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout

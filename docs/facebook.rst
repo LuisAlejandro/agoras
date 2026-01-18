@@ -40,7 +40,7 @@ This will:
 
 After authorization, you can perform actions without providing tokens. Credentials are automatically refreshed when needed.
 
-For CI/CD environments, see :doc:`credentials/facebook` for headless authorization setup.
+For CI/CD environments, see :doc:`credentials/facebook` for unattended execution setup.
 
 Post to Facebook
 ----------------

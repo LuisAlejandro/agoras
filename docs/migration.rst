@@ -652,8 +652,7 @@ New command (v2.0+)::
     # First, authorize (one-time setup)
     agoras threads authorize \
       --app-id "$APP_ID" \
-      --app-secret "$APP_SECRET" \
-      --redirect-uri "http://localhost:3456/callback"
+      --app-secret "$APP_SECRET"
 
     # Then post (no tokens needed)
     agoras threads post \

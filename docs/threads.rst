@@ -1,4 +1,4 @@
-Using Agoras with Threads
+Usage forThreads
 ==========================
 
 .. note::
@@ -40,12 +40,13 @@ Authorization
 .. versionadded:: 2.0
    OAuth 2.0 "authorize first" workflow
 
-Before performing any actions, you must authorize Agoras to access your Threads account::
+Before performing any actions, you must authorize Agoras to access your Threads account.
+
+Authorize Agoras to access your Threads account::
 
     agoras threads authorize \
       --app-id "$THREADS_APP_ID" \
-      --app-secret "$THREADS_APP_SECRET" \
-      --redirect-uri "http://localhost:3456/callback"
+      --app-secret "$THREADS_APP_SECRET"
 
 This will:
 
@@ -56,7 +57,7 @@ This will:
 
 After authorization, you can perform actions without providing tokens. Credentials are automatically refreshed when needed.
 
-For CI/CD environments, see :doc:`credentials/threads` for headless authorization setup.
+For CI/CD environments, see :doc:`credentials/threads` for unattended execution setup.
 
 Creating a Post
 ~~~~~~~~~~~~~~~

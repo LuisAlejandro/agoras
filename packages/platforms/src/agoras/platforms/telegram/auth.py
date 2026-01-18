@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -119,39 +119,23 @@ class TelegramAuthManager(BaseAuthManager):
         Returns:
             bool: True if token is valid, False otherwise
         """
-        def _sync_validate():
-            try:
-                bot = Bot(token=self.bot_token)
-                # Use synchronous get_me() method
-                bot_info = bot.get_me()
-                return {
-                    'success': True,
-                    'bot_info': {
-                        'id': bot_info.id,
-                        'username': bot_info.username,
-                        'first_name': bot_info.first_name,
-                        'is_bot': bot_info.is_bot
-                    }
-                }
-            except TelegramError as e:
-                return {
-                    'success': False,
-                    'error': str(e)
-                }
-            except Exception as e:
-                return {
-                    'success': False,
-                    'error': str(e)
-                }
-
         try:
-            result = await asyncio.to_thread(_sync_validate)
-            if result['success']:
-                # Store bot info for later use
-                self._cached_bot_info = result['bot_info']
-                return True
+            bot = Bot(token=self.bot_token)
+            # get_me() is an async coroutine, so we need to await it
+            bot_info = await bot.get_me()
+            # Store bot info for later use
+            self._cached_bot_info = {
+                'id': bot_info.id,
+                'username': bot_info.username,
+                'first_name': bot_info.first_name,
+                'is_bot': bot_info.is_bot
+            }
+            return True
+        except TelegramError as e:
+            print(f"Telegram API error during validation: {e}")
             return False
-        except Exception:
+        except Exception as e:
+            print(f"Unexpected error during bot token validation: {e}")
             return False
 
     def _create_client(self, access_token: str) -> TelegramAPIClient:
@@ -193,14 +177,6 @@ class TelegramAuthManager(BaseAuthManager):
     def _validate_credentials(self) -> bool:
         """Validate that all required credentials are present."""
         return bool(self.bot_token)
-
-    def _get_cache_filename(self) -> str:
-        """Get cache filename for storing validation results."""
-        # Use bot username if available, otherwise use token hash
-        if hasattr(self, '_cached_bot_info') and self._cached_bot_info:
-            username = self._cached_bot_info.get('username', 'unknown')
-            return f'telegram-{username}.json'
-        return 'telegram-bot.json'
 
     def _get_platform_name(self) -> str:
         """Get the platform name for this auth manager."""

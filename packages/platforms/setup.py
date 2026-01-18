@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -45,7 +45,6 @@ setup(
         'oauth2client==4.1.3',
         'platformdirs==4.4.0',
         'authlib==1.6.6',
-        'threadspipepy>=0.4.5',
         'cryptography>=42.0.0',
         'python-telegram-bot>=22.1',
     ],

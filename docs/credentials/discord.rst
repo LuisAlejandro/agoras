@@ -162,20 +162,29 @@ To get message IDs for like and delete actions:
 
 .. image:: images/discord-9.png
 
-CI/CD Setup
------------
+CI/CD Setup (Unattended Execution)
+-----------------------------------
 
-For CI/CD environments where you need to use Discord credentials:
+For CI/CD environments where interactive authorization isn't possible, you can skip the ``authorize`` step entirely and provide all required credentials via environment variables.
 
-1. Set environment variables in your CI/CD pipeline::
+1. Run ``agoras discord authorize`` locally first to store credentials (optional, for local development)
+2. Extract stored credentials using the tokens utility command (if you need to retrieve them)::
+
+      # First, list tokens to find the identifier
+      agoras utils tokens list --platform discord
+
+      # Then view all stored credentials
+      agoras utils tokens show --platform discord --identifier {identifier}
+
+3. For CI/CD, set all required environment variables in your CI/CD pipeline::
 
       export DISCORD_BOT_TOKEN="your_bot_token_here"
       export DISCORD_SERVER_NAME="Your Server Name"
       export DISCORD_CHANNEL_NAME="general"
 
-2. Agoras will automatically use these environment variables when credentials are not provided via command-line parameters.
+4. Run Agoras actions directly without running ``authorize``. All credentials will be loaded from environment variables.
 
-3. You can also authorize once locally and the credentials will be stored securely in ``~/.agoras/tokens/``, which can be used in CI/CD if the token storage is accessible.
+**Note**: For unattended execution, you must provide all required credentials (bot token, server name, and channel name) as shown in the :doc:`../reference/platform-arguments-envvars` documentation.
 
 **Security Best Practices for CI/CD**:
 - Store credentials in your CI/CD platform's secret management system (GitHub Secrets, GitLab CI/CD Variables, etc.)

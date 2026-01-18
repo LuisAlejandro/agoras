@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,9 +23,10 @@ from typing import Optional
 
 from authlib.integrations.requests_client import OAuth2Session
 
-from .client import LinkedInAPIClient
 from agoras.core.auth import BaseAuthManager
 from agoras.core.auth.callback_server import OAuthCallbackServer
+
+from .client import LinkedInAPIClient
 
 
 class LinkedInAuthManager(BaseAuthManager):
@@ -46,15 +47,15 @@ class LinkedInAuthManager(BaseAuthManager):
         self.user_id = user_id
         self.client_id = client_id
         self.client_secret = client_secret
-        self.refresh_token = refresh_token or self._load_refresh_token_from_cache()
-        self.api_version = "202302"
+        self.refresh_token = refresh_token or self._load_refresh_token_from_storage()
+        self.api_version = "202503"
 
         # Authlib OAuth2Session configuration for LinkedIn
         self.oauth_session = OAuth2Session(
             client_id=self.client_id,
             client_secret=self.client_secret,
             scope="openid profile email w_member_social",
-            redirect_uri="http://localhost:3460/callback"
+            redirect_uri="https://localhost:3456/callback"
         )
 
     async def authenticate(self) -> bool:
@@ -95,8 +96,7 @@ class LinkedInAuthManager(BaseAuthManager):
         """
         Run LinkedIn OAuth authorization flow using Authlib.
 
-        Supports both interactive mode (with local callback server) and
-        headless mode (using environment variables for CI/CD).
+        Uses interactive mode with local callback server.
 
         Returns:
             str or None: The refresh token if successful, None if failed
@@ -104,38 +104,15 @@ class LinkedInAuthManager(BaseAuthManager):
         if not self._validate_credentials():
             raise Exception('LinkedIn credentials are required for authorization.')
 
-        # Check for headless mode (CI/CD)
-        if self._check_headless_mode():
-            return await self._authorize_headless()
-
         # Interactive mode with callback server
         return await self._authorize_interactive()
-
-    async def _authorize_headless(self) -> Optional[str]:
-        """Authorize using environment variables (CI/CD mode)."""
-        try:
-            refresh_token = self._load_refresh_token_from_env()
-            if not refresh_token:
-                raise Exception(
-                    'Headless mode enabled but AGORAS_LINKEDIN_REFRESH_TOKEN not set.'
-                )
-
-            self.refresh_token = refresh_token
-            # Save all credentials to storage
-            self._save_credentials_to_storage()
-            print("Successfully seeded LinkedIn credentials from environment variables.")
-            return refresh_token
-        except Exception as e:
-            print(f"Headless authorization failed: {e}")
-            return None
 
     async def _authorize_interactive(self) -> Optional[str]:
         """Authorize using local callback server (interactive mode)."""
         try:
             state = secrets.token_urlsafe(32)
-            callback_server = OAuthCallbackServer(expected_state=state)
-            port = await callback_server.get_available_port()
-            redirect_uri = f"http://localhost:{port}/callback"
+            callback_server = OAuthCallbackServer(expected_state=state, port=3456)
+            redirect_uri = "https://localhost:3456/callback"
 
             self.oauth_session.redirect_uri = redirect_uri
 
@@ -154,26 +131,37 @@ class LinkedInAuthManager(BaseAuthManager):
                 token = self.oauth_session.fetch_token(
                     'https://www.linkedin.com/oauth/v2/accessToken',
                     code=auth_code,
-                    redirect_uri=redirect_uri
+                    redirect_uri=redirect_uri,
+                    client_secret=self.client_secret
                 )
 
-                refresh_token = token.get('refresh_token')
-                if refresh_token:
-                    self.refresh_token = refresh_token
-                    # Save all credentials to storage
-                    self._save_credentials_to_storage()
-                    return refresh_token
-                else:
-                    # LinkedIn might not always return refresh tokens
-                    access_token = token.get('access_token')
-                    if access_token:
+                access_token = token.get('access_token')
+                if access_token:
+                    refresh_token = token.get('refresh_token')
+                    if refresh_token:
+                        self.refresh_token = refresh_token
+                    else:
+                        # Use access token as refresh token if no refresh token provided
                         self.refresh_token = access_token
-                        # Save all credentials to storage
-                        self._save_credentials_to_storage()
-                        return access_token
+
+                    return access_token
                     raise Exception('No refresh token or access token in LinkedIn response')
 
-            return await asyncio.to_thread(_sync_exchange)
+            access_token = await asyncio.to_thread(_sync_exchange)
+            if access_token:
+                # Create temporary client to get user info and update user_id
+                temp_client = self._create_client(access_token)
+                await temp_client.authenticate()  # Authenticate the client first
+                # Get the actual LinkedIn user ID from API
+                user_info = await temp_client.get_user_info()
+                api_user_id = user_info.get('sub', '')
+                if api_user_id:
+                    # Update user_id to the API's user ID
+                    self.user_id = api_user_id
+
+                # Save all credentials to storage with correct user_id
+                self._save_credentials_to_storage()
+                return access_token
         except Exception as e:
             print(f"Interactive authorization failed: {e}")
             return None
@@ -217,14 +205,10 @@ class LinkedInAuthManager(BaseAuthManager):
             # Get user info using LinkedIn API client
             result = await self.client.get_user_info()
 
-            # Extract object_id and validate
+            # Extract object_id
             object_id = result.get('sub', '')
             if not object_id:
                 raise Exception('Unable to get LinkedIn object ID from user info')
-
-            # Verify user ID matches
-            if object_id != self.user_id:
-                raise Exception(f"LinkedIn user ID mismatch: {object_id} != {self.user_id}")
 
             # Return enriched user data
             return {
@@ -242,11 +226,9 @@ class LinkedInAuthManager(BaseAuthManager):
 
     def _validate_credentials(self) -> bool:
         """Validate that all required credentials are present."""
-        return all([self.user_id, self.client_id, self.client_secret])
-
-    def _get_cache_filename(self) -> str:
-        """Get cache filename for storing refresh token. DEPRECATED."""
-        return f'linkedin-{self.user_id}.json'
+        # For authentication/token refresh, we need client_id and client_secret
+        # user_id is used for storage identification but not strictly required for auth
+        return all([self.client_id, self.client_secret])
 
     def _get_platform_name(self) -> str:
         """Get the platform name for this auth manager."""
@@ -255,14 +237,6 @@ class LinkedInAuthManager(BaseAuthManager):
     def _get_token_identifier(self) -> str:
         """Get unique identifier for token storage."""
         return self.user_id
-
-    def _load_refresh_token_from_cache(self) -> Optional[str]:
-        """Load refresh token from secure storage."""
-        return self._load_refresh_token_from_storage()
-
-    def _save_refresh_token_to_cache(self, refresh_token: str):
-        """Save refresh token to secure storage. DEPRECATED - use _save_refresh_token_to_storage."""
-        self._save_refresh_token_to_storage(refresh_token)
 
     def _save_credentials_to_storage(self):
         """Save all LinkedIn credentials to secure storage."""

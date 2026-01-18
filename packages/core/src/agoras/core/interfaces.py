@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@ import os
 from abc import ABC, abstractmethod
 
 from agoras.core.feed import Feed
-from agoras.media import MediaFactory
 from agoras.core.sheet import ScheduleSheet
+from agoras.media import MediaFactory
 
 
 class SocialNetwork(ABC):

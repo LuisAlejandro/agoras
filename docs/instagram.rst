@@ -32,7 +32,7 @@ This will:
 
 After authorization, you can perform actions without providing tokens. Credentials are automatically refreshed when needed.
 
-For CI/CD environments, see :doc:`credentials/instagram` for headless authorization setup.
+For CI/CD environments, see :doc:`credentials/instagram` for unattended execution setup.
 
 Publish a Instagram post
 ------------------------

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ class WhatsAppAPIClient:
         self.access_token = access_token
         self.phone_number_id = phone_number_id
         self.graph_api: Optional[GraphAPI] = None
-        self.api_version = "23.0"
+        self.api_version = "v23.0"
         self._authenticated = False
 
     async def authenticate(self) -> bool:
@@ -101,7 +101,7 @@ class WhatsAppAPIClient:
 
     def post_object(self, object_id: str, connection: str, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
-        Post to a WhatsApp/Graph API object connection.
+        Post to a WhatsApp/Graph API object connection using direct HTTP request.
 
         Args:
             object_id (str): Object ID (e.g., phone number ID)
@@ -114,16 +114,32 @@ class WhatsAppAPIClient:
         Raises:
             Exception: If post fails
         """
-        if not self.graph_api:
-            raise Exception('WhatsApp GraphAPI not initialized')
+        if not self.access_token:
+            raise Exception('WhatsApp access token not available')
+
+        import requests
+
+        url = f"https://graph.facebook.com/{self.api_version}/{object_id}"
+        if connection:
+            url += f"/{connection}"
+
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json"
+        }
 
         try:
-            return self.graph_api.post_object(
-                object_id=object_id,
-                connection=connection,
-                data=data or {}
-            )
-        except Exception as e:
+            response = requests.post(url, json=data or {}, headers=headers)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.HTTPError as e:
+            # Include response body in error for debugging
+            try:
+                error_data = response.json()
+                raise Exception(f'WhatsApp post_object failed: {response.status_code} {response.reason} - {error_data}')
+            except BaseException:
+                raise Exception(f'WhatsApp post_object failed: {str(e)}')
+        except requests.exceptions.RequestException as e:
             raise Exception(f'WhatsApp post_object failed: {str(e)}')
 
     def send_message(self, to: str, text: str, buttons: Optional[List] = None) -> Dict[str, Any]:

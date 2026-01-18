@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@ This module contains the registry of all supported platforms and their
 supported actions.
 """
 
-from typing import Dict, List, Set, Any
+from typing import Any, Dict, List, Set
 
 
 class PlatformRegistry:
@@ -86,13 +86,13 @@ class PlatformRegistry:
         'telegram': {
             'name': 'Telegram',
             'description': 'Telegram messaging platform',
-            'actions': {'authorize', 'post', 'video', 'edit', 'poll', 'document', 'audio', 'delete'},
+            'actions': {'authorize', 'post', 'video', 'delete'},
             'module': 'agoras.cli.platforms.telegram',
         },
         'whatsapp': {
             'name': 'WhatsApp',
             'description': 'WhatsApp Business API messaging platform',
-            'actions': {'post', 'video', 'contact', 'location', 'document', 'audio', 'template'},
+            'actions': {'authorize', 'post', 'video', 'template'},
             'module': 'agoras.cli.platforms.whatsapp',
         },
     }

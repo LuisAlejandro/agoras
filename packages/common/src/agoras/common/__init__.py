@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,16 +28,9 @@ This package provides low-level utilities used throughout the Agoras ecosystem:
 - Web scraping utilities
 """
 
-from .version import (
-    __version__,
-    __author__,
-    __email__,
-    __url__,
-    __description__
-)
-
-from .logger import logger, ControlableLogger
+from .logger import ControlableLogger, logger
 from .utils import add_url_timestamp, parse_metatags
+from .version import __author__, __description__, __email__, __url__, __version__
 
 __all__ = [
     '__version__',

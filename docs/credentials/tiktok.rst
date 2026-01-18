@@ -139,19 +139,30 @@ This will:
 
 This is a one-time process. The refresh token will be stored securely and used for subsequent requests. Credentials are automatically refreshed when needed.
 
-CI/CD Setup (Headless Authorization)
-------------------------------------
+CI/CD Setup (Unattended Execution)
+-----------------------------------
 
-For CI/CD environments where interactive browser authorization isn't possible:
+For CI/CD environments where interactive browser authorization isn't possible, you can skip the ``authorize`` step entirely and provide all required credentials via environment variables.
 
-1. Run ``agoras tiktok authorize`` locally first to generate a refresh token.
-2. Extract the refresh token from ``~/.agoras/tokens/tiktok-{username}.token`` (decrypted).
-3. Set environment variables in your CI/CD pipeline::
+1. Run ``agoras tiktok authorize`` locally first to generate a refresh token (one-time setup)
+2. Extract the refresh token using the tokens utility command::
 
-      export AGORAS_TIKTOK_REFRESH_TOKEN="your_refresh_token_here"
-      export AGORAS_TIKTOK_HEADLESS=1
+      # First, list tokens to find the identifier (if you don't know it)
+      agoras utils tokens list --platform tiktok
 
-4. Agoras will automatically use the refresh token from the environment variable.
+      # Then view all stored credentials
+      agoras utils tokens show --platform tiktok --identifier {identifier}
+
+3. Set all required environment variables in your CI/CD pipeline::
+
+      export TIKTOK_USERNAME="your_username"
+      export TIKTOK_CLIENT_KEY="your_client_key"
+      export TIKTOK_CLIENT_SECRET="your_client_secret"
+      export TIKTOK_REFRESH_TOKEN="your_refresh_token_here"
+
+4. Run Agoras actions directly without running ``authorize``. All credentials will be loaded from environment variables.
+
+**Note**: For unattended execution, you must provide all required credentials. The refresh token alone is not sufficient - you also need username, client key, and client secret as shown in the :doc:`../reference/platform-arguments-envvars` documentation.
 
 Development vs Production
 ------------------------

@@ -1,53 +1,43 @@
 #!/usr/bin/env bash
 
 # Integration Test - End-to-End testing with real API credentials
-# Uses the installed agoras CLI command
-# Part of agoras v2.0 modular package structure
+# Uses the installed "${PROJECT_ROOT}/virtualenv/bin/agoras" CLI command
+# Part of "${PROJECT_ROOT}/virtualenv/bin/agoras" v2.0 modular package structure
 
 # Exit early if there are errors and be verbose
 set -exuo pipefail
 
-source ../secrets.env
+# Get the absolute path of the script's directory
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Get the project root (parent of tests directory)
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+source "${PROJECT_ROOT}/secrets.env"
 
 if [ "${1}" == "x" ]; then
     POST_X_ID=$(
-        agoras x post \
-            --consumer-key "${TWITTER_CONSUMER_KEY}" \
-            --consumer-secret "${TWITTER_CONSUMER_SECRET}" \
-            --oauth-token "${TWITTER_OAUTH_TOKEN}" \
-            --oauth-secret "${TWITTER_OAUTH_SECRET}" \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" x post \
             --text "${TWITTER_STATUS_TEXT}" \
-            --image-1 "${TWITTER_STATUS_IMAGE_URL_1}" | jq --unbuffered '.' | jq -r '.id'
+            --image-1 "${TWITTER_STATUS_IMAGE_URL_1}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
-    [ -n "${POST_X_ID}" ] && agoras x delete \
-        --consumer-key "${TWITTER_CONSUMER_KEY}" \
-        --consumer-secret "${TWITTER_CONSUMER_SECRET}" \
-        --oauth-token "${TWITTER_OAUTH_TOKEN}" \
-        --oauth-secret "${TWITTER_OAUTH_SECRET}" \
+    [ -n "${POST_X_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" x delete \
         --post-id "${POST_X_ID}" || true
 
 elif [ "${1}" == "tiktok" ]; then
     POST_TIKTOK_ID=$(
-        agoras tiktok video \
-            --client-key "${TIKTOK_CLIENT_KEY}" \
-            --client-secret "${TIKTOK_CLIENT_SECRET}" \
-            --access-token "${TIKTOK_ACCESS_TOKEN}" \
-            --username "${TIKTOK_USERNAME}" \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" tiktok video \
             --title "${TIKTOK_TITLE}" \
-            --video-url "${TIKTOK_VIDEO_URL}" | jq --unbuffered '.' | jq -r '.publish_id'
+            --video-url "${TIKTOK_VIDEO_URL}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.publish_id'
     )
 
     echo "TikTok video test created with ID: ${POST_TIKTOK_ID}"
     echo "Note: TikTok does not support delete, like, or share actions"
 
 elif [ "${1}" == "facebook-video" ]; then
-    agoras facebook video \
-        --access-token "${FACEBOOK_ACCESS_TOKEN}" \
-        --app-id "${FACEBOOK_APP_ID}" \
-        --object-id "${FACEBOOK_OBJECT_ID}" \
+    "${PROJECT_ROOT}/virtualenv/bin/agoras" facebook video \
         --video-url "${FACEBOOK_VIDEO_URL}" \
         --video-type "${FACEBOOK_VIDEO_TYPE}" \
         --video-title "${FACEBOOK_VIDEO_TITLE}" \
@@ -55,70 +45,56 @@ elif [ "${1}" == "facebook-video" ]; then
 
 elif [ "${1}" == "youtube" ]; then
     POST_YOUTUBE_ID=$(
-        agoras youtube video \
-            --client-id "${YOUTUBE_CLIENT_ID}" \
-            --client-secret "${YOUTUBE_CLIENT_SECRET}" \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" youtube video \
             --title "${YOUTUBE_TITLE}" \
-            --video-url "${YOUTUBE_VIDEO_URL}" | jq --unbuffered '.' | jq -r '.id'
+            --video-url "${YOUTUBE_VIDEO_URL}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
-    [ -n "${POST_YOUTUBE_ID}" ] && agoras youtube like \
-        --client-id "${YOUTUBE_CLIENT_ID}" \
-        --client-secret "${YOUTUBE_CLIENT_SECRET}" \
+    [ -n "${POST_YOUTUBE_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" youtube like \
         --video-id "${POST_YOUTUBE_ID}" || true
 
     sleep 5
 
-    [ -n "${POST_YOUTUBE_ID}" ] && agoras youtube delete \
-        --client-id "${YOUTUBE_CLIENT_ID}" \
-        --client-secret "${YOUTUBE_CLIENT_SECRET}" \
+    [ -n "${POST_YOUTUBE_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" youtube delete \
         --video-id "${POST_YOUTUBE_ID}" || true
 
 elif [ "${1}" == "facebook" ]; then
     POST_FACEBOOK_ID=$(
-        agoras facebook post \
-            --access-token "${FACEBOOK_ACCESS_TOKEN}" \
-            --object-id "${FACEBOOK_OBJECT_ID}" \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" facebook post \
             --text "${FACEBOOK_STATUS_TEXT}" \
-            --image-1 "${FACEBOOK_STATUS_IMAGE_URL_1}" | jq --unbuffered '.' | jq -r '.id'
+            --image-1 "${FACEBOOK_STATUS_IMAGE_URL_1}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
     SHARED_POST_FACEBOOK_ID=$(
-        agoras facebook share \
-            --access-token "${FACEBOOK_ACCESS_TOKEN}" \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" facebook share \
             --profile-id "${FACEBOOK_PROFILE_ID}" \
-            --post-id "${POST_FACEBOOK_ID}" | jq --unbuffered '.' | jq -r '.id'
+            --post-id "${POST_FACEBOOK_ID}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
-    [ -n "${POST_FACEBOOK_ID}" ] && agoras facebook like \
-        --access-token "${FACEBOOK_ACCESS_TOKEN}" \
+    [ -n "${POST_FACEBOOK_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" facebook like \
         --post-id "${POST_FACEBOOK_ID}" || true
 
     sleep 5
 
-    [ -n "${SHARED_POST_FACEBOOK_ID}" ] && agoras facebook delete \
-        --access-token "${FACEBOOK_ACCESS_TOKEN}" \
+    [ -n "${SHARED_POST_FACEBOOK_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" facebook delete \
         --post-id "${SHARED_POST_FACEBOOK_ID}" || true
 
     sleep 5
 
-    [ -n "${POST_FACEBOOK_ID}" ] && agoras facebook delete \
-        --access-token "${FACEBOOK_ACCESS_TOKEN}" \
+    [ -n "${POST_FACEBOOK_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" facebook delete \
         --post-id "${POST_FACEBOOK_ID}" || true
 
 elif [ "${1}" == "instagram" ]; then
     POST_INSTAGRAM_ID=$(
-        agoras instagram post \
-            --access-token "${INSTAGRAM_ACCESS_TOKEN}" \
-            --object-id "${INSTAGRAM_OBJECT_ID}" \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" instagram post \
             --text "${INSTAGRAM_STATUS_TEXT}" \
-            --image-1 "${INSTAGRAM_STATUS_IMAGE_URL_1}" | jq --unbuffered '.' | jq -r '.id'
+            --image-1 "${INSTAGRAM_STATUS_IMAGE_URL_1}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     echo "Instagram post test created with ID: ${POST_INSTAGRAM_ID}"
@@ -126,12 +102,9 @@ elif [ "${1}" == "instagram" ]; then
 
 elif [ "${1}" == "discord" ]; then
     POST_DISCORD_ID=$(
-        agoras discord post \
-            --bot-token "${DISCORD_BOT_TOKEN}" \
-            --server-name "${DISCORD_SERVER_NAME}" \
-            --channel-name "${DISCORD_CHANNEL_NAME}" \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" discord post \
             --text "${DISCORD_STATUS_TEXT}" \
-            --image-1 "${DISCORD_STATUS_IMAGE_URL_1}" | jq --unbuffered '.' | jq -r '.id'
+            --image-1 "${DISCORD_STATUS_IMAGE_URL_1}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
@@ -140,64 +113,43 @@ elif [ "${1}" == "discord" ]; then
 
     sleep 5
 
-    [ -n "${POST_DISCORD_ID}" ] && agoras discord delete \
-        --bot-token "${DISCORD_BOT_TOKEN}" \
-        --server-name "${DISCORD_SERVER_NAME}" \
-        --channel-name "${DISCORD_CHANNEL_NAME}" \
+    [ -n "${POST_DISCORD_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" discord delete \
         --post-id "${POST_DISCORD_ID}" || true
 
 elif [ "${1}" == "linkedin" ]; then
     POST_LINKEDIN_ID=$(
-        agoras linkedin post \
-            --client-id "${LINKEDIN_CLIENT_ID}" \
-            --client-secret "${LINKEDIN_CLIENT_SECRET}" \
-            --access-token "${LINKEDIN_ACCESS_TOKEN}" \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" linkedin post \
             --text "${LINKEDIN_STATUS_TEXT}" \
-            --image-1 "${LINKEDIN_STATUS_IMAGE_URL_1}" | jq --unbuffered '.' | jq -r '.id'
+            --image-1 "${LINKEDIN_STATUS_IMAGE_URL_1}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
     SHARED_POST_LINKEDIN_ID=$(
-        agoras linkedin share \
-            --client-id "${LINKEDIN_CLIENT_ID}" \
-            --client-secret "${LINKEDIN_CLIENT_SECRET}" \
-            --access-token "${LINKEDIN_ACCESS_TOKEN}" \
-            --post-id "${POST_LINKEDIN_ID}" | jq --unbuffered '.' | jq -r '.id'
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" linkedin share \
+            --post-id "${POST_LINKEDIN_ID}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
-    [ -n "${POST_LINKEDIN_ID}" ] && agoras linkedin like \
-        --client-id "${LINKEDIN_CLIENT_ID}" \
-        --client-secret "${LINKEDIN_CLIENT_SECRET}" \
-        --access-token "${LINKEDIN_ACCESS_TOKEN}" \
+    [ -n "${POST_LINKEDIN_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" linkedin like \
         --post-id "${POST_LINKEDIN_ID}" || true
 
     sleep 5
 
-    [ -n "${SHARED_POST_LINKEDIN_ID}" ] && agoras linkedin delete \
-        --client-id "${LINKEDIN_CLIENT_ID}" \
-        --client-secret "${LINKEDIN_CLIENT_SECRET}" \
-        --access-token "${LINKEDIN_ACCESS_TOKEN}" \
+    [ -n "${SHARED_POST_LINKEDIN_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" linkedin delete \
         --post-id "${SHARED_POST_LINKEDIN_ID}" || true
 
     sleep 5
 
-    [ -n "${POST_LINKEDIN_ID}" ] && agoras linkedin delete \
-        --client-id "${LINKEDIN_CLIENT_ID}" \
-        --client-secret "${LINKEDIN_CLIENT_SECRET}" \
-        --access-token "${LINKEDIN_ACCESS_TOKEN}" \
+    [ -n "${POST_LINKEDIN_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" linkedin delete \
         --post-id "${POST_LINKEDIN_ID}" || true
 
 elif [ "${1}" == "threads" ]; then
     POST_THREADS_ID=$(
-        agoras threads post \
-            --app-id "${THREADS_APP_ID}" \
-            --app-secret "${THREADS_APP_SECRET}" \
-            --redirect-uri "${THREADS_REDIRECT_URI}" \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" threads post \
             --text "${THREADS_STATUS_TEXT}" \
-            --image-1 "${THREADS_STATUS_IMAGE_URL_1}" | jq --unbuffered '.' | jq -r '.id'
+            --image-1 "${THREADS_STATUS_IMAGE_URL_1}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     echo "Threads post test created with ID: ${POST_THREADS_ID}"
@@ -205,28 +157,21 @@ elif [ "${1}" == "threads" ]; then
 
 elif [ "${1}" == "telegram" ]; then
     POST_TELEGRAM_ID=$(
-        agoras telegram post \
-            --bot-token "${TELEGRAM_BOT_TOKEN}" \
-            --chat-id "${TELEGRAM_CHAT_ID}" \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" telegram post \
             --text "${TELEGRAM_STATUS_TEXT}" \
-            --image-1 "${TELEGRAM_STATUS_IMAGE_URL_1}" | jq --unbuffered '.' | jq -r '.id'
+            --image-1 "${TELEGRAM_STATUS_IMAGE_URL_1}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
-    [ -n "${POST_TELEGRAM_ID}" ] && agoras telegram delete \
-        --bot-token "${TELEGRAM_BOT_TOKEN}" \
-        --chat-id "${TELEGRAM_CHAT_ID}" \
+    [ -n "${POST_TELEGRAM_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" telegram delete \
         --post-id "${POST_TELEGRAM_ID}" || true
 
 elif [ "${1}" == "whatsapp" ]; then
     POST_WHATSAPP_ID=$(
-        agoras whatsapp post \
-            --access-token "${WHATSAPP_ACCESS_TOKEN}" \
-            --phone-number-id "${WHATSAPP_PHONE_NUMBER_ID}" \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" whatsapp post \
             --recipient "${WHATSAPP_RECIPIENT}" \
-            --text "${WHATSAPP_STATUS_TEXT}" \
-            --image-1 "${WHATSAPP_STATUS_IMAGE_URL_1}" | jq --unbuffered '.' | jq -r '.id'
+            --text "${WHATSAPP_STATUS_TEXT}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     echo "WhatsApp post test created with ID: ${POST_WHATSAPP_ID}"

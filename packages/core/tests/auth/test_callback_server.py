@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -335,24 +335,6 @@ async def test_start_and_wait_prints_callback_url(mock_httpserver, mock_print):
     assert mock_print.call_count >= 1
     calls = [str(call) for call in mock_print.call_args_list]
     assert any('localhost' in call for call in calls)
-
-
-def test_get_redirect_uri_before_start():
-    """Test get_redirect_uri raises exception before server start."""
-    server = OAuthCallbackServer()
-
-    with pytest.raises(Exception, match='Server not started yet'):
-        server.get_redirect_uri()
-
-
-def test_get_redirect_uri_after_port_assigned():
-    """Test get_redirect_uri returns correct URI format."""
-    server = OAuthCallbackServer()
-    server.port = 8080
-
-    uri = server.get_redirect_uri()
-
-    assert uri == 'http://localhost:8080/callback'
 
 
 @pytest.mark.asyncio

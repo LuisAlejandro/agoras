@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,8 +18,9 @@
 
 import asyncio
 
-from .api import XAPI
 from agoras.core.interfaces import SocialNetwork
+
+from .api import XAPI
 
 
 class X(SocialNetwork):
@@ -68,8 +69,8 @@ class X(SocialNetwork):
                    self.twitter_oauth_token, self.twitter_oauth_secret]):
             from .auth import XAuthManager
             auth_manager = XAuthManager(
-                consumer_key=self.twitter_consumer_key or '',
-                consumer_secret=self.twitter_consumer_secret or ''
+                consumer_key=self.twitter_consumer_key,
+                consumer_secret=self.twitter_consumer_secret
             )
 
             if auth_manager._load_credentials_from_storage():
@@ -100,6 +101,8 @@ class X(SocialNetwork):
             self.twitter_oauth_token,
             self.twitter_oauth_secret
         )
+
+        # Authenticate with provided credentials
         await self.api.authenticate()
 
     async def authorize_credentials(self):
@@ -379,7 +382,13 @@ async def main_async(kwargs):
 
     # Create X instance with configuration
     instance = X(**kwargs)
-    # Execute the action using the base class method
+
+    # Handle authorize action separately (doesn't need client initialization)
+    if action == 'authorize':
+        success = await instance.authorize_credentials()
+        return 0 if success else 1
+
+    # Execute other actions using the base class method
     await instance.execute_action(action)
     await instance.disconnect()
 

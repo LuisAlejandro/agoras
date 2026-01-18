@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@ from argparse import ArgumentParser
 from io import StringIO
 from unittest.mock import patch
 
-from agoras.cli.platforms.x import create_x_parser, create_twitter_parser_alias
+from agoras.cli.platforms.x import create_twitter_parser_alias, create_x_parser
 
 
 def test_x_parser_creation():
@@ -144,8 +144,9 @@ def test_twitter_alias_actions_listed():
 
 def test_twitter_alias_shows_deprecation_warning():
     """Test that Twitter alias command shows deprecation warning."""
-    from agoras.cli.platforms.x import _handle_twitter_command
     from argparse import Namespace
+
+    from agoras.cli.platforms.x import _handle_twitter_command
 
     # Capture stderr
     stderr_capture = StringIO()

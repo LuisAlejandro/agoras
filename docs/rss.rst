@@ -104,7 +104,8 @@ LinkedIn::
 
     agoras utils feed-publish --network linkedin --mode last \
       --feed-url "https://example.com/feed.xml" \
-      --linkedin-access-token "$TOKEN"
+      --linkedin-client-id "$CLIENT_ID" \
+      --linkedin-client-secret "$CLIENT_SECRET"
 
 Discord::
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ class LinkedInAPIClient:
         """
         self.access_token = access_token
         self.restli_client: Optional[RestliClient] = None
-        self.api_version = "202302"
+        self.api_version = "202503"
         self._authenticated = False
 
     async def authenticate(self) -> bool:
@@ -240,16 +240,30 @@ class LinkedInAPIClient:
                 "object": post_id,
             }
 
+            # Use the correct LinkedIn social actions endpoint for likes
+            # According to LinkedIn API docs: POST /v2/socialActions/{postUrn}/likes
+            # URL-encode the post_id for the path
+            import urllib.parse
+            encoded_post_id = urllib.parse.quote(post_id, safe='')
+
             request = self.restli_client.create(
-                resource_path='/socialActions/{id}/likes',
-                path_keys={"id": post_id},
+                resource_path=f'/socialActions/{encoded_post_id}/likes',
                 entity=entity,
                 version_string=self.api_version,
                 access_token=self.access_token
             )
 
             if request.status_code != 201:
-                raise Exception(f'Unable to like post {post_id}')
+                try:
+                    response_data = request.response.json()
+                    if response_data.get('code') == 'ACCESS_DENIED':
+                        raise Exception(f'LinkedIn like permission denied. Your LinkedIn app needs "Community Management API" product enabled and w_member_social scope approved. Visit https://developers.linkedin.com/ to configure your app permissions.')
+                    else:
+                        raise Exception(f'Unable to like post {post_id}: {response_data.get("message", "Unknown error")}')
+                except Exception as e:
+                    if 'permission denied' in str(e).lower():
+                        raise e
+                    raise Exception(f'Unable to like post {post_id} - Status: {request.status_code}')
             return post_id
 
         return await asyncio.to_thread(_sync_like)

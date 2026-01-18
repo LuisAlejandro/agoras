@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .auth import DiscordAuthManager
 from agoras.core.api_base import BaseAPI
+
+from .auth import DiscordAuthManager
 
 
 class DiscordAPI(BaseAPI):
@@ -86,7 +87,10 @@ class DiscordAPI(BaseAPI):
         # Authenticate with auth manager (this creates and sets up the client)
         auth_success = await self.auth_manager.authenticate()
         if not auth_success:
-            raise Exception('Discord authentication failed')
+            error_msg = 'Discord authentication failed'
+            if hasattr(self.auth_manager, '_last_error') and self.auth_manager._last_error:
+                error_msg += f': {self.auth_manager._last_error}'
+            raise Exception(error_msg)
 
         # Ensure client was created during authentication
         if not self.auth_manager.client:

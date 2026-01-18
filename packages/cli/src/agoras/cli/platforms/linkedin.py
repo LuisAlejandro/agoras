@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ This module provides the LinkedIn command parser for the new CLI structure.
 from argparse import ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.linkedin.wrapper import main as linkedin_main
+
 from ..base import add_common_content_options
 from ..converter import ParameterConverter
 from ..validator import ActionValidator
@@ -93,7 +94,7 @@ def create_linkedin_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     _add_post_id_option(delete)
 
     # Set handler
-    parser.set_defaults(handler=_handle_linkedin_command)
+    parser.set_defaults(command=_handle_linkedin_command)
 
     return parser
 

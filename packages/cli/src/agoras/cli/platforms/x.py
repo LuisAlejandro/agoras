@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -100,7 +100,7 @@ def create_x_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     _add_post_id_option(delete)
 
     # Set handler
-    parser.set_defaults(handler=_handle_x_command)
+    parser.set_defaults(command=_handle_x_command)
 
     return parser
 
@@ -132,18 +132,20 @@ def _add_x_auth_options(parser: ArgumentParser, required: bool = True):
         metavar='<secret>',
         help='X API consumer secret' + help_suffix
     )
-    auth.add_argument(
-        '--oauth-token',
-        required=required,
-        metavar='<token>',
-        help='X OAuth token' + help_suffix
-    )
-    auth.add_argument(
-        '--oauth-secret',
-        required=required,
-        metavar='<secret>',
-        help='X OAuth secret' + help_suffix
-    )
+    # Only add oauth-token/oauth-secret for non-authorize actions (when required=False)
+    if not required:
+        auth.add_argument(
+            '--oauth-token',
+            required=False,
+            metavar='<token>',
+            help='X OAuth token' + help_suffix
+        )
+        auth.add_argument(
+            '--oauth-secret',
+            required=False,
+            metavar='<secret>',
+            help='X OAuth secret' + help_suffix
+        )
 
 
 def _add_video_options(parser: ArgumentParser):
@@ -293,6 +295,6 @@ def create_twitter_parser_alias(subparsers: _SubParsersAction) -> ArgumentParser
     _add_post_id_option(delete)
 
     # Set handler
-    parser.set_defaults(handler=_handle_twitter_command)
+    parser.set_defaults(command=_handle_twitter_command)
 
     return parser

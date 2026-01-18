@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,11 +21,7 @@ Tests for base CLI utilities.
 
 from argparse import ArgumentParser
 
-from agoras.cli.base import (
-    add_common_content_options,
-    add_feed_options,
-    add_video_options,
-)
+from agoras.cli.base import add_common_content_options, add_feed_options, add_video_options
 
 
 def test_add_common_content_options_no_images():

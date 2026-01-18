@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -113,7 +113,6 @@ class ParameterConverter:
         'threads': {
             'app_id': 'threads_app_id',
             'app_secret': 'threads_app_secret',
-            'redirect_uri': 'threads_redirect_uri',
             'post_id': 'threads_post_id',
             'video_url': 'threads_video_url',
             'video_title': 'threads_video_title',
@@ -124,16 +123,8 @@ class ParameterConverter:
             'parse_mode': 'telegram_parse_mode',
             'message_id': 'telegram_message_id',
             'post_id': 'telegram_message_id',
-            'question': 'telegram_poll_question',
-            'options': 'telegram_poll_options',
-            'anonymous': 'telegram_poll_anonymous',
-            'document_url': 'telegram_document_url',
-            'audio_url': 'telegram_audio_url',
             'video_url': 'video_url',
             'video_title': 'video_title',
-            'duration': 'telegram_audio_duration',
-            'performer': 'telegram_audio_performer',
-            'title': 'telegram_audio_title',
         },
         'whatsapp': {
             'access_token': 'whatsapp_access_token',
@@ -141,15 +132,6 @@ class ParameterConverter:
             'business_account_id': 'whatsapp_business_account_id',
             'recipient': 'whatsapp_recipient',
             'message_id': 'whatsapp_message_id',
-            'contact_name': 'whatsapp_contact_name',
-            'contact_phone': 'whatsapp_contact_phone',
-            'latitude': 'whatsapp_latitude',
-            'longitude': 'whatsapp_longitude',
-            'location_name': 'whatsapp_location_name',
-            'document_url': 'whatsapp_document_url',
-            'caption': 'whatsapp_document_caption',
-            'filename': 'whatsapp_document_filename',
-            'audio_url': 'whatsapp_audio_url',
             'template_name': 'whatsapp_template_name',
             'language_code': 'whatsapp_template_language',
             'template_components': 'whatsapp_template_components',

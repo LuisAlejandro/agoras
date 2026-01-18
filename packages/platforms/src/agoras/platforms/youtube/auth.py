@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -38,14 +38,13 @@ class YouTubeAuthManager(BaseAuthManager):
         super().__init__()
         self.client_id = client_id
         self.client_secret = client_secret
-        self.refresh_token = refresh_token or self._load_refresh_token_from_cache()
+        self.refresh_token = refresh_token or self._load_refresh_token_from_storage()
 
         # Authlib OAuth2Session configuration for Google/YouTube OAuth
         self.oauth_session = OAuth2Session(
             client_id=self.client_id,
             client_secret=self.client_secret,
-            scope="https://www.googleapis.com/auth/youtube.upload",
-            redirect_uri="http://localhost:3456/callback"
+            scope=["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly", "https://www.googleapis.com/auth/youtube.force-ssl"]
         )
 
     async def authenticate(self) -> bool:
@@ -76,7 +75,18 @@ class YouTubeAuthManager(BaseAuthManager):
             # Create client and get user info
             if self.access_token:
                 self.client = self._create_client(self.access_token)
-                self.user_info = await self._get_user_info()
+                try:
+                    self.user_info = await self._get_user_info()
+                except Exception as e:
+                    # If user info retrieval fails due to insufficient scopes,
+                    # still consider authentication successful since token refresh worked
+                    error_str = str(e)
+                    if "insufficient" in error_str.lower() or "permission" in error_str.lower():
+                        # Token is valid for operations, just missing readonly scope
+                        self.user_info = {"channel_id": "unknown", "channel_title": "unknown"}
+                    else:
+                        # Re-raise other errors
+                        raise
 
             return True
         except Exception:
@@ -86,8 +96,7 @@ class YouTubeAuthManager(BaseAuthManager):
         """
         Run YouTube OAuth authorization flow using Authlib.
 
-        Supports both interactive mode (with local callback server) and
-        headless mode (using environment variables for CI/CD).
+        Uses interactive mode with local callback server.
 
         Returns:
             str or None: The refresh token if successful, None if failed
@@ -95,38 +104,15 @@ class YouTubeAuthManager(BaseAuthManager):
         if not self._validate_credentials():
             raise Exception('YouTube credentials are required for authorization.')
 
-        # Check for headless mode (CI/CD)
-        if self._check_headless_mode():
-            return await self._authorize_headless()
-
         # Interactive mode with callback server
         return await self._authorize_interactive()
-
-    async def _authorize_headless(self) -> Optional[str]:
-        """Authorize using environment variables (CI/CD mode)."""
-        try:
-            refresh_token = self._load_refresh_token_from_env()
-            if not refresh_token:
-                raise Exception(
-                    'Headless mode enabled but AGORAS_YOUTUBE_REFRESH_TOKEN not set.'
-                )
-
-            self.refresh_token = refresh_token
-            # Save all credentials to storage
-            self._save_credentials_to_storage()
-            print("Successfully seeded YouTube credentials from environment variables.")
-            return refresh_token
-        except Exception as e:
-            print(f"Headless authorization failed: {e}")
-            return None
 
     async def _authorize_interactive(self) -> Optional[str]:
         """Authorize using local callback server (interactive mode)."""
         try:
             state = secrets.token_urlsafe(32)
-            callback_server = OAuthCallbackServer(expected_state=state)
-            port = await callback_server.get_available_port()
-            redirect_uri = f"http://localhost:{port}/callback"
+            callback_server = OAuthCallbackServer(expected_state=state, port=3456)
+            redirect_uri = "https://localhost:3456/callback"
 
             self.oauth_session.redirect_uri = redirect_uri
 
@@ -167,16 +153,22 @@ class YouTubeAuthManager(BaseAuthManager):
 
     async def _refresh_access_token_with_authlib(self) -> dict:
         """
-        Refresh YouTube access token using authlib's built-in method.
+        Refresh YouTube access token using direct HTTP request.
         Google uses standard OAuth2 refresh token flow.
         """
         def _sync_refresh():
-            # Use authlib's refresh_token method for Google's standard OAuth2
-            token_data = self.oauth_session.refresh_token(
-                token_url='https://oauth2.googleapis.com/token',
-                refresh_token=self.refresh_token
-            )
-            return token_data
+            import requests
+            data = {
+                'grant_type': 'refresh_token',
+                'refresh_token': self.refresh_token,
+                'client_id': self.client_id,
+                'client_secret': self.client_secret
+            }
+            resp = requests.post('https://oauth2.googleapis.com/token', data=data, timeout=30)
+            if resp.status_code == 200:
+                return resp.json()
+            else:
+                raise Exception(f"Token refresh failed: {resp.status_code} {resp.text}")
 
         return await asyncio.to_thread(_sync_refresh)
 
@@ -202,10 +194,6 @@ class YouTubeAuthManager(BaseAuthManager):
         """Validate that all required credentials are present."""
         return all([self.client_id, self.client_secret])
 
-    def _get_cache_filename(self) -> str:
-        """Get cache filename for storing refresh token. DEPRECATED."""
-        return f'youtube-{self.client_id}.json'
-
     def _get_platform_name(self) -> str:
         """Get the platform name for this auth manager."""
         return 'youtube'
@@ -213,14 +201,6 @@ class YouTubeAuthManager(BaseAuthManager):
     def _get_token_identifier(self) -> str:
         """Get unique identifier for token storage."""
         return self.client_id
-
-    def _load_refresh_token_from_cache(self) -> Optional[str]:
-        """Load refresh token from secure storage."""
-        return self._load_refresh_token_from_storage()
-
-    def _save_refresh_token_to_cache(self, refresh_token: str):
-        """Save refresh token to secure storage. DEPRECATED - use _save_refresh_token_to_storage."""
-        self._save_refresh_token_to_storage(refresh_token)
 
     def _save_credentials_to_storage(self):
         """Save all YouTube credentials to secure storage."""

@@ -5,9 +5,11 @@ Usage for Telegram
    **New in version 2.0**: Telegram commands now use the intuitive ``agoras telegram`` format.
    See the :doc:`migration guide <migration>` for upgrading from ``agoras publish``.
 
-Telegram is a cloud-based instant messaging and voice-over-IP service. Agoras can publish messages, videos, images, documents, audio files, polls, and manage scheduled content on Telegram using the official `python-telegram-bot library <https://python-telegram-bot.org/>`_.
+Telegram is a cloud-based instant messaging and voice-over-IP service. Agoras can publish messages, videos, images, and manage scheduled content on Telegram using the official `python-telegram-bot library <https://python-telegram-bot.org/>`_.
 
 **Important**: Telegram uses bot tokens for authentication. You must create a Telegram bot using @BotFather, obtain a bot token, and find the chat ID (user, group, or channel) before using these features. Like and share functionality are not supported by Agoras for Telegram.
+
+For CI/CD environments, see :doc:`credentials/telegram` for unattended execution setup.
 
 Actions
 ~~~~~~~
@@ -66,104 +68,6 @@ Parameters:
 - **Supported formats**: MP4, MOV, WebM, AVI, MKV
 - **File size limit**: 50MB for regular bots
 - **File must be accessible**: The URL must point to a downloadable video file
-
-Edit a Telegram message
------------------------
-
-This command will edit the text of an existing Telegram message. Only text messages can be edited (not media messages).
-
-**New format** (Agoras 2.0+)::
-
-    agoras telegram edit \
-      --bot-token "${TELEGRAM_BOT_TOKEN}" \
-      --chat-id "${TELEGRAM_CHAT_ID}" \
-      --message-id "${TELEGRAM_MESSAGE_ID}" \
-      --text "${NEW_TEXT}"
-
-Parameters:
-
-- ``--message-id``: ID of the message to edit (required)
-- ``--text``: New message text (required)
-
-**Note**: You can only edit text messages. Media messages (photos, videos, documents) cannot be edited.
-
-Send a Telegram poll
----------------------
-
-This command will create and send a poll to a Telegram chat. Polls can be anonymous or public, and support 2-10 options.
-
-**New format** (Agoras 2.0+)::
-
-    agoras telegram poll \
-      --bot-token "${TELEGRAM_BOT_TOKEN}" \
-      --chat-id "${TELEGRAM_CHAT_ID}" \
-      --poll-question "${POLL_QUESTION}" \
-      --poll-options "${POLL_OPTIONS}" \
-      --poll-anonymous "${IS_ANONYMOUS}"
-
-Parameters:
-
-- ``--poll-question``: Poll question (up to 300 characters) (required)
-- ``--poll-options``: Comma-separated list of poll options (2-10 options, each up to 100 characters) (required)
-- ``--poll-anonymous``: Whether poll is anonymous (true/false, default: true)
-
-**Poll requirements**:
-- **Question length**: Up to 300 characters
-- **Options**: 2-10 options required
-- **Option length**: Each option up to 100 characters
-- **Example options**: "Red,Blue,Green,Yellow"
-
-Send a Telegram document
---------------------------
-
-This command will send a document file to a Telegram chat. Documents can include PDFs, Word documents, spreadsheets, and other file types.
-
-**New format** (Agoras 2.0+)::
-
-    agoras telegram document \
-      --bot-token "${TELEGRAM_BOT_TOKEN}" \
-      --chat-id "${TELEGRAM_CHAT_ID}" \
-      --document-url "${DOCUMENT_URL}" \
-      --text "${CAPTION}"
-
-Parameters:
-
-- ``--document-url``: URL of document file to send (required)
-- ``--text``: Document caption (optional, up to 1024 characters)
-
-**Document requirements**:
-- **File size limit**: 50MB
-- **Supported formats**: PDF, DOCX, XLSX, PPTX, ZIP, and other file types
-- **File must be accessible**: The URL must point to a downloadable file
-
-Send a Telegram audio file
----------------------------
-
-This command will send an audio file to a Telegram chat. Audio files can include MP3, OGG, and other audio formats.
-
-**New format** (Agoras 2.0+)::
-
-    agoras telegram audio \
-      --bot-token "${TELEGRAM_BOT_TOKEN}" \
-      --chat-id "${TELEGRAM_CHAT_ID}" \
-      --audio-url "${AUDIO_URL}" \
-      --text "${CAPTION}" \
-      --audio-duration "${DURATION}" \
-      --audio-performer "${PERFORMER}" \
-      --audio-title "${TITLE}"
-
-Parameters:
-
-- ``--audio-url``: URL of audio file to send (required)
-- ``--text``: Audio caption (optional, up to 1024 characters)
-- ``--audio-duration``: Audio duration in seconds (optional)
-- ``--audio-performer``: Performer name (optional)
-- ``--audio-title``: Track title (optional)
-
-**Audio requirements**:
-- **File size limit**: 50MB
-- **Supported formats**: MP3, OGG, WAV, M4A
-- **File must be accessible**: The URL must point to a downloadable audio file
 
 Delete a Telegram message
 --------------------------
@@ -270,14 +174,11 @@ Telegram Features and Limitations
   - **Maximum file size**: 50MB for all file types
   - **Supported video formats**: MP4, MOV, WebM, AVI, MKV
   - **Supported image formats**: JPEG, PNG, JPG, GIF
-  - **Supported audio formats**: MP3, OGG, WAV, M4A
-  - **Supported document formats**: PDF, DOCX, XLSX, PPTX, ZIP, and more
 
 **Bot Permissions Required**:
   - **Send Messages**: To post text content (required for all actions)
-  - **Send Media**: To upload photos, videos, documents, audio (required for media actions)
+  - **Send Media**: To upload photos and videos (required for media actions)
   - **Delete Messages**: To delete messages (required for delete action)
-  - **Send Polls**: To create polls (required for poll action)
 
 **Chat Types**:
   - **Private chats**: Direct messages to users
@@ -288,7 +189,6 @@ Telegram Features and Limitations
 **Limitations**:
   - Like/reaction functionality is not supported
   - Share/repost functionality is not supported
-  - Message editing only works for text messages (not media)
   - Bot must be added to groups/channels and have appropriate permissions
   - File URLs must be publicly accessible for download
   - Rate limiting: 30 messages/second to different chats, 1 message/second to same chat

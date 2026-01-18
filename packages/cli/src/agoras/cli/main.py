@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,8 +26,9 @@ import re
 import sys
 from argparse import ArgumentParser
 
-from agoras.common.version import __description__, __version__
 from agoras.common.logger import logger
+from agoras.common.version import __description__, __version__
+
 from .legacy import create_legacy_publish_parser
 from .platforms.discord import create_discord_parser
 from .platforms.facebook import create_facebook_parser
@@ -67,6 +68,11 @@ def commandline(argv=None):
         help='Print version and exit.')
     gen_options.add_argument(
         '-h', '--help', action='help', help='Show this help message and exit.')
+    gen_options.add_argument(
+        '-l', '--loglevel', default='INFO', metavar='<level>',
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+        help=('Logger verbosity level (default: INFO). Must be one of: '
+              'DEBUG, INFO, WARNING, ERROR or CRITICAL.'))
 
     # Create subparsers for commands
     subparsers = parser.add_subparsers(title='Commands', metavar='')
@@ -119,7 +125,9 @@ def main(argv=None):
     logger.debug('Starting execution.')
 
     try:
-        status = args.command(**vars(args))
+        # Call handler with args Namespace
+        # Handlers expect a single args argument, not unpacked kwargs
+        status = args.command(args)
     except KeyboardInterrupt:
         logger.critical('Execution interrupted by user!')
         status = 1

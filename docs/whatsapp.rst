@@ -5,9 +5,11 @@ Usage for WhatsApp
    **New in version 2.0**: WhatsApp commands now use the intuitive ``agoras whatsapp`` format.
    See the :doc:`migration guide <migration>` for upgrading from ``agoras publish``.
 
-WhatsApp Business API is Meta's official API for sending messages via WhatsApp. Agoras can send text messages, images, videos, documents, audio files, contact cards, location data, and template messages to WhatsApp recipients using the official `Meta Graph API <https://developers.facebook.com/docs/graph-api>`_.
+WhatsApp Business API is Meta's official API for sending messages via WhatsApp. Agoras can send text messages, images, videos, and template messages to WhatsApp recipients using the official `Meta Graph API <https://developers.facebook.com/docs/graph-api>`_.
 
 **Important**: WhatsApp Business API requires a Meta Developer Account, WhatsApp Business Account, and phone number verification. For production use, business verification is required. You must specify a recipient phone number in E.164 format for all message sending operations. Like, share, and delete functionality are not supported by Agoras for WhatsApp.
+
+For CI/CD environments, see :doc:`credentials/whatsapp` for unattended execution setup.
 
 Actions
 ~~~~~~~
@@ -92,107 +94,6 @@ Parameters:
 - **Codec**: H.264 video codec recommended
 
 **Note**: WhatsApp downloads videos from the provided URLs. The URLs must be publicly accessible via HTTPS.
-
-Send a WhatsApp contact card
------------------------------
-
-This command will send a contact card (vCard) to a WhatsApp recipient.
-
-::
-
-    agoras whatsapp contact \
-      --access-token "${WHATSAPP_ACCESS_TOKEN}" \
-      --phone-number-id "${WHATSAPP_PHONE_NUMBER_ID}" \
-      --recipient "${WHATSAPP_RECIPIENT}" \
-      --contact-name "John Doe" \
-      --contact-phone "+1234567890"
-
-Parameters:
-
-- ``--contact-name``: Name of the contact to send (required)
-- ``--contact-phone``: Phone number of the contact in E.164 format (required)
-
-**Contact requirements**:
-- Phone numbers must be in E.164 format (starts with +, includes country code)
-- Contact name can be any text
-- Only one contact per message is supported in this implementation
-
-Send a WhatsApp location message
----------------------------------
-
-This command will send a location message to a WhatsApp recipient.
-
-::
-
-    agoras whatsapp location \
-      --access-token "${WHATSAPP_ACCESS_TOKEN}" \
-      --phone-number-id "${WHATSAPP_PHONE_NUMBER_ID}" \
-      --recipient "${WHATSAPP_RECIPIENT}" \
-      --latitude "37.7749" \
-      --longitude "-122.4194" \
-      --location-name "San Francisco"
-
-Parameters:
-
-- ``--latitude``: Latitude coordinate (-90 to 90) (required)
-- ``--longitude``: Longitude coordinate (-180 to 180) (required)
-- ``--location-name``: Name of the location (optional)
-
-**Location requirements**:
-- Coordinates must be valid decimal numbers
-- Latitude range: -90 to 90
-- Longitude range: -180 to 180
-- Location name is optional but recommended for better user experience
-
-Send a WhatsApp document
--------------------------
-
-This command will send a document file to a WhatsApp recipient. The document can include a caption and filename.
-
-::
-
-    agoras whatsapp document \
-      --access-token "${WHATSAPP_ACCESS_TOKEN}" \
-      --phone-number-id "${WHATSAPP_PHONE_NUMBER_ID}" \
-      --recipient "${WHATSAPP_RECIPIENT}" \
-      --document-url "https://example.com/document.pdf" \
-      --caption "Important document" \
-      --filename "report.pdf"
-
-Parameters:
-
-- ``--document-url``: Publicly accessible HTTPS URL of the document (required)
-- ``--caption``: Document caption text (optional)
-- ``--filename``: Document filename (optional, but recommended)
-
-**Document requirements**:
-- **Supported formats**: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, and more
-- **Max size**: 100MB
-- **URL must be publicly accessible**: Documents must be hosted on HTTPS URLs
-- **Filename**: Recommended to help recipients identify the file
-
-Send a WhatsApp audio message
-------------------------------
-
-This command will send an audio file to a WhatsApp recipient.
-
-::
-
-    agoras whatsapp audio \
-      --access-token "${WHATSAPP_ACCESS_TOKEN}" \
-      --phone-number-id "${WHATSAPP_PHONE_NUMBER_ID}" \
-      --recipient "${WHATSAPP_RECIPIENT}" \
-      --audio-url "https://example.com/audio.mp3"
-
-Parameters:
-
-- ``--audio-url``: Publicly accessible HTTPS URL of the audio file (required)
-
-**Audio requirements**:
-- **Supported formats**: AAC, AMR, MP3, OPUS, and more
-- **Max size**: 16MB
-- **URL must be publicly accessible**: Audio files must be hosted on HTTPS URLs
-- **No caption support**: Audio messages don't support captions
 
 Send a WhatsApp template message
 --------------------------------

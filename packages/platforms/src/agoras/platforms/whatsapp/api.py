@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,9 +19,10 @@
 import asyncio
 from typing import Any, Dict, List, Optional
 
-from .auth import WhatsAppAuthManager
 from agoras.core.api_base import BaseAPI
 from agoras.media.factory import MediaFactory
+
+from .auth import WhatsAppAuthManager
 
 
 class WhatsAppAPI(BaseAPI):

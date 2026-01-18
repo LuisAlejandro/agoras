@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,8 +18,9 @@
 
 import asyncio
 
-from .api import TikTokAPI
 from agoras.core.interfaces import SocialNetwork
+
+from .api import TikTokAPI
 
 
 class TikTok(SocialNetwork):
@@ -98,7 +99,7 @@ class TikTok(SocialNetwork):
 
         # If credentials not provided, try loading from storage
         # TikTok needs username, client_key, client_secret, and refresh_token to authenticate
-        if not all([self.tiktok_username, self.tiktok_client_key, self.tiktok_client_secret]):
+        if not all([self.tiktok_username, self.tiktok_client_key, self.tiktok_client_secret, self.tiktok_refresh_token]):
             from .auth import TikTokAuthManager
             auth_manager = TikTokAuthManager(
                 username=self.tiktok_username or '',
@@ -118,7 +119,7 @@ class TikTok(SocialNetwork):
                     self.tiktok_refresh_token = auth_manager.refresh_token
 
         # Validate all credentials are now available
-        if not all([self.tiktok_username, self.tiktok_client_key, self.tiktok_client_secret]):
+        if not all([self.tiktok_username, self.tiktok_client_key, self.tiktok_client_secret, self.tiktok_refresh_token]):
             raise Exception("Not authenticated. Please run 'agoras tiktok authorize' first.")
 
         # Initialize TikTok API
@@ -247,6 +248,16 @@ class TikTok(SocialNetwork):
         """
         if not self.api:
             raise Exception('TikTok API not initialized')
+
+        # Check if video upload scopes are available (requires Production app approval)
+        raise Exception(
+            'TikTok video upload requires Production app approval from TikTok. '
+            'Your app is currently in Sandbox mode. Please:\n'
+            '1. Go to TikTok Developer Portal\n'
+            '2. Submit your app for review\n'
+            '3. Request approval for video.upload and video.publish scopes\n'
+            '4. Once approved, switch to Production mode'
+        )
 
         if not video_url:
             raise Exception('Video URL is required.')

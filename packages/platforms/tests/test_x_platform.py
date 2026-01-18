@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you cantml:parameter name redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -52,7 +52,8 @@ async def test_x_initialize_client(mock_api_class):
 
 
 @pytest.mark.asyncio
-async def test_x_initialize_client_missing_credentials():
+@patch('agoras.platforms.x.auth.XAuthManager._load_credentials_from_storage', return_value=False)
+async def test_x_initialize_client_missing_credentials(mock_load):
     """Test X _initialize_client raises exception without credentials."""
     x = X()
 

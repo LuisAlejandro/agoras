@@ -321,22 +321,30 @@ You can test if your WhatsApp Business API is properly configured:
 
 4. Check if the message appears in WhatsApp
 
-Environment Variables
----------------------
+CI/CD Setup (Unattended Execution)
+-----------------------------------
 
-For security, store credentials in environment variables:
+For CI/CD environments where interactive authorization isn't possible, you can skip the ``authorize`` step entirely and provide all required credentials via environment variables.
 
-::
+1. Run ``agoras whatsapp authorize`` locally first to store credentials (optional, for local development)
+2. Extract stored credentials using the tokens utility command (if you need to retrieve them)::
 
-    export WHATSAPP_ACCESS_TOKEN="your_access_token_here"
-    export WHATSAPP_PHONE_NUMBER_ID="your_phone_number_id_here"
-    export WHATSAPP_BUSINESS_ACCOUNT_ID="your_business_account_id_here"  # Optional
+      # First, list tokens to find the identifier (phone_number_id)
+      agoras utils tokens list --platform whatsapp
 
-Then run authorize to store them:
+      # Then view all stored credentials
+      agoras utils tokens show --platform whatsapp --identifier {identifier}
 
-::
+3. For CI/CD, set all required environment variables in your CI/CD pipeline::
 
-    agoras whatsapp authorize
+      export WHATSAPP_ACCESS_TOKEN="your_access_token_here"
+      export WHATSAPP_PHONE_NUMBER_ID="your_phone_number_id_here"
+      export WHATSAPP_BUSINESS_ACCOUNT_ID="your_business_account_id_here"  # Optional
+      export WHATSAPP_RECIPIENT="+1234567890"  # Required for all messaging actions
+
+4. Run Agoras actions directly without running ``authorize``. All credentials will be loaded from environment variables.
+
+**Note**: For unattended execution, you must provide all required credentials (access token, phone number ID, and recipient) as shown in the :doc:`../reference/platform-arguments-envvars` documentation. The recipient phone number must be provided with each messaging action as it varies per message.
 
 Agoras parameters
 -----------------
@@ -355,7 +363,7 @@ Agoras parameters
 | Recipient Number       | --recipient               | All messaging actions          |
 +------------------------+---------------------------+--------------------------------+
 
-**Important**: Run ``agoras whatsapp authorize`` first to store your credentials securely. After authorization, you can use post, video, contact, location, document, audio, and template actions without providing access token and phone number ID each time.
+**Important**: Run ``agoras whatsapp authorize`` first to store your credentials securely. After authorization, you can use post, video, and template actions without providing access token and phone number ID each time.
 
 **Note**: The recipient phone number must be provided with each message action as it varies per message. It is not stored during authorization.
 

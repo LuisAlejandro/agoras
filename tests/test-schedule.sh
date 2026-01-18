@@ -1,17 +1,22 @@
 #!/usr/bin/env bash
 
 # Integration Test - End-to-End testing with real API credentials
-# Uses the installed agoras CLI command
-# Part of agoras v2.0 modular package structure
+# Uses the installed "${PROJECT_ROOT}/virtualenv/bin/agoras" CLI command
+# Part of "${PROJECT_ROOT}/virtualenv/bin/agoras" v2.0 modular package structure
 
 # Exit early if there are errors and be verbose
 set -exuo pipefail
 
-source ../secrets.env
+# Get the absolute path of the script's directory
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Get the project root (parent of tests directory)
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+source "${PROJECT_ROOT}/secrets.env"
 
 if [ "${1}" == "x" ]; then
     SCHEDULE_X_ID=$(
-        agoras utils schedule-run \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" utils schedule-run \
             --network x \
             --x-consumer-key "${TWITTER_CONSUMER_KEY}" \
             --x-consumer-secret "${TWITTER_CONSUMER_SECRET}" \
@@ -26,7 +31,7 @@ if [ "${1}" == "x" ]; then
 
     sleep 5
 
-    [ -n "${SCHEDULE_X_ID}" ] && agoras x delete \
+    [ -n "${SCHEDULE_X_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" x delete \
         --consumer-key "${TWITTER_CONSUMER_KEY}" \
         --consumer-secret "${TWITTER_CONSUMER_SECRET}" \
         --oauth-token "${TWITTER_OAUTH_TOKEN}" \
@@ -35,7 +40,7 @@ if [ "${1}" == "x" ]; then
 
 elif [ "${1}" == "tiktok" ]; then
     SCHEDULE_TIKTOK_ID=$(
-        agoras utils schedule-run \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" utils schedule-run \
             --network tiktok \
             --tiktok-username "${TIKTOK_USERNAME}" \
             --tiktok-client-key "${TIKTOK_CLIENT_KEY}" \
@@ -52,7 +57,7 @@ elif [ "${1}" == "tiktok" ]; then
 
 elif [ "${1}" == "youtube" ]; then
     SCHEDULE_YOUTUBE_ID=$(
-        agoras utils schedule-run \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" utils schedule-run \
             --network youtube \
             --youtube-client-id "${YOUTUBE_CLIENT_ID}" \
             --youtube-client-secret "${YOUTUBE_CLIENT_SECRET}" \
@@ -65,14 +70,14 @@ elif [ "${1}" == "youtube" ]; then
 
     sleep 5
 
-    [ -n "${SCHEDULE_YOUTUBE_ID}" ] && agoras youtube delete \
+    [ -n "${SCHEDULE_YOUTUBE_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" youtube delete \
         --client-id "${YOUTUBE_CLIENT_ID}" \
         --client-secret "${YOUTUBE_CLIENT_SECRET}" \
         --video-id "${SCHEDULE_YOUTUBE_ID}" || true
 
 elif [ "${1}" == "facebook" ]; then
     SCHEDULE_FACEBOOK_ID=$(
-        agoras utils schedule-run \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" utils schedule-run \
             --network facebook \
             --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
             --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
@@ -85,13 +90,13 @@ elif [ "${1}" == "facebook" ]; then
 
     sleep 5
 
-    [ -n "${SCHEDULE_FACEBOOK_ID}" ] && agoras facebook delete \
+    [ -n "${SCHEDULE_FACEBOOK_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" facebook delete \
         --access-token "${FACEBOOK_ACCESS_TOKEN}" \
         --post-id "${SCHEDULE_FACEBOOK_ID}" || true
 
 elif [ "${1}" == "instagram" ]; then
     SCHEDULE_INSTAGRAM_ID=$(
-        agoras utils schedule-run \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" utils schedule-run \
             --network instagram \
             --instagram-access-token "${INSTAGRAM_ACCESS_TOKEN}" \
             --instagram-object-id "${INSTAGRAM_OBJECT_ID}" \
@@ -107,7 +112,7 @@ elif [ "${1}" == "instagram" ]; then
 
 elif [ "${1}" == "discord" ]; then
     SCHEDULE_DISCORD_ID=$(
-        agoras utils schedule-run \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" utils schedule-run \
             --network discord \
             --discord-bot-token "${DISCORD_BOT_TOKEN}" \
             --discord-server-name "${DISCORD_SERVER_NAME}" \
@@ -121,7 +126,7 @@ elif [ "${1}" == "discord" ]; then
 
     sleep 5
 
-    [ -n "${SCHEDULE_DISCORD_ID}" ] && agoras discord delete \
+    [ -n "${SCHEDULE_DISCORD_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" discord delete \
         --bot-token "${DISCORD_BOT_TOKEN}" \
         --server-name "${DISCORD_SERVER_NAME}" \
         --channel-name "${DISCORD_CHANNEL_NAME}" \
@@ -129,11 +134,10 @@ elif [ "${1}" == "discord" ]; then
 
 elif [ "${1}" == "linkedin" ]; then
     SCHEDULE_LINKEDIN_ID=$(
-        agoras utils schedule-run \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" utils schedule-run \
             --network linkedin \
             --linkedin-client-id "${LINKEDIN_CLIENT_ID}" \
             --linkedin-client-secret "${LINKEDIN_CLIENT_SECRET}" \
-            --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
             --max-count 1 \
             --sheets-id "${GOOGLE_SHEETS_ID}" \
             --sheets-name "${GOOGLE_SHEETS_NAME}" \
@@ -143,10 +147,9 @@ elif [ "${1}" == "linkedin" ]; then
 
     sleep 5
 
-    [ -n "${SCHEDULE_LINKEDIN_ID}" ] && agoras linkedin delete \
+    [ -n "${SCHEDULE_LINKEDIN_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" linkedin delete \
         --client-id "${LINKEDIN_CLIENT_ID}" \
         --client-secret "${LINKEDIN_CLIENT_SECRET}" \
-        --access-token "${LINKEDIN_ACCESS_TOKEN}" \
         --post-id "${SCHEDULE_LINKEDIN_ID}" || true
 
 else

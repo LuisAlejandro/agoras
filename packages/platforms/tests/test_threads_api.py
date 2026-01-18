@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ def threads_api():
         mock_auth.ensure_authenticated = MagicMock()  # Don't raise
         mock_auth_class.return_value = mock_auth
 
-        api = ThreadsAPI('app_id', 'app_secret', 'redirect_uri', 'refresh_token')
+        api = ThreadsAPI('app_id', 'app_secret', 'refresh_token')
         api._authenticated = True
         api.client = MagicMock()
         api.client.create_post = MagicMock(return_value={'id': 'thread-123'})
@@ -55,7 +55,7 @@ async def test_threads_api_authenticate(mock_auth_class):
     mock_auth.client = MagicMock()
     mock_auth_class.return_value = mock_auth
 
-    api = ThreadsAPI('app_id', 'app_secret', 'redirect_uri')
+    api = ThreadsAPI('app_id', 'app_secret')
     result = await api.authenticate()
 
     assert api._authenticated is True
@@ -235,7 +235,7 @@ def test_threads_api_properties():
         mock_auth.user_info = {'id': 'user123', 'username': 'testuser'}
         mock_auth_class.return_value = mock_auth
 
-        api = ThreadsAPI('app_id', 'app_secret', 'redirect_uri')
+        api = ThreadsAPI('app_id', 'app_secret')
 
         assert api.access_token == 'token123'
         assert api.user_id == 'user123'

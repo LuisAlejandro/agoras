@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@ import pytest
 
 from agoras.platforms.discord.client import DiscordAPIClient
 
-
 # Initialization Tests
+
 
 def test_discord_client_init():
     """Test DiscordAPIClient initialization."""
@@ -536,7 +536,11 @@ def test_discord_client_create_embed():
         mock_embed = MagicMock()
         mock_embed_class.return_value = mock_embed
 
-        result = client.create_embed(title='Title', description='Description', url='http://url.com', image_url='http://image.jpg')
+        result = client.create_embed(
+            title='Title',
+            description='Description',
+            url='http://url.com',
+            image_url='http://image.jpg')
 
         assert result is mock_embed
         assert mock_embed.title == 'Title'

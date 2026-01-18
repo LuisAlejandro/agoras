@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -159,14 +159,35 @@ class SecureTokenStorage:
         Returns:
             list: List of (platform, identifier) tuples
         """
+        # Known platform names for proper parsing
+        known_platforms = [
+            'facebook',
+            'instagram',
+            'linkedin',
+            'discord',
+            'telegram',
+            'threads',
+            'whatsapp',
+            'x',
+            'youtube',
+            'tiktok']
+
         tokens = []
 
         for token_file in self.token_dir.glob('*.token'):
-            # Parse filename: {platform}-{identifier}.token
-            name_parts = token_file.stem.rsplit('-', 1)
-            if len(name_parts) == 2:
-                file_platform, identifier = name_parts
+            stem = token_file.stem
 
+            # Try to identify the platform by checking known platform prefixes
+            file_platform = None
+            identifier = None
+
+            for known_platform in known_platforms:
+                if stem.startswith(known_platform + '-'):
+                    file_platform = known_platform
+                    identifier = stem[len(known_platform) + 1:]  # Remove platform prefix and dash
+                    break
+
+            if file_platform and identifier:
                 if platform is None or file_platform == platform:
                     tokens.append((file_platform, identifier))
 

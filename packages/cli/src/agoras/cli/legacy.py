@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -322,20 +322,22 @@ def _show_deprecation_warning(args: Namespace) -> None:
     warnings.warn(warning_msg, DeprecationWarning, stacklevel=2)
 
 
-def _legacy_publish_handler(**kwargs) -> int:
+def _legacy_publish_handler(args) -> int:
     """
     Wrapper handler for legacy publish command with deprecation warning.
 
     Args:
-        **kwargs: Command arguments
+        args: Parsed command-line arguments (Namespace)
 
     Returns:
         Exit status from publish execution
     """
     from argparse import Namespace
 
+    # Convert args to dict for compatibility
+    kwargs = vars(args)
+
     # Show deprecation warning unless --show-migration flag
-    args = Namespace(**kwargs)
     if not kwargs.get('show_migration', False):
         _show_deprecation_warning(args)
 

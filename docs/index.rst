@@ -125,8 +125,9 @@ Getting Credentials
    credentials/instagram
    credentials/linkedin
    credentials/discord
-   credentials/tiktok
    credentials/youtube
+   credentials/tiktok
+   credentials/threads
    credentials/telegram
    credentials/whatsapp
    credentials/google

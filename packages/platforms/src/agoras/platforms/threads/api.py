@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,10 +19,10 @@
 import asyncio
 from typing import Any, Dict, List, Optional, Tuple
 
+from agoras.core.api_base import BaseAPI
 from agoras.media import MediaFactory
 
 from .auth import ThreadsAuthManager
-from agoras.core.api_base import BaseAPI
 
 
 class ThreadsAPI(BaseAPI):
@@ -30,10 +30,10 @@ class ThreadsAPI(BaseAPI):
     Threads API handler that centralizes Threads operations.
 
     Provides methods for Threads authentication, post creation, replies,
-    reposts, and all Threads API operations using threadspipepy.
+    reposts, and all Threads API operations.
     """
 
-    def __init__(self, app_id: str, app_secret: str, redirect_uri: str,
+    def __init__(self, app_id: str, app_secret: str,
                  refresh_token: Optional[str] = None):
         """
         Initialize Threads API instance.
@@ -41,13 +41,11 @@ class ThreadsAPI(BaseAPI):
         Args:
             app_id (str): Threads app ID
             app_secret (str): Threads app secret
-            redirect_uri (str): OAuth redirect URI
             refresh_token (str, optional): Threads refresh token
         """
         super().__init__(
             app_id=app_id,
             app_secret=app_secret,
-            redirect_uri=redirect_uri,
             refresh_token=refresh_token
         )
 
@@ -55,7 +53,6 @@ class ThreadsAPI(BaseAPI):
         self.auth_manager = ThreadsAuthManager(
             app_id=app_id,
             app_secret=app_secret,
-            redirect_uri=redirect_uri,
             refresh_token=refresh_token
         )
 
@@ -145,7 +142,7 @@ class ThreadsAPI(BaseAPI):
                         'Threads supports JPEG and PNG only.'
                     )
 
-                # Use the original URL (ThreadsPipe handles URL downloads)
+                # Use the original URL; Threads Graph API accepts image_url directly.
                 # Media system validation ensures the URL is valid and accessible
                 validated_files.append(image.url)
 

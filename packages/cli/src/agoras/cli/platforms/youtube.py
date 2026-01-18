@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ Note: YouTube is a video-only platform, so no 'post' action is available.
 from argparse import ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.youtube.wrapper import main as youtube_main
+
 from ..converter import ParameterConverter
 from ..validator import ActionValidator
 
@@ -79,7 +80,7 @@ def create_youtube_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     _add_video_id_option(delete)
 
     # Set handler
-    parser.set_defaults(handler=_handle_youtube_command)
+    parser.set_defaults(command=_handle_youtube_command)
 
     return parser
 

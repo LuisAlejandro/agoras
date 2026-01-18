@@ -69,5 +69,4 @@ Dependencies
   - discord.py (Discord)
   - google-api-python-client (YouTube)
   - python-telegram-bot (Telegram)
-  - threadspipepy (Threads)
   - And more...

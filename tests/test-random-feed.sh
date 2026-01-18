@@ -1,17 +1,22 @@
 #!/usr/bin/env bash
 
 # Integration Test - End-to-End testing with real API credentials
-# Uses the installed agoras CLI command
-# Part of agoras v2.0 modular package structure
+# Uses the installed "${PROJECT_ROOT}/virtualenv/bin/agoras" CLI command
+# Part of "${PROJECT_ROOT}/virtualenv/bin/agoras" v2.0 modular package structure
 
 # Exit early if there are errors and be verbose
 set -exuo pipefail
 
-source ../secrets.env
+# Get the absolute path of the script's directory
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Get the project root (parent of tests directory)
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+source "${PROJECT_ROOT}/secrets.env"
 
 if [ "${1}" == "x" ]; then
     RANDOM_FROM_FEED_X_ID=$(
-        agoras utils feed-publish \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" utils feed-publish \
             --network x \
             --mode random \
             --x-consumer-key "${TWITTER_CONSUMER_KEY}" \
@@ -24,7 +29,7 @@ if [ "${1}" == "x" ]; then
 
     sleep 5
 
-    [ -n "${RANDOM_FROM_FEED_X_ID}" ] && agoras x delete \
+    [ -n "${RANDOM_FROM_FEED_X_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" x delete \
         --consumer-key "${TWITTER_CONSUMER_KEY}" \
         --consumer-secret "${TWITTER_CONSUMER_SECRET}" \
         --oauth-token "${TWITTER_OAUTH_TOKEN}" \
@@ -33,13 +38,12 @@ if [ "${1}" == "x" ]; then
 
 elif [ "${1}" == "tiktok" ]; then
     RANDOM_FROM_FEED_TIKTOK_ID=$(
-        agoras utils feed-publish \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" utils feed-publish \
             --network tiktok \
             --mode random \
             --tiktok-username "${TIKTOK_USERNAME}" \
             --tiktok-client-key "${TIKTOK_CLIENT_KEY}" \
             --tiktok-client-secret "${TIKTOK_CLIENT_SECRET}" \
-            --tiktok-access-token "${TIKTOK_ACCESS_TOKEN}" \
             --feed-url "${FEED_URL}" \
             --max-post-age 365 | jq --unbuffered '.' | jq -r '.publish_id'
     )
@@ -49,7 +53,7 @@ elif [ "${1}" == "tiktok" ]; then
 
 elif [ "${1}" == "youtube" ]; then
     RANDOM_FROM_FEED_YOUTUBE_ID=$(
-        agoras utils feed-publish \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" utils feed-publish \
             --network youtube \
             --mode random \
             --youtube-client-id "${YOUTUBE_CLIENT_ID}" \
@@ -60,14 +64,14 @@ elif [ "${1}" == "youtube" ]; then
 
     sleep 5
 
-    [ -n "${RANDOM_FROM_FEED_YOUTUBE_ID}" ] && agoras youtube delete \
+    [ -n "${RANDOM_FROM_FEED_YOUTUBE_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" youtube delete \
         --client-id "${YOUTUBE_CLIENT_ID}" \
         --client-secret "${YOUTUBE_CLIENT_SECRET}" \
         --video-id "${RANDOM_FROM_FEED_YOUTUBE_ID}" || true
 
 elif [ "${1}" == "facebook" ]; then
     RANDOM_FROM_FEED_FACEBOOK_ID=$(
-        agoras utils feed-publish \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" utils feed-publish \
             --network facebook \
             --mode random \
             --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
@@ -78,13 +82,13 @@ elif [ "${1}" == "facebook" ]; then
 
     sleep 5
 
-    [ -n "${RANDOM_FROM_FEED_FACEBOOK_ID}" ] && agoras facebook delete \
+    [ -n "${RANDOM_FROM_FEED_FACEBOOK_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" facebook delete \
         --access-token "${FACEBOOK_ACCESS_TOKEN}" \
         --post-id "${RANDOM_FROM_FEED_FACEBOOK_ID}" || true
 
 elif [ "${1}" == "instagram" ]; then
     RANDOM_FROM_FEED_INSTAGRAM_ID=$(
-        agoras utils feed-publish \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" utils feed-publish \
             --network instagram \
             --mode random \
             --instagram-access-token "${INSTAGRAM_ACCESS_TOKEN}" \
@@ -98,7 +102,7 @@ elif [ "${1}" == "instagram" ]; then
 
 elif [ "${1}" == "discord" ]; then
     RANDOM_FROM_FEED_DISCORD_ID=$(
-        agoras utils feed-publish \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" utils feed-publish \
             --network discord \
             --mode random \
             --discord-bot-token "${DISCORD_BOT_TOKEN}" \
@@ -110,7 +114,7 @@ elif [ "${1}" == "discord" ]; then
 
     sleep 5
 
-    [ -n "${RANDOM_FROM_FEED_DISCORD_ID}" ] && agoras discord delete \
+    [ -n "${RANDOM_FROM_FEED_DISCORD_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" discord delete \
         --bot-token "${DISCORD_BOT_TOKEN}" \
         --server-name "${DISCORD_SERVER_NAME}" \
         --channel-name "${DISCORD_CHANNEL_NAME}" \
@@ -118,22 +122,20 @@ elif [ "${1}" == "discord" ]; then
 
 elif [ "${1}" == "linkedin" ]; then
     RANDOM_FROM_FEED_LINKEDIN_ID=$(
-        agoras utils feed-publish \
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" utils feed-publish \
             --network linkedin \
             --mode random \
             --linkedin-client-id "${LINKEDIN_CLIENT_ID}" \
             --linkedin-client-secret "${LINKEDIN_CLIENT_SECRET}" \
-            --linkedin-access-token "${LINKEDIN_ACCESS_TOKEN}" \
             --feed-url "${FEED_URL}" \
             --max-post-age 365 | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
-    [ -n "${RANDOM_FROM_FEED_LINKEDIN_ID}" ] && agoras linkedin delete \
+    [ -n "${RANDOM_FROM_FEED_LINKEDIN_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" linkedin delete \
         --client-id "${LINKEDIN_CLIENT_ID}" \
         --client-secret "${LINKEDIN_CLIENT_SECRET}" \
-        --access-token "${LINKEDIN_ACCESS_TOKEN}" \
         --post-id "${RANDOM_FROM_FEED_LINKEDIN_ID}" || true
 
 else

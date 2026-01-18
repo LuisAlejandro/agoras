@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -137,6 +137,7 @@ def test_invalid_feed_url_handling(mock_init_client, mock_feed_class):
 
     # Mock feed download failure
     mock_feed = MagicMock()
+
     async def download_side_effect(*args, **kwargs):
         raise Exception('Invalid feed URL')
     mock_feed.download = AsyncMock(side_effect=download_side_effect)

@@ -9,6 +9,8 @@ Discord is a communication platform designed for creating communities. It featur
 
 **Important**: Discord uses bot tokens for authentication. You must create a Discord application and bot, then invite it to your server with appropriate permissions before using these features. Share functionality is not supported by Agoras for Discord.
 
+For CI/CD environments, see :doc:`credentials/discord` for unattended execution setup.
+
 Actions
 ~~~~~~~
 

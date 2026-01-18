@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ from authlib.integrations.requests_client import OAuth2Session
 
 from agoras.core.auth import BaseAuthManager
 from agoras.core.auth.callback_server import OAuthCallbackServer
+
 from .client import InstagramAPIClient
 
 
@@ -65,17 +66,18 @@ class InstagramAuthManager(BaseAuthManager):
                  refresh_token: Optional[str] = None):
         """Initialize Instagram authentication manager."""
         super().__init__()
+
         self.user_id = user_id
         self.client_id = client_id
         self.client_secret = client_secret
-        self.refresh_token = refresh_token or self._load_refresh_token_from_cache()
+        self.refresh_token = refresh_token or self._load_refresh_token_from_storage()
 
         # Authlib OAuth2Session configuration for Instagram (uses Facebook's OAuth)
         self.oauth_session = OAuth2Session(
             client_id=self.client_id,
             client_secret=self.client_secret,
             scope="instagram_basic,instagram_content_publish,pages_read_engagement,pages_show_list",
-            redirect_uri="http://localhost:3458/callback"
+            redirect_uri="https://localhost:3456/callback"
         )
 
         # Apply Facebook-specific compliance fixes for Instagram
@@ -95,20 +97,32 @@ class InstagramAuthManager(BaseAuthManager):
         if not self.refresh_token:
             return False
 
+        # Ensure OAuth session has correct credentials
+        if not hasattr(self, 'oauth_session') or self.oauth_session.client_id != self.client_id:
+            print(f"[DEBUG] Recreating OAuth session with correct credentials: {self.client_id}")
+            self.oauth_session = OAuth2Session(
+                client_id=self.client_id,
+                client_secret=self.client_secret,
+                scope="instagram_basic,instagram_content_publish,pages_read_engagement,pages_show_list",
+                redirect_uri="https://localhost:3456/callback"
+            )
+            # Apply Facebook-specific compliance fixes for Instagram
+            self.oauth_session = facebook_compliance_fix(self.oauth_session)
+
         try:
-            # Refresh access token using authlib's built-in method with Facebook compliance
+            # Refresh access token using direct HTTP method
             token_data = await self._refresh_access_token()
             self.access_token = token_data['access_token']
 
             # Update refresh token if new one provided
             if token_data.get('refresh_token') and token_data['refresh_token'] != self.refresh_token:
                 self.refresh_token = token_data['refresh_token']
-                # Save all credentials to storage
                 self._save_credentials_to_storage()
 
             # Create client and get user info
             if self.access_token:
                 self.client = self._create_client(self.access_token)
+                await self.client.authenticate()
                 self.user_info = await self._get_user_info()
 
             return True
@@ -119,8 +133,7 @@ class InstagramAuthManager(BaseAuthManager):
         """
         Run Instagram OAuth authorization flow using Authlib.
 
-        Supports both interactive mode (with local callback server) and
-        headless mode (using environment variables for CI/CD).
+        Uses interactive mode with local callback server.
 
         Returns:
             str or None: The refresh token if successful, None if failed
@@ -128,38 +141,15 @@ class InstagramAuthManager(BaseAuthManager):
         if not self._validate_credentials():
             raise Exception('Instagram credentials are required for authorization.')
 
-        # Check for headless mode (CI/CD)
-        if self._check_headless_mode():
-            return await self._authorize_headless()
-
         # Interactive mode with callback server
         return await self._authorize_interactive()
-
-    async def _authorize_headless(self) -> Optional[str]:
-        """Authorize using environment variables (CI/CD mode)."""
-        try:
-            refresh_token = self._load_refresh_token_from_env()
-            if not refresh_token:
-                raise Exception(
-                    'Headless mode enabled but AGORAS_INSTAGRAM_REFRESH_TOKEN not set.'
-                )
-
-            self.refresh_token = refresh_token
-            # Save all credentials to storage
-            self._save_credentials_to_storage()
-            print("Successfully seeded Instagram credentials from environment variables.")
-            return refresh_token
-        except Exception as e:
-            print(f"Headless authorization failed: {e}")
-            return None
 
     async def _authorize_interactive(self) -> Optional[str]:
         """Authorize using local callback server (interactive mode)."""
         try:
             state = secrets.token_urlsafe(32)
-            callback_server = OAuthCallbackServer(expected_state=state)
-            port = await callback_server.get_available_port()
-            redirect_uri = f"http://localhost:{port}/callback"
+            callback_server = OAuthCallbackServer(expected_state=state, port=3456)
+            redirect_uri = "https://localhost:3456/callback"
 
             self.oauth_session.redirect_uri = redirect_uri
 
@@ -183,7 +173,6 @@ class InstagramAuthManager(BaseAuthManager):
 
                 long_lived_token = self._exchange_for_long_lived_token(token['access_token'])
                 self.refresh_token = long_lived_token
-                # Save all credentials to storage
                 self._save_credentials_to_storage()
                 return long_lived_token
 
@@ -212,12 +201,19 @@ class InstagramAuthManager(BaseAuthManager):
         The compliance hook will convert this to Facebook's fb_exchange_token format.
         """
         def _sync_refresh():
-            # Use authlib's refresh_token method - compliance hook handles Facebook specifics
-            token_data = self.oauth_session.refresh_token(
-                token_url='https://graph.facebook.com/v21.0/oauth/access_token',
-                refresh_token=self.refresh_token
-            )
-            return token_data
+            # Make direct HTTP request for token refresh
+            import requests
+
+            data = {
+                'grant_type': 'fb_exchange_token',
+                'client_id': self.client_id,
+                'client_secret': self.client_secret,
+                'fb_exchange_token': self.refresh_token
+            }
+
+            response = requests.post('https://graph.facebook.com/v21.0/oauth/access_token', data=data)
+            response.raise_for_status()
+            return response.json()
 
         return await asyncio.to_thread(_sync_refresh)
 
@@ -237,50 +233,24 @@ class InstagramAuthManager(BaseAuthManager):
             if not self.client:
                 raise Exception('No client available')
 
-            # Get basic user data
+            # Get basic Facebook user data - 'me' returns Facebook user info
             user_data = self.client.get_object(object_id='me', fields='id,name')
 
-            # Verify user ID matches
-            if user_data.get('id') != self.user_id:
-                raise Exception(f"User ID mismatch: {user_data.get('id')} != {self.user_id}")
-
-            # Get Instagram business accounts using get_object instead of get_connections
-            accounts_data = self.client.get_object(
-                object_id=f"{self.user_id}/accounts",
-                fields='id,name,instagram_business_account'
-            )
-
-            # Find Instagram business account
-            instagram_account = None
-            accounts_list = accounts_data.get('data') if accounts_data else []
-            if accounts_list:
-                for page in accounts_list:
-                    if page.get('instagram_business_account'):
-                        instagram_account = page['instagram_business_account']
-                        break
-
-            if not instagram_account:
-                raise Exception("No Instagram business account found for this user")
-
-            # Get Instagram account details
-            ig_account_data = self.client.get_object(
-                object_id=instagram_account['id'],
-                fields='id,name,username'
-            )
-
-            # Combine user data with Instagram account info
-            user_data['instagram_account'] = ig_account_data
-            return user_data
+            # For Instagram authentication, just return basic user info
+            # The stored user_id is already the Instagram Business Account ID
+            return {
+                'id': self.user_id,  # Instagram Business Account ID
+                'name': user_data.get('name', 'Instagram Account'),
+                'facebook_user_id': user_data.get('id')  # Facebook user ID
+            }
 
         return await asyncio.to_thread(_sync_get_info)
 
     def _validate_credentials(self) -> bool:
         """Validate that all required credentials are present."""
-        return all([self.user_id, self.client_id, self.client_secret])
-
-    def _get_cache_filename(self) -> str:
-        """Get cache filename for storing refresh token. DEPRECATED."""
-        return f'instagram-{self.user_id}.json'
+        # For authentication/token refresh, we need client_id and client_secret
+        # user_id is used for storage identification but not strictly required for auth
+        return all([self.client_id, self.client_secret])
 
     def _get_platform_name(self) -> str:
         """Get the platform name for this auth manager."""
@@ -289,14 +259,6 @@ class InstagramAuthManager(BaseAuthManager):
     def _get_token_identifier(self) -> str:
         """Get unique identifier for token storage."""
         return self.user_id
-
-    def _load_refresh_token_from_cache(self) -> Optional[str]:
-        """Load refresh token from secure storage."""
-        return self._load_refresh_token_from_storage()
-
-    def _save_refresh_token_to_cache(self, refresh_token: str):
-        """Save refresh token to secure storage. DEPRECATED - use _save_refresh_token_to_storage."""
-        self._save_refresh_token_to_storage(refresh_token)
 
     def _save_credentials_to_storage(self):
         """Save all Instagram credentials to secure storage."""

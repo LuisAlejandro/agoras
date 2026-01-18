@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,7 +25,9 @@ setup(
     author='Luis Alejandro Martínez Faneyth',
     author_email='luis@luisalejandro.org',
     url='https://github.com/LuisAlejandro/agoras',
-    description='A command line python utility to manage your social networks (Twitter, Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, Telegram, Threads, WhatsApp, and X)',
+    description=('A command line python utility to manage your social networks '
+                 '(X, Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, '
+                 'Telegram, Threads and WhatsApp)'),
     long_description=open('README.rst').read(),
     long_description_content_type='text/x-rst',
     packages=find_namespace_packages(where='src'),

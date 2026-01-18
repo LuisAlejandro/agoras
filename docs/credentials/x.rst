@@ -151,35 +151,30 @@ You can test if your X app is properly configured:
 
 **Note**: After authorization, credentials are stored securely in ``~/.agoras/tokens/`` and automatically loaded for future actions.
 
-CI/CD Setup
------------
+CI/CD Setup (Unattended Execution)
+-----------------------------------
 
-For CI/CD environments where you need to use X credentials:
+For CI/CD environments where interactive authorization isn't possible, you can skip the ``authorize`` step entirely and provide all required credentials via environment variables.
 
-1. **Local Setup**: Run ``agoras x authorize`` locally first to generate and store credentials:
+1. Run ``agoras x authorize`` locally first to store credentials (optional, for local development)
+2. Extract stored credentials using the tokens utility command (if you need to retrieve them)::
 
-   ::
+      # First, list tokens to find the identifier
+      agoras utils tokens list --platform x
 
-         agoras x authorize \
-               --consumer-key "${X_CONSUMER_KEY}" \
-               --consumer-secret "${X_CONSUMER_SECRET}" \
-               --oauth-token "${X_OAUTH_TOKEN}" \
-               --oauth-secret "${X_OAUTH_SECRET}"
+      # Then view all stored credentials
+      agoras utils tokens show --platform x --identifier {identifier}
 
-2. **Extract credentials**: The credentials are stored in ``~/.agoras/tokens/x-{hash}.token`` (encrypted).
+3. For CI/CD, set all required environment variables in your CI/CD pipeline::
 
-3. **CI/CD Environment**: Set environment variables in your CI/CD pipeline:
+      export TWITTER_CONSUMER_KEY="your_api_key_here"
+      export TWITTER_CONSUMER_SECRET="your_api_secret_here"
+      export TWITTER_OAUTH_TOKEN="your_access_token_here"
+      export TWITTER_OAUTH_SECRET="your_access_token_secret_here"
 
-   ::
+4. Run Agoras actions directly without running ``authorize``. All credentials will be loaded from environment variables.
 
-         export TWITTER_CONSUMER_KEY="your_api_key_here"
-         export TWITTER_CONSUMER_SECRET="your_api_secret_here"
-         export TWITTER_OAUTH_TOKEN="your_access_token_here"
-         export TWITTER_OAUTH_SECRET="your_access_token_secret_here"
-
-4. Agoras will automatically use credentials from environment variables when storage is not available.
-
-**Alternative**: Instead of environment variables, you can copy the token file from ``~/.agoras/tokens/`` to your CI/CD environment's home directory.
+**Note**: For unattended execution, you must provide all required credentials (consumer key, consumer secret, OAuth token, and OAuth secret) as shown in the :doc:`../reference/platform-arguments-envvars` documentation.
 
 **Security Best Practices for CI/CD**:
 - Store credentials in your CI/CD platform's secret management system (GitHub Secrets, GitLab CI/CD Variables, etc.)

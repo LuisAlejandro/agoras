@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,8 +27,8 @@ Contains:
 """
 
 from .base import Media
+from .factory import MediaFactory
 from .image import Image
 from .video import Video
-from .factory import MediaFactory
 
 __all__ = ['Media', 'Image', 'Video', 'MediaFactory']

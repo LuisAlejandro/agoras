@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -144,6 +144,80 @@ class FacebookAPIClient:
                 return self.graph_api.get_object(object_id=object_id)
         except Exception as e:
             raise Exception(f'Facebook get_object failed: {str(e)}')
+
+    async def is_page(self, object_id: str) -> bool:
+        """
+        Check if the given object_id represents a Facebook Page.
+
+        Args:
+            object_id (str): Facebook object ID to check
+
+        Returns:
+            bool: True if object is a Facebook Page, False otherwise
+
+        Raises:
+            Exception: If API call fails
+        """
+        if not self.graph_api:
+            raise Exception('Facebook GraphAPI not initialized')
+
+        try:
+            # Pages have 'category' or 'category_list' fields, profiles don't
+            page_data = self.graph_api.get_object(
+                object_id=object_id,
+                fields='category,category_list,about'
+            )
+
+            # If we got category or category_list fields, it's a page
+            return bool(page_data.get('category') or page_data.get('category_list'))
+        except Exception:
+            # If we can't access the object, assume it's not a page
+            # (could be privacy settings or invalid ID)
+            return False
+
+    async def get_page_access_token(self, object_id: str, user_access_token: str) -> str:
+        """
+        Exchange user access token for page access token.
+
+        Args:
+            object_id (str): Facebook Page ID
+            user_access_token (str): User access token with page permissions
+
+        Returns:
+            str: Page access token
+
+        Raises:
+            Exception: If page token cannot be obtained
+        """
+        if not self.graph_api:
+            raise Exception('Facebook GraphAPI not initialized')
+
+        try:
+            # Use direct HTTP request to /me/accounts endpoint
+            import requests
+
+            url = "https://graph.facebook.com/v21.0/me/accounts"
+            params = {
+                'access_token': user_access_token,
+                'fields': 'id,access_token'
+            }
+
+            response = requests.get(url, params=params)
+            response.raise_for_status()
+
+            accounts_data = response.json()
+
+            # Find the page matching our object_id
+            for account in accounts_data.get('data', []):
+                if account.get('id') == object_id:
+                    page_token = account.get('access_token')
+                    if page_token:
+                        return page_token
+
+            raise Exception(f'Page {object_id} not found in user accounts or no access token available')
+
+        except Exception as e:
+            raise Exception(f'Facebook page token exchange failed: {str(e)}')
 
     async def create_post(self, object_id: str, message: Optional[str] = None,
                           link: Optional[str] = None,

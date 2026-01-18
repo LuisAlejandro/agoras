@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -39,7 +39,6 @@ async def test_threads_initialize_client(mock_api_class):
     threads = Threads(
         threads_app_id='app_id',
         threads_app_secret='app_secret',
-        threads_redirect_uri='http://localhost/callback',
         threads_refresh_token='test_token'
     )
 
@@ -51,8 +50,18 @@ async def test_threads_initialize_client(mock_api_class):
 
 
 @pytest.mark.asyncio
-async def test_threads_initialize_client_missing_credentials():
+@patch('agoras.platforms.threads.auth.ThreadsAuthManager')
+@patch('agoras.platforms.threads.wrapper.Threads._get_config_value')
+async def test_threads_initialize_client_missing_credentials(mock_get_config, mock_auth_manager_class):
     """Test Threads _initialize_client raises exception without credentials."""
+    # Mock _get_config_value to return None (no credentials available)
+    mock_get_config.return_value = None
+
+    # Mock auth manager to not load from storage
+    mock_auth_manager = MagicMock()
+    mock_auth_manager._load_credentials_from_storage = MagicMock(return_value=False)
+    mock_auth_manager_class.return_value = mock_auth_manager
+
     threads = Threads()
 
     with pytest.raises(Exception, match="Not authenticated"):
@@ -86,7 +95,6 @@ async def test_threads_initialize_client_loads_from_storage(mock_auth_manager_cl
     # Verify credentials were loaded from storage
     assert threads.threads_app_id == 'stored_app_id'
     assert threads.threads_app_secret == 'stored_app_secret'
-    assert threads.threads_redirect_uri == 'stored_redirect_uri'
     assert threads.threads_refresh_token == 'stored_refresh_token'
     assert threads.api is mock_api
     mock_api.authenticate.assert_called_once()
@@ -103,7 +111,6 @@ async def test_threads_authorize_credentials(mock_auth_manager_class):
     threads = Threads(
         threads_app_id='app123',
         threads_app_secret='secret123',
-        threads_redirect_uri='http://localhost/callback'
     )
 
     with patch('builtins.print'):
@@ -124,7 +131,6 @@ async def test_threads_authorize_credentials_failure(mock_auth_manager_class):
     threads = Threads(
         threads_app_id='app123',
         threads_app_secret='secret123',
-        threads_redirect_uri='http://localhost/callback'
     )
 
     result = await threads.authorize_credentials()
@@ -145,7 +151,6 @@ async def test_threads_post(mock_api_class):
     threads = Threads(
         threads_app_id='app_id',
         threads_app_secret='secret',
-        threads_redirect_uri='http://localhost/callback',
         threads_access_token='token'
     )
 
@@ -170,7 +175,6 @@ async def test_threads_disconnect(mock_api_class):
     threads = Threads(
         threads_app_id='app_id',
         threads_app_secret='secret',
-        threads_redirect_uri='http://localhost/callback',
         threads_access_token='token'
     )
 

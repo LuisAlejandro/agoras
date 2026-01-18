@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.rst for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ This module provides the Telegram command parser for the new CLI structure.
 from argparse import ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.telegram.wrapper import main as telegram_main
+
 from ..base import add_common_content_options, add_video_options
 from ..converter import ParameterConverter
 from ..validator import ActionValidator
@@ -73,38 +74,6 @@ def create_telegram_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     _add_telegram_auth_options(video, required=False)
     add_video_options(video)
 
-    # Edit action
-    edit = actions.add_parser(
-        'edit',
-        help='Edit an existing Telegram message. Requires prior authorization via "agoras telegram authorize".'
-    )
-    _add_telegram_auth_options(edit, required=False)
-    _add_telegram_edit_options(edit)
-
-    # Poll action
-    poll = actions.add_parser(
-        'poll',
-        help='Send a poll to Telegram chat. Requires prior authorization via "agoras telegram authorize".'
-    )
-    _add_telegram_auth_options(poll, required=False)
-    _add_telegram_poll_options(poll)
-
-    # Document action
-    document = actions.add_parser(
-        'document',
-        help='Send a document file to Telegram chat. Requires prior authorization via "agoras telegram authorize".'
-    )
-    _add_telegram_auth_options(document, required=False)
-    _add_telegram_document_options(document)
-
-    # Audio action
-    audio = actions.add_parser(
-        'audio',
-        help='Send an audio file to Telegram chat. Requires prior authorization via "agoras telegram authorize".'
-    )
-    _add_telegram_auth_options(audio, required=False)
-    _add_telegram_audio_options(audio)
-
     # Delete action
     delete = actions.add_parser(
         'delete',
@@ -114,7 +83,7 @@ def create_telegram_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     _add_post_id_option(delete)
 
     # Set handler
-    parser.set_defaults(handler=_handle_telegram_command)
+    parser.set_defaults(command=_handle_telegram_command)
 
     return parser
 
@@ -149,111 +118,6 @@ def _add_telegram_auth_options(parser: ArgumentParser, required: bool = True):
         default='HTML',
         metavar='<mode>',
         help='Message parse mode (default: HTML)'
-    )
-
-
-def _add_telegram_edit_options(parser: ArgumentParser):
-    """
-    Add edit message options.
-
-    Args:
-        parser: ArgumentParser to add options to
-    """
-    parser.add_argument(
-        '--message-id',
-        required=True,
-        metavar='<id>',
-        help='ID of the message to edit'
-    )
-    parser.add_argument(
-        '--text',
-        required=True,
-        metavar='<text>',
-        help='New message text'
-    )
-
-
-def _add_telegram_poll_options(parser: ArgumentParser):
-    """
-    Add poll creation options.
-
-    Args:
-        parser: ArgumentParser to add options to
-    """
-    poll = parser.add_argument_group('Poll Options')
-    poll.add_argument(
-        '--question',
-        required=True,
-        metavar='<question>',
-        help='Poll question (up to 300 characters)'
-    )
-    poll.add_argument(
-        '--options',
-        required=True,
-        metavar='<options>',
-        help='Comma-separated list of poll options (2-10 options)'
-    )
-    poll.add_argument(
-        '--anonymous',
-        action='store_true',
-        default=True,
-        help='Make poll anonymous (default: True)'
-    )
-
-
-def _add_telegram_document_options(parser: ArgumentParser):
-    """
-    Add document sending options.
-
-    Args:
-        parser: ArgumentParser to add options to
-    """
-    parser.add_argument(
-        '--document-url',
-        required=True,
-        metavar='<url>',
-        help='URL of document file to send'
-    )
-    parser.add_argument(
-        '--caption',
-        metavar='<text>',
-        help='Document caption'
-    )
-
-
-def _add_telegram_audio_options(parser: ArgumentParser):
-    """
-    Add audio sending options.
-
-    Args:
-        parser: ArgumentParser to add options to
-    """
-    parser.add_argument(
-        '--audio-url',
-        required=True,
-        metavar='<url>',
-        help='URL of audio file to send'
-    )
-    parser.add_argument(
-        '--caption',
-        metavar='<text>',
-        help='Audio caption'
-    )
-    parser.add_argument(
-        '--duration',
-        type=int,
-        metavar='<seconds>',
-        help='Audio duration in seconds'
-    )
-    parser.add_argument(
-        '--performer',
-        metavar='<name>',
-        help='Performer name'
-    )
-    parser.add_argument(
-        '--title',
-        metavar='<title>',
-        help='Track title'
     )
 
 

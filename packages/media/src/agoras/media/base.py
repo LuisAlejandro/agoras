@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Please refer to AUTHORS.md for a complete list of Copyright holders.
-# Copyright (C) 2022-2023, Agoras Developers.
+# Copyright (C) 2022-2026, Agoras Developers.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -184,15 +184,12 @@ class Media(ABC):
         Raises:
             Exception: If file hasn't been downloaded
         """
-        if not self._downloaded:
-            raise Exception('File must be downloaded before getting size')
-
         if self.content is not None:
             return len(self.content)
-        elif self.temp_file:
+        elif self._downloaded and self.temp_file:
             return os.path.getsize(self.temp_file)
         else:
-            raise Exception('No file content available')
+            raise Exception('File must be downloaded before getting size')
 
     def cleanup(self):
         """
