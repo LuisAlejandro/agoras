@@ -2,6 +2,15 @@ Changelog
 ============
 
 
+1.1.4 (2026-01-19)
+------------
+
+Other
+~~~~~~~~~~~~
+
+* Adding readthedocs configuration. [Luis Alejandro Martínez Faneyth]
+
+
 1.1.3 (2023-09-05)
 ------------
 
