@@ -1,4 +1,3 @@
-- oauth2 for discord authorize
 - rewrite all credentials documentation: manual
-- bug: the authorize action can save several tokens per platform and there's no clear way to select which one is used
 - general standarization and polish: manual
+- provide a way to change defaults in tokens util

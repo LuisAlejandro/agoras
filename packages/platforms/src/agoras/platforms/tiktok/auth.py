@@ -280,25 +280,32 @@ class TikTokAuthManager(BaseAuthManager):
         }
 
         self.token_storage.save_token(platform_name, identifier, token_data)
+        # Also save as default so it becomes the primary credential loaded
+        self.token_storage.save_token(platform_name, "default", token_data)
 
     def _load_credentials_from_storage(self) -> bool:
         """Load TikTok credentials from secure storage."""
         platform_name = self._get_platform_name()
 
-        # First, try to find any stored token for this platform
-        tokens = self.token_storage.list_tokens(platform_name)
-        if tokens:
-            # Use the first available token
-            identifier = tokens[0][1]
-            token_data = self.token_storage.load_token(platform_name, identifier)
+        # Try to load with default identifier first
+        identifier = "default"
+        token_data = self.token_storage.load_token(platform_name, identifier)
 
-            if token_data:
-                # Load all credentials from the token data
-                self.username = token_data.get('username')
-                self.client_key = token_data.get('client_key')
-                self.client_secret = token_data.get('client_secret')
-                self.refresh_token = token_data.get('refresh_token')
+        if not token_data:
+            # If no default, try to find any stored token
+            tokens = self.token_storage.list_tokens(platform_name)
+            if tokens:
+                # Use the first available token
+                identifier = tokens[0][1]
+                token_data = self.token_storage.load_token(platform_name, identifier)
 
-                return bool(all([self.username, self.client_key, self.client_secret, self.refresh_token]))
+        if token_data:
+            # Load all credentials from the token data
+            self.username = token_data.get('username')
+            self.client_key = token_data.get('client_key')
+            self.client_secret = token_data.get('client_secret')
+            self.refresh_token = token_data.get('refresh_token')
+
+            return bool(all([self.username, self.client_key, self.client_secret, self.refresh_token]))
 
         return False

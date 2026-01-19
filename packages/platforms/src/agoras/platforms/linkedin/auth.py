@@ -251,6 +251,8 @@ class LinkedInAuthManager(BaseAuthManager):
         }
 
         self.token_storage.save_token(platform_name, identifier, token_data)
+        # Also save as default so it becomes the primary credential loaded
+        self.token_storage.save_token(platform_name, "default", token_data)
 
     def _load_credentials_from_storage(self) -> bool:
         """Load LinkedIn credentials from secure storage."""
