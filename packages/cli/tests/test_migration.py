@@ -157,8 +157,7 @@ def test_format_migration_warning():
     assert 'DEPRECATION WARNING' in warning
     assert 'agoras publish' in warning
     assert 'agoras twitter post' in warning
-    assert 'version 2.0' in warning
-    assert '12 months' in warning
+    assert 'version 3.0' in warning
 
 
 def test_get_migration_summary_platform_action():

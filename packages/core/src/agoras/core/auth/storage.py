@@ -167,6 +167,7 @@ class SecureTokenStorage:
             'discord',
             'telegram',
             'threads',
+            'twitter',
             'whatsapp',
             'x',
             'youtube',

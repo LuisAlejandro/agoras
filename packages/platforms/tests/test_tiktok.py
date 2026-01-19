@@ -52,7 +52,8 @@ async def test_tiktok_initialize_client(mock_api_class):
 
 
 @pytest.mark.asyncio
-async def test_tiktok_initialize_client_missing_credentials():
+@patch('agoras.platforms.tiktok.auth.TikTokAuthManager._load_credentials_from_storage', return_value=False)
+async def test_tiktok_initialize_client_missing_credentials(mock_load_credentials):
     """Test TikTok _initialize_client raises exception without credentials."""
     tiktok = TikTok()
 

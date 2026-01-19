@@ -34,8 +34,8 @@ def test_facebook_parser_creation():
     assert parser is not None
 
 
-def test_facebook_post_requires_object_id():
-    """Test that Facebook post requires object ID."""
+def test_facebook_post_parsing():
+    """Test that Facebook post parsing works."""
     root_parser = ArgumentParser()
     subparsers = root_parser.add_subparsers(dest='platform')
 
@@ -43,16 +43,14 @@ def test_facebook_post_requires_object_id():
 
     args = root_parser.parse_args([
         'facebook', 'post',
-        '--object-id', 'page123',
         '--text', 'Hello Facebook'
     ])
 
-    assert args.object_id == 'page123'
     assert args.text == 'Hello Facebook'
 
 
-def test_facebook_video_has_extra_options():
-    """Test that Facebook video has video-specific options."""
+def test_facebook_video_parsing():
+    """Test that Facebook video parsing works."""
     root_parser = ArgumentParser()
     subparsers = root_parser.add_subparsers(dest='platform')
 
@@ -60,7 +58,6 @@ def test_facebook_video_has_extra_options():
 
     args = root_parser.parse_args([
         'facebook', 'video',
-        '--object-id', 'page123',
         '--video-url', 'video.mp4',
         '--video-title', 'Title',
         '--video-description', 'Description',

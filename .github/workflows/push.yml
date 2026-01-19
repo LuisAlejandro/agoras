@@ -27,40 +27,6 @@ jobs:
         run: |
           tox -e lint
 
-  unit:
-    name: Unit tests
-    runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v6
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Installing dependencies
-        run: |
-          python3 -m pip install -r requirements-dev.txt
-
-      - name: Measuring coverage (all packages)
-        env:
-          PYTHON_VERSION: ${{ matrix.python-version }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          tox -e coverage
-
-      - name: Coveralls Parallel
-        uses: coverallsapp/github-action@v2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          flag-name: run-py${{ matrix.python-version }}
-          path-to-lcov: ./.lcov
-          parallel: true
-
   integration:
     name: Integration Tests
     runs-on: ubuntu-22.04
@@ -93,9 +59,45 @@ jobs:
           agoras --version
           agoras --help
 
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-22.04
+    needs: [lint, integration]
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Installing dependencies
+        run: |
+          python3 -m pip install -r requirements-dev.txt
+
+      - name: Measuring coverage (all packages)
+        env:
+          PYTHON_VERSION: ${{ matrix.python-version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tox -e coverage
+
+      - name: Coveralls Parallel
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          flag-name: run-py${{ matrix.python-version }}
+          path-to-lcov: ./.lcov
+          parallel: true
+
   docs:
     name: Documentation
     runs-on: ubuntu-22.04
+    needs: [unit]
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
@@ -141,7 +143,7 @@ jobs:
   finish:
     name: Finish
     runs-on: ubuntu-22.04
-    needs: [lint, unit, integration, docs]
+    needs: [docs]
     steps:
       - name: Coveralls Finished
         uses: coverallsapp/github-action@v2

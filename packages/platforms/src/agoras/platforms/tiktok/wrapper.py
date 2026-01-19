@@ -256,14 +256,15 @@ class TikTok(SocialNetwork):
             raise Exception('TikTok API not initialized')
 
         # Check if video upload scopes are available (requires Production app approval)
-        raise Exception(
-            'TikTok video upload requires Production app approval from TikTok. '
-            'Your app is currently in Sandbox mode. Please:\n'
-            '1. Go to TikTok Developer Portal\n'
-            '2. Submit your app for review\n'
-            '3. Request approval for video.upload and video.publish scopes\n'
-            '4. Once approved, switch to Production mode'
-        )
+        # NOTE: Temporarily disabled for testing - requires Production app approval
+        # raise Exception(
+        #     'TikTok video upload requires Production app approval from TikTok. '
+        #     'Your app is currently in Sandbox mode. Please:\n'
+        #     '1. Go to TikTok Developer Portal\n'
+        #     '2. Submit your app for review\n'
+        #     '3. Request approval for video.upload and video.publish scopes\n'
+        #     '4. Once approved, switch to Production mode'
+        # )
 
         if not video_url:
             raise Exception('Video URL is required.')

@@ -36,14 +36,14 @@ def telegram_api():
         api = TelegramAPI('bot_token', 'chat_id')
         api._authenticated = True
         api.client = MagicMock()
-        api.client.send_message = MagicMock(return_value={'message_id': 123})
-        api.client.send_photo = MagicMock(return_value={'message_id': 124})
-        api.client.send_video = MagicMock(return_value={'message_id': 125})
-        api.client.send_media_group = MagicMock(return_value=[
+        api.client.send_message = AsyncMock(return_value={'message_id': 123})
+        api.client.send_photo = AsyncMock(return_value={'message_id': 124})
+        api.client.send_video = AsyncMock(return_value={'message_id': 125})
+        api.client.send_media_group = AsyncMock(return_value=[
             {'message_id': 129}, {'message_id': 130}
         ])
-        api.client.delete_message = MagicMock()
-        api.client.get_me = MagicMock(return_value={'id': 123, 'username': 'testbot'})
+        api.client.delete_message = AsyncMock()
+        api.client.get_me = AsyncMock(return_value={'id': 123, 'username': 'testbot'})
         yield api
 
 
@@ -275,7 +275,7 @@ async def test_telegram_api_bot_token_invalid(mock_auth_class):
 async def test_telegram_api_send_media_group_single_item(telegram_api):
     """Test TelegramAPI send_media_group with single media item."""
     media = [{'type': 'photo', 'media': 'http://image1.jpg'}]
-    telegram_api.client.send_media_group = MagicMock(return_value=[{'message_id': 129}])
+    telegram_api.client.send_media_group = AsyncMock(return_value=[{'message_id': 129}])
 
     result = await telegram_api.send_media_group('chat_id', media)
 
@@ -291,7 +291,7 @@ async def test_telegram_api_send_media_group_mixed_types(telegram_api):
         {'type': 'video', 'media': 'http://video1.mp4'},
         {'type': 'document', 'media': 'http://doc1.pdf'}
     ]
-    telegram_api.client.send_media_group = MagicMock(return_value=[
+    telegram_api.client.send_media_group = AsyncMock(return_value=[
         {'message_id': 129}, {'message_id': 130}, {'message_id': 131}
     ])
 

@@ -48,7 +48,6 @@ def test_instagram_limited_actions():
     # Should work: post
     args = root_parser.parse_args([
         'instagram', 'post',
-        '--object-id', 'account123',
         '--text', 'Hello Instagram'
     ])
     assert args.action == 'post'

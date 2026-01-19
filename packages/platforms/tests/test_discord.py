@@ -52,7 +52,8 @@ async def test_discord_initialize_client(mock_api_class):
 
 
 @pytest.mark.asyncio
-async def test_discord_initialize_client_missing_token():
+@patch('agoras.platforms.discord.auth.DiscordAuthManager._load_credentials_from_storage', return_value=False)
+async def test_discord_initialize_client_missing_token(mock_load_credentials):
     """Test Discord _initialize_client raises exception without token."""
     discord = Discord()
 
@@ -61,7 +62,8 @@ async def test_discord_initialize_client_missing_token():
 
 
 @pytest.mark.asyncio
-async def test_discord_initialize_client_missing_server():
+@patch('agoras.platforms.discord.auth.DiscordAuthManager._load_credentials_from_storage', return_value=False)
+async def test_discord_initialize_client_missing_server(mock_load_credentials):
     """Test Discord _initialize_client raises exception without server."""
     discord = Discord(discord_bot_token='token')
 
@@ -70,7 +72,8 @@ async def test_discord_initialize_client_missing_server():
 
 
 @pytest.mark.asyncio
-async def test_discord_initialize_client_missing_channel():
+@patch('agoras.platforms.discord.auth.DiscordAuthManager._load_credentials_from_storage', return_value=False)
+async def test_discord_initialize_client_missing_channel(mock_load_credentials):
     """Test Discord _initialize_client raises exception without channel."""
     discord = Discord(
         discord_bot_token='token',

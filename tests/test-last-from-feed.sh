@@ -146,7 +146,56 @@ elif [ "${1}" == "linkedin" ]; then
         --client-secret "${LINKEDIN_CLIENT_SECRET}" \
         --post-id "${LAST_FROM_FEED_LINKEDIN_ID}" || true
 
+elif [ "${1}" == "threads" ]; then
+    LAST_FROM_FEED_THREADS_ID=$(
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" utils feed-publish \
+            --network threads \
+            --mode last \
+            --threads-app-id "${THREADS_APP_ID}" \
+            --threads-app-secret "${THREADS_APP_SECRET}" \
+            --feed-url "${FEED_URL}" \
+            --max-count 1 \
+            --post-lookback "${POST_LOOKBACK}" | jq --unbuffered '.' | jq -r '.id'
+    )
+
+    echo "Threads last from feed test created with ID: ${LAST_FROM_FEED_THREADS_ID}"
+    echo "Note: Threads does not support delete action"
+
+elif [ "${1}" == "telegram" ]; then
+    LAST_FROM_FEED_TELEGRAM_ID=$(
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" utils feed-publish \
+            --network telegram \
+            --mode last \
+            --telegram-bot-token "${TELEGRAM_BOT_TOKEN}" \
+            --telegram-chat-id "${TELEGRAM_CHAT_ID}" \
+            --feed-url "${FEED_URL}" \
+            --max-count 1 \
+            --post-lookback "${POST_LOOKBACK}" | jq --unbuffered '.' | jq -r '.id'
+    )
+
+    sleep 5
+
+    [ -n "${LAST_FROM_FEED_TELEGRAM_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" telegram delete \
+        --bot-token "${TELEGRAM_BOT_TOKEN}" \
+        --chat-id "${TELEGRAM_CHAT_ID}" \
+        --post-id "${LAST_FROM_FEED_TELEGRAM_ID}" || true
+
+elif [ "${1}" == "whatsapp" ]; then
+    LAST_FROM_FEED_WHATSAPP_ID=$(
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" utils feed-publish \
+            --network whatsapp \
+            --mode last \
+            --whatsapp-access-token "${WHATSAPP_ACCESS_TOKEN}" \
+            --whatsapp-phone-number-id "${WHATSAPP_PHONE_NUMBER_ID}" \
+            --feed-url "${FEED_URL}" \
+            --max-count 1 \
+            --post-lookback "${POST_LOOKBACK}" | jq --unbuffered '.' | jq -r '.id'
+    )
+
+    echo "WhatsApp last from feed test created with ID: ${LAST_FROM_FEED_WHATSAPP_ID}"
+    echo "Note: WhatsApp does not support delete action"
+
 else
     echo "Unsupported platform ${1}"
-    echo "Usage: $0 {x|tiktok|youtube|facebook|instagram|discord|linkedin}"
+    echo "Usage: $0 {x|tiktok|youtube|facebook|instagram|discord|linkedin|threads|telegram|whatsapp}"
 fi

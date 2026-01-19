@@ -298,7 +298,7 @@ def test_get_all_mappings():
 def test_convert_all_platforms():
     """Test that all platforms have working converters."""
     platforms = ['x', 'twitter', 'facebook', 'instagram', 'linkedin',
-                 'discord', 'youtube', 'tiktok', 'threads']
+                 'discord', 'youtube', 'tiktok', 'threads', 'telegram', 'whatsapp']
 
     for platform in platforms:
         converter = ParameterConverter(platform)

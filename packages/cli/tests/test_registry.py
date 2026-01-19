@@ -26,7 +26,7 @@ def test_get_platform_names():
     """Test that all platforms are registered including X and twitter alias."""
     platforms = PlatformRegistry.get_platform_names()
 
-    assert len(platforms) >= 8
+    assert len(platforms) >= 11
     assert 'x' in platforms
     assert 'twitter' in platforms  # Backward compatibility alias
     assert 'facebook' in platforms
@@ -36,6 +36,8 @@ def test_get_platform_names():
     assert 'youtube' in platforms
     assert 'tiktok' in platforms
     assert 'threads' in platforms
+    assert 'telegram' in platforms
+    assert 'whatsapp' in platforms
 
 
 def test_get_supported_actions_x():
@@ -116,6 +118,8 @@ def test_platform_exists():
     assert PlatformRegistry.platform_exists('x') is True
     assert PlatformRegistry.platform_exists('twitter') is True  # Backward compatibility
     assert PlatformRegistry.platform_exists('threads') is True
+    assert PlatformRegistry.platform_exists('telegram') is True
+    assert PlatformRegistry.platform_exists('whatsapp') is True
     assert PlatformRegistry.platform_exists('nonexistent') is False
 
 

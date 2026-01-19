@@ -259,15 +259,13 @@ def test_list_tokens_empty(temp_storage):
 
 def test_list_tokens_with_hyphen_in_identifier(temp_storage):
     """Test list_tokens parses filename with hyphen in identifier correctly."""
-    # rsplit('-', 1) splits from right: 'facebook-user-with-hyphens' -> ('facebook-user-with', 'hyphens')
     temp_storage.save_token('facebook', 'user-with-hyphens', {'token': 'value'})
 
     tokens = temp_storage.list_tokens()
 
     assert len(tokens) == 1
-    # Due to rsplit('-', 1), the platform becomes 'facebook-user-with' and identifier becomes 'hyphens'
-    # This is a limitation of the current implementation
-    assert tokens[0] == ('facebook-user-with', 'hyphens')
+    # Should correctly identify platform and identifier even with hyphens
+    assert tokens[0] == ('facebook', 'user-with-hyphens')
 
 
 def test_list_tokens_skips_invalid_files(temp_storage):

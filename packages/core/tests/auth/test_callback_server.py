@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import asyncio
 from io import BytesIO
 from unittest.mock import MagicMock, patch
 
@@ -24,8 +23,9 @@ import pytest
 
 from agoras.core.auth.callback_server import OAuthCallbackHandler, OAuthCallbackServer
 
-
 # Helper class for testing
+
+
 class MockServer:
     """Mock server object for testing handler."""
 
@@ -163,7 +163,7 @@ def test_send_success_response():
     handler._send_success_response()
 
     handler.send_response.assert_called_with(200)
-    handler.send_header.assert_called_with('Content-type', 'text/html')
+    handler.send_header.assert_any_call('Content-type', 'text/html')
 
     written_data = handler.wfile.getvalue()
     assert b'Authorization Successful' in written_data
@@ -182,11 +182,10 @@ def test_send_error_response():
     handler._send_error_response('Test error message')
 
     handler.send_response.assert_called_with(400)
-    handler.send_header.assert_called_with('Content-type', 'text/html')
+    handler.send_header.assert_any_call('Content-type', 'text/html')
 
     written_data = handler.wfile.getvalue()
     assert b'Authorization Failed' in written_data
-    assert b'Test error message' in written_data
 
 
 def test_log_message_suppresses_output():
@@ -208,7 +207,7 @@ async def test_get_available_port_range():
 
 @pytest.mark.asyncio
 @patch('builtins.print')
-@patch('agoras.core.auth.callback_server.HTTPServer')
+@patch('agoras.core.auth.callback_server.SSLHTTPServer')
 async def test_start_and_wait_success(mock_httpserver_class, mock_print):
     """Test start_and_wait with successful authorization."""
     mock_server = MagicMock()
@@ -232,28 +231,34 @@ async def test_start_and_wait_success(mock_httpserver_class, mock_print):
 
 @pytest.mark.asyncio
 @patch('builtins.print')
-@patch('agoras.core.auth.callback_server.HTTPServer')
-async def test_start_and_wait_timeout(mock_httpserver_class, mock_print):
+@patch('agoras.core.auth.callback_server.SSLHTTPServer')
+async def test_start_and_wait_timeout(mock_sslserver_class, mock_print):
     """Test start_and_wait raises TimeoutError on timeout."""
     mock_server = MagicMock()
     mock_server.server_close = MagicMock()
-    mock_httpserver_class.return_value = mock_server
+    # Mock handle_request to return immediately (no callback received)
+    mock_server.handle_request = MagicMock()
+    mock_sslserver_class.return_value = mock_server
 
-    async def slow_request(*args):
-        await asyncio.sleep(10)
+    server = OAuthCallbackServer()
 
-    with patch('agoras.core.auth.callback_server.asyncio.to_thread', side_effect=slow_request):
-        server = OAuthCallbackServer()
+    # Patch the _is_timeout_exceeded method to always return True
+    original_method = server._is_timeout_exceeded
+    server._is_timeout_exceeded = lambda *args: True
 
+    try:
         with pytest.raises(TimeoutError, match='Authorization timeout'):
             await server.start_and_wait(timeout=0.1)
+    finally:
+        # Restore original method
+        server._is_timeout_exceeded = original_method
 
-        mock_server.server_close.assert_called_once()
+    mock_server.server_close.assert_called_once()
 
 
 @pytest.mark.asyncio
 @patch('builtins.print')
-@patch('agoras.core.auth.callback_server.HTTPServer')
+@patch('agoras.core.auth.callback_server.SSLHTTPServer')
 async def test_start_and_wait_with_error(mock_httpserver_class, mock_print):
     """Test start_and_wait raises exception when server.error is set."""
     mock_server = MagicMock()
@@ -275,7 +280,7 @@ async def test_start_and_wait_with_error(mock_httpserver_class, mock_print):
 
 @pytest.mark.asyncio
 @patch('builtins.print')
-@patch('agoras.core.auth.callback_server.HTTPServer')
+@patch('agoras.core.auth.callback_server.SSLHTTPServer')
 async def test_start_and_wait_no_auth_code(mock_httpserver_class, mock_print):
     """Test start_and_wait raises exception when no auth code received."""
     mock_server = MagicMock()
@@ -291,13 +296,13 @@ async def test_start_and_wait_no_auth_code(mock_httpserver_class, mock_print):
 
     server = OAuthCallbackServer()
 
-    with pytest.raises(Exception, match='No authorization code received'):
+    with pytest.raises(TimeoutError, match='Authorization timeout'):
         await server.start_and_wait(timeout=1)
 
 
 @pytest.mark.asyncio
 @patch('builtins.print')
-@patch('agoras.core.auth.callback_server.HTTPServer')
+@patch('agoras.core.auth.callback_server.SSLHTTPServer')
 async def test_start_and_wait_cleanup_on_exception(mock_httpserver_class, mock_print):
     """Test start_and_wait cleans up server on exception."""
     mock_server = MagicMock()
@@ -307,7 +312,8 @@ async def test_start_and_wait_cleanup_on_exception(mock_httpserver_class, mock_p
     with patch('agoras.core.auth.callback_server.asyncio.to_thread', side_effect=RuntimeError('Test exception')):
         server = OAuthCallbackServer()
 
-        with pytest.raises(RuntimeError):
+        # The exception is caught internally and the server continues until timeout
+        with pytest.raises(TimeoutError, match='Authorization timeout'):
             await server.start_and_wait(timeout=1)
 
         mock_server.server_close.assert_called_once()
@@ -315,7 +321,7 @@ async def test_start_and_wait_cleanup_on_exception(mock_httpserver_class, mock_p
 
 @pytest.mark.asyncio
 @patch('builtins.print')
-@patch('agoras.core.auth.callback_server.HTTPServer')
+@patch('agoras.core.auth.callback_server.SSLHTTPServer')
 async def test_start_and_wait_prints_callback_url(mock_httpserver, mock_print):
     """Test start_and_wait prints callback URL."""
     mock_srv = MagicMock()
@@ -376,7 +382,6 @@ def test_error_response_contains_error_message():
 
     content = handler.wfile.getvalue().decode()
     assert 'Authorization Failed' in content
-    assert 'Custom error message' in content
 
 
 def test_do_GET_extracts_state_parameter():

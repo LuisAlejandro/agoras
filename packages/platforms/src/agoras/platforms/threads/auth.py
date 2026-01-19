@@ -47,6 +47,10 @@ class ThreadsAuthManager(BaseAuthManager):
         Returns:
             bool: True if authentication successful, False otherwise
         """
+        # If already authenticated, return True
+        if self.authenticated:
+            return True
+
         if not self._validate_credentials():
             return False
 

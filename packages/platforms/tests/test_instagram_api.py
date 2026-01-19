@@ -145,11 +145,8 @@ async def test_instagram_api_not_authenticated(mock_auth_class):
 @pytest.mark.asyncio
 async def test_instagram_api_handles_error(instagram_api):
     """Test InstagramAPI handles API errors."""
-    with patch('requests.post') as mock_post:
-        mock_response = MagicMock()
-        mock_response.status_code = 400
-        mock_response.text = 'Bad Request'
-        mock_post.return_value = mock_response
+    # Make the client.create_media raise an exception to test error handling
+    instagram_api.client.create_media.side_effect = Exception('API Error')
 
-        with pytest.raises(Exception):
-            await instagram_api.create_media_container('Caption', 'http://image.jpg')
+    with pytest.raises(Exception, match='Instagram media creation'):
+        await instagram_api.create_media('user_id', image_url='http://image.jpg', caption='Caption')

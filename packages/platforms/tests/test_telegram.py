@@ -50,7 +50,8 @@ async def test_telegram_initialize_client(mock_api_class):
 
 
 @pytest.mark.asyncio
-async def test_telegram_initialize_client_missing_token():
+@patch('agoras.platforms.telegram.auth.TelegramAuthManager._load_credentials_from_storage', return_value=False)
+async def test_telegram_initialize_client_missing_token(mock_load_credentials):
     """Test Telegram _initialize_client raises exception without token."""
     telegram = Telegram()
 

@@ -463,8 +463,10 @@ class OAuthCallbackServer:
         """
         # Setup server and wait for callback
         await self._setup_server()
-        await self._wait_for_callback(timeout)
-        self._cleanup()
+        try:
+            await self._wait_for_callback(timeout)
+        finally:
+            self._cleanup()
 
         # Validate and return result
         return self._get_result()

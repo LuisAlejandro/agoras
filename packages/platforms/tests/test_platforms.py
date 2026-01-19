@@ -49,7 +49,7 @@ def test_linkedin_instantiation():
 
 
 def test_discord_instantiation():
-    dc = Discord(discord_token='test', discord_channel_id='test')
+    dc = Discord(discord_bot_token='test', discord_server_name='test', discord_channel_name='test')
     assert dc is not None
 
 
@@ -59,7 +59,7 @@ def test_youtube_instantiation():
 
 
 def test_tiktok_instantiation():
-    tt = TikTok(tiktok_access_token='test')
+    tt = TikTok(tiktok_username='test', tiktok_client_key='test', tiktok_client_secret='test')
     assert tt is not None
 
 
@@ -69,7 +69,7 @@ def test_telegram_instantiation():
 
 
 def test_threads_instantiation():
-    th = Threads(threads_access_token='test')
+    th = Threads(threads_app_id='test', threads_app_secret='test')
     assert th is not None
 
 
@@ -79,7 +79,7 @@ def test_whatsapp_instantiation():
 
 
 def test_x_instantiation():
-    x = X(x_api_key='test', x_api_secret='test')
+    x = X(twitter_consumer_key='test', twitter_consumer_secret='test')
     assert x is not None
 
 

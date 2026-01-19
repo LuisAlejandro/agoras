@@ -35,7 +35,7 @@ def test_main_help_shows_all_commands():
 def test_all_platforms_accessible():
     """Test that all platforms can be accessed including X and twitter alias."""
     platforms = ['x', 'twitter', 'facebook', 'instagram', 'linkedin',
-                 'discord', 'youtube', 'tiktok', 'threads']
+                 'discord', 'youtube', 'tiktok', 'threads', 'telegram', 'whatsapp']
 
     for platform in platforms:
         with pytest.raises(SystemExit) as exc_info:

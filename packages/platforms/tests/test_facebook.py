@@ -32,6 +32,7 @@ async def test_facebook_initialize_client(mock_api_class):
     """Test Facebook _initialize_client extracts config and creates API."""
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
+    mock_api.check_if_page = AsyncMock(return_value=False)  # Mock to not detect as page
     mock_api_class.return_value = mock_api
 
     facebook = Facebook(
@@ -43,7 +44,8 @@ async def test_facebook_initialize_client(mock_api_class):
 
     assert facebook.facebook_access_token == 'test_token'
     assert facebook.api is mock_api
-    mock_api.authenticate.assert_called_once()
+    # authenticate is called twice: once for auth, once for page detection
+    assert mock_api.authenticate.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -74,6 +76,7 @@ async def test_facebook_initialize_client_loads_from_storage(mock_auth_manager_c
     # Mock API
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
+    mock_api.check_if_page = AsyncMock(return_value=False)  # Mock to not detect as page
     mock_api_class.return_value = mock_api
 
     # Create Facebook instance with NO credentials
@@ -88,7 +91,8 @@ async def test_facebook_initialize_client_loads_from_storage(mock_auth_manager_c
     assert facebook.facebook_refresh_token == 'stored_refresh_token'
     assert facebook.facebook_access_token == 'stored_access_token'
     assert facebook.api is mock_api
-    mock_api.authenticate.assert_called_once()
+    # authenticate is called twice: once for auth, once for page detection
+    assert mock_api.authenticate.call_count == 2
 
 
 @pytest.mark.asyncio

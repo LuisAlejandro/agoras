@@ -28,7 +28,8 @@ from agoras.platforms.linkedin.api import LinkedInAPI
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.linkedin.wrapper.LinkedInAPI')
-async def test_linkedin_initialize_client(mock_api_class):
+@patch('agoras.platforms.linkedin.auth.LinkedInAuthManager._load_credentials_from_storage', return_value=False)
+async def test_linkedin_initialize_client(mock_load_credentials, mock_api_class):
     """Test LinkedIn _initialize_client extracts config and creates API."""
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
@@ -46,7 +47,8 @@ async def test_linkedin_initialize_client(mock_api_class):
 
 
 @pytest.mark.asyncio
-async def test_linkedin_initialize_client_missing_credentials():
+@patch('agoras.platforms.linkedin.auth.LinkedInAuthManager._load_credentials_from_storage', return_value=False)
+async def test_linkedin_initialize_client_missing_credentials(mock_load_credentials):
     """Test LinkedIn _initialize_client raises exception without credentials."""
     linkedin = LinkedIn()
 

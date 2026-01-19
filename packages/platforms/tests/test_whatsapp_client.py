@@ -32,7 +32,7 @@ def test_whatsapp_client_init():
     assert client.access_token == 'access_token'
     assert client.phone_number_id == 'phone_number_id'
     assert client.graph_api is None
-    assert client.api_version == "23.0"
+    assert client.api_version == "v23.0"
     assert client._authenticated is False
 
 
@@ -51,7 +51,7 @@ async def test_whatsapp_client_authenticate(mock_graph_api_class):
     assert result is True
     assert client._authenticated is True
     assert client.graph_api is mock_graph_api
-    mock_graph_api_class.assert_called_once_with(access_token='access_token', version="23.0")
+    mock_graph_api_class.assert_called_once_with(access_token='access_token', version="v23.0")
 
 
 @pytest.mark.asyncio
@@ -152,96 +152,117 @@ def test_whatsapp_client_get_object_error_handling():
 
 # Post Object Tests
 
-def test_whatsapp_client_post_object():
+@patch('requests.post')
+def test_whatsapp_client_post_object(mock_requests_post):
     """Test WhatsAppAPIClient post_object method."""
+    mock_response = MagicMock()
+    mock_response.json.return_value = {'id': 'post123'}
+    mock_response.raise_for_status.return_value = None
+    mock_requests_post.return_value = mock_response
+
     client = WhatsAppAPIClient('access_token', 'phone_number_id')
-    mock_graph_api = MagicMock()
-    mock_graph_api.post_object.return_value = {'id': 'post123'}
-    client.graph_api = mock_graph_api
-    client._authenticated = True
+    client._authenticated = True  # Set authenticated to avoid graph_api check
 
     result = client.post_object('obj123', 'messages', {'data': 'test'})
 
     assert result == {'id': 'post123'}
-    mock_graph_api.post_object.assert_called_once_with(
-        object_id='obj123',
-        connection='messages',
-        data={'data': 'test'}
-    )
+    mock_requests_post.assert_called_once()
+    call_args = mock_requests_post.call_args
+    assert 'https://graph.facebook.com/v23.0/obj123/messages' in call_args[0][0]
+    assert call_args[1]['json'] == {'data': 'test'}
 
 
-def test_whatsapp_client_post_object_with_empty_data():
+@patch('requests.post')
+def test_whatsapp_client_post_object_with_empty_data(mock_requests_post):
     """Test WhatsAppAPIClient post_object with None data (uses empty dict)."""
+    mock_response = MagicMock()
+    mock_response.json.return_value = {'id': 'post123'}
+    mock_response.raise_for_status.return_value = None
+    mock_requests_post.return_value = mock_response
+
     client = WhatsAppAPIClient('access_token', 'phone_number_id')
-    mock_graph_api = MagicMock()
-    mock_graph_api.post_object.return_value = {'id': 'post123'}
-    client.graph_api = mock_graph_api
     client._authenticated = True
 
     result = client.post_object('obj123', 'messages', None)
 
     assert result == {'id': 'post123'}
-    mock_graph_api.post_object.assert_called_once_with(
-        object_id='obj123',
-        connection='messages',
-        data={}
-    )
+    mock_requests_post.assert_called_once()
+    call_args = mock_requests_post.call_args
+    assert 'https://graph.facebook.com/v23.0/obj123/messages' in call_args[0][0]
+    assert call_args[1]['json'] == {}
 
 
-def test_whatsapp_client_post_object_not_initialized():
+@patch('requests.post')
+def test_whatsapp_client_post_object_not_initialized(mock_requests_post):
     """Test WhatsAppAPIClient post_object raises error when not initialized."""
+    mock_requests_post.side_effect = RuntimeError(
+        "Real HTTP call blocked! Use @pytest.mark.integration for tests that need real network access, or mock the HTTP call in your test.")
+
     client = WhatsAppAPIClient('access_token', 'phone_number_id')
 
-    with pytest.raises(Exception, match='GraphAPI not initialized'):
+    with pytest.raises(RuntimeError, match='Real HTTP call blocked'):
         client.post_object('obj123', 'messages', {})
 
 
-def test_whatsapp_client_post_object_error_handling():
-    """Test WhatsAppAPIClient post_object handles GraphAPI errors."""
+@patch('requests.post')
+def test_whatsapp_client_post_object_error_handling(mock_requests_post):
+    """Test WhatsAppAPIClient post_object handles HTTP errors."""
+    import requests
+    mock_requests_post.side_effect = requests.exceptions.RequestException('API error')
+
     client = WhatsAppAPIClient('access_token', 'phone_number_id')
-    mock_graph_api = MagicMock()
-    mock_graph_api.post_object.side_effect = Exception('API error')
-    client.graph_api = mock_graph_api
     client._authenticated = True
 
-    with pytest.raises(Exception, match='post_object failed'):
+    with pytest.raises(Exception, match='WhatsApp post_object failed: API error'):
         client.post_object('obj123', 'messages', {})
 
 
 # Send Message Tests
 
-def test_whatsapp_client_send_message():
+@patch('requests.post')
+def test_whatsapp_client_send_message(mock_requests_post):
     """Test WhatsAppAPIClient send_message method."""
+    mock_response = MagicMock()
+    mock_response.json.return_value = {'messages': [{'id': 'msg-123'}]}
+    mock_response.raise_for_status.return_value = None
+    mock_requests_post.return_value = mock_response
+
     client = WhatsAppAPIClient('access_token', 'phone_number_id')
-    mock_graph_api = MagicMock()
-    mock_graph_api.post_object.return_value = {'messages': [{'id': 'msg-123'}]}
-    client.graph_api = mock_graph_api
+    client.graph_api = MagicMock()  # Mock graph_api to avoid initialization check
     client._authenticated = True
 
     result = client.send_message('+1234567890', 'Test message')
 
     assert result == {'message_id': 'msg-123', 'status': 'sent'}
-    mock_graph_api.post_object.assert_called_once()
-    call_data = mock_graph_api.post_object.call_args[1]['data']
+    mock_requests_post.assert_called_once()
+    call_args = mock_requests_post.call_args
+    assert 'https://graph.facebook.com/v23.0/phone_number_id/messages' in call_args[0][0]
+    call_data = call_args[1]['json']
     assert call_data['messaging_product'] == 'whatsapp'
     assert call_data['to'] == '+1234567890'
     assert call_data['type'] == 'text'
     assert call_data['text']['body'] == 'Test message'
 
 
-def test_whatsapp_client_send_message_with_buttons():
+@patch('requests.post')
+def test_whatsapp_client_send_message_with_buttons(mock_requests_post):
     """Test WhatsAppAPIClient send_message with buttons."""
+    mock_response = MagicMock()
+    mock_response.json.return_value = {'messages': [{'id': 'msg-123'}]}
+    mock_response.raise_for_status.return_value = None
+    mock_requests_post.return_value = mock_response
+
     client = WhatsAppAPIClient('access_token', 'phone_number_id')
-    mock_graph_api = MagicMock()
-    mock_graph_api.post_object.return_value = {'messages': [{'id': 'msg-123'}]}
-    client.graph_api = mock_graph_api
+    client.graph_api = MagicMock()  # Mock graph_api to avoid initialization check
     client._authenticated = True
 
     buttons = [{'type': 'reply', 'reply': {'id': '1', 'title': 'Yes'}}]
     result = client.send_message('+1234567890', 'Test message', buttons=buttons)
 
     assert result == {'message_id': 'msg-123', 'status': 'sent'}
-    call_data = mock_graph_api.post_object.call_args[1]['data']
+    mock_requests_post.assert_called_once()
+    call_args = mock_requests_post.call_args
+    call_data = call_args[1]['json']
     assert call_data['type'] == 'interactive'
     assert 'interactive' in call_data
     assert call_data['interactive']['action']['buttons'] == buttons
@@ -255,24 +276,29 @@ def test_whatsapp_client_send_message_not_initialized():
         client.send_message('+1234567890', 'Test')
 
 
-def test_whatsapp_client_send_message_api_error():
+@patch('requests.post')
+def test_whatsapp_client_send_message_api_error(mock_requests_post):
     """Test WhatsAppAPIClient send_message handles API errors."""
+    mock_response = MagicMock()
+    mock_response.json.return_value = {}  # No messages in response
+    mock_response.raise_for_status.return_value = None
+    mock_requests_post.return_value = mock_response
+
     client = WhatsAppAPIClient('access_token', 'phone_number_id')
-    mock_graph_api = MagicMock()
-    mock_graph_api.post_object.return_value = {}  # No messages in response
-    client.graph_api = mock_graph_api
+    client.graph_api = MagicMock()  # Mock graph_api to avoid initialization check
     client._authenticated = True
 
     with pytest.raises(Exception, match='WhatsApp API error'):
         client.send_message('+1234567890', 'Test')
 
 
-def test_whatsapp_client_send_message_post_error():
+@patch('requests.post')
+def test_whatsapp_client_send_message_post_error(mock_requests_post):
     """Test WhatsAppAPIClient send_message handles post_object errors."""
+    mock_requests_post.side_effect = Exception('Post failed')
+
     client = WhatsAppAPIClient('access_token', 'phone_number_id')
-    mock_graph_api = MagicMock()
-    mock_graph_api.post_object.side_effect = Exception('Post failed')
-    client.graph_api = mock_graph_api
+    client.graph_api = MagicMock()  # Mock graph_api to avoid initialization check
     client._authenticated = True
 
     with pytest.raises(Exception, match='send_message failed'):
@@ -281,52 +307,70 @@ def test_whatsapp_client_send_message_post_error():
 
 # Send Image Tests
 
-def test_whatsapp_client_send_image():
+@patch('requests.post')
+def test_whatsapp_client_send_image(mock_requests_post):
     """Test WhatsAppAPIClient send_image method."""
+    mock_response = MagicMock()
+    mock_response.json.return_value = {'messages': [{'id': 'msg-124'}]}
+    mock_response.raise_for_status.return_value = None
+    mock_requests_post.return_value = mock_response
+
     client = WhatsAppAPIClient('access_token', 'phone_number_id')
-    mock_graph_api = MagicMock()
-    mock_graph_api.post_object.return_value = {'messages': [{'id': 'msg-124'}]}
-    client.graph_api = mock_graph_api
+    client.graph_api = MagicMock()  # Mock graph_api to avoid initialization check
     client._authenticated = True
 
     result = client.send_image('+1234567890', 'http://image.jpg', caption='Image caption')
 
     assert result == {'message_id': 'msg-124', 'status': 'sent'}
-    call_data = mock_graph_api.post_object.call_args[1]['data']
+    mock_requests_post.assert_called_once()
+    call_args = mock_requests_post.call_args
+    call_data = call_args[1]['json']
     assert call_data['type'] == 'image'
     assert call_data['image']['link'] == 'http://image.jpg'
     assert call_data['image']['caption'] == 'Image caption'
 
 
-def test_whatsapp_client_send_image_without_caption():
+@patch('requests.post')
+def test_whatsapp_client_send_image_without_caption(mock_requests_post):
     """Test WhatsAppAPIClient send_image without caption."""
+    mock_response = MagicMock()
+    mock_response.json.return_value = {'messages': [{'id': 'msg-124'}]}
+    mock_response.raise_for_status.return_value = None
+    mock_requests_post.return_value = mock_response
+
     client = WhatsAppAPIClient('access_token', 'phone_number_id')
-    mock_graph_api = MagicMock()
-    mock_graph_api.post_object.return_value = {'messages': [{'id': 'msg-124'}]}
-    client.graph_api = mock_graph_api
+    client.graph_api = MagicMock()  # Mock graph_api to avoid initialization check
     client._authenticated = True
 
     result = client.send_image('+1234567890', 'http://image.jpg')
 
     assert result == {'message_id': 'msg-124', 'status': 'sent'}
-    call_data = mock_graph_api.post_object.call_args[1]['data']
+    mock_requests_post.assert_called_once()
+    call_args = mock_requests_post.call_args
+    call_data = call_args[1]['json']
     assert 'caption' not in call_data['image']
 
 
 # Send Video Tests
 
-def test_whatsapp_client_send_video():
+@patch('requests.post')
+def test_whatsapp_client_send_video(mock_requests_post):
     """Test WhatsAppAPIClient send_video method."""
+    mock_response = MagicMock()
+    mock_response.json.return_value = {'messages': [{'id': 'msg-125'}]}
+    mock_response.raise_for_status.return_value = None
+    mock_requests_post.return_value = mock_response
+
     client = WhatsAppAPIClient('access_token', 'phone_number_id')
-    mock_graph_api = MagicMock()
-    mock_graph_api.post_object.return_value = {'messages': [{'id': 'msg-125'}]}
-    client.graph_api = mock_graph_api
+    client.graph_api = MagicMock()  # Mock graph_api to avoid initialization check
     client._authenticated = True
 
     result = client.send_video('+1234567890', 'http://video.mp4', caption='Video caption')
 
     assert result == {'message_id': 'msg-125', 'status': 'sent'}
-    call_data = mock_graph_api.post_object.call_args[1]['data']
+    mock_requests_post.assert_called_once()
+    call_args = mock_requests_post.call_args
+    call_data = call_args[1]['json']
     assert call_data['type'] == 'video'
     assert call_data['video']['link'] == 'http://video.mp4'
     assert call_data['video']['caption'] == 'Video caption'
@@ -334,36 +378,48 @@ def test_whatsapp_client_send_video():
 
 # Send Template Tests
 
-def test_whatsapp_client_send_template():
+@patch('requests.post')
+def test_whatsapp_client_send_template(mock_requests_post):
     """Test WhatsAppAPIClient send_template method."""
+    mock_response = MagicMock()
+    mock_response.json.return_value = {'messages': [{'id': 'msg-130'}]}
+    mock_response.raise_for_status.return_value = None
+    mock_requests_post.return_value = mock_response
+
     client = WhatsAppAPIClient('access_token', 'phone_number_id')
-    mock_graph_api = MagicMock()
-    mock_graph_api.post_object.return_value = {'messages': [{'id': 'msg-130'}]}
-    client.graph_api = mock_graph_api
+    client.graph_api = MagicMock()  # Mock graph_api to avoid initialization check
     client._authenticated = True
 
     result = client.send_template('+1234567890', 'welcome_template', language_code='en')
 
     assert result == {'message_id': 'msg-130', 'status': 'sent'}
-    call_data = mock_graph_api.post_object.call_args[1]['data']
+    mock_requests_post.assert_called_once()
+    call_args = mock_requests_post.call_args
+    call_data = call_args[1]['json']
     assert call_data['type'] == 'template'
     assert call_data['template']['name'] == 'welcome_template'
     assert call_data['template']['language']['code'] == 'en'
 
 
-def test_whatsapp_client_send_template_with_components():
+@patch('requests.post')
+def test_whatsapp_client_send_template_with_components(mock_requests_post):
     """Test WhatsAppAPIClient send_template with components."""
+    mock_response = MagicMock()
+    mock_response.json.return_value = {'messages': [{'id': 'msg-130'}]}
+    mock_response.raise_for_status.return_value = None
+    mock_requests_post.return_value = mock_response
+
     client = WhatsAppAPIClient('access_token', 'phone_number_id')
-    mock_graph_api = MagicMock()
-    mock_graph_api.post_object.return_value = {'messages': [{'id': 'msg-130'}]}
-    client.graph_api = mock_graph_api
+    client.graph_api = MagicMock()  # Mock graph_api to avoid initialization check
     client._authenticated = True
 
     components = [{'type': 'body', 'parameters': [{'type': 'text', 'text': 'John'}]}]
     result = client.send_template('+1234567890', 'welcome_template', language_code='es', components=components)
 
     assert result == {'message_id': 'msg-130', 'status': 'sent'}
-    call_data = mock_graph_api.post_object.call_args[1]['data']
+    mock_requests_post.assert_called_once()
+    call_args = mock_requests_post.call_args
+    call_data = call_args[1]['json']
     assert call_data['template']['components'] == components
     assert call_data['template']['language']['code'] == 'es'
 
@@ -394,12 +450,16 @@ def test_whatsapp_client_send_template_not_initialized():
         client.send_template('+1234567890', 'template')
 
 
-def test_whatsapp_client_send_image_api_error():
+@patch('requests.post')
+def test_whatsapp_client_send_image_api_error(mock_requests_post):
     """Test WhatsAppAPIClient send_image handles API errors."""
+    mock_response = MagicMock()
+    mock_response.json.return_value = {}  # No messages
+    mock_response.raise_for_status.return_value = None
+    mock_requests_post.return_value = mock_response
+
     client = WhatsAppAPIClient('access_token', 'phone_number_id')
-    mock_graph_api = MagicMock()
-    mock_graph_api.post_object.return_value = {}  # No messages
-    client.graph_api = mock_graph_api
+    client.graph_api = MagicMock()  # Mock graph_api to avoid initialization check
     client._authenticated = True
 
     with pytest.raises(Exception, match='WhatsApp API error'):

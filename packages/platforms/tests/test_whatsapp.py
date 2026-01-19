@@ -51,9 +51,15 @@ async def test_whatsapp_initialize_client(mock_api_class):
 
 
 @pytest.mark.asyncio
-async def test_whatsapp_initialize_client_missing_credentials():
+@patch('agoras.platforms.whatsapp.wrapper.WhatsAppAPI')
+@patch('agoras.platforms.whatsapp.auth.WhatsAppAuthManager._load_credentials_from_storage', return_value=False)
+async def test_whatsapp_initialize_client_missing_credentials(mock_load_credentials, mock_api_class):
     """Test WhatsApp _initialize_client raises exception without credentials."""
-    whatsapp = WhatsApp()
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    whatsapp = WhatsApp(whatsapp_recipient='+1234567890')  # Provide recipient but not credentials
 
     with pytest.raises(Exception, match="Not authenticated. Please run 'agoras whatsapp authorize' first."):
         await whatsapp._initialize_client()

@@ -138,7 +138,53 @@ elif [ "${1}" == "linkedin" ]; then
         --client-secret "${LINKEDIN_CLIENT_SECRET}" \
         --post-id "${RANDOM_FROM_FEED_LINKEDIN_ID}" || true
 
+elif [ "${1}" == "threads" ]; then
+    RANDOM_FROM_FEED_THREADS_ID=$(
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" utils feed-publish \
+            --network threads \
+            --mode random \
+            --threads-app-id "${THREADS_APP_ID}" \
+            --threads-app-secret "${THREADS_APP_SECRET}" \
+            --feed-url "${FEED_URL}" \
+            --max-post-age 365 | jq --unbuffered '.' | jq -r '.id'
+    )
+
+    echo "Threads random from feed test created with ID: ${RANDOM_FROM_FEED_THREADS_ID}"
+    echo "Note: Threads does not support delete action"
+
+elif [ "${1}" == "telegram" ]; then
+    RANDOM_FROM_FEED_TELEGRAM_ID=$(
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" utils feed-publish \
+            --network telegram \
+            --mode random \
+            --telegram-bot-token "${TELEGRAM_BOT_TOKEN}" \
+            --telegram-chat-id "${TELEGRAM_CHAT_ID}" \
+            --feed-url "${FEED_URL}" \
+            --max-post-age 365 | jq --unbuffered '.' | jq -r '.id'
+    )
+
+    sleep 5
+
+    [ -n "${RANDOM_FROM_FEED_TELEGRAM_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" telegram delete \
+        --bot-token "${TELEGRAM_BOT_TOKEN}" \
+        --chat-id "${TELEGRAM_CHAT_ID}" \
+        --post-id "${RANDOM_FROM_FEED_TELEGRAM_ID}" || true
+
+elif [ "${1}" == "whatsapp" ]; then
+    RANDOM_FROM_FEED_WHATSAPP_ID=$(
+        "${PROJECT_ROOT}/virtualenv/bin/agoras" utils feed-publish \
+            --network whatsapp \
+            --mode random \
+            --whatsapp-access-token "${WHATSAPP_ACCESS_TOKEN}" \
+            --whatsapp-phone-number-id "${WHATSAPP_PHONE_NUMBER_ID}" \
+            --feed-url "${FEED_URL}" \
+            --max-post-age 365 | jq --unbuffered '.' | jq -r '.id'
+    )
+
+    echo "WhatsApp random from feed test created with ID: ${RANDOM_FROM_FEED_WHATSAPP_ID}"
+    echo "Note: WhatsApp does not support delete action"
+
 else
     echo "Unsupported platform ${1}"
-    echo "Usage: $0 {x|tiktok|youtube|facebook|instagram|discord|linkedin}"
+    echo "Usage: $0 {x|tiktok|youtube|facebook|instagram|discord|linkedin|threads|telegram|whatsapp}"
 fi

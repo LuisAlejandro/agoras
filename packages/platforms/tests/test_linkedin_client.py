@@ -31,7 +31,7 @@ def test_linkedin_client_init():
 
     assert client.access_token == 'access_token'
     assert client.restli_client is None
-    assert client.api_version == "202302"
+    assert client.api_version == "202503"
     assert client._authenticated is False
 
 
