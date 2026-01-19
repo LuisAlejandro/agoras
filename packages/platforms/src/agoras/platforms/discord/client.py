@@ -63,73 +63,84 @@ class DiscordAPIClient:
             raise Exception('Discord bot token is required')
 
         try:
-            # Create Discord client instance
-            self.client = discord.Client(intents=discord.Intents.all())
-
-            # Login to Discord with timeout
-            try:
-                await asyncio.wait_for(self.client.login(self.bot_token), timeout=10.0)
-            except asyncio.TimeoutError:
-                raise Exception(
-                    'Discord login timed out. The bot token appears to be invalid or Discord servers are unreachable.')
-
-            # Wait until client is ready with timeout
-            try:
-                await asyncio.wait_for(self.client.wait_until_ready(), timeout=30.0)
-            except asyncio.TimeoutError:
-                # Check if we can fetch guilds directly
-                try:
-
-                    # Try to fetch guilds manually if not loaded
-                    if len(self.client.guilds) == 0 and self.client.user:
-                        try:
-                            # fetch_guilds() returns an async iterator, convert to list
-                            fetched_guilds = [guild async for guild in self.client.fetch_guilds()]
-
-                            if len(fetched_guilds) > 0:
-
-                                # Fetch full guild details including channels
-                                self._fetched_guilds = []
-                                for guild in fetched_guilds:
-                                    try:
-                                        full_guild = await self.client.fetch_guild(guild.id)
-
-                                        # If no channels, try to fetch them separately
-                                        if len(full_guild.text_channels) == 0:
-                                            try:
-                                                channels = await full_guild.fetch_channels()
-                                                text_channels = [
-                                                    c for c in channels if isinstance(
-                                                        c, discord.TextChannel)]
-                                                # Store the fetched channels for later use
-                                                self._fetched_channels[full_guild.name] = text_channels
-                                            except Exception:
-                                                pass
-
-                                        self._fetched_guilds.append(full_guild)
-                                    except Exception:
-                                        # Use the basic guild if full fetch fails
-                                        self._fetched_guilds.append(guild)
-
-                                # Mark as ready since we have guilds
-                                self.client._ready.set()
-                            else:
-                                raise Exception(
-                                    'Discord bot is not added to any servers. Please invite the bot to your Discord server using the OAuth2 URL from the Developer Portal.')
-                        except Exception:
-                            raise Exception(
-                                'Discord authentication failed. Please check your bot token and ensure the bot is invited to your server.')
-                    else:
-                        raise Exception(
-                            'Discord authentication timed out after login. The bot may not have proper permissions or the server/channel may not exist.')
-                except Exception:
-                    raise Exception(
-                        'Discord authentication failed. Please check your bot token and ensure the bot is invited to your server.')
-
+            await self._create_client()
+            await self._login_with_timeout()
+            await self._wait_until_ready_with_fallback()
             self._authenticated = True
             return True
         except Exception as e:
             raise Exception(f'Discord authentication failed: {str(e)}') from e
+
+    async def _create_client(self):
+        """Create Discord client instance."""
+        self.client = discord.Client(intents=discord.Intents.all())
+
+    async def _login_with_timeout(self):
+        """Login to Discord with timeout."""
+        try:
+            await asyncio.wait_for(self.client.login(self.bot_token), timeout=10.0)
+        except asyncio.TimeoutError:
+            raise Exception(
+                'Discord login timed out. The bot token appears to be invalid or Discord servers are unreachable.')
+
+    async def _wait_until_ready_with_fallback(self):
+        """Wait for client to be ready, with fallback manual guild fetching."""
+        try:
+            await asyncio.wait_for(self.client.wait_until_ready(), timeout=30.0)
+        except asyncio.TimeoutError:
+            await self._handle_ready_timeout()
+
+    async def _handle_ready_timeout(self):
+        """Handle timeout when waiting for client ready event."""
+        if len(self.client.guilds) == 0 and self.client.user:
+            await self._fetch_guilds_manually()
+        else:
+            raise Exception(
+                'Discord authentication timed out after login. The bot may not have proper '
+                'permissions or the server/channel may not exist.')
+
+    async def _fetch_guilds_manually(self):
+        """Manually fetch guilds when ready event times out."""
+        try:
+            # fetch_guilds() returns an async iterator, convert to list
+            fetched_guilds = [guild async for guild in self.client.fetch_guilds()]
+
+            if len(fetched_guilds) > 0:
+                await self._process_fetched_guilds(fetched_guilds)
+                # Mark as ready since we have guilds
+                self.client._ready.set()
+            else:
+                raise Exception(
+                    'Discord bot is not added to any servers. Please invite the bot to your '
+                    'Discord server using the OAuth2 URL from the Developer Portal.')
+        except Exception:
+            raise Exception(
+                'Discord authentication failed. Please check your bot token and ensure the '
+                'bot is invited to your server.')
+
+    async def _process_fetched_guilds(self, fetched_guilds):
+        """Process and store fetched guilds with full details."""
+        self._fetched_guilds = []
+        for guild in fetched_guilds:
+            try:
+                full_guild = await self.client.fetch_guild(guild.id)
+                await self._fetch_channels_if_needed(full_guild)
+                self._fetched_guilds.append(full_guild)
+            except Exception:
+                # Use the basic guild if full fetch fails
+                self._fetched_guilds.append(guild)
+
+    async def _fetch_channels_if_needed(self, guild):
+        """Fetch channels for a guild if none are loaded."""
+        if len(guild.text_channels) == 0:
+            try:
+                channels = await guild.fetch_channels()
+                text_channels = [
+                    c for c in channels if isinstance(c, discord.TextChannel)]
+                # Store the fetched channels for later use
+                self._fetched_channels[guild.name] = text_channels
+            except Exception:
+                pass
 
     def disconnect(self):
         """

@@ -102,7 +102,6 @@ class TikTokAuthManager(BaseAuthManager):
                 if self.refresh_token.startswith('access_only_'):
                     self.access_token = self.refresh_token.replace('access_only_', '', 1)
                 # Access token is already set, use it
-                pass
             else:
                 return False
 

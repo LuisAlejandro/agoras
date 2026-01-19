@@ -63,7 +63,15 @@ class Facebook(SocialNetwork):
 
         Tries to load credentials from CLI params, environment variables, or storage.
         """
-        # Try params/environment first
+        await self._load_config_values()
+        await self._load_credentials_from_storage()
+        await self._authenticate_with_credentials()
+        await self._handle_page_token_exchange()
+        self._validate_credentials()
+        await self._initialize_api_client()
+
+    async def _load_config_values(self):
+        """Load configuration values from params/environment."""
         self.facebook_access_token = self._get_config_value('facebook_access_token', 'FACEBOOK_ACCESS_TOKEN')
         self.facebook_client_id = self._get_config_value('facebook_client_id', 'FACEBOOK_CLIENT_ID')
         self.facebook_client_secret = self._get_config_value('facebook_client_secret', 'FACEBOOK_CLIENT_SECRET')
@@ -74,12 +82,9 @@ class Facebook(SocialNetwork):
         self.facebook_profile_id = self._get_config_value('facebook_profile_id', 'FACEBOOK_PROFILE_ID')
         self.facebook_app_id = self._get_config_value('facebook_app_id', 'FACEBOOK_APP_ID')
 
-        # If auth credentials not provided, try loading from storage
-        # Facebook needs client_id, client_secret, and refresh_token to authenticate
-        # Note: object_id is NOT loaded from storage to allow switching targets
-        if not all([self.facebook_client_id,
-                    self.facebook_client_secret,
-                    self.facebook_refresh_token]):
+    async def _load_credentials_from_storage(self):
+        """Load missing credentials from storage if needed."""
+        if not all([self.facebook_client_id, self.facebook_client_secret, self.facebook_refresh_token]):
             from .auth import FacebookAuthManager
             auth_manager = FacebookAuthManager(
                 user_id=self.facebook_object_id or '',
@@ -88,21 +93,23 @@ class Facebook(SocialNetwork):
             )
 
             if auth_manager._load_credentials_from_storage():
-                # Fill in missing auth credentials from storage
-                if not self.facebook_client_id:
-                    self.facebook_client_id = auth_manager.client_id
-                if not self.facebook_client_secret:
-                    self.facebook_client_secret = auth_manager.client_secret
-                if not self.facebook_refresh_token:
-                    self.facebook_refresh_token = auth_manager.refresh_token
-                # Fill in object_id from storage only if not provided via config/env
-                if not self.facebook_object_id:
-                    self.facebook_object_id = auth_manager.user_id
+                self._fill_missing_credentials_from_storage(auth_manager)
 
-        # If we have the required auth credentials, authenticate to get access token
-        if (self.facebook_client_id and
-                self.facebook_client_secret and
-                self.facebook_refresh_token):
+    def _fill_missing_credentials_from_storage(self, auth_manager):
+        """Fill in missing credentials from the auth manager."""
+        if not self.facebook_client_id:
+            self.facebook_client_id = auth_manager.client_id
+        if not self.facebook_client_secret:
+            self.facebook_client_secret = auth_manager.client_secret
+        if not self.facebook_refresh_token:
+            self.facebook_refresh_token = auth_manager.refresh_token
+        # Fill in object_id from storage only if not provided via config/env
+        if not self.facebook_object_id:
+            self.facebook_object_id = auth_manager.user_id
+
+    async def _authenticate_with_credentials(self):
+        """Authenticate using available credentials."""
+        if (self.facebook_client_id and self.facebook_client_secret and self.facebook_refresh_token):
             from .auth import FacebookAuthManager
             auth_manager = FacebookAuthManager(
                 user_id=self.facebook_object_id,
@@ -114,50 +121,58 @@ class Facebook(SocialNetwork):
             if authenticated:
                 self.facebook_access_token = auth_manager.access_token
 
-        # Check if we need to exchange for page token
+    async def _handle_page_token_exchange(self):
+        """Check if posting to a page and exchange tokens if needed."""
         self._is_page_target = False  # Track if we're posting to a page
         if self.facebook_access_token and self.facebook_object_id:
             try:
-                # Create temporary API instance with user token to check if it's a page
-                temp_api = FacebookAPI(
-                    self.facebook_access_token,
-                    self.facebook_client_id,
-                    self.facebook_client_secret,
-                    self.facebook_refresh_token,
-                    self.facebook_app_id
-                )
-                await temp_api.authenticate()
-
-                # Check if the object_id is a page
-                is_page = await temp_api.check_if_page(self.facebook_object_id)
-                self._is_page_target = is_page
-
-                if is_page:
-                    try:
-                        # Exchange user token for page token
-                        page_token = await temp_api.get_page_token(self.facebook_object_id)
-                        if page_token:
-                            self.facebook_access_token = page_token
-                        else:
-                            raise Exception(
-                                f'Could not obtain page access token for page {self.facebook_object_id}. '
-                                'Make sure you are an admin/editor of this page and have granted the required '
-                                'permissions (pages_read_engagement, pages_manage_posts).')
-                    except Exception as page_error:
-                        raise Exception(
-                            f'Cannot post to Facebook Page {self.facebook_object_id}: '
-                            f'Page token exchange failed. {str(page_error)}')
-
+                await self._detect_and_exchange_page_token()
             except Exception as e:
                 # If page detection fails, continue with user token
-                # This allows posting to work even if we can't determine object type
                 print(f"[WARNING] Page detection/token exchange failed: {str(e)}")
-                pass
 
-        # Validate all credentials are now available
+    async def _detect_and_exchange_page_token(self):
+        """Detect if target is a page and exchange for page token."""
+        # Create temporary API instance with user token to check if it's a page
+        temp_api = FacebookAPI(
+            self.facebook_access_token,
+            self.facebook_client_id,
+            self.facebook_client_secret,
+            self.facebook_refresh_token,
+            self.facebook_app_id
+        )
+        await temp_api.authenticate()
+
+        # Check if the object_id is a page
+        is_page = await temp_api.check_if_page(self.facebook_object_id)
+        self._is_page_target = is_page
+
+        if is_page:
+            await self._exchange_for_page_token(temp_api)
+
+    async def _exchange_for_page_token(self, temp_api):
+        """Exchange user token for page token."""
+        try:
+            page_token = await temp_api.get_page_token(self.facebook_object_id)
+            if page_token:
+                self.facebook_access_token = page_token
+            else:
+                raise Exception(
+                    f'Could not obtain page access token for page {self.facebook_object_id}. '
+                    'Make sure you are an admin/editor of this page and have granted the required '
+                    'permissions (pages_read_engagement, pages_manage_posts).')
+        except Exception as page_error:
+            raise Exception(
+                f'Cannot post to Facebook Page {self.facebook_object_id}: '
+                f'Page token exchange failed. {str(page_error)}')
+
+    def _validate_credentials(self):
+        """Validate that all required credentials are available."""
         if not self.facebook_access_token:
             raise Exception("Not authenticated. Please run 'agoras facebook authorize' first.")
 
+    async def _initialize_api_client(self):
+        """Initialize the Facebook API client."""
         # Initialize Facebook API
         self.api = FacebookAPI(
             self.facebook_access_token,
@@ -167,22 +182,27 @@ class Facebook(SocialNetwork):
             self.facebook_app_id
         )
 
-        # If we have a page token (detected by _is_page_target), skip auth manager refresh
-        # Page tokens should be used as-is without refreshing through auth manager
+        # Handle different initialization for page vs user tokens
         if getattr(self, '_is_page_target', False):
-            # Manually initialize the client with the page token
-            from .client import FacebookAPIClient
-            self.api.client = FacebookAPIClient(self.facebook_access_token)
-            await self.api.client.authenticate()
-            self.api._authenticated = True
-            # Mark the auth manager as authenticated too
-            self.api.auth_manager.access_token = self.facebook_access_token
-            self.api.auth_manager.client = self.api.client
-            # Set dummy user_info for page tokens (not needed for page posting)
-            self.api.auth_manager.user_info = {'id': self.facebook_object_id, 'name': 'Facebook Page'}
+            await self._initialize_page_token_client()
         else:
-            # For user tokens, go through normal auth manager flow
-            await self.api.authenticate()
+            await self._initialize_user_token_client()
+
+    async def _initialize_page_token_client(self):
+        """Initialize client for page token usage."""
+        from .client import FacebookAPIClient
+        self.api.client = FacebookAPIClient(self.facebook_access_token)
+        await self.api.client.authenticate()
+        self.api._authenticated = True
+        # Mark the auth manager as authenticated too
+        self.api.auth_manager.access_token = self.facebook_access_token
+        self.api.auth_manager.client = self.api.client
+        # Set dummy user_info for page tokens (not needed for page posting)
+        self.api.auth_manager.user_info = {'id': self.facebook_object_id, 'name': 'Facebook Page'}
+
+    async def _initialize_user_token_client(self):
+        """Initialize client for user token usage."""
+        await self.api.authenticate()
 
     async def disconnect(self):
         """

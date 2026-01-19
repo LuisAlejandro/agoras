@@ -17,7 +17,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
-import json
 import os
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional

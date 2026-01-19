@@ -332,7 +332,6 @@ def _legacy_publish_handler(args) -> int:
     Returns:
         Exit status from publish execution
     """
-    from argparse import Namespace
 
     # Convert args to dict for compatibility
     kwargs = vars(args)

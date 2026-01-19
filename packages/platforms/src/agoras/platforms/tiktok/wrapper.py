@@ -99,7 +99,10 @@ class TikTok(SocialNetwork):
 
         # If credentials not provided, try loading from storage
         # TikTok needs username, client_key, client_secret, and refresh_token to authenticate
-        if not all([self.tiktok_username, self.tiktok_client_key, self.tiktok_client_secret, self.tiktok_refresh_token]):
+        if not all([self.tiktok_username,
+                    self.tiktok_client_key,
+                    self.tiktok_client_secret,
+                    self.tiktok_refresh_token]):
             from .auth import TikTokAuthManager
             auth_manager = TikTokAuthManager(
                 username=self.tiktok_username or '',
@@ -119,7 +122,10 @@ class TikTok(SocialNetwork):
                     self.tiktok_refresh_token = auth_manager.refresh_token
 
         # Validate all credentials are now available
-        if not all([self.tiktok_username, self.tiktok_client_key, self.tiktok_client_secret, self.tiktok_refresh_token]):
+        if not all([self.tiktok_username,
+                    self.tiktok_client_key,
+                    self.tiktok_client_secret,
+                    self.tiktok_refresh_token]):
             raise Exception("Not authenticated. Please run 'agoras tiktok authorize' first.")
 
         # Initialize TikTok API

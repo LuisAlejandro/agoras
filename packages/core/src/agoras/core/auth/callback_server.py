@@ -22,6 +22,7 @@ import os
 import socket
 import ssl
 import tempfile
+import time
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Optional
@@ -460,6 +461,16 @@ class OAuthCallbackServer:
             TimeoutError: If no callback received within timeout
             Exception: If callback contains an error or state validation fails
         """
+        # Setup server and wait for callback
+        await self._setup_server()
+        await self._wait_for_callback(timeout)
+        self._cleanup()
+
+        # Validate and return result
+        return self._get_result()
+
+    async def _setup_server(self):
+        """Setup the HTTPS server with SSL certificate."""
         # Get port (will use fixed port if set, otherwise dynamic)
         if self.port is None:
             self.port = await self.get_available_port()
@@ -488,72 +499,80 @@ class OAuthCallbackServer:
         print("This is normal for localhost - you can safely proceed.")
         print("Listening for authorization...")
 
-        # Handle requests with timeout - keep trying until we get a valid callback
-        # The browser may reject the cert first, then retry after user accepts it
-        try:
-            import time
-            start_time = time.time()
-            while True:
-                elapsed = time.time() - start_time
-                if elapsed >= timeout:
-                    raise TimeoutError(
-                        f"Authorization timeout after {timeout} seconds. "
-                        "Please try again and complete the authorization promptly."
-                    )
+    async def _wait_for_callback(self, timeout: int):
+        """Wait for OAuth callback with timeout handling."""
+        start_time = time.time()
 
-                remaining_timeout = timeout - elapsed
-                try:
-                    # Try to handle a request with a shorter timeout so we can retry
-                    await asyncio.wait_for(
-                        asyncio.to_thread(self.server.handle_request),
-                        timeout=min(remaining_timeout, 10)  # Check every 10 seconds
-                    )
-                    # If we got here, we successfully handled a request
-                    # Check if we got an auth code, callback URL, or error
-                    if self.server.auth_code or self.server.callback_url or self.server.error:
-                        break
-                    # If no auth code yet, continue waiting
-                    continue
-                except asyncio.TimeoutError:
-                    # No request in this window, continue waiting
-                    continue
-                except Exception as e:
-                    # Any error (including SSL) - log and continue waiting
-                    # Browser will retry after user accepts certificate
-                    error_str = str(e)
-                    if 'SSL' in error_str or 'certificate' in error_str.lower() or 'alert' in error_str.lower():
-                        # SSL error - browser will retry after user accepts cert
-                        # Don't log this as it's expected behavior
-                        pass
-                    else:
-                        import sys
-                        print(f"Connection attempt failed: {e}", file=sys.stderr, flush=True)
-                    # Continue waiting for browser retry
-                    continue
-        finally:
-            # Clean up server
-            if self.server:
-                self.server.server_close()
-            # Clean up certificate files (always HTTPS)
-            if self._cert_file and os.path.exists(self._cert_file):
-                os.unlink(self._cert_file)
-            if self._key_file and os.path.exists(self._key_file):
-                os.unlink(self._key_file)
+        while True:
+            if self._is_timeout_exceeded(start_time, timeout):
+                raise TimeoutError(
+                    f"Authorization timeout after {timeout} seconds. "
+                    "Please try again and complete the authorization promptly."
+                )
 
-        # Check for errors
+            try:
+                await self._handle_request_with_timeout(start_time, timeout)
+                if self._has_callback_result():
+                    break
+            except asyncio.TimeoutError:
+                continue
+            except Exception as e:
+                self._handle_connection_error(e)
+                continue
+
+    def _is_timeout_exceeded(self, start_time: float, timeout: int) -> bool:
+        """Check if timeout has been exceeded."""
+        return time.time() - start_time >= timeout
+
+    async def _handle_request_with_timeout(self, start_time: float, timeout: int):
+        """Handle a single request with timeout."""
+        elapsed = time.time() - start_time
+        remaining_timeout = timeout - elapsed
+
+        await asyncio.wait_for(
+            asyncio.to_thread(self.server.handle_request),
+            timeout=min(remaining_timeout, 10)  # Check every 10 seconds
+        )
+
+    def _has_callback_result(self) -> bool:
+        """Check if we have received a callback result."""
+        return self.server.auth_code or self.server.callback_url or self.server.error
+
+    def _handle_connection_error(self, error: Exception):
+        """Handle connection errors during callback waiting."""
+        error_str = str(error)
+        if self._is_ssl_certificate_error(error_str):
+            # SSL error - browser will retry after user accepts cert
+            return
+
+        import sys
+        print(f"Connection attempt failed: {error}", file=sys.stderr, flush=True)
+
+    def _is_ssl_certificate_error(self, error_str: str) -> bool:
+        """Check if error is related to SSL certificate issues."""
+        return ('SSL' in error_str or
+                'certificate' in error_str.lower() or
+                'alert' in error_str.lower())
+
+    def _cleanup(self):
+        """Clean up server and certificate files."""
+        if self.server:
+            self.server.server_close()
+        if self._cert_file and os.path.exists(self._cert_file):
+            os.unlink(self._cert_file)
+        if self._key_file and os.path.exists(self._key_file):
+            os.unlink(self._key_file)
+
+    def _get_result(self) -> str:
+        """Get the authorization result."""
         if self.server.error:
             raise Exception(f"Authorization failed: {self.server.error}")
 
-        # Return appropriate result based on OAuth version
         if self.server.oauth_version == '1.0a':
-            # Return full callback URL for OAuth 1.0a
             if self.server.callback_url:
                 return self.server.callback_url
-            else:
-                raise Exception("No callback URL received")
-        else:
-            # Return authorization code for OAuth 2.0
-            if self.server.auth_code:
-                return self.server.auth_code
-            else:
-                raise Exception("No authorization code received")
+            raise Exception("No callback URL received")
+
+        if self.server.auth_code:
+            return self.server.auth_code
+        raise Exception("No authorization code received")

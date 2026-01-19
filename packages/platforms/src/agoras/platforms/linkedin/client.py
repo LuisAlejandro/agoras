@@ -257,9 +257,13 @@ class LinkedInAPIClient:
                 try:
                     response_data = request.response.json()
                     if response_data.get('code') == 'ACCESS_DENIED':
-                        raise Exception(f'LinkedIn like permission denied. Your LinkedIn app needs "Community Management API" product enabled and w_member_social scope approved. Visit https://developers.linkedin.com/ to configure your app permissions.')
+                        raise Exception(
+                            'LinkedIn like permission denied. Your LinkedIn app needs "Community Management API" '
+                            'product enabled and w_member_social scope approved. Visit '
+                            'https://developers.linkedin.com/ to configure your app permissions.')
                     else:
-                        raise Exception(f'Unable to like post {post_id}: {response_data.get("message", "Unknown error")}')
+                        raise Exception(
+                            f'Unable to like post {post_id}: {response_data.get("message", "Unknown error")}')
                 except Exception as e:
                     if 'permission denied' in str(e).lower():
                         raise e
