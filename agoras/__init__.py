@@ -21,7 +21,7 @@
 
 __author__ = 'Luis Alejandro Martínez Faneyth'
 __email__ = 'luis@luisalejandro.org'
-__version__ = '1.1.4'
+__version__ = '1.1.5'
 __url__ = 'https://github.com/LuisAlejandro/agoras'
 __description__ = ('A command line python utility to manage your social'
                    ' networks (Twitter, Facebook, LinkedIn and Instagram)')

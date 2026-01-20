@@ -2,6 +2,15 @@ Changelog
 ============
 
 
+1.1.5 (2026-01-20)
+------------
+
+Other
+~~~~~~~~~~~~
+
+* Adding readthedocs requirements. [Luis Alejandro Martínez Faneyth]
+
+
 1.1.4 (2026-01-19)
 ------------
 
