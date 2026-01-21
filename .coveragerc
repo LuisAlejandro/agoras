@@ -1,2 +1,25 @@
 [run]
 source = agoras
+omit =
+    */tests/*
+    */__pycache__/*
+    */site-packages/*
+    */virtualenv/*
+    */venv/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    def __str__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    @abstractmethod
+
+[html]
+directory = htmlcov
+
+[lcov]
+output = coverage.lcov

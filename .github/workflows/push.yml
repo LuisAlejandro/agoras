@@ -7,55 +7,146 @@ on:
       - develop
 
 jobs:
-  build:
-    name: Build
+  lint:
+    name: Linting
     runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        include:
-          - python-version: "3.9"
-            toxenv: "py39"
-          - python-version: "3.10"
-            toxenv: "py310"
-          - python-version: "3.11"
-            toxenv: "py311"
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Installing dependencies
+        run: |
+          python3 -m pip install -r requirements-dev.txt
+
+      - name: Running linter
+        run: |
+          tox -e lint
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install all packages
+        run: |
+          cd packages
+          python3 -m pip install -r ../requirements-dev.txt
+          python3 -m pip install -e common/
+          python3 -m pip install -e media/
+          python3 -m pip install -e core/
+          python3 -m pip install -e platforms/
+          python3 -m pip install -e cli/
+
+      - name: Run integration tests
+        run: |
+          cd packages
+          pytest cli/tests/ -v -k integration
+
+      - name: Test CLI entry point
+        run: |
+          agoras --version
+          agoras --help
+
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-22.04
+    needs: [lint, integration]
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4.7.0
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Installing dependencies
         run: |
-          sudo apt-get install libxml2-dev libxslt-dev
-          sudo pip install -r requirements.txt -r requirements-dev.txt
+          python3 -m pip install -r requirements-dev.txt
 
-      - name: Measuring coverage
+      - name: Measuring coverage (all packages)
         env:
-          TOXENV: ${{ matrix.toxenv }}
           PYTHON_VERSION: ${{ matrix.python-version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          tox -e ${TOXENV}
+          tox -e coverage
 
       - name: Coveralls Parallel
-        uses: coverallsapp/github-action@master
+        uses: coverallsapp/github-action@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           flag-name: run-py${{ matrix.python-version }}
           path-to-lcov: ./.lcov
           parallel: true
 
+  docs:
+    name: Documentation
+    runs-on: ubuntu-22.04
+    needs: [unit]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install all packages
+        run: |
+          cd packages
+          python3 -m pip install -r ../requirements-dev.txt
+          python3 -m pip install -e common/
+          python3 -m pip install -e media/
+          python3 -m pip install -e core/
+          python3 -m pip install -e platforms/
+          python3 -m pip install -e cli/
+
+      - name: Install documentation dependencies
+        run: |
+          python3 -m pip install -r docs/requirements.txt
+
+      - name: Build documentation
+        run: |
+          make -C docs html
+
+      - name: Trigger ReadTheDocs webhook
+        if: success()
+        env:
+          RTD_WEBHOOK_URL: ${{ secrets.RTD_WEBHOOK_URL }}
+          RTD_WEBHOOK_TOKEN: ${{ secrets.RTD_WEBHOOK_TOKEN }}
+        run: |
+          if [ -n "$RTD_WEBHOOK_URL" ] && [ -n "$RTD_WEBHOOK_TOKEN" ]; then
+            curl -X POST \
+              -d "branches=${{ github.ref_name }}" \
+              -d "token=$RTD_WEBHOOK_TOKEN" \
+              "$RTD_WEBHOOK_URL"
+          else
+            echo "ReadTheDocs webhook secrets not configured, skipping webhook trigger"
+          fi
+
   finish:
     name: Finish
     runs-on: ubuntu-22.04
-    needs: build
+    needs: [docs]
     steps:
       - name: Coveralls Finished
-        uses: coverallsapp/github-action@master
+        uses: coverallsapp/github-action@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           parallel-finished: true

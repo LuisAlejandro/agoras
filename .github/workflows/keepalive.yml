@@ -10,22 +10,44 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Disable workflows
-        uses: actions/github-script@v6
+        uses: actions/github-script@v8
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           script: |
-            await github.rest.actions.disableWorkflow({
+            const workflows = await github.rest.actions.listRepoWorkflows({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              workflow_id: 'actionsflow.yml',
             });
+
+            for (const workflow of workflows.data.workflows) {
+              if (workflow.path === 'dynamic/dependabot/dependabot-updates' || workflow.state !== 'active') {
+                continue;
+              }
+              console.log(`Disabling workflow: ${workflow.name}`);
+              await github.rest.actions.disableWorkflow({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: workflow.id,
+              });
+            }
       - name: Enable workflows
-        uses: actions/github-script@v6
+        uses: actions/github-script@v8
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           script: |
-            await github.rest.actions.enableWorkflow({
+            const workflows = await github.rest.actions.listRepoWorkflows({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              workflow_id: 'actionsflow.yml',
             });
+
+            for (const workflow of workflows.data.workflows) {
+              if (workflow.path === 'dynamic/dependabot/dependabot-updates' || workflow.state === 'active') {
+                continue;
+              }
+              console.log(`Enabling workflow: ${workflow.name}`);
+              await github.rest.actions.enableWorkflow({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: workflow.id,
+              });
+            }

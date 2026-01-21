@@ -9,6 +9,8 @@ __pycache__/
 # Distribution / packaging
 .Python
 env/
+venv/
+ENV/
 build/
 develop-eggs/
 dist/
@@ -20,9 +22,11 @@ lib64/
 parts/
 sdist/
 var/
+wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -40,10 +44,12 @@ htmlcov/
 .coverage
 .coverage.*
 .cache
+.pytest_cache/
 nosetests.xml
 coverage.xml
 *,cover
 .hypothesis/
+*.lcov
 
 # Translations
 *.mo
@@ -54,12 +60,33 @@ coverage.xml
 
 # Sphinx documentation
 docs/_build/
+docs/_static/*.png
 
 # PyBuilder
 target/
 
-# VSCode
+# IDEs
 .vscode/
+.idea/
+*.swp
+*.swo
+*~
 
+# Virtual environments
 virtualenv/
+
+# Environment files
 *.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Package build artifacts (v2.0 monorepo)
+packages/*/build/
+packages/*/dist/
+packages/*/*.egg-info/
+packages/*/.tox/
+packages/*/.coverage
+packages/*/htmlcov/
+packages/*/.pytest_cache/

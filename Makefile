@@ -8,7 +8,10 @@ exec_on_docker = docker compose \
 	-p agoras -f docker-compose.yml exec \
 	--user agoras app
 
-.PHONY: clean-pyc clean-build docs clean
+# Release configuration
+VERSION_TYPE ?= patch
+APP_NAME ?= Agoras
+
 define BROWSER_PYSCRIPT
 import os, webbrowser, sys
 try:
@@ -27,11 +30,13 @@ help:
 	@echo "clean-pyc - remove Python file artifacts"
 	@echo "clean-test - remove test and coverage artifacts"
 	@echo "lint - check style with flake8"
+	@echo "format - format Python code with autopep8"
+	@echo "lint-and-format - lint and format all Python files"
 	@echo "test - run tests quickly with the default Python"
 	@echo "test-all - run tests on every Python version with tox"
 	@echo "coverage - check code coverage quickly with the default Python"
 	@echo "docs - generate Sphinx HTML documentation, including API docs"
-	@echo "release - package and upload a release"
+	@echo "pypi-upload - package and upload a release"
 	@echo "dist - package"
 	@echo "install - install the package to the active Python's site-packages"
 
@@ -59,24 +64,29 @@ clean-docs:
 	rm -rf docs/_build
 
 lint: start
-	@$(exec_on_docker) flake8 agoras
+	@$(exec_on_docker) tox -e lint
+
+format: start
+	@$(exec_on_docker) autoflake --in-place --recursive --remove-all-unused-imports --remove-unused-variables --ignore-init-module-imports packages/*/src/agoras
+	@$(exec_on_docker) autopep8 --in-place --recursive --aggressive --aggressive packages/*/src/agoras
+
+lint-and-format: start
+	@$(exec_on_docker) autoflake --in-place --recursive --remove-all-unused-imports --remove-unused-variables --ignore-init-module-imports packages/*/src/agoras
+	@$(exec_on_docker) autopep8 --in-place --recursive --aggressive --aggressive packages/*/src/agoras
+	@$(exec_on_docker) tox -e lint
 
 test: start
-	@$(exec_on_docker) python3 -m unittest -v -f
-
-test-all: start
-	@$(exec_on_docker) tox
+	@$(exec_on_docker) tox -e all
 
 functional-test: start
-	@$(exec_on_docker) bash test.sh twitter
-	@$(exec_on_docker) bash test.sh facebook
-	@$(exec_on_docker) bash test.sh linkedin
-	@$(exec_on_docker) bash test.sh instagram
+	# @$(exec_on_docker) bash test.sh twitter
+	# @$(exec_on_docker) bash test.sh facebook
+	# @$(exec_on_docker) bash test.sh linkedin
+	# @$(exec_on_docker) bash test.sh instagram
+	@$(exec_on_docker) bash test.sh discord
 
 coverage: start
-	@$(exec_on_docker) coverage run --source agoras -m unittest -v -f
-	@$(exec_on_docker) coverage report -m
-	@$(exec_on_docker) coverage html
+	@$(exec_on_docker) tox -e coverage
 	@$(BROWSER) htmlcov/index.html
 
 docs:
@@ -87,7 +97,7 @@ docs:
 servedocs: docs start
 	@$(exec_on_docker) watchmedo shell-command -p '*.rst' -c 'make -C docs html' -R -D .
 
-release: clean start dist
+pypi-upload: clean start dist
 	@twine upload dist/*
 
 dist: clean start
@@ -120,10 +130,10 @@ virtualenv: start
 	@./virtualenv/bin/python3 -m pip install -r requirements.txt -r requirements-dev.txt
 
 stop:
-	@docker-compose -p agoras -f docker-compose.yml stop app
+	@docker compose -p agoras -f docker-compose.yml stop app
 
 down:
-	@docker-compose -p agoras -f docker-compose.yml down \
+	@docker compose -p agoras -f docker-compose.yml down \
 		--remove-orphans
 
 destroy:
@@ -147,3 +157,22 @@ cataplum:
 	@docker compose -p agoras -f docker-compose.yml down \
 		--rmi all --remove-orphans --volumes
 	@docker system prune -a -f --volumes
+
+# Release management
+release:
+	@./scripts/release.sh $(VERSION_TYPE)
+
+release-patch:
+	@./scripts/release.sh patch $(APP_NAME)
+
+release-minor:
+	@./scripts/release.sh minor $(APP_NAME)
+
+release-major:
+	@./scripts/release.sh major $(APP_NAME)
+
+# Hotfix management
+hotfix:
+	@./scripts/hotfix.sh $(APP_NAME)
+
+.PHONY: clean-pyc clean-build docs clean release release-patch release-minor release-major hotfix
