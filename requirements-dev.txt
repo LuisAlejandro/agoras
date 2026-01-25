@@ -15,7 +15,7 @@ autoflake==2.3.1
 
 # Build Tools
 build==1.4.0
-setuptools==80.9.0
+setuptools==80.10.1
 wheel==0.45.1
 
 # Testing Orchestration
