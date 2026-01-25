@@ -31,6 +31,7 @@ def test_validate_valid_combinations():
     ActionValidator.validate('facebook', 'video')
     ActionValidator.validate('youtube', 'video')
     ActionValidator.validate('instagram', 'post')
+    ActionValidator.validate('tiktok', 'post')
 
 
 def test_validate_youtube_post_rejected():
@@ -42,10 +43,10 @@ def test_validate_youtube_post_rejected():
     assert 'video' in str(exc_info.value)
 
 
-def test_validate_tiktok_post_rejected():
-    """Test TikTok doesn't support post action."""
+def test_validate_tiktok_like_rejected():
+    """Test TikTok doesn't support like action."""
     with pytest.raises(ValueError) as exc_info:
-        ActionValidator.validate('tiktok', 'post')
+        ActionValidator.validate('tiktok', 'like')
 
     assert 'not supported' in str(exc_info.value).lower()
 

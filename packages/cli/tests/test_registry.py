@@ -103,12 +103,13 @@ def test_validate_action_valid():
     assert PlatformRegistry.validate_action('twitter', 'post') is True  # Backward compatibility
     assert PlatformRegistry.validate_action('facebook', 'video') is True
     assert PlatformRegistry.validate_action('youtube', 'video') is True
+    assert PlatformRegistry.validate_action('tiktok', 'post') is True
 
 
 def test_validate_action_invalid():
     """Test validation fails for invalid combinations."""
     assert PlatformRegistry.validate_action('youtube', 'post') is False
-    assert PlatformRegistry.validate_action('tiktok', 'post') is False
+    assert PlatformRegistry.validate_action('tiktok', 'like') is False
     assert PlatformRegistry.validate_action('instagram', 'like') is False
     assert PlatformRegistry.validate_action('discord', 'like') is False
 
