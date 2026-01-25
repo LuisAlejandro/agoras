@@ -127,7 +127,12 @@ virtualenv: start
 	@./virtualenv/bin/python3 -m pip install --upgrade pip
 	@./virtualenv/bin/python3 -m pip install --upgrade setuptools
 	@./virtualenv/bin/python3 -m pip install --upgrade wheel
-	@./virtualenv/bin/python3 -m pip install -r requirements.txt -r requirements-dev.txt
+	@./virtualenv/bin/python3 -m pip install -r requirements-dev.txt
+	@./virtualenv/bin/python3 -m pip install -e packages/common
+	@./virtualenv/bin/python3 -m pip install -e packages/media
+	@./virtualenv/bin/python3 -m pip install -e packages/core
+	@./virtualenv/bin/python3 -m pip install -e packages/platforms
+	@./virtualenv/bin/python3 -m pip install -e packages/cli
 
 stop:
 	@docker compose -p agoras -f docker-compose.yml stop app

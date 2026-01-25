@@ -13,9 +13,10 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import alabaster
 import os
 import sys
+
+import alabaster
 
 # If extensions (or modules to document with autodoc) are in another
 # directory, add these directories to sys.path here. If the directory is
@@ -50,8 +51,7 @@ try:
 except ImportError as e:
     # Fallback for build scenarios where packages aren't installed
     print(f"Warning: Could not import from agoras.common.version: {e}")
-    __version__ = '2.0.0'
-    __description__ = 'A command line python utility to manage your social networks'
+    raise e
 
 # -- General configuration ---------------------------------------------
 

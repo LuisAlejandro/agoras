@@ -507,7 +507,7 @@ TikTok
 
 **Authentication Type**: OAuth 2.0
 
-**Actions**: authorize, video
+**Actions**: authorize, post, video
 
 Authorize Action
 ----------------
@@ -517,6 +517,28 @@ Authorize Action
 - ``--client-key`` (CLI) / ``TIKTOK_CLIENT_KEY`` (ENVVAR) - TikTok App client key
 - ``--client-secret`` (CLI) / ``TIKTOK_CLIENT_SECRET`` (ENVVAR) - TikTok App client secret
 - ``--username`` (CLI) / ``TIKTOK_USERNAME`` (ENVVAR) - TikTok username
+
+Post Action
+-----------
+
+**Required Arguments**:
+
+- At least one image URL using ``--image-1``, ``--image-2``, ``--image-3``, or ``--image-4``
+
+**Optional Arguments**:
+
+- ``--text`` (CLI) / ``STATUS_TEXT`` (ENVVAR) - Text content of the post
+- ``--link`` (CLI) / ``STATUS_LINK`` (ENVVAR) - URL to include in post
+- ``--image-1`` (CLI) / ``STATUS_IMAGE_URL_1`` (ENVVAR) - First image URL
+- ``--image-2`` (CLI) / ``STATUS_IMAGE_URL_2`` (ENVVAR) - Second image URL
+- ``--image-3`` (CLI) / ``STATUS_IMAGE_URL_3`` (ENVVAR) - Third image URL
+- ``--image-4`` (CLI) / ``STATUS_IMAGE_URL_4`` (ENVVAR) - Fourth image URL
+- ``--title`` (CLI) / ``TIKTOK_TITLE`` (ENVVAR) - Post title/caption
+- ``--privacy`` (CLI) / ``TIKTOK_PRIVACY_STATUS`` (ENVVAR) - Privacy status: ``PUBLIC_TO_EVERYONE``, ``MUTUAL_FOLLOW_FRIENDS``, ``FOLLOWER_OF_CREATOR``, or ``SELF_ONLY`` (default: ``SELF_ONLY``)
+- ``--allow-comments`` (CLI) / ``TIKTOK_ALLOW_COMMENTS`` (ENVVAR) - Allow comments on the post (default: true)
+- ``--auto-add-music`` (CLI) / ``TIKTOK_AUTO_ADD_MUSIC`` (ENVVAR) - Automatically add music to the slideshow (default: false)
+- ``--brand-organic`` (CLI) / ``TIKTOK_BRAND_ORGANIC`` (ENVVAR) - Mark content as promotional (displays "Promotional content" label)
+- ``--brand-content`` (CLI) / ``TIKTOK_BRAND_CONTENT`` (ENVVAR) - Mark content as paid partnership (displays "Paid partnership" label)
 
 Video Action
 ------------
@@ -529,6 +551,11 @@ Video Action
 
 - ``--title`` (CLI) / ``TIKTOK_TITLE`` (ENVVAR) - Video title/caption
 - ``--privacy`` (CLI) / ``TIKTOK_PRIVACY_STATUS`` (ENVVAR) - Privacy status: ``PUBLIC_TO_EVERYONE``, ``MUTUAL_FOLLOW_FRIENDS``, ``FOLLOWER_OF_CREATOR``, or ``SELF_ONLY`` (default: ``SELF_ONLY``)
+- ``--allow-comments`` (CLI) / ``TIKTOK_ALLOW_COMMENTS`` (ENVVAR) - Allow comments on the video (default: true)
+- ``--allow-duet`` (CLI) / ``TIKTOK_ALLOW_DUET`` (ENVVAR) - Allow other users to duet with your video (default: true)
+- ``--allow-stitch`` (CLI) / ``TIKTOK_ALLOW_STITCH`` (ENVVAR) - Allow other users to stitch your video (default: true)
+- ``--brand-organic`` (CLI) / ``TIKTOK_BRAND_ORGANIC`` (ENVVAR) - Mark content as promotional (displays "Promotional content" label)
+- ``--brand-content`` (CLI) / ``TIKTOK_BRAND_CONTENT`` (ENVVAR) - Mark content as paid partnership (displays "Paid partnership" label)
 
 **Unattended Execution**: Set ``TIKTOK_USERNAME``, ``TIKTOK_CLIENT_KEY``, ``TIKTOK_CLIENT_SECRET``, and ``AGORAS_TIKTOK_REFRESH_TOKEN`` environment variables.
 

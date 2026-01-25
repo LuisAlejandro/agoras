@@ -19,13 +19,13 @@
 TikTok platform CLI parser.
 
 This module provides the TikTok command parser for the new CLI structure.
-Note: TikTok is a video-only platform, so no 'post' action is available.
 """
 
 from argparse import ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.tiktok.wrapper import main as tiktok_main
 
+from ..base import add_common_content_options
 from ..converter import ParameterConverter
 from ..validator import ActionValidator
 
@@ -58,7 +58,14 @@ def create_tiktok_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     )
     _add_tiktok_authorize_options(authorize)
 
-    # Video action (main action for TikTok)
+    # Post action (photo slideshow)
+    post = actions.add_parser(
+        'post',
+        help='Create a photo slideshow post on TikTok. Requires prior authorization via "agoras tiktok authorize".'
+    )
+    _add_post_options(post)
+
+    # Video action
     video = actions.add_parser(
         'video',
         help='Upload a video to TikTok. Requires Production app approval and prior authorization.'
@@ -102,6 +109,57 @@ def _add_tiktok_authorize_options(parser: ArgumentParser):
     )
 
 
+def _add_post_options(parser: ArgumentParser):
+    """
+    Add post-specific options for TikTok photo slideshows.
+
+    Args:
+        parser: ArgumentParser to add options to
+    """
+    # Add common content options (text, link, images)
+    add_common_content_options(parser, images=4)
+
+    # Add TikTok-specific post options
+    post_opts = parser.add_argument_group('TikTok Post Options')
+    post_opts.add_argument(
+        '--title',
+        metavar='<title>',
+        help='Post title/caption'
+    )
+    post_opts.add_argument(
+        '--privacy',
+        metavar='<status>',
+        default='SELF_ONLY',
+        choices=['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS',
+                 'FOLLOWER_OF_CREATOR', 'SELF_ONLY'],
+        help='Post privacy status (default: SELF_ONLY)'
+    )
+    post_opts.add_argument(
+        '--allow-comments',
+        action='store_true',
+        default=None,
+        help='Allow comments on the post (default: true)'
+    )
+    post_opts.add_argument(
+        '--auto-add-music',
+        action='store_true',
+        default=None,
+        help='Automatically add music to the slideshow (default: false)'
+    )
+    post_opts.add_argument(
+        '--brand-organic',
+        action='store_true',
+        default=None,
+        help='Mark content as promotional (displays "Promotional content" label)'
+    )
+    post_opts.add_argument(
+        '--brand-content',
+        action='store_true',
+        default=None,
+        help='Mark content as paid partnership (displays "Paid partnership" label)'
+    )
+
+
 def _add_video_options(parser: ArgumentParser):
     """
     Add video-specific options for TikTok.
@@ -128,6 +186,36 @@ def _add_video_options(parser: ArgumentParser):
         choices=['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS',
                  'FOLLOWER_OF_CREATOR', 'SELF_ONLY'],
         help='Video privacy status (default: SELF_ONLY)'
+    )
+    video.add_argument(
+        '--allow-comments',
+        action='store_true',
+        default=None,
+        help='Allow comments on the video (default: true)'
+    )
+    video.add_argument(
+        '--allow-duet',
+        action='store_true',
+        default=None,
+        help='Allow other users to duet with your video (default: true)'
+    )
+    video.add_argument(
+        '--allow-stitch',
+        action='store_true',
+        default=None,
+        help='Allow other users to stitch your video (default: true)'
+    )
+    video.add_argument(
+        '--brand-organic',
+        action='store_true',
+        default=None,
+        help='Mark content as promotional (displays "Promotional content" label)'
+    )
+    video.add_argument(
+        '--brand-content',
+        action='store_true',
+        default=None,
+        help='Mark content as paid partnership (displays "Paid partnership" label)'
     )
 
 

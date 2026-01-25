@@ -118,5 +118,5 @@ Agoras parameters
 +------------------------------+--------------------------+
 | Client Secret (App Secret)   | --client-secret          |
 +------------------------------+--------------------------+
-| Object ID (Facebook User ID)  | --object-id              |
+| Object ID (Facebook User ID)  | --object-id             |
 +------------------------------+--------------------------+

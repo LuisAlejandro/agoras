@@ -113,12 +113,12 @@ Get server and channel information
 **Server Name**:
 1. Open Discord and navigate to your server
 2. The server name is displayed at the top-left of the Discord interface
-3. Use this exact name (case-sensitive) for ``--discord-server-name``
+3. Use this exact name (case-sensitive) for ``--server-name``
 
 **Channel Name**:
 1. Navigate to the text channel where you want the bot to post
 2. The channel name is displayed without the # symbol
-3. Use this exact name (case-sensitive) for ``--discord-channel-name``
+3. Use this exact name (case-sensitive) for ``--channel-name``
 
 For example:
 - If you see "My Awesome Server" at the top, use ``My Awesome Server``
@@ -205,7 +205,7 @@ Agoras parameters
 | Server Name            | --server-name             | authorize (required)           |
 |                        |                           | post/video/delete (optional)   |
 +------------------------+---------------------------+--------------------------------+
-| Channel Name           | --channel-name           | authorize (required)           |
+| Channel Name           | --channel-name            | authorize (required)           |
 |                        |                           | post/video/delete (optional)   |
 +------------------------+---------------------------+--------------------------------+
 | Message ID             | --post-id                 | delete action only             |

@@ -104,19 +104,3 @@ All packages are published to PyPI:
    twine upload packages/core/dist/*
    twine upload packages/platforms/dist/*
    twine upload packages/cli/dist/*
-
-Status
-------
-
-Week 2 Complete ✅
-~~~~~~~~~~~~~~~~~~
-
-- ✅ **agoras-common** - Extracted, tested, and built (v2.0.0)
-- ✅ **agoras-media** - Extracted, tested, and built (v2.0.0)
-- ✅ **agoras-core** - Extracted, tested, and built (v2.0.0)
-- ✅ **agoras-platforms** - Extracted, tested, and built (v2.0.0)
-- 🚧 **agoras (CLI)** - Week 3 (pending)
-
-**Progress**: 4/5 packages complete (80%)
-
-Files will continue to be migrated according to the `Package Split Plan <../.cursor/plans/package-split/PACKAGE_SPLIT_PLAN.md>`_.

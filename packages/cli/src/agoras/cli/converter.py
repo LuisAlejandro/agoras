@@ -109,6 +109,10 @@ class ParameterConverter:
             'video_url': 'tiktok_video_url',
             'title': 'tiktok_title',
             'privacy': 'tiktok_privacy_status',
+            'allow_comments': 'tiktok_allow_comments',
+            'allow_duet': 'tiktok_allow_duet',
+            'allow_stitch': 'tiktok_allow_stitch',
+            'auto_add_music': 'tiktok_auto_add_music',
         },
         'threads': {
             'app_id': 'threads_app_id',

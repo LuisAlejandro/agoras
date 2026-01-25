@@ -40,15 +40,6 @@ Usage
    metatags = parse_metatags('https://example.com')
    print(metatags['title'], metatags['image'])
 
-Status
-------
-
-✅ **Extracted and Tested** (Week 1, Day 2)
-
-- Coverage: 51%
-- Tests: 1 passing
-- Build: v2.0.0 wheels available
-
 Dependencies
 ------------
 

@@ -56,9 +56,9 @@ This command will upload and publish a video to TikTok. ``--title`` is required 
 
 Optional parameters for video posts:
 
-- ``--tiktok-allow-comments``: Allow comments on the video (default: true)
-- ``--tiktok-allow-duet``: Allow other users to duet with your video (default: true)
-- ``--tiktok-allow-stitch``: Allow other users to stitch your video (default: true)
+- ``--allow-comments``: Allow comments on the video (default: true)
+- ``--allow-duet``: Allow other users to duet with your video (default: true)
+- ``--allow-stitch``: Allow other users to stitch your video (default: true)
 - ``--brand-organic``: Mark content as promotional (displays "Promotional content" label)
 - ``--brand-content``: Mark content as paid partnership (displays "Paid partnership" label)
 
@@ -89,8 +89,8 @@ This command will create a photo slideshow post on TikTok. You can include up to
 
 Optional parameters for photo posts:
 
-- ``--tiktok-allow-comments``: Allow comments on the post (default: true)
-- ``--tiktok-auto-add-music``: Automatically add music to the slideshow (default: false)
+- ``--allow-comments``: Allow comments on the post (default: true)
+- ``--auto-add-music``: Automatically add music to the slideshow (default: false)
 - ``--brand-organic``: Mark content as promotional
 - ``--brand-content``: Mark content as paid partnership
 

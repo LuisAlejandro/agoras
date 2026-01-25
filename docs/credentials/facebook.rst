@@ -44,7 +44,7 @@ You need the ID of the Facebook page or profile you want to post to. To find you
 
 1. Go to your Facebook page.
 2. Note the page name from the URL (e.g., ``LuisDevelops`` from ``https://www.facebook.com/LuisDevelops``).
-3. Use the Graph API Explorer to get the ID::
+3. Use the Graph API Explorer to get the ID (replace ``{page_name}`` with the page name)::
 
       https://developers.facebook.com/tools/explorer/?method=GET&path={page_name}
 

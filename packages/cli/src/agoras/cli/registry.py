@@ -74,7 +74,7 @@ class PlatformRegistry:
         'tiktok': {
             'name': 'TikTok',
             'description': 'TikTok video platform',
-            'actions': {'authorize', 'video'},
+            'actions': {'authorize', 'post', 'video'},
             'module': 'agoras.cli.platforms.tiktok',
         },
         'threads': {

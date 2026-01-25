@@ -107,14 +107,60 @@ verify_env_vars() {
 # verify_env_vars "telegram"
 # verify_env_vars "whatsapp"
 
-# Initial setup - prepare schedules
-echo "=== Setting up Google Sheets schedules ==="
-# python3 "${PROJECT_ROOT}/scripts/schedule.py" "${GOOGLE_SHEETS_ID}" "${GOOGLE_SHEETS_NAME}" "${GOOGLE_SHEETS_CLIENT_EMAIL}" "${GOOGLE_SHEETS_PRIVATE_KEY}"
-# python3 "${PROJECT_ROOT}/scripts/schedule.py" "${GOOGLE_SHEETS_ID}" "Youtube" "${GOOGLE_SHEETS_CLIENT_EMAIL}" "${GOOGLE_SHEETS_PRIVATE_KEY}"
-# python3 "${PROJECT_ROOT}/scripts/schedule.py" "${GOOGLE_SHEETS_ID}" "Tiktok" "${GOOGLE_SHEETS_CLIENT_EMAIL}" "${GOOGLE_SHEETS_PRIVATE_KEY}"
+# Function to clear all stored credentials
+clear_credentials() {
+    echo "🧹 Clearing all stored credentials..."
 
-# Get platform from command line argument, default to "all"
-PLATFORM="${1:-all}"
+    # Path to agoras config directory
+    AGORAS_DIR="$HOME/.agoras"
+
+    if [ -d "$AGORAS_DIR" ]; then
+        # Remove tokens directory
+        if [ -d "$AGORAS_DIR/tokens" ]; then
+            rm -rf "$AGORAS_DIR/tokens"
+            echo "✅ Removed tokens directory"
+        fi
+
+        # Remove encryption key file
+        if [ -f "$AGORAS_DIR/.key" ]; then
+            rm -f "$AGORAS_DIR/.key"
+            echo "✅ Removed encryption key file"
+        fi
+
+        # Remove entire agoras directory if empty
+        if [ -z "$(ls -A "$AGORAS_DIR" 2>/dev/null)" ]; then
+            rmdir "$AGORAS_DIR"
+            echo "✅ Removed agoras config directory (was empty)"
+        fi
+    else
+        echo "ℹ️  No credentials directory found"
+    fi
+
+    echo "🎉 All stored credentials cleared!"
+    echo ""
+}
+
+# Parse command line arguments
+CLEAR_CREDENTIALS=false
+PLATFORM="all"
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --clear-credentials|-c)
+            CLEAR_CREDENTIALS=true
+            shift
+            ;;
+        *)
+            PLATFORM="$1"
+            shift
+            ;;
+    esac
+done
+
+# Clear credentials if requested
+if [ "$CLEAR_CREDENTIALS" = true ]; then
+    clear_credentials
+fi
 
 # Function to run all test types for a given platform
 run_all_tests_for_platform() {
@@ -172,7 +218,10 @@ elif [ "$PLATFORM" == "x" ] || [ "$PLATFORM" == "tiktok" ] || [ "$PLATFORM" == "
 else
     echo "❌ Unsupported platform: $PLATFORM"
     echo ""
-    echo "Usage: $0 [platform]"
+    echo "Usage: $0 [options] [platform]"
+    echo ""
+    echo "Options:"
+    echo "  --clear-credentials, -c    Clear all stored credentials before running tests"
     echo ""
     echo "Supported platforms:"
     echo "  all              - Run tests for all platforms (default)"

@@ -51,15 +51,6 @@ Usage
 
    asyncio.run(download_image())
 
-Status
-------
-
-✅ **Extracted and Tested** (Week 1, Day 3)
-
-- Coverage: 48%
-- Tests: 21 passing
-- Build: v2.0.0 wheels available
-
 Dependencies
 ------------
 
