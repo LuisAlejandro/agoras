@@ -20,7 +20,6 @@ import json
 from typing import Any, Dict, List, Optional
 
 import requests
-
 from agoras.common import __version__
 
 
@@ -67,11 +66,15 @@ class TikTokAPIClient:
                 'User-Agent': f'Agoras/{__version__}',
             }
         )
-
         result = response.json()
 
         if 'error' in result:
-            raise Exception(f"Failed to get creator info: {result.get('error_description', 'Unknown error')}")
+            error_data = result.get('error', {})
+            # TikTok API returns 'error' key even on success with code 'ok'
+            if isinstance(error_data, dict) and error_data.get('code') == 'ok':
+                pass  # Not an error
+            else:
+                raise Exception(f"Failed to get creator info: {result.get('message', 'Unknown error')}")
 
         creator_data = result.get('data')
         if not creator_data:
@@ -134,11 +137,15 @@ class TikTokAPIClient:
 
         result = response.json()
 
-        post_error_code = result.get('error', {}).get('code')
-        post_error_message = result.get('error', {}).get('message')
-
-        if post_error_code or post_error_message:
-            raise Exception(f'Error uploading video: [{post_error_code}] {post_error_message}')
+        if 'error' in result:
+            error_data = result.get('error', {})
+            # TikTok API returns 'error' key even on success with code 'ok'
+            if isinstance(error_data, dict) and error_data.get('code') == 'ok':
+                pass  # Not an error
+            else:
+                post_error_code = result.get('error', {}).get('code')
+                post_error_message = result.get('error', {}).get('message')
+                raise Exception(f'Error uploading video: [{post_error_code}] {post_error_message}')
 
         return result
 
@@ -196,6 +203,17 @@ class TikTokAPIClient:
         )
 
         result = response.json()
+
+        if 'error' in result:
+            error_data = result.get('error', {})
+            # TikTok API returns 'error' key even on success with code 'ok'
+            if isinstance(error_data, dict) and error_data.get('code') == 'ok':
+                pass  # Not an error
+            else:
+                post_error_code = result.get('error', {}).get('code')
+                post_error_message = result.get('error', {}).get('message')
+                raise Exception(f'Error uploading photo: [{post_error_code}] {post_error_message}')
+
         return result
 
     def get_publish_status(self, publish_id: str) -> Dict[str, Any]:
@@ -223,5 +241,4 @@ class TikTokAPIClient:
             },
             data=json.dumps({"publish_id": publish_id}),
         )
-
         return response.json()

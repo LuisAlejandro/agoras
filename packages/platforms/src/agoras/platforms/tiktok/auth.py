@@ -22,10 +22,9 @@ import secrets
 import webbrowser
 from typing import Optional
 
-from authlib.integrations.requests_client import OAuth2Session
-
 from agoras.core.auth import BaseAuthManager
 from agoras.core.auth.callback_server import OAuthCallbackServer
+from authlib.integrations.requests_client import OAuth2Session
 
 from .client import TikTokAPIClient
 
@@ -105,11 +104,11 @@ class TikTokAuthManager(BaseAuthManager):
             else:
                 return False
 
-            # Create client (skip user info retrieval as it's not essential for video operations)
+            # Create client
             if self.access_token:
                 self.client = self._create_client(self.access_token)
-                # Set dummy user info since we don't need it for video operations
-                self.user_info = {"username": self.username, "user_id": "unknown"}
+                # Get user info to verify authentication
+                self.user_info = await self._get_user_info()
 
             return True
         except Exception:

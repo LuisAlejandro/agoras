@@ -42,7 +42,7 @@
 .. _GitHub actions: https://github.com/LuisAlejandro/agoras-actions
 .. _full documentation: https://agoras.readthedocs.org
 
-Current version: 1.1.5
+Current version: 2.0.0
 
 .. note::
 
