@@ -175,9 +175,12 @@ def test_action_validation_integration():
     with pytest.raises(ValueError):
         ActionValidator.validate('youtube', 'post')
 
-    # Invalid: TikTok post
+    # Valid: TikTok post (now supported)
+    ActionValidator.validate('tiktok', 'post')
+    
+    # Invalid: TikTok like (not supported)
     with pytest.raises(ValueError):
-        ActionValidator.validate('tiktok', 'post')
+        ActionValidator.validate('tiktok', 'like')
 
 
 def test_legacy_publish_with_migration_flag():
