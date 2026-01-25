@@ -123,7 +123,7 @@ console: start
 	@$(exec_on_docker) bash
 
 virtualenv: start
-	@python3 -m venv --clear ./virtualenv
+	@python3 -m venv --clear --copies ./virtualenv
 	@./virtualenv/bin/python3 -m pip install --upgrade pip
 	@./virtualenv/bin/python3 -m pip install --upgrade setuptools
 	@./virtualenv/bin/python3 -m pip install --upgrade wheel
