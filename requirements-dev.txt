@@ -19,7 +19,7 @@ setuptools==80.9.0
 wheel==0.45.1
 
 # Testing Orchestration
-tox==4.27.0
+tox==4.34.1
 
 # Documentation
 sphinx==7.4.7
