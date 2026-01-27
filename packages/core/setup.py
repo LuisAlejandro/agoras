@@ -36,7 +36,7 @@ setup(
         'agoras-media>=2.0.0',
         'atoma==0.0.17',
         'gspread==6.2.1',
-        'google-auth==2.47.0',
+        'google-auth==2.48.0',
         'python-dateutil==2.9.0.post0',
     ],
     classifiers=[
