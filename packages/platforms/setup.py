@@ -34,7 +34,7 @@ setup(
     install_requires=[
         'agoras-core>=2.0.0',
         'tweepy==4.16.0',
-        'python-facebook-api==0.20.1',
+        'python-facebook-api==0.24.0',
         'linkedin-api-client==0.3.0',
         'discord.py==2.6.4',
         'google-api-python-client==2.190.0',
