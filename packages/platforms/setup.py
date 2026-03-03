@@ -37,7 +37,7 @@ setup(
         'python-facebook-api==0.24.0',
         'linkedin-api-client==0.3.0',
         'discord.py==2.7.0',
-        'google-api-python-client==2.190.0',
+        'google-api-python-client==2.191.0',
         'google-api-core>=2.0.0',
         'google-auth==2.47.0',
         'google-auth-oauthlib>=1.2.0',
