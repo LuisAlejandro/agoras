@@ -36,7 +36,7 @@ setup(
         'tweepy==4.16.0',
         'python-facebook-api==0.24.0',
         'linkedin-api-client==0.3.0',
-        'discord.py==2.7.0',
+        'discord.py==2.7.1',
         'google-api-python-client==2.192.0',
         'google-api-core>=2.0.0',
         'google-auth==2.47.0',
