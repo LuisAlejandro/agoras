@@ -54,7 +54,7 @@ setup(
     # Combined dependencies from all sub-packages
     install_requires=[
         # From agoras-common
-        'requests==2.32.5',
+        'requests==2.33.0',
         'beautifulsoup4==4.14.3',
 
         # From agoras-media
