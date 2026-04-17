@@ -44,7 +44,7 @@ setup(
         'google-auth-httplib2==0.3.1',
         'oauth2client==4.1.3',
         'platformdirs==4.9.6',
-        'authlib==1.6.10',
+        'authlib==1.6.11',
         'cryptography>=42.0.0',
         'python-telegram-bot>=22.1',
     ],
