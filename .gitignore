@@ -72,10 +72,15 @@ target/
 *.swo
 *~
 
+# Cursor (local MCP config may contain API keys; skill npm installs)
+.cursor/
+
 # Virtual environments
 virtualenv/
 
 # Environment files
+.env
+.env.*
 *.env
 
 # OS files
@@ -90,3 +95,7 @@ packages/*/.tox/
 packages/*/.coverage
 packages/*/htmlcov/
 packages/*/.pytest_cache/
+
+# Rosey Agentic Environment
+docs/plans/
+docs/designs/

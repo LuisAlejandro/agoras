@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 
-# Integration Test Master Runner - End-to-End testing with real API credentials
+# Integration Test Master Runner - End-to-End testing after authorization
 # Orchestrates all integration tests across multiple platforms
+# Assumes 'agoras <platform> authorize' has already been run
 # Part of agoras v2.0 modular package structure
+#
+# This script runs tests using credentials stored after authorization.
+# It clears credentials at the start to ensure a clean test state.
+
 
 # Exit early if there are errors and be verbose
 set -exuo pipefail
@@ -12,107 +17,13 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Get the project root (parent of tests directory)
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-source "${PROJECT_ROOT}/secrets.env"
-
-# Function to verify required environment variables
-verify_env_vars() {
-    local platform=$1
-    local missing_vars=()
-
-    case "$platform" in
-        x)
-            [[ -z "${TWITTER_CONSUMER_KEY:-}" ]] && missing_vars+=("TWITTER_CONSUMER_KEY")
-            [[ -z "${TWITTER_CONSUMER_SECRET:-}" ]] && missing_vars+=("TWITTER_CONSUMER_SECRET")
-            [[ -z "${TWITTER_OAUTH_TOKEN:-}" ]] && missing_vars+=("TWITTER_OAUTH_TOKEN")
-            [[ -z "${TWITTER_OAUTH_SECRET:-}" ]] && missing_vars+=("TWITTER_OAUTH_SECRET")
-            ;;
-        youtube)
-            [[ -z "${YOUTUBE_CLIENT_ID:-}" ]] && missing_vars+=("YOUTUBE_CLIENT_ID")
-            [[ -z "${YOUTUBE_CLIENT_SECRET:-}" ]] && missing_vars+=("YOUTUBE_CLIENT_SECRET")
-            [[ -z "${YOUTUBE_REFRESH_TOKEN:-}" ]] && missing_vars+=("YOUTUBE_REFRESH_TOKEN")
-            ;;
-        facebook|facebook-video)
-            [[ -z "${FACEBOOK_OBJECT_ID:-}" ]] && missing_vars+=("FACEBOOK_OBJECT_ID")
-            [[ -z "${FACEBOOK_CLIENT_ID:-}" ]] && missing_vars+=("FACEBOOK_CLIENT_ID")
-            [[ -z "${FACEBOOK_CLIENT_SECRET:-}" ]] && missing_vars+=("FACEBOOK_CLIENT_SECRET")
-            [[ -z "${FACEBOOK_REFRESH_TOKEN:-}" ]] && missing_vars+=("FACEBOOK_REFRESH_TOKEN")
-            ;;
-        instagram)
-            [[ -z "${INSTAGRAM_OBJECT_ID:-}" ]] && missing_vars+=("INSTAGRAM_OBJECT_ID")
-            [[ -z "${INSTAGRAM_CLIENT_ID:-}" ]] && missing_vars+=("INSTAGRAM_CLIENT_ID")
-            [[ -z "${INSTAGRAM_CLIENT_SECRET:-}" ]] && missing_vars+=("INSTAGRAM_CLIENT_SECRET")
-            [[ -z "${INSTAGRAM_REFRESH_TOKEN:-}" ]] && missing_vars+=("INSTAGRAM_REFRESH_TOKEN")
-            ;;
-        discord)
-            [[ -z "${DISCORD_BOT_TOKEN:-}" ]] && missing_vars+=("DISCORD_BOT_TOKEN")
-            [[ -z "${DISCORD_SERVER_NAME:-}" ]] && missing_vars+=("DISCORD_SERVER_NAME")
-            [[ -z "${DISCORD_CHANNEL_NAME:-}" ]] && missing_vars+=("DISCORD_CHANNEL_NAME")
-            ;;
-        linkedin)
-            [[ -z "${LINKEDIN_OBJECT_ID:-}" ]] && missing_vars+=("LINKEDIN_OBJECT_ID")
-            [[ -z "${LINKEDIN_CLIENT_ID:-}" ]] && missing_vars+=("LINKEDIN_CLIENT_ID")
-            [[ -z "${LINKEDIN_CLIENT_SECRET:-}" ]] && missing_vars+=("LINKEDIN_CLIENT_SECRET")
-            [[ -z "${LINKEDIN_REFRESH_TOKEN:-}" ]] && missing_vars+=("LINKEDIN_REFRESH_TOKEN")
-            ;;
-        tiktok)
-            [[ -z "${TIKTOK_USERNAME:-}" ]] && missing_vars+=("TIKTOK_USERNAME")
-            [[ -z "${TIKTOK_CLIENT_KEY:-}" ]] && missing_vars+=("TIKTOK_CLIENT_KEY")
-            [[ -z "${TIKTOK_CLIENT_SECRET:-}" ]] && missing_vars+=("TIKTOK_CLIENT_SECRET")
-            [[ -z "${TIKTOK_REFRESH_TOKEN:-}" ]] && missing_vars+=("TIKTOK_REFRESH_TOKEN")
-            ;;
-        threads)
-            [[ -z "${THREADS_APP_ID:-}" ]] && missing_vars+=("THREADS_APP_ID")
-            [[ -z "${THREADS_APP_SECRET:-}" ]] && missing_vars+=("THREADS_APP_SECRET")
-            [[ -z "${THREADS_REFRESH_TOKEN:-}" ]] && missing_vars+=("THREADS_REFRESH_TOKEN")
-            [[ -z "${THREADS_USER_ID:-}" ]] && missing_vars+=("THREADS_USER_ID")
-            ;;
-        telegram)
-            [[ -z "${TELEGRAM_BOT_TOKEN:-}" ]] && missing_vars+=("TELEGRAM_BOT_TOKEN")
-            [[ -z "${TELEGRAM_CHAT_ID:-}" ]] && missing_vars+=("TELEGRAM_CHAT_ID")
-            ;;
-        whatsapp)
-            [[ -z "${WHATSAPP_ACCESS_TOKEN:-}" ]] && missing_vars+=("WHATSAPP_ACCESS_TOKEN")
-            [[ -z "${WHATSAPP_PHONE_NUMBER_ID:-}" ]] && missing_vars+=("WHATSAPP_PHONE_NUMBER_ID")
-            [[ -z "${WHATSAPP_RECIPIENT:-}" ]] && missing_vars+=("WHATSAPP_RECIPIENT")
-            ;;
-    esac
-
-    # Common variables for feed and schedule tests
-    if [[ "$platform" != "facebook-video" ]]; then
-        [[ -z "${FEED_URL:-}" ]] && missing_vars+=("FEED_URL")
-        [[ -z "${GOOGLE_SHEETS_ID:-}" ]] && missing_vars+=("GOOGLE_SHEETS_ID")
-        [[ -z "${GOOGLE_SHEETS_NAME:-}" ]] && missing_vars+=("GOOGLE_SHEETS_NAME")
-        [[ -z "${GOOGLE_SHEETS_CLIENT_EMAIL:-}" ]] && missing_vars+=("GOOGLE_SHEETS_CLIENT_EMAIL")
-        [[ -z "${GOOGLE_SHEETS_PRIVATE_KEY:-}" ]] && missing_vars+=("GOOGLE_SHEETS_PRIVATE_KEY")
-    fi
-
-    if [ ${#missing_vars[@]} -gt 0 ]; then
-        echo "❌ Missing required environment variables for $platform:"
-        printf '  - %s\n' "${missing_vars[@]}"
-        exit 1
-    fi
-
-    echo "✅ All required environment variables for $platform are set"
-}
-
-# Verify environment variables
-# verify_env_vars "x"
-# verify_env_vars "tiktok"
-# verify_env_vars "youtube"
-# verify_env_vars "facebook"
-# verify_env_vars "instagram"
-# verify_env_vars "discord"
-# verify_env_vars "linkedin"
-# verify_env_vars "threads"
-# verify_env_vars "telegram"
-# verify_env_vars "whatsapp"
+source "${PROJECT_ROOT}/authorize.env"
 
 # Function to clear all stored credentials
 clear_credentials() {
     echo "🧹 Clearing all stored credentials..."
 
-    # Path to agoras config directory
-    AGORAS_DIR="$HOME/.agoras"
+    AGORAS_DIR="${AGORAS_STORAGE_DIR}"
 
     if [ -d "$AGORAS_DIR" ]; then
         # Remove tokens directory
@@ -133,23 +44,88 @@ clear_credentials() {
             echo "✅ Removed agoras config directory (was empty)"
         fi
     else
-        echo "ℹ️  No credentials directory found"
+        echo "ℹ️  No credentials directory found at $AGORAS_DIR"
     fi
 
-    echo "🎉 All stored credentials cleared!"
+    echo "🎉 All stored credentials cleared from $AGORAS_DIR!"
     echo ""
 }
 
+# Function to verify required environment variables
+verify_env_vars() {
+    local platform=$1
+    local missing_vars=()
+
+    case "$platform" in
+        x)
+            [[ -z "${TWITTER_CONSUMER_KEY:-}" ]] && missing_vars+=("TWITTER_CONSUMER_KEY")
+            [[ -z "${TWITTER_CONSUMER_SECRET:-}" ]] && missing_vars+=("TWITTER_CONSUMER_SECRET")
+            ;;
+        tiktok)
+            [[ -z "${TIKTOK_CLIENT_KEY:-}" ]] && missing_vars+=("TIKTOK_CLIENT_KEY")
+            [[ -z "${TIKTOK_CLIENT_SECRET:-}" ]] && missing_vars+=("TIKTOK_CLIENT_SECRET")
+            [[ -z "${TIKTOK_USERNAME:-}" ]] && missing_vars+=("TIKTOK_USERNAME")
+            ;;
+        facebook)
+            [[ -z "${FACEBOOK_CLIENT_ID:-}" ]] && missing_vars+=("FACEBOOK_CLIENT_ID")
+            [[ -z "${FACEBOOK_CLIENT_SECRET:-}" ]] && missing_vars+=("FACEBOOK_CLIENT_SECRET")
+            [[ -z "${FACEBOOK_APP_ID:-}" ]] && missing_vars+=("FACEBOOK_APP_ID")
+            [[ -z "${FACEBOOK_OBJECT_ID:-}" ]] && missing_vars+=("FACEBOOK_OBJECT_ID")
+            ;;
+        facebook-video)
+            [[ -z "${FACEBOOK_CLIENT_ID:-}" ]] && missing_vars+=("FACEBOOK_CLIENT_ID")
+            [[ -z "${FACEBOOK_CLIENT_SECRET:-}" ]] && missing_vars+=("FACEBOOK_CLIENT_SECRET")
+            [[ -z "${FACEBOOK_APP_ID:-}" ]] && missing_vars+=("FACEBOOK_APP_ID")
+            [[ -z "${FACEBOOK_OBJECT_ID:-}" ]] && missing_vars+=("FACEBOOK_OBJECT_ID")
+            ;;
+        youtube)
+            [[ -z "${YOUTUBE_CLIENT_ID:-}" ]] && missing_vars+=("YOUTUBE_CLIENT_ID")
+            [[ -z "${YOUTUBE_CLIENT_SECRET:-}" ]] && missing_vars+=("YOUTUBE_CLIENT_SECRET")
+            ;;
+        instagram)
+            [[ -z "${INSTAGRAM_CLIENT_ID:-}" ]] && missing_vars+=("INSTAGRAM_CLIENT_ID")
+            [[ -z "${INSTAGRAM_CLIENT_SECRET:-}" ]] && missing_vars+=("INSTAGRAM_CLIENT_SECRET")
+            [[ -z "${INSTAGRAM_OBJECT_ID:-}" ]] && missing_vars+=("INSTAGRAM_OBJECT_ID")
+            ;;
+        discord)
+            [[ -z "${DISCORD_BOT_TOKEN:-}" ]] && missing_vars+=("DISCORD_BOT_TOKEN")
+            [[ -z "${DISCORD_SERVER_NAME:-}" ]] && missing_vars+=("DISCORD_SERVER_NAME")
+            [[ -z "${DISCORD_CHANNEL_NAME:-}" ]] && missing_vars+=("DISCORD_CHANNEL_NAME")
+            ;;
+        linkedin)
+            [[ -z "${LINKEDIN_CLIENT_ID:-}" ]] && missing_vars+=("LINKEDIN_CLIENT_ID")
+            [[ -z "${LINKEDIN_CLIENT_SECRET:-}" ]] && missing_vars+=("LINKEDIN_CLIENT_SECRET")
+            [[ -z "${LINKEDIN_OBJECT_ID:-}" ]] && missing_vars+=("LINKEDIN_OBJECT_ID")
+            ;;
+        threads)
+            [[ -z "${THREADS_APP_ID:-}" ]] && missing_vars+=("THREADS_APP_ID")
+            [[ -z "${THREADS_APP_SECRET:-}" ]] && missing_vars+=("THREADS_APP_SECRET")
+            ;;
+        telegram)
+            [[ -z "${TELEGRAM_BOT_TOKEN:-}" ]] && missing_vars+=("TELEGRAM_BOT_TOKEN")
+            [[ -z "${TELEGRAM_CHAT_ID:-}" ]] && missing_vars+=("TELEGRAM_CHAT_ID")
+            ;;
+        whatsapp)
+            [[ -z "${WHATSAPP_ACCESS_TOKEN:-}" ]] && missing_vars+=("WHATSAPP_ACCESS_TOKEN")
+            [[ -z "${WHATSAPP_PHONE_NUMBER_ID:-}" ]] && missing_vars+=("WHATSAPP_PHONE_NUMBER_ID")
+            [[ -z "${WHATSAPP_RECIPIENT:-}" ]] && missing_vars+=("WHATSAPP_RECIPIENT")
+            ;;
+    esac
+
+    if [ ${#missing_vars[@]} -gt 0 ]; then
+        echo "❌ Missing required environment variables for $platform:"
+        printf '  - %s\n' "${missing_vars[@]}"
+        exit 1
+    fi
+
+    echo "✅ All required environment variables for $platform are set"
+}
+
 # Parse command line arguments
-CLEAR_CREDENTIALS=false
 PLATFORM="all"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --clear-credentials|-c)
-            CLEAR_CREDENTIALS=true
-            shift
-            ;;
         *)
             PLATFORM="$1"
             shift
@@ -157,10 +133,37 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Clear credentials if requested
-if [ "$CLEAR_CREDENTIALS" = true ]; then
-    clear_credentials
+# Always clear credentials at the start (ensures clean test state)
+clear_credentials
+
+# Verify AGORAS_STORAGE_DIR is set
+if [ -z "${AGORAS_STORAGE_DIR:-}" ]; then
+    echo "❌ Error: AGORAS_STORAGE_DIR environment variable is not set"
+    echo ""
+    echo "This script requires AGORAS_STORAGE_DIR to be set to prevent accidentally"
+    echo "deleting your real credentials in ~/.agoras"
+    echo ""
+    echo "Please set AGORAS_STORAGE_DIR in authorize.env or export it, for example:"
+    echo "  export AGORAS_STORAGE_DIR=/tmp/agoras-test"
+    echo ""
+    exit 1
 fi
+
+# Verify environment variables for all platforms (always, regardless of which platform is tested)
+echo "🔍 Verifying environment variables for all platforms..."
+verify_env_vars "x"
+verify_env_vars "tiktok"
+verify_env_vars "youtube"
+verify_env_vars "facebook"
+verify_env_vars "facebook-video"
+verify_env_vars "instagram"
+verify_env_vars "discord"
+verify_env_vars "linkedin"
+verify_env_vars "threads"
+verify_env_vars "telegram"
+verify_env_vars "whatsapp"
+echo "✅ All environment variables verified"
+echo ""
 
 # Function to run all test types for a given platform
 run_all_tests_for_platform() {
@@ -171,16 +174,7 @@ run_all_tests_for_platform() {
     echo "======================================"
 
     echo "--- Running POST tests for $platform ---"
-    "${SCRIPT_DIR}/test-post.sh" "$platform"
-
-    # echo "--- Running SCHEDULE tests for $platform ---"
-    # "${SCRIPT_DIR}/test-schedule.sh" "$platform"
-
-    # echo "--- Running LAST FROM FEED tests for $platform ---"
-    # "${SCRIPT_DIR}/test-last-from-feed.sh" "$platform"
-
-    # echo "--- Running RANDOM FROM FEED tests for $platform ---"
-    # "${SCRIPT_DIR}/test-random-feed.sh" "$platform"
+    "${SCRIPT_DIR}/test-post-authorize.sh" "$platform"
 
     echo "✅ All tests completed for $platform"
     echo ""
@@ -189,7 +183,7 @@ run_all_tests_for_platform() {
 # Function to run Facebook video test (special case)
 run_facebook_video_test() {
     echo "--- Running FACEBOOK VIDEO test ---"
-    "${SCRIPT_DIR}/test-post.sh" "facebook-video"
+    "${SCRIPT_DIR}/test-post-authorize.sh" "facebook-video"
     echo "✅ Facebook video test completed"
     echo ""
 }
@@ -218,10 +212,7 @@ elif [ "$PLATFORM" == "x" ] || [ "$PLATFORM" == "tiktok" ] || [ "$PLATFORM" == "
 else
     echo "❌ Unsupported platform: $PLATFORM"
     echo ""
-    echo "Usage: $0 [options] [platform]"
-    echo ""
-    echo "Options:"
-    echo "  --clear-credentials, -c    Clear all stored credentials before running tests"
+    echo "Usage: $0 [platform]"
     echo ""
     echo "Supported platforms:"
     echo "  all              - Run tests for all platforms (default)"
@@ -239,8 +230,8 @@ else
     echo ""
     echo "Test types included:"
     echo "  - Post/Video tests (including like and share)"
-    echo "  - Schedule tests"
-    echo "  - Last from feed tests"
-    echo "  - Random from feed tests"
+    echo ""
+    echo "Note: This script assumes 'agoras <platform> authorize' has already been run."
+    echo "      AGORAS_STORAGE_DIR environment variable is REQUIRED for safety."
     exit 1
 fi

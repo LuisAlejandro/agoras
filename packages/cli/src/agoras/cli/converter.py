@@ -113,6 +113,7 @@ class ParameterConverter:
             'allow_duet': 'tiktok_allow_duet',
             'allow_stitch': 'tiktok_allow_stitch',
             'auto_add_music': 'tiktok_auto_add_music',
+            'description': 'tiktok_description',
         },
         'threads': {
             'app_id': 'threads_app_id',

@@ -194,21 +194,23 @@ class TikTokAPI(BaseAPI):
 
     async def upload_photo(self, photo_images: List[str], title: str, privacy_status: str,
                            allow_comments: bool = True, is_brand_organic: bool = False,
-                           is_brand_content: bool = False, auto_add_music: bool = False) -> Dict[str, Any]:
+                           is_brand_content: bool = False, auto_add_music: bool = False,
+                           description: str = "") -> Dict[str, Any]:
         """
         Upload photos to TikTok.
 
         Args:
-            photo_images (list): List of photo URLs
-            title (str): Post title
-            privacy_status (str): Privacy level
+            photo_images (list): List of photo URLs (up to 35 images)
+            title (str): Post title (max 90 UTF-16 runes)
+            privacy_status (str): Privacy level (PUBLIC_TO_EVERYONE, SELF_ONLY, etc.)
             allow_comments (bool): Whether to allow comments
             is_brand_organic (bool): Whether this is brand organic content
             is_brand_content (bool): Whether this is brand content
             auto_add_music (bool): Whether to auto-add music
+            description (str): Post description (max 4000 UTF-16 runes, optional)
 
         Returns:
-            dict: Upload response
+            dict: Upload response with publish_id
 
         Raises:
             Exception: If upload fails
@@ -233,11 +235,14 @@ class TikTokAPI(BaseAPI):
                 allow_comments=allow_comments,
                 is_brand_organic=is_brand_organic,
                 is_brand_content=is_brand_content,
-                auto_add_music=auto_add_music
+                auto_add_music=auto_add_music,
+                description=description
             )
 
         try:
             response = await asyncio.to_thread(_sync_upload)
+            # TikTok API returns: {"data": {"publish_id": "..."}, "error": {"code": "ok", ...}}
+            # Extract the data object which contains publish_id
             return response.get('data', {})
         except Exception as e:
             self._handle_api_error(e, 'TikTok photo upload')

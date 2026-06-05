@@ -66,7 +66,7 @@ class X(SocialNetwork):
 
         # If any credentials missing, try loading from storage
         if not all([self.twitter_consumer_key, self.twitter_consumer_secret,
-                   self.twitter_oauth_token, self.twitter_oauth_secret]):
+                    self.twitter_oauth_token, self.twitter_oauth_secret]):
             from .auth import XAuthManager
             auth_manager = XAuthManager(
                 consumer_key=self.twitter_consumer_key,
@@ -85,13 +85,8 @@ class X(SocialNetwork):
                     self.twitter_oauth_secret = auth_manager.oauth_secret
 
         # Validate all credentials are now available
-        if not self.twitter_consumer_key:
-            raise Exception("Not authenticated. Please run 'agoras x authorize' first.")
-        if not self.twitter_consumer_secret:
-            raise Exception("Not authenticated. Please run 'agoras x authorize' first.")
-        if not self.twitter_oauth_token:
-            raise Exception("Not authenticated. Please run 'agoras x authorize' first.")
-        if not self.twitter_oauth_secret:
+        if not all([self.twitter_consumer_key, self.twitter_consumer_secret,
+                    self.twitter_oauth_token, self.twitter_oauth_secret]):
             raise Exception("Not authenticated. Please run 'agoras x authorize' first.")
 
         # Initialize X API
@@ -308,7 +303,6 @@ class X(SocialNetwork):
 
         try:
             # Upload video to X
-
             media_id = await self.api.upload_media(video.content, video.file_type.mime)
 
             # Compose tweet text with title and description

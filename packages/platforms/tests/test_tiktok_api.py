@@ -135,6 +135,65 @@ async def test_tiktok_api_upload_with_duet_stitch_options(mock_sleep, tiktok_api
     tiktok_api.client.upload_video.assert_called_once()
 
 
+@pytest.mark.asyncio
+async def test_tiktok_api_upload_photo(tiktok_api):
+    """Test TikTokAPI upload_photo."""
+    # Mock the client's upload_photo to return the expected response structure
+    tiktok_api.client.upload_photo = MagicMock(return_value={
+        'data': {'publish_id': 'photo-123'},
+        'error': {'code': 'ok', 'message': ''}
+    })
+
+    result = await tiktok_api.upload_photo(
+        photo_images=['http://image1.jpg'],
+        title='Test Photo',
+        privacy_status='PUBLIC_TO_EVERYONE'
+    )
+
+    assert result == {'publish_id': 'photo-123'}
+    tiktok_api.client.upload_photo.assert_called_once_with(
+        photo_images=['http://image1.jpg'],
+        title='Test Photo',
+        privacy_status='PUBLIC_TO_EVERYONE',
+        allow_comments=True,
+        is_brand_organic=False,
+        is_brand_content=False,
+        auto_add_music=False,
+        description=""
+    )
+
+
+@pytest.mark.asyncio
+async def test_tiktok_api_upload_photo_with_description(tiktok_api):
+    """Test TikTokAPI upload_photo with description parameter."""
+    # Mock the client's upload_photo to return the expected response structure
+    tiktok_api.client.upload_photo = MagicMock(return_value={
+        'data': {'publish_id': 'photo-456'},
+        'error': {'code': 'ok', 'message': ''}
+    })
+
+    result = await tiktok_api.upload_photo(
+        photo_images=['http://image1.jpg', 'http://image2.jpg'],
+        title='Test Photo',
+        privacy_status='SELF_ONLY',
+        allow_comments=False,
+        auto_add_music=True,
+        description='Test description for photo post'
+    )
+
+    assert result == {'publish_id': 'photo-456'}
+    tiktok_api.client.upload_photo.assert_called_once_with(
+        photo_images=['http://image1.jpg', 'http://image2.jpg'],
+        title='Test Photo',
+        privacy_status='SELF_ONLY',
+        allow_comments=False,
+        is_brand_organic=False,
+        is_brand_content=False,
+        auto_add_music=True,
+        description='Test description for photo post'
+    )
+
+
 # Post Tests
 
 @pytest.mark.asyncio

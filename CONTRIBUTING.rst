@@ -104,7 +104,7 @@ Development Setup
 
 Prerequisites:
 
-* Python 3.9 or higher
+* Python 3.10 or higher
 * Git
 * pip
 
@@ -207,15 +207,13 @@ Test a single package::
 
 Test a specific package with tox::
 
-    $ tox -e py39-common    # Test common package on Python 3.9
     $ tox -e py310-media     # Test media package on Python 3.10
     $ tox -e py311-core      # Test core package on Python 3.11
     $ tox -e py312-platforms # Test platforms package on Python 3.12
-    $ tox -e py39-cli        # Test CLI package on Python 3.9
 
 Test all packages with tox::
 
-    $ tox                    # Tests all packages on all Python versions (3.9, 3.10, 3.11, 3.12)
+    $ tox                    # Tests all packages on all Python versions (3.10, 3.11, 3.12, 3.13, 3.14)
 
 Test all packages together (integration)::
 
@@ -245,7 +243,7 @@ Testing Best Practices
 2. **Test dependencies**: If you change a lower-level package, test all dependent packages
 3. **Integration tests**: Run integration tests when making cross-package changes
 4. **Coverage**: Aim to maintain or improve test coverage
-5. **Python versions**: Ensure tests pass on all supported Python versions (3.9-3.12)
+5. **Python versions**: Ensure tests pass on all supported Python versions (3.10-3.14)
 
 Building Packages
 ~~~~~~~~~~~~~~~~~
@@ -516,7 +514,7 @@ When submitting pull requests:
 * Integration tests must pass (CLI with all packages)
 * Linting must pass for all packages (flake8, pydocstyle)
 * Coverage reports are aggregated across packages
-* GitHub Actions will run tests on Python 3.9, 3.10, 3.11, 3.12
+* GitHub Actions will run tests on Python 3.10, 3.11, 3.12, 3.13, 3.14
 
 Pull Request Guidelines
 -----------------------

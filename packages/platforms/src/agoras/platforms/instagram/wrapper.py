@@ -116,7 +116,8 @@ class Instagram(SocialNetwork):
                 self.instagram_access_token = auth_manager.access_token
 
         # Validate all credentials are now available
-        if not self.instagram_access_token:
+        if not all([self.instagram_access_token, self.instagram_client_id,
+                    self.instagram_client_secret, self.instagram_refresh_token]):
             raise Exception("Not authenticated. Please run 'agoras instagram authorize' first.")
 
         # Initialize Instagram API

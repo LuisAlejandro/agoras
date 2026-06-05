@@ -33,7 +33,8 @@ class TikTokAPIClient:
 
     # TikTok API URLs
     CREATOR_INFO_URL = "https://open.tiktokapis.com/v2/post/publish/creator_info/query/"
-    DIRECT_POST_URL = "https://open.tiktokapis.com/v2/post/publish/video/init/"
+    VIDEO_POST_URL = "https://open.tiktokapis.com/v2/post/publish/video/init/"
+    CONTENT_POST_URL = "https://open.tiktokapis.com/v2/post/publish/content/init/"
     GET_VIDEO_STATUS_URL = "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
 
     def __init__(self, access_token: Optional[str] = None):
@@ -126,7 +127,7 @@ class TikTokAPIClient:
         }
 
         response = requests.post(
-            self.DIRECT_POST_URL,
+            self.VIDEO_POST_URL,
             headers={
                 "Authorization": f"Bearer {self.access_token}",
                 "Content-Type": "application/json; charset=UTF-8",
@@ -151,21 +152,23 @@ class TikTokAPIClient:
 
     def upload_photo(self, photo_images: List[str], title: str, privacy_status: str,
                      allow_comments: bool = True, is_brand_organic: bool = False,
-                     is_brand_content: bool = False, auto_add_music: bool = False) -> Dict[str, Any]:
+                     is_brand_content: bool = False, auto_add_music: bool = False,
+                     description: str = "") -> Dict[str, Any]:
         """
         Upload photos to TikTok.
 
         Args:
-            photo_images (list): List of photo URLs
-            title (str): Post title
+            photo_images (list): List of photo URLs (up to 35 images)
+            title (str): Post title (max 90 UTF-16 runes)
             privacy_status (str): Privacy level
             allow_comments (bool): Whether to allow comments
             is_brand_organic (bool): Whether this is brand organic content
             is_brand_content (bool): Whether this is brand content
             auto_add_music (bool): Whether to auto-add music
+            description (str): Post description (max 4000 UTF-16 runes, optional)
 
         Returns:
-            dict: Upload response
+            dict: Upload response with publish_id in data.publish_id
 
         Raises:
             Exception: If upload fails or not authenticated
@@ -178,7 +181,7 @@ class TikTokAPIClient:
             "post_mode": "DIRECT_POST",
             "post_info": {
                 "title": title,
-                "description": "",
+                "description": description or "",  # Use provided description or empty string
                 "privacy_level": privacy_status,
                 "disable_comment": not allow_comments,
                 "auto_add_music": auto_add_music,
@@ -191,18 +194,21 @@ class TikTokAPIClient:
                 "photo_images": photo_images,
             },
         }
+        print(data)
 
         response = requests.post(
-            self.DIRECT_POST_URL,
+            self.CONTENT_POST_URL,  # Use content endpoint for photos
             headers={
                 "Authorization": f"Bearer {self.access_token}",
-                "Content-Type": "application/json",
+                "Content-Type": "application/json; charset=UTF-8",  # Add charset
                 'User-Agent': f'Agoras/{__version__}',
             },
             data=json.dumps(data)
         )
 
         result = response.json()
+
+        print(result)
 
         if 'error' in result:
             error_data = result.get('error', {})

@@ -234,7 +234,7 @@ Agoras parameters
 +------------------------------+--------------------------+
 | THREADS_REFRESH_TOKEN        | Long-lived token (60-day)|
 +------------------------------+--------------------------+
-| AGORAS_THREADS_REFRESH_TOKEN | Refresh token for unattended execution |
+| THREADS_USER_ID              | User ID for unattended execution |
 +------------------------------+--------------------------+
 
 **Note**: After authorization, refresh tokens are managed automatically by Agoras. You no longer need to provide tokens for actions.

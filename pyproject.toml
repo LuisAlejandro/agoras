@@ -1,3 +1,10 @@
+[tool.pyright]
+reportMissingImports = "warning"
+reportMissingModuleSource = "none"
+
+[tool.ruff]
+exclude = []
+
 [tool.autopep8]
 max_line_length = 120
 aggressive = 2

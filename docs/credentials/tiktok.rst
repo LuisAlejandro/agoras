@@ -73,7 +73,7 @@ Set up OAuth redirect URI
 -------------------------
 
 1. In your app dashboard, go to "Login Kit" settings
-2. Add a redirect URI: ``http://127.0.0.1:3456/callback/``
+2. Add a redirect URI: ``https://localhost:3456/callback``
 3. Make sure this exact URL is added to your app configuration
 
 .. image:: images/tiktok-5.png
@@ -205,7 +205,7 @@ Troubleshooting
 **"Invalid credentials" error**:
 - Double-check your Client Key and Client Secret
 - Make sure you're using the correct TikTok username
-- Verify your app's redirect URI is set to ``http://127.0.0.1:3456/callback/``
+- Verify your app's redirect URI is set to ``https://localhost:3456/callback``
 
 **"Authorization failed" error**:
 - Make sure you're logged into the correct TikTok account
