@@ -97,8 +97,14 @@ packages/*/htmlcov/
 packages/*/.pytest_cache/
 
 # Rosey Agentic Environment
-docs/plans/
-docs/designs/
-docs/brainstorms/
-docs/solutions/
-docs/insights/
+rosey/brainstorms/
+rosey/plans/
+rosey/designs/
+rosey/solutions/
+rosey/insights/
+rosey/design-system/
+rosey/qa/
+rosey/deepening/
+rosey/agentic-env.json
+AGENTS.md
+DESIGN.md
