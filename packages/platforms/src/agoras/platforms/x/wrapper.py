@@ -295,11 +295,16 @@ class X(SocialNetwork):
             video.cleanup()
             raise Exception('Failed to download or validate video')
 
-        # Ensure video is MP4 format for X
-        if video.file_type.mime not in ['video/mp4']:
+        from agoras.media.constraints import video_limits
+        from agoras.media.errors import MediaValidationError
+
+        allowed = video_limits('twitter').mime_types
+        if video.file_type.mime not in allowed:
             video.cleanup()
-            raise Exception(f'Invalid video type "{video.file_type.mime}" for {video_url}. '
-                            f'X only supports MP4 videos.')
+            raise MediaValidationError(
+                'twitter', 'video', 'mime_types',
+                video.file_type.mime, sorted(allowed),
+            )
 
         try:
             # Upload video to X

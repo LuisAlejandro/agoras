@@ -268,21 +268,50 @@ class LinkedIn(SocialNetwork):
 
     async def video(self, status_text, video_url, video_title):
         """
-        LinkedIn doesn't support direct video uploads in the same way as other platforms.
-        This method is a placeholder that raises a NotImplementedError.
+        Post a video to LinkedIn.
 
         Args:
             status_text (str): Text content to accompany the video
             video_url (str): URL of the video to post
             video_title (str): Title of the video
 
-        Raises:
-            NotImplementedError: LinkedIn video uploads require different approach
+        Returns:
+            str: Post ID
         """
-        raise NotImplementedError(
-            'LinkedIn video uploads require specialized handling through LinkedIn Video API. '
-            'Use post() method with video links instead.'
-        )
+        if not self.api:
+            raise Exception('LinkedIn API not initialized')
+
+        if not video_url:
+            raise Exception('LinkedIn video URL is required.')
+
+        video = await self.download_video(video_url)
+
+        if not video.content or not video.file_type:
+            video.cleanup()
+            raise Exception('Failed to download or validate video')
+
+        from agoras.media.constraints import video_limits
+        from agoras.media.errors import MediaValidationError
+
+        allowed = video_limits('linkedin').mime_types
+        if video.file_type.mime not in allowed:
+            video.cleanup()
+            raise MediaValidationError(
+                'linkedin', 'video', 'mime_types',
+                video.file_type.mime, sorted(allowed),
+            )
+
+        try:
+            video_urn = await self.api.upload_video(video.content)
+            post_id = await self.api.post(
+                text=status_text,
+                video_id=video_urn,
+                video_title=video_title or None,
+            )
+            self._output_status(post_id)
+            return post_id
+        finally:
+            video.cleanup()
 
     # The base class already provides last_from_feed, random_from_feed, and schedule methods.
     # We only need to override the action handlers for LinkedIn-specific parameter names.
@@ -308,6 +337,17 @@ class LinkedIn(SocialNetwork):
         if not linkedin_post_id:
             raise Exception('LinkedIn post ID is required for delete action.')
         await self.delete(linkedin_post_id)
+
+    async def _handle_video_action(self):
+        """Handle video action with LinkedIn-specific parameter extraction."""
+        status_text = self._get_config_value('status_text', 'STATUS_TEXT') or ''
+        video_url = self._get_config_value('linkedin_video_url', 'LINKEDIN_VIDEO_URL')
+        video_title = self._get_config_value('linkedin_video_title', 'LINKEDIN_VIDEO_TITLE') or ''
+
+        if not video_url:
+            raise Exception('LinkedIn video URL is required for video action.')
+
+        await self.video(status_text, video_url, video_title)
 
     # The base class already provides default action handlers for last-from-feed,
     # random-from-feed, and schedule actions with the correct parameter names.

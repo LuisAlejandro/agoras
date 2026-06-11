@@ -275,7 +275,7 @@ async def test_threads_auth_refresh_or_get_token_no_user_id(mock_storage_class):
     auth = ThreadsAuthManager('app_id', 'app_secret')
     auth.refresh_token = 'test_refresh_token'
 
-    with pytest.raises(Exception, match='No user ID found in storage'):
+    with pytest.raises(Exception, match='No user ID found in environment or storage'):
         await auth._refresh_or_get_token()
 
 
@@ -401,7 +401,7 @@ async def test_threads_auth_refresh_or_get_token_user_id_not_in_storage(mock_sto
     auth = ThreadsAuthManager('app_id', 'app_secret')
     auth.refresh_token = 'test_token'
 
-    with pytest.raises(Exception, match='No user ID found in storage'):
+    with pytest.raises(Exception, match='No user ID found in environment or storage'):
         await auth._refresh_or_get_token()
 
 
@@ -577,7 +577,7 @@ async def test_threads_auth_refresh_or_get_token_no_user_id_storage(mock_storage
     auth = ThreadsAuthManager('app_id', 'app_secret')
     auth.refresh_token = 'test_token'
 
-    with pytest.raises(Exception, match='No user ID found in storage'):
+    with pytest.raises(Exception, match='No user ID found in environment or storage'):
         await auth._refresh_or_get_token()
 
 

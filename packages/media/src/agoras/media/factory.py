@@ -18,6 +18,7 @@
 
 import asyncio
 
+from .constraints import image_limits, resolve_platform, video_limits
 from .image import Image
 from .video import Video
 
@@ -34,15 +35,14 @@ class MediaFactory:
 
         Args:
             url (str): Image URL
-            platform (str, optional): Platform name ('linkedin', etc.)
+            platform (str, optional): Platform name
 
         Returns:
             Image: Image instance
         """
-        if platform and platform.lower() == 'linkedin':
-            return Image.for_linkedin(url)
-        else:
-            return Image(url)
+        platform_key = resolve_platform(platform) if platform else 'generic'
+        limits = image_limits(platform_key)
+        return Image(url, platform=platform_key, constraints=limits)
 
     @staticmethod
     def create_video(url, platform='generic', max_size=None):
@@ -57,32 +57,24 @@ class MediaFactory:
         Returns:
             Video: Video instance configured for the platform
         """
-        if max_size:
-            return Video(url, max_size=max_size, platform=platform)
-
-        platform_lower = platform.lower()
-        if platform_lower == 'discord':
-            return Video.for_discord(url)
-        elif platform_lower == 'twitter':
-            return Video.for_twitter(url)
-        elif platform_lower == 'facebook':
-            return Video.for_facebook(url)
-        elif platform_lower == 'instagram':
-            return Video.for_instagram(url)
-        elif platform_lower == 'youtube':
-            return Video.for_youtube(url)
-        elif platform_lower == 'tiktok':
-            return Video.for_tiktok(url)
-        else:
-            return Video(url, platform=platform)
+        platform_key = resolve_platform(platform)
+        limits = video_limits(platform_key)
+        effective_max = max_size if max_size is not None else limits.max_bytes
+        return Video(
+            url,
+            max_size=effective_max,
+            platform=platform_key,
+            constraints=limits,
+        )
 
     @staticmethod
-    async def download_images(urls):
+    async def download_images(urls, platform=None):
         """
         Download multiple images concurrently.
 
         Args:
             urls (list): List of image URLs
+            platform (str, optional): Platform name for per-network limits
 
         Returns:
             list: List of downloaded Image instances
@@ -90,9 +82,11 @@ class MediaFactory:
         if not urls:
             return []
 
-        images = [Image(url) for url in urls if url]
+        images = [
+            MediaFactory.create_image(url, platform=platform)
+            for url in urls if url
+        ]
 
-        # Download all images concurrently
         download_tasks = [image.download() for image in images]
         await asyncio.gather(*download_tasks, return_exceptions=True)
 
@@ -111,21 +105,22 @@ class MediaFactory:
         Returns:
             tuple: (video_instance, list_of_image_instances)
         """
+        platform_key = resolve_platform(platform)
         tasks = []
 
-        # Create video instance and add download task
         video = None
         if video_url:
-            video = MediaFactory.create_video(video_url, platform)
+            video = MediaFactory.create_video(video_url, platform_key)
             tasks.append(video.download())
 
-        # Create image instances and add download tasks
         images = []
         if image_urls:
-            images = [Image(url) for url in image_urls if url]
+            images = [
+                MediaFactory.create_image(url, platform=platform_key)
+                for url in image_urls if url
+            ]
             tasks.extend([image.download() for image in images])
 
-        # Download all media concurrently
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 

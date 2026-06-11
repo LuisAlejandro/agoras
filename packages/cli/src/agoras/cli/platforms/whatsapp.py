@@ -72,7 +72,7 @@ def create_whatsapp_parser(subparsers: _SubParsersAction) -> ArgumentParser:
         help='Send a video message via WhatsApp. Requires prior authorization via "agoras whatsapp authorize".'
     )
     _add_whatsapp_auth_options(video, required=False)
-    add_video_options(video)
+    add_video_options(video, platform='whatsapp')
 
     # Template action
     template = actions.add_parser(

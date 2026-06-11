@@ -1,57 +1,18 @@
 #!/usr/bin/env bash
 
 # Integration Test Master Runner - End-to-End testing after authorization
-# Orchestrates all integration tests across multiple platforms
-# Assumes 'agoras <platform> authorize' has already been run
-# Part of agoras v2.0 modular package structure
-#
-# This script runs tests using credentials stored after authorization.
-# It clears credentials at the start to ensure a clean test state.
+# Assumes 'agoras <platform> authorize' has already been run into AGORAS_STORAGE_DIR
 
-
-# Exit early if there are errors and be verbose
 set -exuo pipefail
 
-# Get the absolute path of the script's directory
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-# Get the project root (parent of tests directory)
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-source "${PROJECT_ROOT}/authorize.env"
+# shellcheck source=lib/common.sh
+source "${SCRIPT_DIR}/lib/common.sh"
 
-# Function to clear all stored credentials
-clear_credentials() {
-    echo "🧹 Clearing all stored credentials..."
+load_authorize_env "${PROJECT_ROOT}/authorize.env"
 
-    AGORAS_DIR="${AGORAS_STORAGE_DIR}"
-
-    if [ -d "$AGORAS_DIR" ]; then
-        # Remove tokens directory
-        if [ -d "$AGORAS_DIR/tokens" ]; then
-            rm -rf "$AGORAS_DIR/tokens"
-            echo "✅ Removed tokens directory"
-        fi
-
-        # Remove encryption key file
-        if [ -f "$AGORAS_DIR/.key" ]; then
-            rm -f "$AGORAS_DIR/.key"
-            echo "✅ Removed encryption key file"
-        fi
-
-        # Remove entire agoras directory if empty
-        if [ -z "$(ls -A "$AGORAS_DIR" 2>/dev/null)" ]; then
-            rmdir "$AGORAS_DIR"
-            echo "✅ Removed agoras config directory (was empty)"
-        fi
-    else
-        echo "ℹ️  No credentials directory found at $AGORAS_DIR"
-    fi
-
-    echo "🎉 All stored credentials cleared from $AGORAS_DIR!"
-    echo ""
-}
-
-# Function to verify required environment variables
 verify_env_vars() {
     local platform=$1
     local missing_vars=()
@@ -66,13 +27,7 @@ verify_env_vars() {
             [[ -z "${TIKTOK_CLIENT_SECRET:-}" ]] && missing_vars+=("TIKTOK_CLIENT_SECRET")
             [[ -z "${TIKTOK_USERNAME:-}" ]] && missing_vars+=("TIKTOK_USERNAME")
             ;;
-        facebook)
-            [[ -z "${FACEBOOK_CLIENT_ID:-}" ]] && missing_vars+=("FACEBOOK_CLIENT_ID")
-            [[ -z "${FACEBOOK_CLIENT_SECRET:-}" ]] && missing_vars+=("FACEBOOK_CLIENT_SECRET")
-            [[ -z "${FACEBOOK_APP_ID:-}" ]] && missing_vars+=("FACEBOOK_APP_ID")
-            [[ -z "${FACEBOOK_OBJECT_ID:-}" ]] && missing_vars+=("FACEBOOK_OBJECT_ID")
-            ;;
-        facebook-video)
+        facebook|facebook-video)
             [[ -z "${FACEBOOK_CLIENT_ID:-}" ]] && missing_vars+=("FACEBOOK_CLIENT_ID")
             [[ -z "${FACEBOOK_CLIENT_SECRET:-}" ]] && missing_vars+=("FACEBOOK_CLIENT_SECRET")
             [[ -z "${FACEBOOK_APP_ID:-}" ]] && missing_vars+=("FACEBOOK_APP_ID")
@@ -121,7 +76,6 @@ verify_env_vars() {
     echo "✅ All required environment variables for $platform are set"
 }
 
-# Parse command line arguments
 PLATFORM="all"
 
 while [[ $# -gt 0 ]]; do
@@ -133,23 +87,10 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Always clear credentials at the start (ensures clean test state)
-clear_credentials
+assert_ci_not_set
+init_agoras_bin "${PROJECT_ROOT}"
+verify_agoras_storage_dir
 
-# Verify AGORAS_STORAGE_DIR is set
-if [ -z "${AGORAS_STORAGE_DIR:-}" ]; then
-    echo "❌ Error: AGORAS_STORAGE_DIR environment variable is not set"
-    echo ""
-    echo "This script requires AGORAS_STORAGE_DIR to be set to prevent accidentally"
-    echo "deleting your real credentials in ~/.agoras"
-    echo ""
-    echo "Please set AGORAS_STORAGE_DIR in authorize.env or export it, for example:"
-    echo "  export AGORAS_STORAGE_DIR=/tmp/agoras-test"
-    echo ""
-    exit 1
-fi
-
-# Verify environment variables for all platforms (always, regardless of which platform is tested)
 echo "🔍 Verifying environment variables for all platforms..."
 verify_env_vars "x"
 verify_env_vars "tiktok"
@@ -165,7 +106,6 @@ verify_env_vars "whatsapp"
 echo "✅ All environment variables verified"
 echo ""
 
-# Function to run all test types for a given platform
 run_all_tests_for_platform() {
     local platform="$1"
 
@@ -173,32 +113,39 @@ run_all_tests_for_platform() {
     echo "Testing platform: $platform"
     echo "======================================"
 
+    preflight_authorize_tokens_for_platform "${platform}"
+
     echo "--- Running POST tests for $platform ---"
     "${SCRIPT_DIR}/test-post-authorize.sh" "$platform"
+
+    echo "--- Running tokens list smoke for $platform ---"
+    case "${platform}" in
+        facebook-video) run_tokens_list_smoke "facebook" ;;
+        *) run_tokens_list_smoke "${platform}" ;;
+    esac
 
     echo "✅ All tests completed for $platform"
     echo ""
 }
 
-# Function to run Facebook video test (special case)
 run_facebook_video_test() {
+    preflight_authorize_tokens "facebook"
     echo "--- Running FACEBOOK VIDEO test ---"
     "${SCRIPT_DIR}/test-post-authorize.sh" "facebook-video"
+    run_tokens_list_smoke "facebook"
     echo "✅ Facebook video test completed"
     echo ""
 }
 
 if [ "$PLATFORM" == "all" ]; then
-    echo "🚀 Running comprehensive test suite for all platforms"
-    echo "======================================================"
+    echo "🚀 Running comprehensive authorize-path test suite"
+    echo "================================================"
 
-    # Test all regular platforms (using x instead of twitter for consistency)
     for platform in x tiktok youtube facebook instagram discord linkedin threads telegram whatsapp; do
         run_all_tests_for_platform "$platform"
-        sleep 10 # Longer pause between platforms
+        sleep "${INTER_PLATFORM_SLEEP}"
     done
 
-    # Test Facebook video (special case)
     run_facebook_video_test
 
     echo "🎉 All platform tests completed successfully!"
@@ -214,24 +161,7 @@ else
     echo ""
     echo "Usage: $0 [platform]"
     echo ""
-    echo "Supported platforms:"
-    echo "  all              - Run tests for all platforms (default)"
-    echo "  x                - Run all tests for X (formerly Twitter)"
-    echo "  tiktok           - Run all tests for TikTok"
-    echo "  youtube          - Run all tests for YouTube"
-    echo "  facebook         - Run all tests for Facebook"
-    echo "  facebook-video   - Run Facebook video test only"
-    echo "  instagram        - Run all tests for Instagram"
-    echo "  discord          - Run all tests for Discord"
-    echo "  linkedin         - Run all tests for LinkedIn"
-    echo "  threads          - Run all tests for Threads"
-    echo "  telegram         - Run all tests for Telegram"
-    echo "  whatsapp         - Run all tests for WhatsApp"
-    echo ""
-    echo "Test types included:"
-    echo "  - Post/Video tests (including like and share)"
-    echo ""
-    echo "Note: This script assumes 'agoras <platform> authorize' has already been run."
-    echo "      AGORAS_STORAGE_DIR environment variable is REQUIRED for safety."
+    echo "Prereq: agoras <platform> authorize for each OAuth platform into AGORAS_STORAGE_DIR"
+    echo "        AGORAS_STORAGE_DIR must be set (never ~/.agoras)"
     exit 1
 fi

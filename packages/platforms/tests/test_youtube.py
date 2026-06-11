@@ -413,12 +413,14 @@ async def test_youtube_video_invalid_mime(mock_api_class):
         mock_video = MagicMock()
         mock_video.content = b'video_content'
         mock_file_type = MagicMock()
-        mock_file_type.mime = 'video/avi'  # Invalid MIME
+        mock_file_type.mime = 'video/mpeg'  # Outside youtube contract MIME set
         mock_video.file_type = mock_file_type
         mock_video.cleanup = MagicMock()
         mock_download.return_value = mock_video
 
-        with pytest.raises(Exception, match="Invalid video type.*YouTube supports"):
+        from agoras.media.errors import MediaValidationError
+
+        with pytest.raises(MediaValidationError, match='youtube'):
             await youtube.video('text', 'url', 'title')
 
 

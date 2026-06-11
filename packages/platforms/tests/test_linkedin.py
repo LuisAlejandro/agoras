@@ -211,6 +211,40 @@ async def test_linkedin_delete(mock_api_class):
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.linkedin.wrapper.LinkedInAPI')
+async def test_linkedin_video(mock_api_class):
+    """Test LinkedIn video method uploads and posts."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.upload_video = AsyncMock(return_value='urn:li:video:123')
+    mock_api.post = AsyncMock(return_value='post-789')
+    mock_api_class.return_value = mock_api
+
+    linkedin = LinkedIn(linkedin_access_token='token')
+    await linkedin._initialize_client()
+
+    mock_video = MagicMock()
+    mock_video.content = b'video-bytes'
+    mock_file_type = MagicMock()
+    mock_file_type.mime = 'video/mp4'
+    mock_video.file_type = mock_file_type
+    mock_video.cleanup = MagicMock()
+
+    with patch.object(linkedin, 'download_video', new_callable=AsyncMock, return_value=mock_video), \
+            patch.object(linkedin, '_output_status'):
+        result = await linkedin.video('Caption', 'http://video.mp4', 'Title')
+
+    assert result == 'post-789'
+    mock_api.upload_video.assert_called_once_with(b'video-bytes')
+    mock_api.post.assert_called_once_with(
+        text='Caption',
+        video_id='urn:li:video:123',
+        video_title='Title',
+    )
+    mock_video.cleanup.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.linkedin.wrapper.LinkedInAPI')
 async def test_linkedin_disconnect(mock_api_class):
     """Test LinkedIn disconnect method."""
     mock_api = MagicMock()

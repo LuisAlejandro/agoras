@@ -24,11 +24,47 @@ Contains:
 - Image: Handles image media files
 - Video: Handles video media files with platform-specific limits
 - MediaFactory: Factory for creating and managing media instances
+- constraints: Shared per-platform MIME/size/duration limits
 """
 
 from .base import Media
+from .constraints import (
+    IMAGE,
+    TRANSFER,
+    VIDEO,
+    MediaConstraints,
+    constraints_summary,
+    format_bytes,
+    image_limits,
+    platforms_with_post_or_video,
+    resolve_platform,
+    transfer_mode,
+    video_limits,
+)
+from .errors import MediaValidationError, format_limit_error
 from .factory import MediaFactory
 from .image import Image
+from .preflight import preflight_url, preflight_url_for_platform
 from .video import Video
 
-__all__ = ['Media', 'Image', 'Video', 'MediaFactory']
+__all__ = [
+    'Media',
+    'Image',
+    'Video',
+    'MediaFactory',
+    'MediaConstraints',
+    'MediaValidationError',
+    'IMAGE',
+    'VIDEO',
+    'TRANSFER',
+    'constraints_summary',
+    'format_bytes',
+    'format_limit_error',
+    'image_limits',
+    'video_limits',
+    'resolve_platform',
+    'transfer_mode',
+    'platforms_with_post_or_video',
+    'preflight_url',
+    'preflight_url_for_platform',
+]

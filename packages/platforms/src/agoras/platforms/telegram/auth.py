@@ -27,6 +27,29 @@ from agoras.core.auth import BaseAuthManager
 from .client import TelegramAPIClient
 
 
+def normalize_chat_id(chat_id: Optional[str]) -> Optional[str]:
+    """
+    Normalize a Telegram chat identifier.
+
+    Strips whitespace and ensures public channel usernames include a leading @.
+    Numeric IDs (including negative group/channel IDs) are left unchanged.
+    """
+    if chat_id is None:
+        return None
+
+    normalized = chat_id.strip()
+    if not normalized:
+        return None
+
+    if normalized.lstrip('-').isdigit():
+        return normalized
+
+    if not normalized.startswith('@'):
+        return f'@{normalized}'
+
+    return normalized
+
+
 class TelegramAuthManager(BaseAuthManager):
     """Telegram authentication manager using bot token authentication."""
 
@@ -49,7 +72,7 @@ class TelegramAuthManager(BaseAuthManager):
                     chat_id = getattr(self, 'chat_id', None)
 
         self.bot_token = bot_token
-        self.chat_id = chat_id
+        self.chat_id = normalize_chat_id(chat_id)
 
     async def authenticate(self) -> bool:
         """
@@ -93,11 +116,15 @@ class TelegramAuthManager(BaseAuthManager):
         """
         # Get credentials from parameters or environment variables
         bot_token = self.bot_token or os.environ.get('TELEGRAM_BOT_TOKEN')
-        chat_id = self.chat_id or os.environ.get('TELEGRAM_CHAT_ID')
+        chat_id = normalize_chat_id(self.chat_id or os.environ.get('TELEGRAM_CHAT_ID'))
 
         if not bot_token:
             raise Exception('Telegram bot token is required. '
                             'Provide via parameter or environment variable (TELEGRAM_BOT_TOKEN).')
+
+        if not chat_id:
+            raise Exception('Telegram chat ID is required. '
+                            'Provide via parameter or environment variable (TELEGRAM_CHAT_ID).')
 
         # Set credentials for validation
         self.bot_token = bot_token
@@ -107,10 +134,38 @@ class TelegramAuthManager(BaseAuthManager):
         if not await self._validate_bot_token():
             raise Exception('Telegram bot token validation failed. Please check your credentials.')
 
+        await self._validate_chat_id()
+
         # Save credentials to secure storage
         self._save_credentials_to_storage(bot_token, chat_id)
 
         return "Authorization successful. Credentials stored securely."
+
+    async def _validate_chat_id(self) -> None:
+        """
+        Validate that the bot can access the configured chat.
+
+        Raises:
+            Exception: If chat ID is invalid or the bot cannot access the chat
+        """
+        if not self.chat_id:
+            raise Exception('Telegram chat ID is required.')
+
+        try:
+            bot = Bot(token=self.bot_token)
+            await bot.get_chat(self.chat_id)
+        except TelegramError as e:
+            error_text = str(e)
+            if 'Chat not found' in error_text:
+                raise Exception(
+                    'Telegram chat ID validation failed: chat not found. '
+                    'For private chats, open the bot in Telegram and send /start first. '
+                    'For groups or channels, add the bot as a member/admin and use the '
+                    'numeric chat ID (groups/channels are usually negative, e.g. -100...).'
+                ) from e
+            raise Exception(f'Telegram chat ID validation failed: {error_text}') from e
+        except Exception as e:
+            raise Exception(f'Telegram chat ID validation failed: {e}') from e
 
     async def _validate_bot_token(self) -> bool:
         """
@@ -241,7 +296,7 @@ class TelegramAuthManager(BaseAuthManager):
 
         if token_data:
             self.bot_token = token_data.get('bot_token')
-            self.chat_id = token_data.get('chat_id')
+            self.chat_id = normalize_chat_id(token_data.get('chat_id'))
             return bool(self.bot_token)
 
         return False

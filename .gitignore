@@ -99,3 +99,6 @@ packages/*/.pytest_cache/
 # Rosey Agentic Environment
 docs/plans/
 docs/designs/
+docs/brainstorms/
+docs/solutions/
+docs/insights/

@@ -208,7 +208,7 @@ async def test_download_images(mock_download):
     image_urls = ['url1.jpg', 'url2.jpg']
     await network.download_images(image_urls)
 
-    mock_download.assert_called_once_with(image_urls)
+    mock_download.assert_called_once_with(image_urls, platform='testsocial')
 
 
 @pytest.mark.asyncio
@@ -224,7 +224,7 @@ async def test_download_video(mock_create_video):
     result = await network.download_video('http://video.mp4')
 
     # TestSocialNetwork -> TestSocial (Network suffix removed)
-    mock_create_video.assert_called_once_with('http://video.mp4', 'TestSocial')
+    mock_create_video.assert_called_once_with('http://video.mp4', 'testsocial')
     mock_video.download.assert_called_once()
 
 

@@ -17,6 +17,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+import os
+from pathlib import Path
 from typing import List, Optional
 
 from agoras.core.interfaces import SocialNetwork
@@ -71,17 +73,16 @@ class WhatsApp(SocialNetwork):
         # Optional message ID for status/tracking actions
         self.whatsapp_message_id = self._get_config_value('whatsapp_message_id', 'WHATSAPP_MESSAGE_ID')
 
-        # If credentials not provided, try loading from storage
-        if not all([self.whatsapp_access_token, self.whatsapp_phone_number_id, self.whatsapp_business_account_id]):
+        # If required credentials not provided, try loading from storage
+        if not all([self.whatsapp_access_token, self.whatsapp_phone_number_id]):
             from .auth import WhatsAppAuthManager
             auth_manager = WhatsAppAuthManager(
                 access_token=self.whatsapp_access_token,
                 phone_number_id=self.whatsapp_phone_number_id,
-                business_account_id=self.whatsapp_business_account_id
+                business_account_id=self.whatsapp_business_account_id,
             )
 
             if auth_manager._load_credentials_from_storage():
-                # Fill in missing credentials from storage
                 if not self.whatsapp_access_token:
                     self.whatsapp_access_token = auth_manager.access_token
                 if not self.whatsapp_phone_number_id:
@@ -89,9 +90,19 @@ class WhatsApp(SocialNetwork):
                 if not self.whatsapp_business_account_id:
                     self.whatsapp_business_account_id = auth_manager.business_account_id
 
-        # Validation
-        if not all([self.whatsapp_access_token, self.whatsapp_phone_number_id, self.whatsapp_business_account_id]):
-            raise Exception("Not authenticated. Please run 'agoras whatsapp authorize' first.")
+        if not all([self.whatsapp_access_token, self.whatsapp_phone_number_id]):
+            storage_dir = os.environ.get('AGORAS_STORAGE_DIR')
+            if storage_dir:
+                storage_hint = f' Checked AGORAS_STORAGE_DIR={storage_dir}.'
+            else:
+                storage_hint = (
+                    f' Using default storage at {Path.home() / ".agoras"}'
+                    f' (set AGORAS_STORAGE_DIR to match authorize).'
+                )
+            raise Exception(
+                "Not authenticated. Please run 'agoras whatsapp authorize' first."
+                f'{storage_hint}'
+            )
 
         # Initialize WhatsApp API
         self.api = WhatsAppAPI(
@@ -241,12 +252,16 @@ class WhatsApp(SocialNetwork):
             video.cleanup()
             raise Exception('Failed to download or validate video')
 
-        # Ensure video is in supported format (MP4, 3GP)
-        supported_formats = ['video/mp4', 'video/3gp', 'video/3gpp']
-        if video.file_type.mime not in supported_formats:
+        from agoras.media.constraints import video_limits
+        from agoras.media.errors import MediaValidationError
+
+        allowed = video_limits('whatsapp').mime_types
+        if video.file_type.mime not in allowed:
             video.cleanup()
-            raise Exception(f'Invalid video type "{video.file_type.mime}" for {video_url}. '
-                            f'WhatsApp supports MP4 and 3GP formats.')
+            raise MediaValidationError(
+                'whatsapp', 'video', 'mime_types',
+                video.file_type.mime, sorted(allowed),
+            )
 
         try:
             # Send video with caption (status_text)

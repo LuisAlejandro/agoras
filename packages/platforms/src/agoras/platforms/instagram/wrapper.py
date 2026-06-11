@@ -281,21 +281,25 @@ class Instagram(SocialNetwork):
             video.cleanup()
             raise Exception('Failed to download or validate video')
 
-        # Ensure video is in allowed format for Instagram
-        if video.file_type.mime not in ['video/mp4']:
+        from agoras.media.constraints import video_limits
+        from agoras.media.errors import MediaValidationError
+
+        allowed = video_limits('instagram').mime_types
+        if video.file_type.mime not in allowed:
             video.cleanup()
-            raise Exception(f'Invalid video type "{video.file_type.mime}" for {video_url}. '
-                            f'Instagram requires MP4 format.')
+            raise MediaValidationError(
+                'instagram', 'video', 'mime_types',
+                video.file_type.mime, sorted(allowed),
+            )
 
         try:
             # Set media type based on video type
             media_type = None
-            if video_type == 'reel':
-                media_type = 'REELS'
-            elif video_type == 'story':
+            if video_type == 'story':
                 media_type = 'STORIES'
             else:
-                media_type = 'VIDEO'
+                # Feed videos must use REELS; VIDEO is deprecated by the Graph API.
+                media_type = 'REELS'
 
             # Create media for video
             creation_id = await self.api.create_media(

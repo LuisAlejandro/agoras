@@ -141,7 +141,9 @@ class WhatsAppAPI(BaseAPI):
             # Handle image message
             elif image_url:
                 # Download and validate image using Media system
-                images = await MediaFactory.download_images([image_url])
+                images = await MediaFactory.download_images(
+                    [image_url], platform='whatsapp',
+                )
                 try:
                     if images and images[0].content and images[0].file_type:
                         # Use original URL (WhatsApp handles URL downloads)
