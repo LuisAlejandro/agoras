@@ -81,6 +81,7 @@ virtualenv/
 # Environment files
 .env
 .env.*
+!.env.example
 *.env
 
 # OS files
@@ -108,3 +109,6 @@ rosey/deepening/
 rosey/agentic-env.json
 AGENTS.md
 DESIGN.md
+
+# Rosey Maintainer Tools
+rosey/maintainer-manifest.json

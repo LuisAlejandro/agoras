@@ -42,10 +42,10 @@ agoras could always use more documentation, whether as part of the
 official agoras docs, in docstrings, or even on the web in blog posts,
 articles, and such.
 
-Submit Feedback
-~~~~~~~~~~~~~~~
+Suggest Features
+~~~~~~~~~~~~~~~~
 
-The best way to send feedback is to file an issue at https://github.com/LuisAlejandro/agoras/issues.
+The best way to suggest a feature is to file an issue at https://github.com/LuisAlejandro/agoras/issues.
 
 If you are proposing a feature:
 
@@ -54,36 +54,33 @@ If you are proposing a feature:
 * Remember that this is a volunteer-driven project, and that contributions
   are welcome :)
 
-Get Started!
-------------
+Local Development
+-----------------
 
-Ready to contribute? Here's how to set up `agoras` for local development.
+Ready to contribute? Set up ``agoras`` for local development.
 
-1. Fork the `agoras` repo on GitHub.
+1. Fork the ``agoras`` repo on GitHub.
 2. Clone your fork locally::
 
     $ git clone git@github.com:your_name_here/agoras.git
+    $ cd agoras
+    $ git checkout develop
 
-3. Install your local copy into a virtualenv. Assuming you have virtualenvwrapper installed, this is how you set up your fork for local development::
+3. Copy environment placeholders when you need credentials for integration tests::
 
-    $ mkvirtualenv agoras
-    $ cd agoras/
-    $ pip install -e packages/common -e packages/media -e packages/core -e packages/platforms -e packages/cli
+    $ cp .env.example .env
 
-4. Create a branch for local development::
+4. Start the Docker development environment::
+
+    $ make image
+    $ make start
+    $ make console    # optional interactive shell
+
+   Alternatively, create a host virtualenv with ``make virtualenv`` and activate ``./virtualenv/bin/activate``.
+
+5. Create a branch for local development::
 
     $ git checkout -b name-of-your-bugfix-or-feature
-
-   Now you can make your changes locally.
-
-5. When you're done making changes, check that your changes pass flake8 and the tests, including testing other Python versions with tox::
-
-    $ pip install -r requirements-dev.txt  # Install development dependencies
-    $ tox -e lint
-    $ tox -e all
-
-   Development dependencies are managed in ``requirements-dev.txt`` and include:
-   pytest, coverage, flake8, pydocstyle, tox, and build tools.
 
 6. Commit your changes and push your branch to GitHub::
 
@@ -92,6 +89,23 @@ Ready to contribute? Here's how to set up `agoras` for local development.
     $ git push origin name-of-your-bugfix-or-feature
 
 7. Submit a pull request through the GitHub website.
+
+Quality Checks
+--------------
+
+Prefer Docker-backed ``make`` targets when developing with containers::
+
+    $ make lint
+    $ make test
+
+Or run tox directly on the host::
+
+    $ pip install -r requirements-dev.txt
+    $ tox -e lint
+    $ tox -e all
+
+Development dependencies are managed in ``requirements-dev.txt`` and include
+pytest, coverage, flake8, pydocstyle, tox, and build tools.
 
 Monorepo Development (v2.0)
 ----------------------------
@@ -527,6 +541,13 @@ Before you submit a pull request, check that it meets these guidelines:
    feature to the list in README.rst.
 3. Check https://github.com/LuisAlejandro/agoras/actions
    and make sure that the tests pass for all supported Python versions.
+4. Keep scope focused and link related issues when applicable.
+
+Maintainer Notes
+----------------
+
+Releases, version bumps, PyPI publishing, and git tags are handled by maintainers.
+Contributors do not need to publish packages or push release tags.
 
 Tips
 ----

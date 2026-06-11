@@ -1,1 +1,1 @@
-Agoras is a python utility that helps publish and delete posts on the most popular social networks (X (formerly Twitter), Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, Threads, Telegram, and WhatsApp).
+Agoras is a Python command-line utility for publishing and deleting posts on popular social networks (X, Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, Threads, Telegram, and WhatsApp). Version 2.0 ships a modular monorepo with five PyPI packages, OAuth2 callback support, and platform-first CLI commands.

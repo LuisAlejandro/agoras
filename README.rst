@@ -89,6 +89,24 @@ Agoras v2.0 introduces a **modular architecture** that splits the monolithic pac
 Getting started
 ===============
 
+Local development
+-----------------
+
+Clone the repository and use Docker-backed ``make`` targets for linting and tests::
+
+    $ git clone https://github.com/LuisAlejandro/agoras.git
+    $ cd agoras
+    $ git checkout develop
+    $ cp .env.example .env   # optional: platform credentials for integration tests
+    $ make image
+    $ make start
+    $ make console           # interactive shell inside the container
+    $ make lint
+    $ make test
+
+For a host virtualenv without Docker, run ``make virtualenv`` then activate ``./virtualenv/bin/activate``.
+See CONTRIBUTING.rst for monorepo package layout and contributor workflows.
+
 Installation
 ------------
 
