@@ -123,56 +123,6 @@ class TestXAPIClient:
         assert client.client_v2 is None
         assert client._authenticated is False
 
-    def test_x_client_verify_credentials_no_client(self):
-        """Test _verify_credentials with no client_v1."""
-        client = XAPIClient('ck', 'cs', 'ot', 'os')
-        client.client_v1 = None
-
-        with pytest.raises(Exception, match='X v1 client not initialized'):
-            client._verify_credentials()
-
-    @patch('agoras.platforms.x.client.API')
-    def test_x_client_verify_credentials_success(self, mock_api_class):
-        """Test _verify_credentials success."""
-        mock_client_v1 = MagicMock()
-        mock_user = MagicMock()
-        mock_client_v1.verify_credentials.return_value = mock_user
-        mock_api_class.return_value = mock_client_v1
-
-        client = XAPIClient('ck', 'cs', 'ot', 'os')
-        client.client_v1 = mock_client_v1
-
-        # Should not raise
-        client._verify_credentials()
-
-        mock_client_v1.verify_credentials.assert_called_once()
-
-    @patch('agoras.platforms.x.client.API')
-    def test_x_client_verify_credentials_missing_token(self, mock_api_class):
-        """Test _verify_credentials with missing token error."""
-        mock_client_v1 = MagicMock()
-        mock_client_v1.verify_credentials.side_effect = Exception("missing_token")
-        mock_api_class.return_value = mock_client_v1
-
-        client = XAPIClient('ck', 'cs', 'ot', 'os')
-        client.client_v1 = mock_client_v1
-
-        with pytest.raises(Exception, match='X credential verification failed.*Error: missing_token'):
-            client._verify_credentials()
-
-    @patch('agoras.platforms.x.client.API')
-    def test_x_client_verify_credentials_other(self, mock_api_class):
-        """Test _verify_credentials with other error."""
-        mock_client_v1 = MagicMock()
-        mock_client_v1.verify_credentials.side_effect = Exception("other error")
-        mock_api_class.return_value = mock_client_v1
-
-        client = XAPIClient('ck', 'cs', 'ot', 'os')
-        client.client_v1 = mock_client_v1
-
-        with pytest.raises(Exception, match='other error'):
-            client._verify_credentials()
-
     @patch('asyncio.to_thread')
     @pytest.mark.asyncio
     async def test_x_client_get_user_info_no_client(self, mock_to_thread):

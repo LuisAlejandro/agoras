@@ -34,93 +34,55 @@ leave uncommitted changes.
 
 7. Repeat 4-6 for every other feature you have planned for this release.
 
-8. When you're done with the features and ready to publish, start a new release.
+8. When you're done with the features and ready to publish, use one of the
+automated release commands. This will handle version bumping, changelog updates,
+git flow operations, and GitHub release creation automatically.
 ::
 
-    git flow release start <release number>
+    make release-patch    # For patch releases (bug fixes)
+    make release-minor    # For minor releases (new features)
+    make release-major    # For major releases (breaking changes)
 
-9. Bump your version (check everything before next step).
-::
+The release script will:
+- Start a git flow release
+- Bump the version automatically
+- Update the changelog (HISTORY.rst)
+- Commit the changes
+- Finish the git flow release
+- Create a GitHub release (if GitHub CLI is configured)
 
-    bumpversion --no-commit <major, minor or patch>
+9. The GitHub Actions workflow will automatically publish the packages to PyPI
+when the GitHub release is created. No manual action is required.
 
-10. Update your changelog (edit HISTORY.rst after to customize).
-::
+10. Close the milestone in GitHub.
 
-    gitchangelog > HISTORY.rst
-
-11. Commit your changes to version files and changelog.
-::
-
-    git commit -aS -m "Updating Changelog and version."
-
-12. Delete the tag made by bumpversion.
-::
-
-    git tag -d <release number>
-
-13. Finish your release.
-::
-
-    git flow release finish -s -p <release number>
-
-15. Draft a new release in GitHub (based on the new version tag) and include
-a description. Also pick a codename because it makes you cool.
-
-16. Close the milestone in GitHub.
-
-17. Publish your new version to PyPI.
-::
-
-    make release
-
-18. Write about your new version in your blog. Tweet it, post it on facebook.
+11. Write about your new version in your blog. Tweet it, post it on facebook.
 
 Making a new hotfix
 -------------------
 
 1. Create a new milestone in GitHub. Assign existing bugs to your new milestone.
 
-2. Start a new hotfix.
+2. Code your hotfix.
+
+3. When ready to publish, use the automated hotfix command. This will handle
+version bumping (patch increment), changelog updates, git flow operations, and
+GitHub release creation automatically.
 ::
 
-    git flow hotfix start <new version>
+    make hotfix
 
-3. Code your hotfix.
+The hotfix script will:
+- Start a git flow hotfix
+- Bump the version automatically (patch increment)
+- Update the changelog (HISTORY.rst)
+- Commit the changes
+- Finish the git flow hotfix
+- Create a GitHub release (if GitHub CLI is configured)
 
-4. Bump your version (check everything before next step).
-::
+4. The GitHub Actions workflow will automatically publish the packages to PyPI
+when the GitHub release is created. No manual action is required.
 
-    bumpversion --no-commit <major, minor or patch>
+5. Close the milestone in GitHub.
 
-5. Update your changelog (edit HISTORY.rst after to customize).
-::
-
-    gitchangelog > HISTORY.rst
-
-6. Commit your changes to version files and changelog.
-::
-
-    git commit -aS -m "Updating Changelog and version."
-
-7. Delete the tag made by bumpversion.
-::
-
-    git tag -d <new version>
-
-8. Finish your hotfix.
-::
-
-    git flow hotfix finish -s -p <new version>
-
-10. Draft a new release in GitHub (based on the new version tag) and include
-a description. Don't change the codename if it is a hotfix.
-
-11. Close the milestone in GitHub.
-
-12. Publish your new version to PyPI.
-::
-
-    make release
-
-13. Write about your new version in your blog. Tweet it, post it on facebook.
+6. Write about your new version in your blog. Tweet it, post it on facebook.

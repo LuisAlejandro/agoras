@@ -107,7 +107,7 @@ Post directly to social networks with intuitive, platform-first commands::
     agoras x post --consumer-key "$KEY" --text "Hello World!"
 
     # Upload to YouTube
-    agoras youtube video --client-id "$ID" --video-url "video.mp4"
+    agoras youtube video --video-url "video.mp4"
 
 See the full list of available platforms::
 
@@ -258,7 +258,8 @@ First, authorize Agoras to access your LinkedIn account::
 
     agoras linkedin authorize \
       --client-id "$LINKEDIN_CLIENT_ID" \
-      --client-secret "$LINKEDIN_CLIENT_SECRET"
+      --client-secret "$LINKEDIN_CLIENT_SECRET" \
+      --object-id "$LINKEDIN_OBJECT_ID"
 
 Then post to LinkedIn::
 
@@ -278,8 +279,9 @@ TikTok
 First, authorize Agoras to access your TikTok account::
 
     agoras tiktok authorize \
-      --client-id "$TIKTOK_CLIENT_ID" \
-      --client-secret "$TIKTOK_CLIENT_SECRET"
+      --client-key "$TIKTOK_CLIENT_KEY" \
+      --client-secret "$TIKTOK_CLIENT_SECRET" \
+      --username "$TIKTOK_USERNAME"
 
 Then upload a video::
 
@@ -294,8 +296,8 @@ Threads
 First, authorize Agoras to access your Threads account::
 
     agoras threads authorize \
-      --client-id "$THREADS_CLIENT_ID" \
-      --client-secret "$THREADS_CLIENT_SECRET"
+      --app-id "$THREADS_APP_ID" \
+      --app-secret "$THREADS_APP_SECRET"
 
 Then post to Threads::
 
@@ -325,7 +327,7 @@ Send a message via WhatsApp Business API::
     agoras whatsapp post \
       --access-token "$WHATSAPP_ACCESS_TOKEN" \
       --phone-number-id "$WHATSAPP_PHONE_NUMBER_ID" \
-      --to "$RECIPIENT_PHONE_NUMBER" \
+      --recipient "$RECIPIENT_PHONE_NUMBER" \
       --text "Hello from Agoras!"
 
 Feed Automation

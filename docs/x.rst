@@ -8,19 +8,29 @@ Usage for X (formerly Twitter)
 .. deprecated:: 2.0
    The ``agoras twitter`` command is deprecated. Use ``agoras x`` instead.
 
-X (formerly Twitter) is a social network that allows you to publish short messages (called tweets) of up to 280 characters. Agoras provides full CLI support for posting, liking, sharing, and managing X content.
+X (formerly Twitter) is a social network that allows you to publish short messages (called posts) of up to 280 characters. Agoras provides full CLI support for posting, liking, sharing, and deleting X content.
 
 **Important**: X now requires a paid subscription for certain parts of the API. The free tier will let you publish and delete X posts, but may have limitations on likes or retweets depending on your API access level.
+
+Required Credentials
+--------------------
+
+Before using Agoras with X, you'll need to manually extract the following credentials from your X Developer account. These credentials are required for authentication and API access.
+
+- **API Key** (``TWITTER_CONSUMER_KEY``): Your X app's API key, also known as consumer key
+- **API Secret Key** (``TWITTER_CONSUMER_SECRET``): Your X app's API secret key, also known as consumer secret
+
+See :doc:`credentials/x` for detailed instructions on how to obtain these credentials from the X Developer Portal.
 
 Available Actions
 ~~~~~~~~~~~~~~~~~
 
 * ``authorize`` - Set up OAuth 1.0a authentication (required first step)
-* ``post`` - Create text and image tweets (up to 4 images)
+* ``post`` - Create text and image posts (up to 4 images)
 * ``video`` - Upload videos
-* ``like`` - Like tweets
-* ``share`` - Retweet/share tweets
-* ``delete`` - Delete your own tweets
+* ``like`` - Like posts
+* ``share`` - Retweet/share posts
+* ``delete`` - Delete your own posts
 
 Authorization
 -------------
@@ -38,22 +48,11 @@ This will:
 
 1. Open your browser to the X OAuth authorization page
 2. Prompt you to grant permissions to Agoras
-3. Ask you to paste the callback URL after authorization
-4. Store encrypted credentials in ``~/.agoras/tokens/``
+3. Store encrypted credentials in ``~/.agoras/tokens/``
 
 After authorization, you can perform actions without providing OAuth tokens. Credentials are automatically loaded from storage.
 
 For CI/CD environments, see :doc:`credentials/x` for unattended execution setup.
-
-Quick Start
-~~~~~~~~~~~
-
-See all X commands::
-
-    agoras x --help
-
-.. note::
-   The ``agoras twitter`` command still works for backward compatibility but shows a deprecation warning. Use ``agoras x`` instead.
 
 Post a Tweet
 ------------
@@ -61,8 +60,6 @@ Post a Tweet
 **New format** (Agoras 2.0+)::
 
     agoras x post \
-      --consumer-key "${TWITTER_CONSUMER_KEY}" \
-      --consumer-secret "${TWITTER_CONSUMER_SECRET}" \
       --text "${STATUS_TEXT}" \
       --image-1 "${IMAGE_URL_1}" \
       --image-2 "${IMAGE_URL_2}"
@@ -76,8 +73,6 @@ Like a Tweet
 **New format**::
 
     agoras x like \
-      --consumer-key "${TWITTER_CONSUMER_KEY}" \
-      --consumer-secret "${TWITTER_CONSUMER_SECRET}" \
       --post-id "${TWEET_ID}"
 
 .. note::
@@ -89,8 +84,6 @@ Share a Tweet (Retweet)
 **New format**::
 
     agoras x share \
-      --consumer-key "${TWITTER_CONSUMER_KEY}" \
-      --consumer-secret "${TWITTER_CONSUMER_SECRET}" \
       --post-id "${TWEET_ID}"
 
 .. note::
@@ -102,8 +95,6 @@ Delete a Tweet
 **New format**::
 
     agoras x delete \
-      --consumer-key "${TWITTER_CONSUMER_KEY}" \
-      --consumer-secret "${TWITTER_CONSUMER_SECRET}" \
       --post-id "${TWEET_ID}"
 
 .. note::
@@ -115,8 +106,6 @@ Upload a Video
 **New format**::
 
     agoras x video \
-      --consumer-key "${TWITTER_CONSUMER_KEY}" \
-      --consumer-secret "${TWITTER_CONSUMER_SECRET}" \
       --video-url "${VIDEO_URL}" \
       --video-title "${VIDEO_TITLE}"
 
@@ -125,114 +114,122 @@ Upload a Video
 
 
 
-Feed Automation
----------------
+Post the last URL from an RSS feed into X
+-----------------------------------------
 
-Publish the last URL from an RSS feed to X::
+This command will parse an RSS feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry.
+
+.. note::
+   You must run ``agoras x authorize`` first before using this command.
+
+Please read about how the RSS feed should be structured in the :doc:`RSS feed section <rss>`. This ensures that the feed is correctly parsed and that the post content is properly formatted.
+::
 
     agoras utils feed-publish \
       --network x \
       --mode last \
       --feed-url "${FEED_URL}" \
       --max-count "${MAX_COUNT}" \
-      --post-lookback "${POST_LOOKBACK}" \
-      --x-consumer-key "${TWITTER_CONSUMER_KEY}" \
-      --x-consumer-secret "${TWITTER_CONSUMER_SECRET}"
-
-.. note::
-   You must run ``agoras x authorize`` first before using this command.
+      --post-lookback "${POST_LOOKBACK}"
 
 .. note::
    The ``--network twitter`` and ``--twitter-*`` parameters are deprecated. Use ``--network x`` and ``--x-*`` parameters instead.
-
-See :doc:`RSS feed section <rss>` for more details on feed automation.
 
 
 
 Post a random URL from an RSS feed into X
 ------------------------------------------
 
-This command will parse an RSS feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published using the X account that's authorized by the provided credentials (read about how to get credentials :doc:`here <credentials/x>`).
+This command will parse an RSS feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry.
 
 .. note::
    You must run ``agoras x authorize`` first before using this command.
 
 Please read about how the RSS feed should be structured in the :doc:`RSS feed section <rss>`. This ensures that the feed is correctly parsed and that the post content is properly formatted.
-
-**New format** (Agoras 2.0+)::
+::
 
     agoras utils feed-publish \
       --network x \
       --mode random \
       --feed-url "${FEED_URL}" \
-      --max-post-age "${MAX_POST_AGE}" \
-      --x-consumer-key "${TWITTER_CONSUMER_KEY}" \
-      --x-consumer-secret "${TWITTER_CONSUMER_SECRET}"
+      --max-post-age "${MAX_POST_AGE}"
 
 .. note::
    The ``--network twitter`` and ``--twitter-*`` parameters are deprecated. Use ``--network x`` and ``--x-*`` parameters instead.
 
 
 
-Schedule an X post
-------------------
+Google Sheets Scheduling
+------------------------
 
-This command will scan a sheet ``--sheets-name`` of a Google spreadsheet of id ``--sheets-id``, that's authorized by ``--sheets-client-email`` and ``--sheets-private-key``. The post will be published using the X account that's authorized by the provided credentials (read about how to get credentials :doc:`here <credentials/x>`).
+Agoras can schedule X posts using Google Sheets. This allows you to plan and automate post publishing.
 
-.. note::
-   You must run ``agoras x authorize`` first before using this command.
+Run Scheduled Messages
+~~~~~~~~~~~~~~~~~~~~~~
 
-The order of the columns of the spreadsheet is crucial to the correct functioning of the command. Here's how the information should be organized:
+Process scheduled messages from a Google Sheet:
 
-+--------------------+--------------------+---------------------------+---------------------------+---------------------------+---------------------------+-------------------------+-------------------+------------------------------+
-| ``--status-text``  | ``--status-link``  | ``--status-image-url-1``  | ``--status-image-url-2``  | ``--status-image-url-3``  | ``--status-image-url-4``  | date (%d-%m-%Y format)  | time (%H format)  | status (draft or published)  |
-+--------------------+--------------------+---------------------------+---------------------------+---------------------------+---------------------------+-------------------------+-------------------+------------------------------+
-
-As you can see, the first 6 columns correspond to the parameters of the "post" command, the date and time columns correspond to the specific time that you want to publish this post, and the status column tells the script if this post is ready to be published (draft status) or if it was already published and should be skipped (published status). Let's see an example of a working schedule:
-
-+-------------------------------+-------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+-------------+-----+--------+
-| This is a test X post         | https://agoras.readthedocs.io/en/latest/  | https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg  | https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg  | https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg  | https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg  | 21-11-2022  | 17  | draft  |
-+-------------------------------+-------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+-------------+-----+--------+
-
-This schedule entry would be published at 17:00h of 21-11-2022 with text "This is a test X post" and 4 images pointed by those URLs.
-
-For this command to work, it should be executed hourly by a cron script.
-
-**New format** (Agoras 2.0+)::
+::
 
     agoras utils schedule-run \
       --network x \
       --sheets-id "${GOOGLE_SHEETS_ID}" \
-      --sheets-name "${GOOGLE_SHEETS_NAME}" \
+      --sheets-name "X" \
       --sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-      --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" \
-      --x-consumer-key "${TWITTER_CONSUMER_KEY}" \
-      --x-consumer-secret "${TWITTER_CONSUMER_SECRET}"
+      --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
+
+.. note::
+   You must run ``agoras x authorize`` first before using this command.
+
+Sheet Format
+~~~~~~~~~~~~
+
+Your Google Sheet should have the following columns:
+
+- ``status_text``: Post text content
+- ``status_link``: URL to include in post
+- ``status_image_url_1`` through ``status_image_url_4``: Image URLs (optional)
+- ``date``: Scheduled date (format: DD-MM-YYYY)
+- ``hour``: Scheduled hour (format: HH, 24-hour format)
+- ``state``: Post state (``pending``, ``published``, ``error``)
+
+**Example sheet row**:
+
+::
+
+    status_text,status_link,status_image_url_1,status_image_url_2,status_image_url_3,status_image_url_4,date,hour,state
+    "This is a test X post","https://agoras.readthedocs.io/en/latest/","https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg","https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg","","","21-11-2022","17","pending"
+
+Scheduling Logic
+~~~~~~~~~~~~~~~~
+
+- Posts with ``state="pending"`` and scheduled time in the past are processed
+- Posts are created at the scheduled date and hour
+- Sheet state is updated to ``published`` after successful posting
+- If posting fails, state is updated to ``error``
+- Use ``--network x`` to process only X posts, or omit to process all networks
 
 
 .. _how-to-get-twitter-post-id:
 
-How to get ``--tweet-id`` parameter
+How to get ``--post-id`` parameter
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Extracting from X website
 -------------------------
 
-The tweet ID parameter is necessary to delete tweets. You can extract it from the tweet URL::
+The post ID parameter is necessary to delete posts. You can extract it from the post URL::
 
       https://twitter.com/XXXXX/status/NNNNNNNNNNN
 
-``NNNNNNNNNNN`` is the tweet ID.
+``NNNNNNNNNNN`` is the post ID.
 
 Using Agoras
 ------------
 
 When you create an X post with Agoras, it will print the post ID (in json format) in the console. You can copy it from there and use it in other commands. For example::
 
-      $ agoras x post \
-            --consumer-key XXXXX \
-            --consumer-secret XXXXX \
-            --text "This is a test post"
+      $ agoras x post --text "This is a test post"
       $ {"id":"NNNNNNNNNNN"}
 
 ``NNNNNNNNNNN`` is the post ID.

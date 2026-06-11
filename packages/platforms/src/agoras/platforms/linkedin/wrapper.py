@@ -108,7 +108,8 @@ class LinkedIn(SocialNetwork):
                 self.linkedin_access_token = auth_manager.access_token
 
         # Validate all credentials are now available
-        if not self.linkedin_access_token:
+        if not all([self.linkedin_access_token, self.linkedin_client_id,
+                    self.linkedin_client_secret, self.linkedin_refresh_token]):
             raise Exception("Not authenticated. Please run 'agoras linkedin authorize' first.")
 
         # Initialize LinkedIn API
@@ -118,6 +119,8 @@ class LinkedIn(SocialNetwork):
             self.linkedin_client_secret,
             self.linkedin_refresh_token
         )
+
+        # Authenticate with provided credentials
         await self.api.authenticate()
 
     async def disconnect(self):

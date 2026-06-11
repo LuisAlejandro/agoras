@@ -3,8 +3,19 @@ Usage for Instagram
 
 Instagram is a social network that allows you to share photos and videos with your friends and followers. Agoras uses a popular `Facebook Graph API client <https://github.com/sns-sdks/python-facebook>`_ to publish posts. Only publishing is allowed by the API, so you can't like, share or delete posts.
 
-Actions
-~~~~~~~
+Required Credentials
+--------------------
+
+Before using Agoras with Instagram, you'll need to manually extract the following credentials from your Facebook App in the Meta Developer Console. Instagram uses Facebook OAuth, so you'll need a Facebook App connected to your Instagram business account.
+
+- **Client ID** (``INSTAGRAM_CLIENT_ID``): Your Facebook App ID, used as the OAuth client identifier
+- **Client Secret** (``INSTAGRAM_CLIENT_SECRET``): Your Facebook App Secret, used for OAuth authentication
+- **Object ID** (``INSTAGRAM_OBJECT_ID``): The Facebook User ID that has access to the Instagram business account
+
+See :doc:`credentials/instagram` for detailed instructions on how to create a Facebook App, connect it to your Instagram account, and obtain these credentials.
+
+Available Actions
+~~~~~~~~~~~~~~~~~
 
 * ``authorize`` - Set up OAuth 2.0 authentication (required first step)
 * ``post`` - Create Instagram posts with images
@@ -110,38 +121,56 @@ Please read about how the RSS feed should be structured in the :doc:`RSS feed se
 
 
 
-Schedule a Instagram post
--------------------------
+Google Sheets Scheduling
+------------------------
 
-This command will scan a sheet ``--sheets-name`` of a google spreadsheet of id ``--sheets-id``, thats authorized by ``--sheets-client-email`` and ``--sheets-private-key``. The post will be published on ``--instagram-object-id`` (read about how to get the id of an account :ref:`here <how-to-get-instagram-account-id>`).
+Agoras can schedule Instagram posts using Google Sheets. This allows you to plan and automate post publishing.
+
+Run Scheduled Messages
+~~~~~~~~~~~~~~~~~~~~~~
+
+Process scheduled messages from a Google Sheet:
+
+::
+
+    agoras utils schedule-run \
+      --network instagram \
+      --sheets-id "${GOOGLE_SHEETS_ID}" \
+      --sheets-name "Instagram" \
+      --sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
+      --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" \
+      --instagram-object-id "${INSTAGRAM_OBJECT_ID}"
 
 .. note::
    You must run ``agoras instagram authorize`` first before using this command.
 
-The order of the columns of the spreadsheet is crucial to the correct functioning of the command. Here's how the information should be organized:
+Sheet Format
+~~~~~~~~~~~~
 
-+--------------------+--------------------+---------------------------+---------------------------+---------------------------+---------------------------+-------------------------+-------------------+------------------------------+
-| ``--status-text``  | ``--status-link``  | ``--status-image-url-1``  | ``--status-image-url-2``  | ``--status-image-url-3``  | ``--status-image-url-4``  | date (%d-%m-%Y format)  | time (%H format)  | status (draft or published)  |
-+--------------------+--------------------+---------------------------+---------------------------+---------------------------+---------------------------+-------------------------+-------------------+------------------------------+
+Your Google Sheet should have the following columns:
 
-As you can see, the first 6 columns correspond to the parameters of the "post" command, the date and time columns correspond to the specific time that you want to publish this post, and the status column tells the script if this post is ready to be published (draft status) or if it was already published and should be skipped (published status). Let's see an example of a working schedule:
+- ``status_text``: Post text content
+- ``status_link``: URL to include in post
+- ``status_image_url_1`` through ``status_image_url_4``: Image URLs (optional)
+- ``date``: Scheduled date (format: DD-MM-YYYY)
+- ``hour``: Scheduled hour (format: HH, 24-hour format)
+- ``state``: Post state (``pending``, ``published``, ``error``)
 
-+-------------------------------+-------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+-------------+-----+--------+
-| This is a test facebook post  | https://agoras.readthedocs.io/en/latest/  | https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg  | https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg  | https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg  | https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg  | 21-11-2022  | 17  | draft  |
-+-------------------------------+-------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+-------------+-----+--------+
+**Example sheet row**:
 
-This schedule entry would be published at 17:00h of 21-11-2022 with text "This is a test instagram post" and 4 images pointed by those URLs.
-
-For this command to work, it should be executed hourly by a cron script.
 ::
 
-      agoras utils schedule-run \
-            --network "instagram" \
-            --instagram-object-id "${INSTAGRAM_OBJECT_ID}" \
-            --sheets-id "${GOOGLE_SHEETS_ID}" \
-            --sheets-name "${GOOGLE_SHEETS_NAME}" \
-            --sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-            --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
+    status_text,status_link,status_image_url_1,status_image_url_2,status_image_url_3,status_image_url_4,date,hour,state
+    "This is a test instagram post","https://agoras.readthedocs.io/en/latest/","https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg","https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg","","","21-11-2022","17","pending"
+
+Scheduling Logic
+~~~~~~~~~~~~~~~~
+
+- Posts with ``state="pending"`` and scheduled time in the past are processed
+- Posts are created at the scheduled date and hour
+- Sheet state is updated to ``published`` after successful posting
+- If posting fails, state is updated to ``error``
+- Use ``--network instagram`` to process only Instagram posts, or omit to process all networks
 
 
 .. _how-to-get-instagram-account-id:

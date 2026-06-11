@@ -21,10 +21,9 @@ import secrets
 import webbrowser
 from typing import Optional
 
-from authlib.integrations.requests_client import OAuth2Session
-
 from agoras.core.auth import BaseAuthManager
 from agoras.core.auth.callback_server import OAuthCallbackServer
+from authlib.integrations.requests_client import OAuth2Session
 
 from .client import InstagramAPIClient
 

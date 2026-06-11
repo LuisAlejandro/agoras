@@ -46,25 +46,6 @@ def add_common_content_options(parser: ArgumentParser, images: int = 0):
                                  help=f'Image URL #{i}')
 
 
-def add_feed_options(parser: ArgumentParser):
-    """
-    Add RSS/Atom feed options.
-
-    Args:
-        parser: ArgumentParser to add options to
-    """
-    feed = parser.add_argument_group('Feed Options')
-
-    feed.add_argument('--feed-url', required=True,
-                      help='URL of RSS/Atom feed')
-    feed.add_argument('--max-count', type=int,
-                      help='Maximum posts to publish at once')
-    feed.add_argument('--post-lookback', type=int,
-                      help='Only posts within last N seconds')
-    feed.add_argument('--max-post-age', type=int,
-                      help='Maximum post age in days')
-
-
 def add_video_options(parser: ArgumentParser):
     """
     Add video-specific options.

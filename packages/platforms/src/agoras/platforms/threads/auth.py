@@ -17,6 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+import os
 import secrets
 import webbrowser
 from typing import Any, Dict, Optional
@@ -183,10 +184,10 @@ class ThreadsAuthManager(BaseAuthManager):
             if not self.refresh_token:
                 raise Exception('No refresh token available')
 
-            # Load user_id from storage
-            user_id = self._load_user_id_from_storage()
+            # Load user_id from environment or storage
+            user_id = self._load_user_id_from_env() or self._load_user_id_from_storage()
             if not user_id:
-                raise Exception('No user ID found in storage')
+                raise Exception('No user ID found in environment or storage')
 
             # Return the cached token data
             return {
@@ -230,6 +231,10 @@ class ThreadsAuthManager(BaseAuthManager):
     def _get_token_identifier(self) -> str:
         """Get unique identifier for token storage."""
         return self.app_id
+
+    def _load_user_id_from_env(self) -> Optional[str]:
+        """Load user ID from environment variable for CI/CD."""
+        return os.environ.get('THREADS_USER_ID')
 
     def _load_user_id_from_storage(self) -> Optional[str]:
         """Load user ID from secure storage."""

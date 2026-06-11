@@ -66,12 +66,22 @@ class WhatsApp(SocialNetwork):
         self.whatsapp_phone_number_id = self._get_config_value('whatsapp_phone_number_id', 'WHATSAPP_PHONE_NUMBER_ID')
         self.whatsapp_business_account_id = self._get_config_value(
             'whatsapp_business_account_id', 'WHATSAPP_BUSINESS_ACCOUNT_ID')
+        # Required recipient for messaging
+        self.whatsapp_recipient = self._get_config_value('whatsapp_recipient', 'WHATSAPP_RECIPIENT')
+        # Optional message ID for status/tracking actions
+        self.whatsapp_message_id = self._get_config_value('whatsapp_message_id', 'WHATSAPP_MESSAGE_ID')
 
         # If credentials not provided, try loading from storage
-        if not self.whatsapp_access_token or not self.whatsapp_phone_number_id:
+        if not all([self.whatsapp_access_token, self.whatsapp_phone_number_id, self.whatsapp_business_account_id]):
             from .auth import WhatsAppAuthManager
-            auth_manager = WhatsAppAuthManager()
+            auth_manager = WhatsAppAuthManager(
+                access_token=self.whatsapp_access_token,
+                phone_number_id=self.whatsapp_phone_number_id,
+                business_account_id=self.whatsapp_business_account_id
+            )
+
             if auth_manager._load_credentials_from_storage():
+                # Fill in missing credentials from storage
                 if not self.whatsapp_access_token:
                     self.whatsapp_access_token = auth_manager.access_token
                 if not self.whatsapp_phone_number_id:
@@ -79,25 +89,18 @@ class WhatsApp(SocialNetwork):
                 if not self.whatsapp_business_account_id:
                     self.whatsapp_business_account_id = auth_manager.business_account_id
 
-        # Required recipient for messaging
-        self.whatsapp_recipient = self._get_config_value('whatsapp_recipient', 'WHATSAPP_RECIPIENT')
-
-        # Optional message ID for status/tracking actions
-        self.whatsapp_message_id = self._get_config_value('whatsapp_message_id', 'WHATSAPP_MESSAGE_ID')
-
         # Validation
-        if not all([self.whatsapp_access_token, self.whatsapp_phone_number_id]):
+        if not all([self.whatsapp_access_token, self.whatsapp_phone_number_id, self.whatsapp_business_account_id]):
             raise Exception("Not authenticated. Please run 'agoras whatsapp authorize' first.")
 
-        if not self.whatsapp_recipient:
-            raise Exception('WhatsApp recipient phone number is required.')
-
-        # Initialize API
+        # Initialize WhatsApp API
         self.api = WhatsAppAPI(
             self.whatsapp_access_token,
             self.whatsapp_phone_number_id,
             self.whatsapp_business_account_id
         )
+
+        # Authenticate with provided credentials
         await self.api.authenticate()
 
     async def disconnect(self):

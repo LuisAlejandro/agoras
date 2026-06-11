@@ -64,6 +64,8 @@ class TikTok(SocialNetwork):
         self.brand_organic = None
         self.brand_content = None
         self.api = None
+        # Store action to determine appropriate defaults
+        self._action = kwargs.get('action', '')
 
     async def _initialize_client(self):
         """
@@ -76,7 +78,6 @@ class TikTok(SocialNetwork):
         self.tiktok_client_key = self._get_config_value('tiktok_client_key', 'TIKTOK_CLIENT_KEY')
         self.tiktok_client_secret = self._get_config_value('tiktok_client_secret', 'TIKTOK_CLIENT_SECRET')
         self.tiktok_refresh_token = self._get_config_value('tiktok_refresh_token', 'TIKTOK_REFRESH_TOKEN')
-
         # Configuration options
         self.tiktok_title = self._get_config_value('tiktok_title', 'TIKTOK_TITLE') or ''
         self.tiktok_privacy_status = (
@@ -86,13 +87,19 @@ class TikTok(SocialNetwork):
         self.tiktok_allow_duet = self._get_config_value('tiktok_allow_duet', 'TIKTOK_ALLOW_DUET')
         self.tiktok_allow_stitch = self._get_config_value('tiktok_allow_stitch', 'TIKTOK_ALLOW_STITCH')
         self.tiktok_auto_add_music = self._get_config_value('tiktok_auto_add_music', 'TIKTOK_AUTO_ADD_MUSIC')
+        self.tiktok_description = self._get_config_value('tiktok_description', 'TIKTOK_DESCRIPTION') or ''
         self.brand_organic = self._get_config_value('brand_organic', 'TIKTOK_BRAND_ORGANIC')
         self.brand_content = self._get_config_value('brand_content', 'TIKTOK_BRAND_CONTENT')
 
         # Convert string booleans
         self.tiktok_allow_comments = self._convert_bool(self.tiktok_allow_comments, True)
-        self.tiktok_allow_duet = self._convert_bool(self.tiktok_allow_duet, True)
-        self.tiktok_allow_stitch = self._convert_bool(self.tiktok_allow_stitch, True)
+        # Set defaults for duet/stitch based on action:
+        # - True for video action (duets/stitches are supported)
+        # - False for post action (duets/stitches are not supported for photos)
+        duet_default = True if self._action == 'video' else False
+        stitch_default = True if self._action == 'video' else False
+        self.tiktok_allow_duet = self._convert_bool(self.tiktok_allow_duet, duet_default)
+        self.tiktok_allow_stitch = self._convert_bool(self.tiktok_allow_stitch, stitch_default)
         self.tiktok_auto_add_music = self._convert_bool(self.tiktok_auto_add_music, False)
         self.brand_organic = self._convert_bool(self.brand_organic, False)
         self.brand_content = self._convert_bool(self.brand_content, False)
@@ -135,6 +142,8 @@ class TikTok(SocialNetwork):
             self.tiktok_client_secret,
             self.tiktok_refresh_token
         )
+
+        # Authenticate with provided credentials
         await self.api.authenticate()
 
     async def disconnect(self):
@@ -228,10 +237,13 @@ class TikTok(SocialNetwork):
                 bool(self.tiktok_allow_comments),
                 bool(self.brand_organic),
                 bool(self.brand_content),
-                bool(self.tiktok_auto_add_music)
+                bool(self.tiktok_auto_add_music),
+                str(self.tiktok_description)
             )
 
             post_id = response.get('publish_id')
+            if not post_id:
+                raise Exception('Failed to get publish_id from TikTok API response')
             self._output_status(post_id)
             return post_id
 
@@ -254,17 +266,6 @@ class TikTok(SocialNetwork):
         """
         if not self.api:
             raise Exception('TikTok API not initialized')
-
-        # Check if video upload scopes are available (requires Production app approval)
-        # NOTE: Temporarily disabled for testing - requires Production app approval
-        # raise Exception(
-        #     'TikTok video upload requires Production app approval from TikTok. '
-        #     'Your app is currently in Sandbox mode. Please:\n'
-        #     '1. Go to TikTok Developer Portal\n'
-        #     '2. Submit your app for review\n'
-        #     '3. Request approval for video.upload and video.publish scopes\n'
-        #     '4. Once approved, switch to Production mode'
-        # )
 
         if not video_url:
             raise Exception('Video URL is required.')

@@ -9,7 +9,7 @@ Agoras v2.0 is split into 5 separate PyPI packages. This guide covers all instal
 Prerequisites
 --------------
 
-- Python 3.9 or higher
+- Python 3.10 or higher
 - pip (Python package installer)
 
 If you don't have `pip`_ installed, this `Python installation guide`_ can guide
@@ -118,7 +118,7 @@ Prerequisites
 ~~~~~~~~~~~~~
 
 - Git
-- Python 3.9+
+- Python 3.10+
 - pip
 
 Clone the Repository
@@ -242,7 +242,7 @@ Common Issues
   Ensure you're using editable installs (``-e`` flag) and installed in dependency order.
 
 **Python version:**
-  Agoras requires Python 3.9+. Check your version:
+  Agoras requires Python 3.10+. Check your version:
 
   .. code-block:: console
 

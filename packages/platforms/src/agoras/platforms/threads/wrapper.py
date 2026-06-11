@@ -62,18 +62,16 @@ class Threads(SocialNetwork):
         self.threads_app_id = self._get_config_value('threads_app_id', 'THREADS_APP_ID')
         self.threads_app_secret = self._get_config_value('threads_app_secret', 'THREADS_APP_SECRET')
         self.threads_refresh_token = self._get_config_value('threads_refresh_token', 'THREADS_REFRESH_TOKEN')
-
         # Configuration options
         self.threads_who_can_reply = (
             self._get_config_value('threads_who_can_reply', 'THREADS_WHO_CAN_REPLY') or 'everyone'
         )
-
         # Action-specific attributes
         self.threads_post_id = self._get_config_value('threads_post_id', 'THREADS_POST_ID')
 
         # If credentials not provided, try loading from storage
         # Threads needs app_id, app_secret, and refresh_token to authenticate
-        if not all([self.threads_app_id, self.threads_app_secret]):
+        if not all([self.threads_app_id, self.threads_app_secret, self.threads_refresh_token]):
             from .auth import ThreadsAuthManager
             auth_manager = ThreadsAuthManager(
                 app_id=self.threads_app_id or '',
@@ -90,7 +88,7 @@ class Threads(SocialNetwork):
                     self.threads_refresh_token = auth_manager.refresh_token
 
         # Validate all credentials are now available
-        if not all([self.threads_app_id, self.threads_app_secret]):
+        if not all([self.threads_app_id, self.threads_app_secret, self.threads_refresh_token]):
             raise Exception("Not authenticated. Please run 'agoras threads authorize' first.")
 
         # Initialize Threads API
@@ -99,6 +97,8 @@ class Threads(SocialNetwork):
             self.threads_app_secret,
             self.threads_refresh_token
         )
+
+        # Authenticate with provided credentials
         await self.api.authenticate()
 
     async def disconnect(self):

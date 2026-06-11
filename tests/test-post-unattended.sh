@@ -12,13 +12,13 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Get the project root (parent of tests directory)
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-source "${PROJECT_ROOT}/secrets.env"
+source "${PROJECT_ROOT}/unattended.env"
 
 if [ "${1}" == "x" ]; then
     POST_X_ID=$(
         "${PROJECT_ROOT}/virtualenv/bin/agoras" x post \
-            --text "${TWITTER_STATUS_TEXT}" \
-            --image-1 "${TWITTER_STATUS_IMAGE_URL_1}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
+            --text "This is a test post. It should delete itself in a couple of minutes." \
+            --image-1 "https://wakatime.com/share/@LuisAlejandro/5a56439c-b3af-44e6-8164-c0b9128872b8.png" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
@@ -29,8 +29,8 @@ if [ "${1}" == "x" ]; then
 elif [ "${1}" == "tiktok" ]; then
     POST_TIKTOK_ID=$(
         "${PROJECT_ROOT}/virtualenv/bin/agoras" tiktok video \
-            --title "${TIKTOK_TITLE}" \
-            --video-url "${TIKTOK_VIDEO_URL}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.publish_id'
+            --title "This is a test post. It should delete itself in a couple of minutes." \
+            --video-url "https://luisalejandro.org/files/videos/test.mp4" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.publish_id'
     )
 
     echo "TikTok video test created with ID: ${POST_TIKTOK_ID}"
@@ -38,16 +38,16 @@ elif [ "${1}" == "tiktok" ]; then
 
 elif [ "${1}" == "facebook-video" ]; then
     "${PROJECT_ROOT}/virtualenv/bin/agoras" facebook video \
-        --video-url "${FACEBOOK_VIDEO_URL}" \
-        --video-type "${FACEBOOK_VIDEO_TYPE}" \
-        --video-title "${FACEBOOK_VIDEO_TITLE}" \
-        --video-description "${FACEBOOK_VIDEO_DESCRIPTION}"
+        --video-url "https://luisalejandro.org/files/videos/test.mp4" \
+        --video-type "url" \
+        --video-title "This is a test post. It should delete itself in a couple of minutes." \
+        --video-description "This is a test post. It should delete itself in a couple of minutes."
 
 elif [ "${1}" == "youtube" ]; then
     POST_YOUTUBE_ID=$(
         "${PROJECT_ROOT}/virtualenv/bin/agoras" youtube video \
-            --title "${YOUTUBE_TITLE}" \
-            --video-url "${YOUTUBE_VIDEO_URL}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
+            --title "This is a test post. It should delete itself in a couple of minutes." \
+            --video-url "https://luisalejandro.org/files/videos/test.mp4" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
@@ -63,15 +63,15 @@ elif [ "${1}" == "youtube" ]; then
 elif [ "${1}" == "facebook" ]; then
     POST_FACEBOOK_ID=$(
         "${PROJECT_ROOT}/virtualenv/bin/agoras" facebook post \
-            --text "${FACEBOOK_STATUS_TEXT}" \
-            --image-1 "${FACEBOOK_STATUS_IMAGE_URL_1}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
+            --text "This is a test post. It should delete itself in a couple of minutes." \
+            --image-1 "https://wakatime.com/share/@LuisAlejandro/5a56439c-b3af-44e6-8164-c0b9128872b8.png" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
     SHARED_POST_FACEBOOK_ID=$(
         "${PROJECT_ROOT}/virtualenv/bin/agoras" facebook share \
-            --profile-id "${FACEBOOK_PROFILE_ID}" \
+            --profile-id "${FACEBOOK_OBJECT_ID}" \
             --post-id "${POST_FACEBOOK_ID}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
@@ -93,8 +93,8 @@ elif [ "${1}" == "facebook" ]; then
 elif [ "${1}" == "instagram" ]; then
     POST_INSTAGRAM_ID=$(
         "${PROJECT_ROOT}/virtualenv/bin/agoras" instagram post \
-            --text "${INSTAGRAM_STATUS_TEXT}" \
-            --image-1 "${INSTAGRAM_STATUS_IMAGE_URL_1}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
+            --text "This is a test post. It should delete itself in a couple of minutes." \
+            --image-1 "https://wakatime.com/share/@LuisAlejandro/5a56439c-b3af-44e6-8164-c0b9128872b8.png" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     echo "Instagram post test created with ID: ${POST_INSTAGRAM_ID}"
@@ -103,8 +103,8 @@ elif [ "${1}" == "instagram" ]; then
 elif [ "${1}" == "discord" ]; then
     POST_DISCORD_ID=$(
         "${PROJECT_ROOT}/virtualenv/bin/agoras" discord post \
-            --text "${DISCORD_STATUS_TEXT}" \
-            --image-1 "${DISCORD_STATUS_IMAGE_URL_1}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
+            --text "This is a test post. It should delete itself in a couple of minutes." \
+            --image-1 "https://wakatime.com/share/@LuisAlejandro/5a56439c-b3af-44e6-8164-c0b9128872b8.png" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
@@ -119,8 +119,8 @@ elif [ "${1}" == "discord" ]; then
 elif [ "${1}" == "linkedin" ]; then
     POST_LINKEDIN_ID=$(
         "${PROJECT_ROOT}/virtualenv/bin/agoras" linkedin post \
-            --text "${LINKEDIN_STATUS_TEXT}" \
-            --image-1 "${LINKEDIN_STATUS_IMAGE_URL_1}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
+            --text "This is a test post. It should delete itself in a couple of minutes." \
+            --image-1 "https://wakatime.com/share/@LuisAlejandro/5a56439c-b3af-44e6-8164-c0b9128872b8.png" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
@@ -148,8 +148,8 @@ elif [ "${1}" == "linkedin" ]; then
 elif [ "${1}" == "threads" ]; then
     POST_THREADS_ID=$(
         "${PROJECT_ROOT}/virtualenv/bin/agoras" threads post \
-            --text "${THREADS_STATUS_TEXT}" \
-            --image-1 "${THREADS_STATUS_IMAGE_URL_1}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
+            --text "This is a test post. It should delete itself in a couple of minutes." \
+            --image-1 "https://wakatime.com/share/@LuisAlejandro/5a56439c-b3af-44e6-8164-c0b9128872b8.png" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     echo "Threads post test created with ID: ${POST_THREADS_ID}"
@@ -158,8 +158,8 @@ elif [ "${1}" == "threads" ]; then
 elif [ "${1}" == "telegram" ]; then
     POST_TELEGRAM_ID=$(
         "${PROJECT_ROOT}/virtualenv/bin/agoras" telegram post \
-            --text "${TELEGRAM_STATUS_TEXT}" \
-            --image-1 "${TELEGRAM_STATUS_IMAGE_URL_1}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
+            --text "This is a test post. It should delete itself in a couple of minutes." \
+            --image-1 "https://wakatime.com/share/@LuisAlejandro/5a56439c-b3af-44e6-8164-c0b9128872b8.png" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
@@ -171,7 +171,7 @@ elif [ "${1}" == "whatsapp" ]; then
     POST_WHATSAPP_ID=$(
         "${PROJECT_ROOT}/virtualenv/bin/agoras" whatsapp post \
             --recipient "${WHATSAPP_RECIPIENT}" \
-            --text "${WHATSAPP_STATUS_TEXT}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
+            --text "This is a test post. It should delete itself in a couple of minutes." | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     echo "WhatsApp post test created with ID: ${POST_WHATSAPP_ID}"

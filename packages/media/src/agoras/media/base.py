@@ -24,7 +24,6 @@ from abc import ABC, abstractmethod
 from urllib.request import Request, urlopen
 
 import filetype
-
 from agoras.common import __version__
 
 

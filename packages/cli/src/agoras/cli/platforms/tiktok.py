@@ -158,6 +158,11 @@ def _add_post_options(parser: ArgumentParser):
         default=None,
         help='Mark content as paid partnership (displays "Paid partnership" label)'
     )
+    post_opts.add_argument(
+        '--description',
+        metavar='<description>',
+        help='Post description/caption (max 4000 UTF-16 runes)'
+    )
 
 
 def _add_video_options(parser: ArgumentParser):

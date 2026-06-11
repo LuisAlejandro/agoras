@@ -131,29 +131,6 @@ class XAPIClient:
         self.client_v2 = None
         self._authenticated = False
 
-    def _verify_credentials(self):
-        """
-        Verify X credentials using v1 API.
-
-        Raises:
-            Exception: If verification fails
-        """
-        if not self.client_v1:
-            raise Exception('X v1 client not initialized')
-
-        try:
-            user = self.client_v1.verify_credentials()
-            if not user:
-                raise Exception('Failed to verify X credentials')
-        except Exception as e:
-            # Re-raise with more context
-            error_msg = str(e)
-            # Check if this is the specific "missing_token" error
-            if "missing_token" in error_msg or "oauth_token is missing" in error_msg:
-                raise Exception(
-                    f'X credential verification failed. The access token may be invalid or expired. Error: {error_msg}')
-            raise
-
     async def get_user_info(self) -> dict:
         """
         Get authenticated user information using v1 API.

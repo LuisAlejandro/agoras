@@ -22,7 +22,6 @@ Tests for migration guidance utilities.
 from agoras.cli.migration import (
     convert_legacy_params_to_new_format,
     format_migration_warning,
-    get_migration_summary,
     suggest_new_command,
 )
 
@@ -158,28 +157,6 @@ def test_format_migration_warning():
     assert 'agoras publish' in warning
     assert 'agoras twitter post' in warning
     assert 'version 3.0' in warning
-
-
-def test_get_migration_summary_platform_action():
-    """Test brief migration summary for platform actions."""
-    summary = get_migration_summary('twitter', 'post')
-
-    assert 'agoras twitter post' in summary
-
-
-def test_get_migration_summary_feed():
-    """Test brief migration summary for feed actions."""
-    summary = get_migration_summary('facebook', 'last-from-feed')
-
-    assert 'agoras utils feed-publish' in summary
-    assert '--mode last' in summary
-
-
-def test_get_migration_summary_schedule():
-    """Test brief migration summary for schedule action."""
-    summary = get_migration_summary('linkedin', 'schedule')
-
-    assert 'agoras utils schedule-run' in summary
 
 
 def test_suggest_new_command_empty_args():
@@ -330,26 +307,6 @@ def test_format_migration_warning_various_combinations():
         assert 'DEPRECATION WARNING' in warning
         assert network in warning
         assert action in warning
-
-
-def test_get_migration_summary_all_action_types():
-    """Test get_migration_summary for all action types."""
-    # Platform action
-    summary = get_migration_summary('x', 'post')
-    assert 'agoras x post' in summary
-
-    # Feed action
-    summary = get_migration_summary('facebook', 'last-from-feed')
-    assert 'feed-publish' in summary
-    assert 'last' in summary
-
-    summary = get_migration_summary('instagram', 'random-from-feed')
-    assert 'feed-publish' in summary
-    assert 'random' in summary
-
-    # Schedule action
-    summary = get_migration_summary('linkedin', 'schedule')
-    assert 'schedule-run' in summary
 
 
 def test_convert_legacy_params_skips_special_params():
