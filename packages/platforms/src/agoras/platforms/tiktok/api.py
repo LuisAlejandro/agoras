@@ -17,6 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+import sys
 import time
 from typing import Any, Dict, List
 
@@ -267,7 +268,7 @@ class TikTokAPI(BaseAPI):
                 raise Exception(f'Publish timeout after {max_wait_time} seconds')
 
             await asyncio.sleep(10)
-            print('Waiting for post status ...')
+            print('Waiting for post status ...', file=sys.stderr)
 
             def _sync_check_status():
                 if not self.client:
@@ -280,9 +281,14 @@ class TikTokAPI(BaseAPI):
                 publish_id_list = status.get('data', {}).get('publicaly_available_post_id', [])
 
                 if len(publish_id_list) > 0 or publish_status == 'PUBLISH_COMPLETE':
-                    print('Post published!')
+                    try:
+                        print('Post published!', file=sys.stderr)
+                    except BrokenPipeError:
+                        pass
                     break
 
+            except BrokenPipeError:
+                break
             except Exception as e:
                 self._handle_api_error(e, 'TikTok status check')
                 raise

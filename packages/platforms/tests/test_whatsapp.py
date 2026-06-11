@@ -52,6 +52,32 @@ async def test_whatsapp_initialize_client(mock_api_class):
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.whatsapp.wrapper.WhatsAppAPI')
+@patch('agoras.platforms.whatsapp.auth.WhatsAppAuthManager')
+async def test_whatsapp_initialize_client_from_storage_without_business_account(
+    mock_auth_class, mock_api_class,
+):
+    """Stored credentials need only access token and phone number ID."""
+    mock_auth = MagicMock()
+    mock_auth._load_credentials_from_storage.return_value = True
+    mock_auth.access_token = 'stored_token'
+    mock_auth.phone_number_id = 'phone123'
+    mock_auth.business_account_id = None
+    mock_auth_class.return_value = mock_auth
+
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    whatsapp = WhatsApp(whatsapp_recipient='+1234567890')
+    await whatsapp._initialize_client()
+
+    assert whatsapp.whatsapp_access_token == 'stored_token'
+    assert whatsapp.whatsapp_phone_number_id == 'phone123'
+    mock_api.authenticate.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.whatsapp.wrapper.WhatsAppAPI')
 @patch('agoras.platforms.whatsapp.auth.WhatsAppAuthManager._load_credentials_from_storage', return_value=False)
 async def test_whatsapp_initialize_client_missing_credentials(mock_load_credentials, mock_api_class):
     """Test WhatsApp _initialize_client raises exception without credentials."""

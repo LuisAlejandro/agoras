@@ -32,7 +32,7 @@ setup(
     package_dir={'': 'src'},
     python_requires='>=3.10',
     install_requires=[
-        'requests==2.32.5',
+        'requests==2.33.1',
         'beautifulsoup4==4.14.3',
     ],
     classifiers=[

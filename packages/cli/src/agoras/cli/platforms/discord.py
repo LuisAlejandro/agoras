@@ -25,7 +25,7 @@ from argparse import ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.discord.wrapper import main as discord_main
 
-from ..base import add_common_content_options
+from ..base import add_common_content_options, add_video_options
 from ..converter import ParameterConverter
 from ..validator import ActionValidator
 
@@ -121,24 +121,8 @@ def _add_discord_auth_options(parser: ArgumentParser, required: bool = True):
 
 
 def _add_video_options(parser: ArgumentParser):
-    """
-    Add video-specific options for Discord.
-
-    Args:
-        parser: ArgumentParser to add options to
-    """
-    video = parser.add_argument_group('Video Options')
-    video.add_argument(
-        '--video-url',
-        required=True,
-        metavar='<url>',
-        help='URL of video file to send'
-    )
-    video.add_argument(
-        '--video-title',
-        metavar='<title>',
-        help='Video title/description'
-    )
+    """Add video-specific options for Discord."""
+    add_video_options(parser, platform='discord')
 
 
 def _add_post_id_option(parser: ArgumentParser):

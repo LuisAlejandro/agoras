@@ -22,6 +22,7 @@ from typing import List
 from agoras.core.interfaces import SocialNetwork
 
 from .api import TelegramAPI
+from .auth import normalize_chat_id
 
 
 class Telegram(SocialNetwork):
@@ -63,7 +64,9 @@ class Telegram(SocialNetwork):
         """
         # Get configuration values
         self.telegram_bot_token = self._get_config_value('telegram_bot_token', 'TELEGRAM_BOT_TOKEN')
-        self.telegram_chat_id = self._get_config_value('telegram_chat_id', 'TELEGRAM_CHAT_ID')
+        self.telegram_chat_id = normalize_chat_id(
+            self._get_config_value('telegram_chat_id', 'TELEGRAM_CHAT_ID')
+        )
         self.telegram_parse_mode = self._get_config_value('telegram_parse_mode', 'TELEGRAM_PARSE_MODE') or 'HTML'
         self.telegram_reply_to_message_id = self._get_config_value(
             'telegram_reply_to_message_id', 'TELEGRAM_REPLY_TO_MESSAGE_ID')
@@ -233,10 +236,10 @@ class Telegram(SocialNetwork):
             if not video.content or not video.file_type:
                 raise Exception('Failed to download or validate video')
 
-            # Send video with caption
+            # Send downloaded bytes (avoid re-downloading in the API layer)
             message_id = await self.api.send_video(
                 chat_id=self.telegram_chat_id,
-                video_url=video_url,
+                video_content=video.content,
                 caption=caption,
                 parse_mode=self.telegram_parse_mode
             )

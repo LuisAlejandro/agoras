@@ -218,12 +218,16 @@ class YouTube(SocialNetwork):
             video.cleanup()
             raise Exception('Failed to download or validate video')
 
-        # Ensure video is in allowed format for YouTube
-        allowed_types = ['video/quicktime', 'video/mp4', 'video/webm']
-        if video.file_type.mime not in allowed_types:
+        from agoras.media.constraints import video_limits
+        from agoras.media.errors import MediaValidationError
+
+        allowed = video_limits('youtube').mime_types
+        if video.file_type.mime not in allowed:
             video.cleanup()
-            raise Exception(f'Invalid video type "{video.file_type.mime}" for {video_url}. '
-                            f'YouTube supports: {allowed_types}')
+            raise MediaValidationError(
+                'youtube', 'video', 'mime_types',
+                video.file_type.mime, sorted(allowed),
+            )
 
         # Ensure temp file exists
         if not video.temp_file:

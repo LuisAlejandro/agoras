@@ -28,6 +28,13 @@ from typing import Optional
 
 from agoras.core.auth.storage import SecureTokenStorage
 
+from .unattended_format import format_unattended_env
+
+_SECURITY_WARNING = (
+    'WARNING: Output contains cleartext credentials. '
+    'Do not pipe to logs or shared systems.'
+)
+
 
 def create_tokens_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     """
@@ -90,6 +97,19 @@ def create_tokens_parser(subparsers: _SubParsersAction) -> ArgumentParser:
         help='Output format (default: plain)'
     )
     show_parser.set_defaults(command=_handle_show)
+
+    unattended_parser = tokens_subparsers.add_parser(
+        'unattended-format',
+        help='Export stored credentials as unattended.env variables (cleartext)'
+    )
+    unattended_parser.add_argument(
+        '--platform',
+        action='append',
+        metavar='<platform>',
+        dest='platforms',
+        help='Limit output to platform(s); default: all platforms with stored tokens'
+    )
+    unattended_parser.set_defaults(command=_handle_unattended_format)
 
     return parser
 
@@ -164,6 +184,33 @@ def _handle_show(args: Namespace) -> int:
             print(f"No stored tokens found for platform '{args.platform}'.", file=sys.stderr)
             return 1
 
+    return 0
+
+
+def _handle_unattended_format(args: Namespace) -> int:
+    """
+    Handle tokens unattended-format command.
+
+    Args:
+        args: Parsed command-line arguments
+
+    Returns:
+        Exit status code
+    """
+    print(_SECURITY_WARNING, file=sys.stderr)
+
+    storage = SecureTokenStorage()
+    output = format_unattended_env(storage, platforms_filter=args.platforms)
+
+    if output is None:
+        if args.platforms:
+            platforms = ', '.join(args.platforms)
+            print(f"No stored tokens found for platform(s): {platforms}.", file=sys.stderr)
+        else:
+            print('No stored tokens found.', file=sys.stderr)
+        return 1
+
+    sys.stdout.write(output)
     return 0
 
 

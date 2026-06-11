@@ -27,6 +27,7 @@ from argparse import ArgumentParser, Namespace, _SubParsersAction
 from agoras.platforms.youtube.wrapper import main as youtube_main
 
 from ..converter import ParameterConverter
+from ..media_help import video_url_help
 from ..validator import ActionValidator
 
 
@@ -122,7 +123,7 @@ def _add_video_options(parser: ArgumentParser):
         '--video-url',
         required=True,
         metavar='<url>',
-        help='URL of video file to upload'
+        help=video_url_help('youtube')
     )
     video.add_argument(
         '--title',

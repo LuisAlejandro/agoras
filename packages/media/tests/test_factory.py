@@ -49,7 +49,7 @@ def test_create_video():
     video = MediaFactory.create_video('https://example.com/video.mp4', platform='facebook')
     assert isinstance(video, Video)
     assert video.url == 'https://example.com/video.mp4'
-    assert video.platform == 'Facebook'  # Platform name is capitalized
+    assert video.platform_key == 'facebook'
 
 
 def test_create_video_with_size_limit():
@@ -65,8 +65,8 @@ def test_create_video_platform_limits():
     fb_video = MediaFactory.create_video('https://example.com/video.mp4', platform='facebook')
     tw_video = MediaFactory.create_video('https://example.com/video.mp4', platform='twitter')
 
-    assert fb_video.platform == 'Facebook'  # Platform name is capitalized
-    assert tw_video.platform == 'Twitter'  # Platform name is capitalized
+    assert fb_video.platform_key == 'facebook'
+    assert tw_video.platform_key == 'twitter'
 
 
 # Platform-Specific Video Creation Tests
@@ -75,35 +75,35 @@ def test_create_video_for_discord():
     """Test MediaFactory creates Discord-specific video."""
     video = MediaFactory.create_video('https://example.com/video.mp4', platform='discord')
     assert isinstance(video, Video)
-    assert video.platform == 'Discord'
+    assert video.platform_key == 'discord'
 
 
 def test_create_video_for_instagram():
     """Test MediaFactory creates Instagram-specific video."""
     video = MediaFactory.create_video('https://example.com/video.mp4', platform='instagram')
     assert isinstance(video, Video)
-    assert video.platform == 'Instagram'
+    assert video.platform_key == 'instagram'
 
 
 def test_create_video_for_youtube():
     """Test MediaFactory creates YouTube-specific video."""
     video = MediaFactory.create_video('https://example.com/video.mp4', platform='youtube')
     assert isinstance(video, Video)
-    assert video.platform == 'YouTube'
+    assert video.platform_key == 'youtube'
 
 
 def test_create_video_for_tiktok():
     """Test MediaFactory creates TikTok-specific video."""
     video = MediaFactory.create_video('https://example.com/video.mp4', platform='tiktok')
     assert isinstance(video, Video)
-    assert video.platform == 'TikTok'
+    assert video.platform_key == 'tiktok'
 
 
 def test_create_video_for_generic_platform():
     """Test MediaFactory creates generic video for unknown platform."""
     video = MediaFactory.create_video('https://example.com/video.mp4', platform='unknown')
     assert isinstance(video, Video)
-    assert video.platform == 'unknown'
+    assert video.platform_key == 'unknown'
 
 
 def test_create_video_case_insensitive():
@@ -112,9 +112,9 @@ def test_create_video_case_insensitive():
     video_upper = MediaFactory.create_video('https://example.com/video.mp4', platform='DISCORD')
     video_mixed = MediaFactory.create_video('https://example.com/video.mp4', platform='DiScOrD')
 
-    assert video_lower.platform == 'Discord'
-    assert video_upper.platform == 'Discord'
-    assert video_mixed.platform == 'Discord'
+    assert video_lower.platform_key == 'discord'
+    assert video_upper.platform_key == 'discord'
+    assert video_mixed.platform_key == 'discord'
 
 
 def test_create_video_max_size_override():
@@ -255,4 +255,4 @@ async def test_download_video_and_images_platform_passed(mock_image_download, mo
 
     video, images = await MediaFactory.download_video_and_images(video_url, image_urls, platform='instagram')
 
-    assert video.platform == 'Instagram'
+    assert video.platform_key == 'instagram'

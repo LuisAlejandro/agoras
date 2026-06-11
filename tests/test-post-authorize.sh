@@ -1,187 +1,268 @@
 #!/usr/bin/env bash
 
-# Integration Test - End-to-End testing with real API credentials
-# Uses the installed "${PROJECT_ROOT}/virtualenv/bin/agoras" CLI command
-# Part of "${PROJECT_ROOT}/virtualenv/bin/agoras" v2.0 modular package structure
-#
-# This script is used by test-authorize.sh and sources authorize.env
-# instead of unattended.env. Make sure you have copied authorize.env.example
-# to authorize.env and filled in your credentials.
+# Platform post cases for authorize-path runner (stored credentials)
 
-# Exit early if there are errors and be verbose
 set -exuo pipefail
 
-# Get the absolute path of the script's directory
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-# Get the project root (parent of tests directory)
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-source "${PROJECT_ROOT}/authorize.env"
+# shellcheck source=lib/common.sh
+source "${SCRIPT_DIR}/lib/common.sh"
+
+load_authorize_env "${PROJECT_ROOT}/authorize.env"
+init_agoras_bin "${PROJECT_ROOT}"
 
 if [ "${1}" == "x" ]; then
     POST_X_ID=$(
-        "${PROJECT_ROOT}/virtualenv/bin/agoras" x post \
+        run_agoras x post \
             --text "This is a test post. It should delete itself in a couple of minutes." \
-            --image-1 "https://wakatime.com/share/@LuisAlejandro/5a56439c-b3af-44e6-8164-c0b9128872b8.png" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
+            --image-1 "${TEST_IMAGE_URL}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
-    [ -n "${POST_X_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" x delete \
-        --post-id "${POST_X_ID}" || true
+    if [ -n "${POST_X_ID}" ]; then
+        run_agoras x like --post-id "${POST_X_ID}" || true
+        sleep 5
+        run_agoras x share --post-id "${POST_X_ID}" || true
+        sleep 5
+        run_agoras x delete --post-id "${POST_X_ID}" || true
+    fi
+
+    sleep 5
+
+    set +e
+    POST_X_VIDEO_ID=$(
+        run_agoras_capture_id '.id' x video \
+            --video-url "${TEST_VIDEO_URL}" \
+            --video-title "E2E test video"
+    )
+    x_video_exit=$?
+    set -e
+
+    if [ "${x_video_exit}" -ne 0 ] || [ -z "${POST_X_VIDEO_ID}" ]; then
+        skip_case "x video upload unavailable or not permitted"
+    else
+        sleep 5
+        run_agoras x delete --post-id "${POST_X_VIDEO_ID}" || true
+    fi
 
 elif [ "${1}" == "tiktok" ]; then
+    set +e
+    POST_TIKTOK_PHOTO_ID=$(
+        run_agoras tiktok post \
+            --title "This is a test slideshow. It should delete itself in a couple of minutes." \
+            --image-1 "${TEST_TIKTOK_IMAGE_URL}" \
+            --privacy SELF_ONLY | tee /dev/stderr | jq --unbuffered '.' | jq -r '.publish_id // empty'
+    )
+    tiktok_post_exit=$?
+    set -e
+
+    if [ "${tiktok_post_exit}" -ne 0 ] || [ -z "${POST_TIKTOK_PHOTO_ID}" ]; then
+        skip_case "tiktok post slideshow unavailable or not permitted"
+    else
+        echo "TikTok post test created with ID: ${POST_TIKTOK_PHOTO_ID}"
+    fi
+
     POST_TIKTOK_ID=$(
-        "${PROJECT_ROOT}/virtualenv/bin/agoras" tiktok video \
+        run_agoras tiktok video \
             --title "This is a test post. It should delete itself in a couple of minutes." \
-            --video-url "https://luisalejandro.org/files/videos/test.mp4" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.publish_id'
+            --video-url "${TEST_VIDEO_URL}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.publish_id'
     )
 
     echo "TikTok video test created with ID: ${POST_TIKTOK_ID}"
     echo "Note: TikTok does not support delete, like, or share actions"
 
 elif [ "${1}" == "facebook-video" ]; then
-    "${PROJECT_ROOT}/virtualenv/bin/agoras" facebook video \
-        --video-url "https://luisalejandro.org/files/videos/test.mp4" \
+    run_agoras facebook video \
+        --video-url "${TEST_VIDEO_URL}" \
         --video-type "url" \
         --video-title "This is a test post. It should delete itself in a couple of minutes." \
         --video-description "This is a test post. It should delete itself in a couple of minutes."
 
 elif [ "${1}" == "youtube" ]; then
     POST_YOUTUBE_ID=$(
-        "${PROJECT_ROOT}/virtualenv/bin/agoras" youtube video \
+        run_agoras youtube video \
             --title "This is a test post. It should delete itself in a couple of minutes." \
-            --video-url "https://luisalejandro.org/files/videos/test.mp4" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
+            --video-url "${TEST_VIDEO_URL}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
-    [ -n "${POST_YOUTUBE_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" youtube like \
-        --video-id "${POST_YOUTUBE_ID}" || true
+    [ -n "${POST_YOUTUBE_ID}" ] && run_agoras youtube like --video-id "${POST_YOUTUBE_ID}" || true
 
     sleep 5
 
-    [ -n "${POST_YOUTUBE_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" youtube delete \
-        --video-id "${POST_YOUTUBE_ID}" || true
+    [ -n "${POST_YOUTUBE_ID}" ] && run_agoras youtube delete --video-id "${POST_YOUTUBE_ID}" || true
 
 elif [ "${1}" == "facebook" ]; then
     POST_FACEBOOK_ID=$(
-        "${PROJECT_ROOT}/virtualenv/bin/agoras" facebook post \
+        run_agoras facebook post \
             --text "This is a test post. It should delete itself in a couple of minutes." \
-            --image-1 "https://wakatime.com/share/@LuisAlejandro/5a56439c-b3af-44e6-8164-c0b9128872b8.png" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
+            --image-1 "${TEST_IMAGE_URL}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
     SHARED_POST_FACEBOOK_ID=$(
-        "${PROJECT_ROOT}/virtualenv/bin/agoras" facebook share \
+        run_agoras facebook share \
             --profile-id "${FACEBOOK_OBJECT_ID}" \
             --post-id "${POST_FACEBOOK_ID}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
-    [ -n "${POST_FACEBOOK_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" facebook like \
-        --post-id "${POST_FACEBOOK_ID}" || true
+    [ -n "${POST_FACEBOOK_ID}" ] && run_agoras facebook like --post-id "${POST_FACEBOOK_ID}" || true
 
     sleep 5
 
-    [ -n "${SHARED_POST_FACEBOOK_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" facebook delete \
-        --post-id "${SHARED_POST_FACEBOOK_ID}" || true
+    [ -n "${SHARED_POST_FACEBOOK_ID}" ] && run_agoras facebook delete --post-id "${SHARED_POST_FACEBOOK_ID}" || true
 
     sleep 5
 
-    [ -n "${POST_FACEBOOK_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" facebook delete \
-        --post-id "${POST_FACEBOOK_ID}" || true
+    [ -n "${POST_FACEBOOK_ID}" ] && run_agoras facebook delete --post-id "${POST_FACEBOOK_ID}" || true
 
 elif [ "${1}" == "instagram" ]; then
     POST_INSTAGRAM_ID=$(
-        "${PROJECT_ROOT}/virtualenv/bin/agoras" instagram post \
+        run_agoras instagram post \
             --text "This is a test post. It should delete itself in a couple of minutes." \
-            --image-1 "https://wakatime.com/share/@LuisAlejandro/5a56439c-b3af-44e6-8164-c0b9128872b8.png" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
+            --image-1 "${TEST_IMAGE_URL}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     echo "Instagram post test created with ID: ${POST_INSTAGRAM_ID}"
-    echo "Note: Instagram does not support delete, like, or share actions"
+
+    sleep 5
+
+    try_agoras_or_skip "instagram video upload unavailable or not permitted" \
+        run_agoras instagram video \
+        --video-url "${TEST_VIDEO_URL}" \
+        --video-caption "E2E test video"
 
 elif [ "${1}" == "discord" ]; then
     POST_DISCORD_ID=$(
-        "${PROJECT_ROOT}/virtualenv/bin/agoras" discord post \
+        run_agoras discord post \
             --text "This is a test post. It should delete itself in a couple of minutes." \
-            --image-1 "https://wakatime.com/share/@LuisAlejandro/5a56439c-b3af-44e6-8164-c0b9128872b8.png" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
+            --image-1 "${TEST_IMAGE_URL}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
-    echo "Note: Discord does not support 'like' action (uses reactions instead)"
+    try_agoras_or_skip "discord video upload unavailable or file too large" \
+        run_agoras discord video --video-url "${TEST_DISCORD_VIDEO_URL}"
 
     sleep 5
 
-    [ -n "${POST_DISCORD_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" discord delete \
-        --post-id "${POST_DISCORD_ID}" || true
+    [ -n "${POST_DISCORD_ID}" ] && run_agoras discord delete --post-id "${POST_DISCORD_ID}" || true
 
 elif [ "${1}" == "linkedin" ]; then
     POST_LINKEDIN_ID=$(
-        "${PROJECT_ROOT}/virtualenv/bin/agoras" linkedin post \
+        run_agoras linkedin post \
             --text "This is a test post. It should delete itself in a couple of minutes." \
-            --image-1 "https://wakatime.com/share/@LuisAlejandro/5a56439c-b3af-44e6-8164-c0b9128872b8.png" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
+            --image-1 "${TEST_IMAGE_URL}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
     SHARED_POST_LINKEDIN_ID=$(
-        "${PROJECT_ROOT}/virtualenv/bin/agoras" linkedin share \
+        run_agoras linkedin share \
             --post-id "${POST_LINKEDIN_ID}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
-    [ -n "${POST_LINKEDIN_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" linkedin like \
-        --post-id "${POST_LINKEDIN_ID}" || true
+    [ -n "${POST_LINKEDIN_ID}" ] && run_agoras linkedin like --post-id "${POST_LINKEDIN_ID}" || true
 
     sleep 5
 
-    [ -n "${SHARED_POST_LINKEDIN_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" linkedin delete \
-        --post-id "${SHARED_POST_LINKEDIN_ID}" || true
+    [ -n "${SHARED_POST_LINKEDIN_ID}" ] && run_agoras linkedin delete --post-id "${SHARED_POST_LINKEDIN_ID}" || true
 
     sleep 5
 
-    [ -n "${POST_LINKEDIN_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" linkedin delete \
-        --post-id "${POST_LINKEDIN_ID}" || true
+    [ -n "${POST_LINKEDIN_ID}" ] && run_agoras linkedin delete --post-id "${POST_LINKEDIN_ID}" || true
+
+    sleep 5
+
+    try_agoras_or_skip "linkedin video upload unavailable or not permitted" \
+        run_agoras linkedin video --video-url "${TEST_VIDEO_URL}"
 
 elif [ "${1}" == "threads" ]; then
     POST_THREADS_ID=$(
-        "${PROJECT_ROOT}/virtualenv/bin/agoras" threads post \
+        run_agoras threads post \
             --text "This is a test post. It should delete itself in a couple of minutes." \
-            --image-1 "https://wakatime.com/share/@LuisAlejandro/5a56439c-b3af-44e6-8164-c0b9128872b8.png" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
-    )
-
-    echo "Threads post test created with ID: ${POST_THREADS_ID}"
-    echo "Note: Threads does not support delete or like actions"
-
-elif [ "${1}" == "telegram" ]; then
-    POST_TELEGRAM_ID=$(
-        "${PROJECT_ROOT}/virtualenv/bin/agoras" telegram post \
-            --text "This is a test post. It should delete itself in a couple of minutes." \
-            --image-1 "https://wakatime.com/share/@LuisAlejandro/5a56439c-b3af-44e6-8164-c0b9128872b8.png" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
+            --image-1 "${TEST_IMAGE_URL}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     sleep 5
 
-    [ -n "${POST_TELEGRAM_ID}" ] && "${PROJECT_ROOT}/virtualenv/bin/agoras" telegram delete \
-        --post-id "${POST_TELEGRAM_ID}" || true
+    if [ -n "${POST_THREADS_ID}" ]; then
+        run_agoras threads share --post-id "${POST_THREADS_ID}" || true
+    fi
+
+    echo "Threads post test created with ID: ${POST_THREADS_ID}"
+
+    sleep 5
+
+    try_agoras_or_skip "threads video upload unavailable or not permitted" \
+        run_agoras threads video \
+        --video-url "${TEST_VIDEO_URL}" \
+        --video-title "E2E test video"
+
+elif [ "${1}" == "telegram" ]; then
+    POST_TELEGRAM_ID=$(
+        run_agoras telegram post \
+            --text "This is a test post. It should delete itself in a couple of minutes." \
+            --image-1 "${TEST_IMAGE_URL}" | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
+    )
+
+    sleep 5
+
+    set +e
+    TELEGRAM_VIDEO_ID=$(
+        run_agoras_capture_id '.id' telegram video --video-url "${TEST_VIDEO_URL}"
+    )
+    telegram_video_exit=$?
+    set -e
+
+    if [ "${telegram_video_exit}" -ne 0 ] || [ -z "${TELEGRAM_VIDEO_ID}" ]; then
+        skip_case "telegram video send unavailable or not permitted"
+    else
+        sleep 5
+        run_agoras telegram delete --post-id "${TELEGRAM_VIDEO_ID}" || true
+    fi
+
+    sleep 5
+
+    [ -n "${POST_TELEGRAM_ID}" ] && run_agoras telegram delete --post-id "${POST_TELEGRAM_ID}" || true
 
 elif [ "${1}" == "whatsapp" ]; then
     POST_WHATSAPP_ID=$(
-        "${PROJECT_ROOT}/virtualenv/bin/agoras" whatsapp post \
+        run_agoras whatsapp post \
             --recipient "${WHATSAPP_RECIPIENT}" \
             --text "This is a test post. It should delete itself in a couple of minutes." | tee /dev/stderr | jq --unbuffered '.' | jq -r '.id'
     )
 
     echo "WhatsApp post test created with ID: ${POST_WHATSAPP_ID}"
-    echo "Note: WhatsApp does not support delete, like, or share actions"
+
+    sleep 5
+
+    try_agoras_or_skip "whatsapp video send unavailable or not permitted" \
+        run_agoras whatsapp video \
+        --recipient "${WHATSAPP_RECIPIENT}" \
+        --video-url "${TEST_VIDEO_URL}"
+
+    if [ -n "${WHATSAPP_TEMPLATE_NAME:-}" ]; then
+        sleep 5
+        try_agoras_or_skip "whatsapp template send unavailable or not permitted" \
+            run_agoras whatsapp template \
+            --recipient "${WHATSAPP_RECIPIENT}" \
+            --template-name "${WHATSAPP_TEMPLATE_NAME}" \
+            --language-code "${WHATSAPP_TEMPLATE_LANGUAGE:-en}"
+    else
+        skip_case "whatsapp template skipped (set WHATSAPP_TEMPLATE_NAME in env)"
+    fi
 
 else
     echo "Unsupported platform ${1}"
-    echo "Usage: $0 {x|tiktok|facebook-video|youtube|facebook|instagram|discord|linkedin|threads|telegram|whatsapp}"
+    exit 1
 fi

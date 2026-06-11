@@ -20,12 +20,15 @@ import asyncio
 import webbrowser
 from typing import Optional
 
-from authlib.integrations.requests_client import OAuth1Session
-
 from agoras.core.auth import BaseAuthManager
 from agoras.core.auth.callback_server import OAuthCallbackServer
+from authlib.integrations.requests_client import OAuth1Session
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from .client import XAPIClient
+
+OAUTH_HTTP_TIMEOUT = 30
 
 
 class XAuthManager(BaseAuthManager):
@@ -102,6 +105,9 @@ class XAuthManager(BaseAuthManager):
                 client_id=self.consumer_key,
                 client_secret=self.consumer_secret
             )
+            no_retries = HTTPAdapter(max_retries=Retry(total=0, connect=0, read=0))
+            self.oauth_session.mount('https://', no_retries)
+            self.oauth_session.mount('http://', no_retries)
 
             callback_server = OAuthCallbackServer(
                 oauth_version='1.0a',
@@ -110,17 +116,23 @@ class XAuthManager(BaseAuthManager):
             redirect_uri = "https://localhost:3456/callback"
 
             def _sync_oauth_flow():
-                # Fetch request token
                 request_token_url = 'https://api.x.com/oauth/request_token'
                 self.oauth_session.redirect_uri = redirect_uri
-                request_token = self.oauth_session.fetch_request_token(request_token_url)
 
-                # Create authorization URL and open browser
+                print(
+                    f"Requesting OAuth request token from X API (timeout {OAUTH_HTTP_TIMEOUT}s)...",
+                    flush=True,
+                )
+                request_token = self.oauth_session.fetch_request_token(
+                    request_token_url,
+                    timeout=OAUTH_HTTP_TIMEOUT,
+                )
+
                 authorization_url = 'https://api.x.com/oauth/authorize'
                 auth_url = f"{authorization_url}?oauth_token={request_token['oauth_token']}"
 
-                print("Opening browser for X authorization...")
-                print(f"Authorization URL: {auth_url}")
+                print("Opening browser for X authorization...", flush=True)
+                print(f"Authorization URL: {auth_url}", flush=True)
                 webbrowser.open(auth_url)
 
                 return True
@@ -136,7 +148,14 @@ class XAuthManager(BaseAuthManager):
             def _sync_complete_oauth():
                 self.oauth_session.parse_authorization_response(callback_url)
                 access_token_url = 'https://api.x.com/oauth/access_token'
-                access_token = self.oauth_session.fetch_access_token(access_token_url)
+                print(
+                    f"Exchanging OAuth verifier for access token (timeout {OAUTH_HTTP_TIMEOUT}s)...",
+                    flush=True,
+                )
+                access_token = self.oauth_session.fetch_access_token(
+                    access_token_url,
+                    timeout=OAUTH_HTTP_TIMEOUT,
+                )
 
                 self.oauth_token = access_token['oauth_token']
                 self.oauth_secret = access_token['oauth_token_secret']
@@ -147,7 +166,14 @@ class XAuthManager(BaseAuthManager):
             return "Authorization successful. Credentials stored securely."
 
         except Exception as e:
-            raise Exception(f'X authorization failed: {str(e)}')
+            error = str(e)
+            if 'timed out' in error.lower() or 'timeout' in error.lower():
+                raise Exception(
+                    'X authorization failed: could not reach api.x.com within '
+                    f'{OAUTH_HTTP_TIMEOUT}s. Check network connectivity and '
+                    'whether api.x.com is blocked or unreachable from your network.'
+                ) from e
+            raise Exception(f'X authorization failed: {error}') from e
 
     def _create_client(self) -> XAPIClient:
         """Create X API client instance."""

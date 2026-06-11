@@ -165,6 +165,79 @@ async def test_threads_post(mock_api_class):
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.threads.wrapper.ThreadsAPI')
+async def test_threads_video(mock_api_class):
+    """Test Threads video method."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.create_video_post = AsyncMock(return_value='video-999')
+    mock_api_class.return_value = mock_api
+
+    threads = Threads(
+        threads_app_id='app_id',
+        threads_app_secret='secret',
+        threads_refresh_token='token'
+    )
+
+    await threads._initialize_client()
+
+    with patch.object(threads, '_output_status'):
+        result = await threads.video('E2E test video', 'http://video.mp4', 'E2E test video')
+
+    assert result == 'video-999'
+    mock_api.create_video_post.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.threads.wrapper.ThreadsAPI')
+async def test_threads_handle_video_action(mock_api_class):
+    """Test Threads _handle_video_action uses threads_video_url."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.create_video_post = AsyncMock(return_value='video-999')
+    mock_api_class.return_value = mock_api
+
+    threads = Threads(
+        threads_app_id='app_id',
+        threads_app_secret='secret',
+        threads_refresh_token='token',
+        threads_video_url='http://video.mp4',
+        threads_video_title='E2E test video'
+    )
+
+    await threads._initialize_client()
+
+    with patch.object(threads, '_output_status'):
+        await threads._handle_video_action()
+
+    mock_api.create_video_post.assert_called_once_with(
+        'E2E test video',
+        'http://video.mp4',
+        who_can_reply='everyone'
+    )
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.threads.wrapper.ThreadsAPI')
+async def test_threads_handle_video_action_missing_url(mock_api_class):
+    """Test Threads _handle_video_action raises when video URL missing."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    threads = Threads(
+        threads_app_id='app_id',
+        threads_app_secret='secret',
+        threads_refresh_token='token'
+    )
+
+    await threads._initialize_client()
+
+    with pytest.raises(Exception, match='Threads video URL is required'):
+        await threads._handle_video_action()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.threads.wrapper.ThreadsAPI')
 async def test_threads_disconnect(mock_api_class):
     """Test Threads disconnect method."""
     mock_api = MagicMock()

@@ -72,7 +72,7 @@ def create_telegram_parser(subparsers: _SubParsersAction) -> ArgumentParser:
         help='Send a video to Telegram chat. Requires prior authorization via "agoras telegram authorize".'
     )
     _add_telegram_auth_options(video, required=False)
-    add_video_options(video)
+    add_video_options(video, platform='telegram')
 
     # Delete action
     delete = actions.add_parser(

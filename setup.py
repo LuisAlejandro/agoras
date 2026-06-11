@@ -54,7 +54,7 @@ setup(
     # Combined dependencies from all sub-packages
     install_requires=[
         # From agoras-common
-        'requests==2.32.5',
+        'requests==2.33.0',
         'beautifulsoup4==4.14.3',
 
         # From agoras-media
@@ -79,7 +79,7 @@ setup(
         'google-auth-httplib2==0.3.0',
         'oauth2client==4.1.3',
         'platformdirs==4.4.0',
-        'authlib==1.6.6',
+        'authlib==1.6.11',
         'cryptography>=42.0.0',
         'python-telegram-bot>=22.1',
     ],

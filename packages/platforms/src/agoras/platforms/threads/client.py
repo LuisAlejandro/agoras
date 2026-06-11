@@ -177,6 +177,79 @@ class ThreadsAPIClient:
                 pass
             raise Exception(f"HTTP {response.status_code}: {response.text}")
 
+    def create_video_post(self, post_text: str, video_url: str,
+                          who_can_reply: str = "everyone") -> Dict[str, Any]:
+        """
+        Create a video post on Threads using Meta's Graph API.
+
+        Args:
+            post_text (str): Text content / caption for the video
+            video_url (str): Publicly accessible URL of the video
+            who_can_reply (str): Who can reply to this post
+
+        Returns:
+            dict: Post creation response
+
+        Raises:
+            Exception: If video post creation fails or not authenticated
+        """
+        if not self.access_token:
+            raise Exception('No access token available')
+
+        if not self.user_id:
+            raise Exception('No user ID available')
+
+        if not video_url:
+            raise Exception('Video URL is required')
+
+        try:
+            container_data = {
+                'access_token': self.access_token,
+                'text': post_text,
+                'reply_control': who_can_reply,
+                'media_type': 'VIDEO',
+                'video_url': video_url,
+            }
+
+            resp = requests.post(
+                f"{self.base_url}/me/threads",
+                data=container_data,
+                timeout=30
+            )
+            self._check_response(resp)
+            creation_id = resp.json()['id']
+
+            # Video processing is asynchronous; poll until ready
+            status = 'IN_PROGRESS'
+            while status not in ('FINISHED', 'PUBLISHED'):
+                time.sleep(5)
+                status_resp = requests.get(
+                    f"{self.base_url}/{creation_id}",
+                    params={'fields': 'status', 'access_token': self.access_token},
+                    timeout=30
+                )
+                self._check_response(status_resp)
+                status = status_resp.json().get('status', '')
+                if status == 'ERROR':
+                    raise Exception('Threads video processing failed')
+
+            publish_data = {
+                'access_token': self.access_token,
+                'creation_id': creation_id
+            }
+
+            publish_resp = requests.post(
+                f"{self.base_url}/{self.user_id}/threads_publish",
+                data=publish_data,
+                timeout=30
+            )
+            self._check_response(publish_resp)
+
+            return {'id': publish_resp.json()['id']}
+
+        except Exception as e:
+            raise Exception(f"Failed to create video post: {str(e)}")
+
     def repost_post(self, post_id: str) -> Dict[str, Any]:
         """
         Repost an existing post using Meta's Graph API.

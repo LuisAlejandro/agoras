@@ -25,7 +25,7 @@ from argparse import ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.threads.wrapper import main as threads_main
 
-from ..base import add_common_content_options
+from ..base import add_common_content_options, add_video_options
 from ..converter import ParameterConverter
 from ..validator import ActionValidator
 
@@ -111,24 +111,8 @@ def _add_threads_authorize_options(parser: ArgumentParser):
 
 
 def _add_video_options(parser: ArgumentParser):
-    """
-    Add video-specific options for Threads.
-
-    Args:
-        parser: ArgumentParser to add options to
-    """
-    video = parser.add_argument_group('Video Options')
-    video.add_argument(
-        '--video-url',
-        required=True,
-        metavar='<url>',
-        help='URL of video file to upload'
-    )
-    video.add_argument(
-        '--video-title',
-        metavar='<title>',
-        help='Video caption/description'
-    )
+    """Add video-specific options for Threads."""
+    add_video_options(parser, platform='threads')
 
 
 def _add_post_id_option(parser: ArgumentParser):

@@ -415,7 +415,9 @@ async def test_instagram_video_invalid_mime(mock_api_class):
         mock_video.cleanup = MagicMock()
         mock_download.return_value = mock_video
 
-        with pytest.raises(Exception, match='Invalid video type.*Instagram requires MP4 format'):
+        from agoras.media.errors import MediaValidationError
+
+        with pytest.raises(MediaValidationError, match='instagram'):
             await instagram.video('text', 'url', 'title')
 
 
@@ -489,8 +491,8 @@ async def test_instagram_video_story(mock_api_class):
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.instagram.wrapper.InstagramAPI')
-async def test_instagram_video_default_video(mock_api_class):
-    """Test Instagram video with default VIDEO type."""
+async def test_instagram_video_default_reels(mock_api_class):
+    """Test Instagram video defaults to REELS for feed posts."""
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
     mock_api_class.return_value = mock_api

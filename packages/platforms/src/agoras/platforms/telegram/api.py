@@ -183,7 +183,9 @@ class TelegramAPI(BaseAPI):
         # If URL provided, download using Media system
         if photo_url:
             from agoras.media import MediaFactory
-            images = await MediaFactory.download_images([photo_url])
+            images = await MediaFactory.download_images(
+                [photo_url], platform='telegram',
+            )
             try:
                 if images and len(images) > 0:
                     image = images[0]

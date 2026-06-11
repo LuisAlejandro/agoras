@@ -24,6 +24,7 @@ from abc import ABC, abstractmethod
 from agoras.core.feed import Feed
 from agoras.core.sheet import ScheduleSheet
 from agoras.media import MediaFactory
+from agoras.media.constraints import resolve_platform
 
 
 class SocialNetwork(ABC):
@@ -154,7 +155,8 @@ class SocialNetwork(ABC):
         Returns:
             list: List of downloaded Image instances
         """
-        return await MediaFactory.download_images(image_urls)
+        platform = resolve_platform(self.get_platform_name())
+        return await MediaFactory.download_images(image_urls, platform=platform)
 
     async def download_video(self, video_url):
         """
@@ -166,7 +168,7 @@ class SocialNetwork(ABC):
         Returns:
             Video: Downloaded Video instance
         """
-        platform = self.get_platform_name()
+        platform = resolve_platform(self.get_platform_name())
         video = MediaFactory.create_video(video_url, platform)
         await video.download()
         return video

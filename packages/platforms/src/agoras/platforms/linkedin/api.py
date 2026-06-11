@@ -130,6 +130,35 @@ class LinkedInAPI(BaseAPI):
         self.client = None
         self._authenticated = False
 
+    async def upload_video(self, video_content: bytes) -> str:
+        """
+        Upload a video to LinkedIn.
+
+        Args:
+            video_content (bytes): Raw video content
+
+        Returns:
+            str: Video URN for the uploaded video
+
+        Raises:
+            Exception: If video upload fails
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client or not self.object_id:
+            raise Exception('LinkedIn API not authenticated')
+
+        await self._rate_limit_check('upload_video', 2.0)
+
+        try:
+            return await self.client.upload_video(
+                video_content=video_content,
+                owner_urn=f"urn:li:person:{self.object_id}"
+            )
+        except Exception as e:
+            self._handle_api_error(e, 'LinkedIn video upload')
+            raise
+
     async def upload_image(self, image_content: bytes) -> str:
         """
         Upload an image to LinkedIn.
@@ -162,7 +191,9 @@ class LinkedInAPI(BaseAPI):
     async def post(self, text: str, link: Optional[str] = None,
                    link_title: Optional[str] = None,
                    link_description: Optional[str] = None,
-                   image_ids: Optional[List[str]] = None) -> str:
+                   image_ids: Optional[List[str]] = None,
+                   video_id: Optional[str] = None,
+                   video_title: Optional[str] = None) -> str:
         """
         Create a LinkedIn post.
 
@@ -172,6 +203,8 @@ class LinkedInAPI(BaseAPI):
             link_title (str, optional): Title of the link
             link_description (str, optional): Description of the link
             image_ids (list, optional): List of uploaded image IDs
+            video_id (str, optional): Uploaded video URN
+            video_title (str, optional): Title for the video post
 
         Returns:
             str: Post ID
@@ -193,7 +226,9 @@ class LinkedInAPI(BaseAPI):
                 link=link,
                 link_title=link_title,
                 link_description=link_description,
-                image_ids=image_ids
+                image_ids=image_ids,
+                video_id=video_id,
+                video_title=video_title,
             )
         except Exception as e:
             self._handle_api_error(e, 'LinkedIn post creation')

@@ -45,6 +45,10 @@ class Discord(SocialNetwork):
         # Map platform-specific keys to generic keys for core interface compatibility
         if 'discord_post_id' in kwargs:
             kwargs['post_id'] = kwargs['discord_post_id']
+        if 'discord_video_url' in kwargs:
+            kwargs['video_url'] = kwargs['discord_video_url']
+        if 'discord_video_title' in kwargs:
+            kwargs['video_title'] = kwargs['discord_video_title']
 
         super().__init__(**kwargs)
         self.discord_bot_token = None

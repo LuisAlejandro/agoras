@@ -17,10 +17,17 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+import time
+import urllib.parse
 from typing import Any, Dict, List, Optional
 
 import requests
 from linkedin_api.clients.restli.client import RestliClient
+from linkedin_api.clients.restli.utils import api as apiutils
+from linkedin_api.clients.restli.utils.query_tunneling import (
+    maybe_apply_query_tunneling_requests_with_body,
+)
+from linkedin_api.common.constants import RESTLI_METHODS
 
 
 class LinkedInAPIClient:
@@ -72,6 +79,37 @@ class LinkedInAPIClient:
         """
         self.restli_client = None
         self._authenticated = False
+
+    def _post_restli_action(
+        self,
+        resource_path: str,
+        action_name: str,
+        action_params: Dict[str, Any],
+    ) -> requests.Response:
+        """
+        Send a Rest.li ACTION and return the raw HTTP response.
+
+        Some LinkedIn actions (e.g. finalizeUpload) return 2xx with an empty
+        body; RestliClient.action() cannot parse those responses.
+        """
+        if not self.restli_client:
+            raise Exception('LinkedIn RestliClient not initialized')
+        if not self.access_token:
+            raise Exception('No access token available')
+
+        url = apiutils.build_rest_url(
+            resource_path=resource_path,
+            version_string=self.api_version,
+        )
+        prepared = maybe_apply_query_tunneling_requests_with_body(
+            encoded_query_param_string=f'action={action_name}',
+            url=url,
+            original_restli_method=RESTLI_METHODS.ACTION,
+            original_request_body=action_params,
+            access_token=self.access_token,
+            version_string=self.api_version,
+        )
+        return self.restli_client.session.send(prepared)
 
     async def upload_image(self, image_content: bytes, owner_urn: str) -> str:
         """
@@ -127,13 +165,140 @@ class LinkedInAPIClient:
 
         return await asyncio.to_thread(_sync_upload)
 
+    @staticmethod
+    def _etag_from_response(response: requests.Response) -> str:
+        """Extract ETag header value for multipart video finalize."""
+        etag = response.headers.get('etag') or response.headers.get('ETag') or ''
+        etag = etag.strip().strip('"')
+        if not etag:
+            raise Exception('Missing ETag from video upload response')
+        return etag
+
+    async def upload_video(self, video_content: bytes, owner_urn: str) -> str:
+        """
+        Upload a video to LinkedIn via the Videos API.
+
+        Initializes upload, sends byte chunks, finalizes, and waits until
+        the video status is AVAILABLE.
+
+        Args:
+            video_content (bytes): Raw video content
+            owner_urn (str): LinkedIn owner URN (e.g., "urn:li:person:12345")
+
+        Returns:
+            str: Video URN for the uploaded video
+
+        Raises:
+            Exception: If any upload step fails
+        """
+        def _sync_upload():
+            if not self.restli_client:
+                raise Exception('LinkedIn RestliClient not initialized')
+            if not self.access_token:
+                raise Exception('No access token available')
+
+            init_request = self.restli_client.action(
+                resource_path="/videos",
+                action_name="initializeUpload",
+                action_params={
+                    "initializeUploadRequest": {
+                        "owner": owner_urn,
+                        "fileSizeBytes": len(video_content),
+                        "uploadCaptions": False,
+                        "uploadThumbnail": False,
+                    }
+                },
+                version_string=self.api_version,
+                access_token=self.access_token
+            )
+
+            init_value = init_request.response.json().get('value', {})
+            video_urn = init_value.get('video', '')
+            upload_token = init_value.get('uploadToken', '')
+            instructions = init_value.get('uploadInstructions', [])
+
+            if not video_urn or not instructions:
+                raise Exception('Failed to initialize video upload with LinkedIn')
+
+            uploaded_part_ids = []
+            for instruction in instructions:
+                first_byte = instruction.get('firstByte', 0)
+                last_byte = instruction.get('lastByte', len(video_content) - 1)
+                upload_url = instruction.get('uploadUrl', '')
+                if not upload_url:
+                    raise Exception('Missing upload URL in LinkedIn video instructions')
+
+                chunk = video_content[first_byte:last_byte + 1]
+                upload_response = requests.put(
+                    upload_url,
+                    headers={'Content-Type': 'application/octet-stream'},
+                    data=chunk,
+                )
+
+                if upload_response.status_code not in (200, 201):
+                    raise Exception(
+                        f'Failed to upload video part: {upload_response.status_code}'
+                    )
+
+                uploaded_part_ids.append(self._etag_from_response(upload_response))
+
+            finalize_response = self._post_restli_action(
+                resource_path="/videos",
+                action_name="finalizeUpload",
+                action_params={
+                    "finalizeUploadRequest": {
+                        "video": video_urn,
+                        "uploadToken": upload_token,
+                        "uploadedPartIds": uploaded_part_ids,
+                    }
+                },
+            )
+
+            if finalize_response.status_code not in (200, 201, 204):
+                detail = finalize_response.text.strip() or finalize_response.reason
+                raise Exception(
+                    f'Failed to finalize video upload: '
+                    f'{finalize_response.status_code} ({detail})'
+                )
+
+            self._wait_for_video_available(video_urn)
+            return video_urn
+
+        return await asyncio.to_thread(_sync_upload)
+
+    def _wait_for_video_available(self, video_urn: str, timeout_s: int = 120) -> None:
+        """Poll LinkedIn until the uploaded video is AVAILABLE."""
+        if not self.restli_client:
+            raise Exception('LinkedIn RestliClient not initialized')
+
+        encoded_urn = urllib.parse.quote(video_urn, safe='')
+        deadline = time.monotonic() + timeout_s
+
+        while time.monotonic() < deadline:
+            request = self.restli_client.get(
+                resource_path=f'/videos/{encoded_urn}',
+                version_string=self.api_version,
+                access_token=self.access_token
+            )
+            status = request.response.json().get('status', '')
+            if status == 'AVAILABLE':
+                return
+            if status == 'PROCESSING_FAILED':
+                raise Exception('LinkedIn video processing failed')
+
+            time.sleep(2)
+
+        raise Exception('Timed out waiting for LinkedIn video to become available')
+
     async def create_post(self,
                           author_urn: str,
                           text: str,
                           link: Optional[str] = None,
                           link_title: Optional[str] = None,
                           link_description: Optional[str] = None,
-                          image_ids: Optional[List[str]] = None) -> str:
+                          image_ids: Optional[List[str]] = None,
+                          video_id: Optional[str] = None,
+                          video_title: Optional[str] = None) -> str:
         """
         Create a LinkedIn post.
 
@@ -144,6 +309,8 @@ class LinkedInAPIClient:
             link_title (str, optional): Title of the link
             link_description (str, optional): Description of the link
             image_ids (list, optional): List of uploaded image IDs
+            video_id (str, optional): Uploaded video URN
+            video_title (str, optional): Title for the video post
 
         Returns:
             str: Post ID
@@ -187,6 +354,13 @@ class LinkedInAPIClient:
 
                 if link_description:
                     entity["content"]["article"]["description"] = link_description
+
+            # Handle video content (without link)
+            elif not link and video_id:
+                media = {"id": video_id}
+                if video_title:
+                    media["title"] = video_title
+                entity["content"] = {"media": media}
 
             # Handle media content (without link)
             elif not link and image_ids:

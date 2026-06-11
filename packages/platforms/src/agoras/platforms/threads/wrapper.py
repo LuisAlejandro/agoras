@@ -224,6 +224,46 @@ class Threads(SocialNetwork):
         """Handle delete action - not supported for Threads."""
         await self.delete(None)
 
+    async def video(self, status_text, video_url, video_title):
+        """
+        Post a video to Threads.
+
+        Args:
+            status_text (str): Text content to accompany the video
+            video_url (str): URL of the video to post
+            video_title (str): Title / caption for the video
+
+        Returns:
+            str: Post ID
+        """
+        if not self.api:
+            raise Exception('Threads API not initialized')
+
+        if not video_url:
+            raise Exception('Threads video URL is required.')
+
+        post_text = status_text or video_title or ''
+
+        post_id = await self.api.create_video_post(
+            post_text,
+            video_url,
+            who_can_reply=self.threads_who_can_reply
+        )
+
+        self._output_status(post_id)
+        return post_id
+
+    async def _handle_video_action(self):
+        """Handle video action with Threads-specific parameter extraction."""
+        video_url = self._get_config_value('threads_video_url', 'THREADS_VIDEO_URL')
+        video_title = self._get_config_value('threads_video_title', 'THREADS_VIDEO_TITLE') or ''
+        status_text = self._get_config_value('status_text', 'STATUS_TEXT') or video_title
+
+        if not video_url:
+            raise Exception('Threads video URL is required for video action.')
+
+        await self.video(status_text, video_url, video_title)
+
     async def authorize_credentials(self):
         """
         Authorize and store Threads credentials for future use.

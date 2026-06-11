@@ -17,6 +17,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+import json
+import sys
 
 from agoras.core.interfaces import SocialNetwork
 
@@ -30,6 +32,11 @@ class TikTok(SocialNetwork):
     This class provides TikTok-specific functionality for posting videos and photos,
     and managing TikTok interactions asynchronously.
     """
+
+    def _output_status(self, post_id):
+        """Emit publish_id JSON on stdout for CLI piping."""
+        status = {'publish_id': post_id}
+        print(json.dumps(status, separators=(',', ':')))
 
     def __init__(self, **kwargs):
         """
@@ -205,9 +212,14 @@ class TikTok(SocialNetwork):
         if not status_text:
             status_text = self.tiktok_title or ''
 
+        from agoras.media.constraints import image_limits
+        from agoras.media.errors import MediaValidationError
+        from agoras.media.preflight import preflight_url_for_platform
+
         # Validate images using Media system
         validated_media = []
         images = await self.download_images(source_media)
+        allowed_images = image_limits('tiktok').mime_types
 
         try:
             for image in images:
@@ -215,10 +227,14 @@ class TikTok(SocialNetwork):
                     image.cleanup()
                     raise Exception(f'Failed to download or validate image: {image.url}')
 
-                # Ensure image is valid format for TikTok
-                if image.file_type.mime not in ['image/jpeg', 'image/png', 'image/jpg']:
+                allowed = allowed_images
+                if image.file_type.mime not in allowed:
                     image.cleanup()
-                    raise Exception(f'Invalid image type "{image.file_type.mime}" for {image.url}')
+                    raise MediaValidationError(
+                        'tiktok', 'image', 'mime_types',
+                        image.file_type.mime, sorted(allowed),
+                    )
+                preflight_url_for_platform(image.url, 'tiktok', kind='image')
 
                 validated_media.append(image.url)
 
@@ -285,9 +301,15 @@ class TikTok(SocialNetwork):
             if not video.content or not video.file_type:
                 raise Exception('Failed to download or validate video')
 
-            # Ensure video is valid format for TikTok
-            if video.file_type.mime not in ['video/quicktime', 'video/mp4', 'video/webm']:
-                raise Exception(f'Invalid video type "{video.file_type.mime}" for {video_url}')
+            from agoras.media.constraints import video_limits
+            from agoras.media.errors import MediaValidationError
+
+            allowed = video_limits('tiktok').mime_types
+            if video.file_type.mime not in allowed:
+                raise MediaValidationError(
+                    'tiktok', 'video', 'mime_types',
+                    video.file_type.mime, sorted(allowed),
+                )
 
             # Check video duration against creator limits
             if hasattr(self.api, 'creator_info') and self.api.creator_info:
@@ -303,7 +325,7 @@ class TikTok(SocialNetwork):
             # Print brand content notices
             self._print_brand_content_notices()
 
-            print(f'Uploading video to @{self.tiktok_username}...')
+            print(f'Uploading video to @{self.tiktok_username}...', file=sys.stderr)
 
             # Upload the video
             response = await self.api.upload_video(
@@ -370,21 +392,24 @@ class TikTok(SocialNetwork):
     def _print_brand_content_notices(self):
         """Print brand content compliance notices."""
         if self.brand_organic and self.brand_content:
-            print("Your photo/video will be labeled as 'Paid partnership'")
+            print("Your photo/video will be labeled as 'Paid partnership'", file=sys.stderr)
             print("By posting, you agree to TikTok's Branded Content Policy "
                   "(https://www.tiktok.com/legal/page/global/bc-policy/en) "
                   "and Music Usage Confirmation "
-                  "(https://www.tiktok.com/legal/page/global/music-usage-confirmation/en).")
+                  "(https://www.tiktok.com/legal/page/global/music-usage-confirmation/en).",
+                  file=sys.stderr)
         elif self.brand_organic:
-            print("Your photo/video will be labeled as 'Promotional content'")
+            print("Your photo/video will be labeled as 'Promotional content'", file=sys.stderr)
             print("By posting, you agree to TikTok's Music Usage Confirmation "
-                  "(https://www.tiktok.com/legal/page/global/music-usage-confirmation/en).")
+                  "(https://www.tiktok.com/legal/page/global/music-usage-confirmation/en).",
+                  file=sys.stderr)
         elif self.brand_content:
-            print("Your photo/video will be labeled as 'Paid partnership'")
+            print("Your photo/video will be labeled as 'Paid partnership'", file=sys.stderr)
             print("By posting, you agree to TikTok's Branded Content Policy "
                   "(https://www.tiktok.com/legal/page/global/bc-policy/en) "
                   "and Music Usage Confirmation "
-                  "(https://www.tiktok.com/legal/page/global/music-usage-confirmation/en).")
+                  "(https://www.tiktok.com/legal/page/global/music-usage-confirmation/en).",
+                  file=sys.stderr)
 
     # Override action handlers to use TikTok-specific parameter names
     async def _handle_post_action(self):
