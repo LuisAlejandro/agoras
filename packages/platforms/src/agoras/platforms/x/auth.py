@@ -17,6 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+import sys
 import webbrowser
 from typing import Optional
 
@@ -121,6 +122,7 @@ class XAuthManager(BaseAuthManager):
 
                 print(
                     f"Requesting OAuth request token from X API (timeout {OAUTH_HTTP_TIMEOUT}s)...",
+                    file=sys.stderr,
                     flush=True,
                 )
                 request_token = self.oauth_session.fetch_request_token(
@@ -131,8 +133,8 @@ class XAuthManager(BaseAuthManager):
                 authorization_url = 'https://api.x.com/oauth/authorize'
                 auth_url = f"{authorization_url}?oauth_token={request_token['oauth_token']}"
 
-                print("Opening browser for X authorization...", flush=True)
-                print(f"Authorization URL: {auth_url}", flush=True)
+                print("Opening browser for X authorization...", file=sys.stderr, flush=True)
+                print(f"Authorization URL: {auth_url}", file=sys.stderr, flush=True)
                 webbrowser.open(auth_url)
 
                 return True
@@ -150,6 +152,7 @@ class XAuthManager(BaseAuthManager):
                 access_token_url = 'https://api.x.com/oauth/access_token'
                 print(
                     f"Exchanging OAuth verifier for access token (timeout {OAUTH_HTTP_TIMEOUT}s)...",
+                    file=sys.stderr,
                     flush=True,
                 )
                 access_token = self.oauth_session.fetch_access_token(

@@ -194,7 +194,6 @@ class TikTokAPIClient:
                 "photo_images": photo_images,
             },
         }
-        print(data)
 
         response = requests.post(
             self.CONTENT_POST_URL,  # Use content endpoint for photos
@@ -207,8 +206,6 @@ class TikTokAPIClient:
         )
 
         result = response.json()
-
-        print(result)
 
         if 'error' in result:
             error_data = result.get('error', {})

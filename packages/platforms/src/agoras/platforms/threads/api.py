@@ -416,15 +416,41 @@ class ThreadsAPI(BaseAPI):
 
     async def delete(self, post_id: str) -> str:
         """
-        Delete a Threads post (not supported via API).
+        Delete a Threads post.
 
         Args:
             post_id (str): Post ID to delete
 
+        Returns:
+            str: Deleted post ID
+
         Raises:
-            Exception: Delete not supported for Threads
+            Exception: If deletion fails
         """
-        raise Exception('Delete not supported for Threads')
+        self.auth_manager.ensure_authenticated()
+
+        if not self.access_token:
+            raise Exception('Threads API not authenticated')
+
+        if not self.client:
+            raise Exception('Threads client not available')
+
+        if not post_id:
+            raise Exception('Post ID is required for delete action.')
+
+        await self._rate_limit_check('delete_post', 1.0)
+
+        def _sync_delete():
+            if not self.client:
+                raise Exception('Threads client not available')
+            return self.client.delete_post(post_id=post_id)
+
+        try:
+            response = await asyncio.to_thread(_sync_delete)
+            return response.get('id', post_id)
+        except Exception as e:
+            self._handle_api_error(e, 'Threads post deletion')
+            raise
 
     async def share(self, post_id: str) -> str:
         """

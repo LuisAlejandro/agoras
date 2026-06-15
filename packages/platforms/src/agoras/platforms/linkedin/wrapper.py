@@ -17,6 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+import sys
 
 from agoras.common.utils import parse_metatags
 from agoras.core.interfaces import SocialNetwork
@@ -183,7 +184,7 @@ class LinkedIn(SocialNetwork):
                         if media_id:
                             media_ids.append(media_id)
                 except Exception as e:
-                    print(f"Failed to upload image {image.url}: {str(e)}")
+                    print(f"Failed to upload image {image.url}: {str(e)}", file=sys.stderr)
                 finally:
                     # Clean up temporary files
                     image.cleanup()

@@ -112,6 +112,7 @@ assert_ci_not_set
 init_agoras_bin "${PROJECT_ROOT}"
 verify_agoras_storage_dir
 clear_credentials
+trap cleanup_test_posts EXIT
 
 echo "🔍 Verifying environment variables..."
 verify_env_vars "x"
@@ -133,6 +134,7 @@ run_utils_if_applicable() {
         skip_case "utils tests skipped for facebook-video-only run"
         return 0
     fi
+    echo "NOTE: utils feed-publish and schedule-run create posts that are not auto-deleted" >&2
     run_utils_unattended
 }
 
@@ -144,7 +146,7 @@ run_all_tests_for_platform() {
     echo "======================================"
 
     echo "--- Running POST tests for $platform ---"
-    "${SCRIPT_DIR}/test-post-unattended.sh" "$platform"
+    run_platform_post_tests "${SCRIPT_DIR}/test-post-unattended.sh" "$platform"
 
     echo "--- Running tokens list smoke for $platform ---"
     case "${platform}" in
@@ -158,7 +160,7 @@ run_all_tests_for_platform() {
 
 run_facebook_video_test() {
     echo "--- Running FACEBOOK VIDEO test ---"
-    "${SCRIPT_DIR}/test-post-unattended.sh" "facebook-video"
+    run_platform_post_tests "${SCRIPT_DIR}/test-post-unattended.sh" "facebook-video"
     run_tokens_list_smoke "facebook"
     echo "✅ Facebook video test completed"
     echo ""

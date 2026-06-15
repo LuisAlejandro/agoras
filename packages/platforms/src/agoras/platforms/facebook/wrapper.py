@@ -17,6 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+import sys
 
 from agoras.core.interfaces import SocialNetwork
 
@@ -129,7 +130,7 @@ class Facebook(SocialNetwork):
                 await self._detect_and_exchange_page_token()
             except Exception as e:
                 # If page detection fails, continue with user token
-                print(f"[WARNING] Page detection/token exchange failed: {str(e)}")
+                print(f"[WARNING] Page detection/token exchange failed: {str(e)}", file=sys.stderr)
 
     async def _detect_and_exchange_page_token(self):
         """Detect if target is a page and exchange for page token."""

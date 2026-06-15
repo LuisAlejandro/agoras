@@ -19,6 +19,7 @@
 import asyncio
 import hashlib
 import secrets
+import sys
 import webbrowser
 from typing import Optional
 
@@ -153,8 +154,8 @@ class TikTokAuthManager(BaseAuthManager):
             # Add PKCE parameters manually since Authlib doesn't generate them in URL
             authorization_url += f'&code_challenge={code_challenge}&code_challenge_method=S256'
 
-            print("Opening browser for TikTok authorization...")
-            print(f"If browser doesn't open automatically, visit: {authorization_url}")
+            print("Opening browser for TikTok authorization...", file=sys.stderr)
+            print(f"If browser doesn't open automatically, visit: {authorization_url}", file=sys.stderr)
             webbrowser.open(authorization_url)
 
             auth_code = await callback_server.start_and_wait(timeout=300)
@@ -197,7 +198,7 @@ class TikTokAuthManager(BaseAuthManager):
 
             return await asyncio.to_thread(_sync_exchange)
         except Exception as e:
-            print(f"Interactive authorization failed: {e}")
+            print(f"Interactive authorization failed: {e}", file=sys.stderr)
             return None
 
     def _generate_pkce(self) -> tuple[str, str]:

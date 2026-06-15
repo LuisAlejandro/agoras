@@ -40,6 +40,7 @@ def threads_api():
         api.client.create_post = MagicMock(return_value={'id': 'thread-123'})
         api.client.create_video_post = MagicMock(return_value={'id': 'video-123'})
         api.client.repost_post = MagicMock(return_value={'id': 'repost-123'})
+        api.client.delete_post = MagicMock(return_value={'id': 'thread-123'})
         api.client.get_profile = MagicMock(return_value={'id': 'user123', 'username': 'testuser'})
         yield api
 
@@ -159,10 +160,12 @@ async def test_threads_api_like_not_supported(threads_api):
 
 
 @pytest.mark.asyncio
-async def test_threads_api_delete_not_supported(threads_api):
-    """Test ThreadsAPI delete is not supported."""
-    with pytest.raises(Exception, match='Delete not supported'):
-        await threads_api.delete('thread-123')
+async def test_threads_api_delete(threads_api):
+    """Test ThreadsAPI delete post."""
+    result = await threads_api.delete('thread-123')
+
+    assert result == 'thread-123'
+    threads_api.client.delete_post.assert_called_once_with(post_id='thread-123')
 
 
 @pytest.mark.asyncio

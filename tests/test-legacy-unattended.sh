@@ -115,6 +115,7 @@ assert_ci_not_set
 init_agoras_bin "${PROJECT_ROOT}"
 verify_agoras_storage_dir
 clear_credentials
+trap cleanup_test_posts EXIT
 
 echo "🔍 Verifying environment variables..."
 verify_env_vars "x"
@@ -148,7 +149,7 @@ run_all_tests_for_platform() {
     echo "======================================"
 
     echo "--- Running legacy publish tests for $platform ---"
-    "${SCRIPT_DIR}/test-legacy-publish-unattended.sh" "$platform"
+    run_platform_post_tests "${SCRIPT_DIR}/test-legacy-publish-unattended.sh" "${platform}"
 
     echo "✅ All legacy publish tests completed for $platform"
     echo ""
@@ -156,7 +157,7 @@ run_all_tests_for_platform() {
 
 run_facebook_video_test() {
     echo "--- Running FACEBOOK VIDEO legacy publish test ---"
-    "${SCRIPT_DIR}/test-legacy-publish-unattended.sh" "facebook-video"
+    run_platform_post_tests "${SCRIPT_DIR}/test-legacy-publish-unattended.sh" "facebook-video"
     echo "✅ Facebook video legacy publish test completed"
     echo ""
 }

@@ -80,7 +80,7 @@ class PlatformRegistry:
         'threads': {
             'name': 'Threads',
             'description': 'Threads (Meta) social network',
-            'actions': {'authorize', 'post', 'video', 'share'},
+            'actions': {'authorize', 'post', 'video', 'share', 'delete'},
             'module': 'agoras.cli.platforms.threads',
         },
         'telegram': {

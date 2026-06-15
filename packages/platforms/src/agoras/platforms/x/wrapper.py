@@ -17,6 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+import sys
 
 from agoras.core.interfaces import SocialNetwork
 
@@ -193,7 +194,7 @@ class X(SocialNetwork):
                     media_obj.cleanup()
 
                 except Exception as e:
-                    print(f"Failed to upload media {media_url}: {str(e)}")
+                    print(f"Failed to upload media {media_url}: {str(e)}", file=sys.stderr)
 
         # Compose tweet text
         tweet_text = f'{status_text} {status_link}'.strip()

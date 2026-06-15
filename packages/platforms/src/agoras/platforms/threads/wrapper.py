@@ -161,15 +161,26 @@ class Threads(SocialNetwork):
 
     async def delete(self, post_id):
         """
-        Delete a Threads post (not supported via API).
+        Delete a Threads post.
 
         Args:
             post_id (str): Post ID to delete
 
-        Raises:
-            Exception: Delete not supported for Threads
+        Returns:
+            str: Deleted post ID
         """
-        raise Exception('Delete not supported for Threads')
+        if not self.api:
+            raise Exception('Threads API not initialized')
+
+        if not post_id:
+            post_id = self.threads_post_id
+
+        if not post_id:
+            raise Exception('Post ID is required for delete action.')
+
+        result = await self.api.delete(post_id)
+        self._output_status(result)
+        return result
 
     async def share(self, post_id):
         """
@@ -221,8 +232,11 @@ class Threads(SocialNetwork):
         await self.like(None)
 
     async def _handle_delete_action(self):
-        """Handle delete action - not supported for Threads."""
-        await self.delete(None)
+        """Handle delete action with Threads-specific parameter extraction."""
+        threads_post_id = self._get_config_value('threads_post_id', 'THREADS_POST_ID')
+        if not threads_post_id:
+            raise Exception('Threads post ID is required for delete action.')
+        await self.delete(threads_post_id)
 
     async def video(self, status_text, video_url, video_title):
         """

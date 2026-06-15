@@ -14,6 +14,10 @@ Actions that may SKIP during runs (exit 0 for that case, suite continues).
 | threads | video | Media upload restrictions | Meta app review complete |
 | telegram | video | Bot permissions or file size | Bot admin rights fixed |
 | whatsapp | video | Media message policy | Business account verified |
+| threads | share/delete | Requires `threads_delete` scope on token | Enable in Meta app, then re-run `agoras threads authorize` |
+| instagram | post/video | API does not support delete | Remove manually; test prints WARN with post ID |
+| tiktok | post/video | API does not support delete | Slideshow uses `SELF_ONLY`; remove remaining posts manually |
+| whatsapp | post/video/template | API does not support delete | Messages go to recipient; test prints WARN with message ID |
 | whatsapp | template | `WHATSAPP_TEMPLATE_NAME` unset or template not approved | Set env var + approved template |
 | utils | feed-publish | Network credentials missing for target | Add creds to `unattended.env` |
 | legacy publish | feed/schedule | Same triggers as utils feed-publish / schedule-run | Add creds + fixtures to `unattended.env` |

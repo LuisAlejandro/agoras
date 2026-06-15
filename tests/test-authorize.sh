@@ -90,6 +90,7 @@ done
 assert_ci_not_set
 init_agoras_bin "${PROJECT_ROOT}"
 verify_agoras_storage_dir
+trap cleanup_test_posts EXIT
 
 echo "🔍 Verifying environment variables for all platforms..."
 verify_env_vars "x"
@@ -116,7 +117,7 @@ run_all_tests_for_platform() {
     preflight_authorize_tokens_for_platform "${platform}"
 
     echo "--- Running POST tests for $platform ---"
-    "${SCRIPT_DIR}/test-post-authorize.sh" "$platform"
+    run_platform_post_tests "${SCRIPT_DIR}/test-post-authorize.sh" "$platform"
 
     echo "--- Running tokens list smoke for $platform ---"
     case "${platform}" in
@@ -131,7 +132,7 @@ run_all_tests_for_platform() {
 run_facebook_video_test() {
     preflight_authorize_tokens "facebook"
     echo "--- Running FACEBOOK VIDEO test ---"
-    "${SCRIPT_DIR}/test-post-authorize.sh" "facebook-video"
+    run_platform_post_tests "${SCRIPT_DIR}/test-post-authorize.sh" "facebook-video"
     run_tokens_list_smoke "facebook"
     echo "✅ Facebook video test completed"
     echo ""

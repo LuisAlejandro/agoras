@@ -18,6 +18,7 @@
 
 import asyncio
 import secrets
+import sys
 import webbrowser
 from typing import Optional
 
@@ -121,8 +122,8 @@ class LinkedInAuthManager(BaseAuthManager):
                 state=state
             )
 
-            print("Opening browser for LinkedIn authorization...")
-            print(f"If browser doesn't open automatically, visit: {authorization_url}")
+            print("Opening browser for LinkedIn authorization...", file=sys.stderr)
+            print(f"If browser doesn't open automatically, visit: {authorization_url}", file=sys.stderr)
             webbrowser.open(authorization_url)
 
             auth_code = await callback_server.start_and_wait(timeout=300)
@@ -163,7 +164,7 @@ class LinkedInAuthManager(BaseAuthManager):
                 self._save_credentials_to_storage()
                 return access_token
         except Exception as e:
-            print(f"Interactive authorization failed: {e}")
+            print(f"Interactive authorization failed: {e}", file=sys.stderr)
             return None
 
     async def _refresh_access_token_with_authlib(self) -> dict:

@@ -282,3 +282,35 @@ class ThreadsAPIClient:
             return {'id': response.json()['id']}
         except Exception as e:
             raise Exception(f"Failed to repost: {str(e)}")
+
+    def delete_post(self, post_id: str) -> Dict[str, Any]:
+        """
+        Delete a published Threads post.
+
+        Args:
+            post_id (str): ID of the post to delete
+
+        Returns:
+            dict: Deletion response containing the post ID
+
+        Raises:
+            Exception: If deletion fails or not authenticated
+        """
+        if not self.access_token:
+            raise Exception('No access token available')
+
+        if not post_id:
+            raise Exception('Post ID is required')
+
+        try:
+            response = requests.delete(
+                f"{self.base_url}/{post_id}",
+                params={'access_token': self.access_token},
+                timeout=30
+            )
+            if response.status_code not in (200, 204):
+                self._check_response(response)
+
+            return {'id': post_id}
+        except Exception as e:
+            raise Exception(f"Failed to delete post: {str(e)}")

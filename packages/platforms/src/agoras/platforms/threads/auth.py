@@ -19,6 +19,7 @@
 import asyncio
 import os
 import secrets
+import sys
 import webbrowser
 from typing import Any, Dict, Optional
 
@@ -103,19 +104,17 @@ class ThreadsAuthManager(BaseAuthManager):
             redirect_uri = self.redirect_uri
 
             # Create authorization URL directly using Meta's Threads OAuth endpoint
-            print("Creating authorization URL directly...")
             auth_url = (
                 f"https://threads.net/oauth/authorize?"
                 f"client_id={self.app_id}&"
                 f"redirect_uri={redirect_uri}&"
-                f"scope=threads_basic,threads_content_publish&"
+                f"scope=threads_basic,threads_content_publish,threads_delete&"
                 f"response_type=code&"
                 f"state={state}"
             )
-            print(f"Authorization URL: {auth_url}")
 
-            print("Opening browser for Threads authorization...")
-            print(f"If browser doesn't open automatically, visit: {auth_url}")
+            print("Opening browser for Threads authorization...", file=sys.stderr)
+            print(f"If browser doesn't open automatically, visit: {auth_url}", file=sys.stderr)
             webbrowser.open(auth_url)
 
             auth_code = await callback_server.start_and_wait(timeout=300)
@@ -125,11 +124,6 @@ class ThreadsAuthManager(BaseAuthManager):
 
             def _sync_exchange():
                 try:
-                    # Exchange authorization code for tokens
-                    print(f"Exchanging code for tokens with app_id={self.app_id[:10]}...")
-                    print(f"Auth code: {auth_code[:20] if auth_code else 'None'}...")
-                    print(f"Redirect URI: {redirect_uri}")
-
                     token_url = "https://graph.threads.net/oauth/access_token"
                     token_data = {
                         'client_id': self.app_id,
@@ -167,7 +161,7 @@ class ThreadsAuthManager(BaseAuthManager):
 
             return await asyncio.to_thread(_sync_exchange)
         except Exception as e:
-            print(f"Interactive authorization failed: {e}")
+            print(f"Interactive authorization failed: {e}", file=sys.stderr)
             return None
 
     def _exchange_for_long_lived_token(self, short_lived_token: str) -> str:

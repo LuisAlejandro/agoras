@@ -17,6 +17,7 @@
 
 import asyncio
 import os
+import sys
 from typing import Any, Dict, Optional
 
 from telegram import Bot
@@ -187,10 +188,10 @@ class TelegramAuthManager(BaseAuthManager):
             }
             return True
         except TelegramError as e:
-            print(f"Telegram API error during validation: {e}")
+            print(f"Telegram API error during validation: {e}", file=sys.stderr)
             return False
         except Exception as e:
-            print(f"Unexpected error during bot token validation: {e}")
+            print(f"Unexpected error during bot token validation: {e}", file=sys.stderr)
             return False
 
     def _create_client(self, access_token: str) -> TelegramAPIClient:

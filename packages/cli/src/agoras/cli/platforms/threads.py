@@ -79,6 +79,13 @@ def create_threads_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     )
     _add_post_id_option(share)
 
+    # Delete action
+    delete = actions.add_parser(
+        'delete',
+        help='Delete a Threads post. Requires prior authorization via "agoras threads authorize".'
+    )
+    _add_post_id_option(delete)
+
     # Set handler
     parser.set_defaults(command=_handle_threads_command)
 
@@ -117,7 +124,7 @@ def _add_video_options(parser: ArgumentParser):
 
 def _add_post_id_option(parser: ArgumentParser):
     """
-    Add post ID option for share action.
+    Add post ID option for share/delete actions.
 
     Args:
         parser: ArgumentParser to add options to
