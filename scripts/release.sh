@@ -35,7 +35,7 @@ if ! git config --get gitflow.branch.master >/dev/null 2>&1; then
     git flow init -d
 fi
 
-CURRENT_VERSION=$(grep "current_version" .bumpversion.cfg | cut -d' ' -f3)
+CURRENT_VERSION=$(grep '^current_version = ' .bumpversion.cfg | awk '{print $3}')
 if ! echo "$CURRENT_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
     print_error "Current version is not a valid version"
     exit 1
@@ -43,7 +43,7 @@ fi
 
 print_step "Current version: $CURRENT_VERSION"
 
-NEW_VERSION=$(bumpversion --dry-run --list "$VERSION_TYPE" | grep "new_version=" | cut -d'=' -f2)
+NEW_VERSION=$(bumpversion --dry-run --list "$VERSION_TYPE" 2>/dev/null | grep '^new_version=' | cut -d'=' -f2-)
 if ! echo "$NEW_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
     print_error "New version is not a valid version"
     exit 1
@@ -102,6 +102,9 @@ git flow release finish -s -p -m "Release version $NEW_VERSION" "$NEW_VERSION"
 git config --local --unset core.editor 2>/dev/null || true
 git config --local --unset merge.ours.driver 2>/dev/null || true
 
+print_step "Pushing master, develop, and tags to origin"
+git push origin master develop --tags
+
 print_step "Verifying tag was pushed to remote"
 MAX_RETRIES=5
 RETRY_DELAY=3
@@ -116,9 +119,7 @@ for i in $(seq 1 "$MAX_RETRIES"); do
     if [ "$i" -lt "$MAX_RETRIES" ]; then
         print_warning "Tag not found on remote, retrying in ${RETRY_DELAY}s... (attempt $i/$MAX_RETRIES)"
         sleep "$RETRY_DELAY"
-        git push origin master 2>/dev/null || true
-        git push origin develop 2>/dev/null || true
-        git push origin --tags 2>/dev/null || true
+        git push origin master develop --tags
     fi
 done
 
