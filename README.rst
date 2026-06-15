@@ -41,8 +41,9 @@
 
 .. _GitHub actions: https://github.com/LuisAlejandro/agoras-actions
 .. _full documentation: https://agoras.readthedocs.org
+.. _migration guide: https://agoras.readthedocs.io/en/latest/migration/
 
-Current version: 2.0.0
+Current version: 1.1.6
 
 .. note::
 
@@ -56,7 +57,7 @@ Current version: 2.0.0
    - **Enhanced CLI**: Platform-specific commands with improved validation
 
    **Breaking Changes:** Import paths and package structure have changed.
-   See `MIGRATION.rst <MIGRATION.rst>`_ for detailed upgrade instructions.
+   See the `migration guide`_ for detailed upgrade instructions.
 
 Agoras is a python utility that helps publish and delete posts on the most
 popular social networks (X (formerly Twitter), Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, Threads, Telegram, and WhatsApp).
@@ -84,7 +85,7 @@ Agoras v2.0 introduces a **modular architecture** that splits the monolithic pac
 - **Enhanced CLI**: Platform-first commands (``agoras twitter post`` instead of ``agoras publish --network twitter``)
 - **Modular Installation**: Install only what you need, or use ``pip install agoras`` for everything
 
-**Breaking Changes:** Import paths and CLI commands have changed. See `MIGRATION.rst <MIGRATION.rst>`_ for upgrade instructions.
+**Breaking Changes:** Import paths and CLI commands have changed. See the `migration guide`_ for upgrade instructions.
 
 Getting started
 ===============

@@ -317,6 +317,11 @@ Release Steps
      5. agoras (CLI) (waits for platforms)
    * Uploads build artifacts to GitHub release
 
+   **First v2 monorepo release:** PyPI only allows one pending trusted publisher
+   per GitHub repo/workflow. Bootstrap ``agoras-media``, ``agoras-core``, and
+   ``agoras-platforms`` with a one-time ``twine`` upload, then add trusted
+   publishers on each project. See ``MAINTAINER.rst`` (PyPI monorepo bootstrap).
+
 4. **Verification**: After release, verify packages are available::
 
     $ pip install agoras-common==2.0.0
