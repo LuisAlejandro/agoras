@@ -27,7 +27,7 @@ across all Agoras packages.
 
 __author__ = 'Luis Alejandro Martínez Faneyth'
 __email__ = 'luis@luisalejandro.org'
-__version__ = '2.0.0'
+__version__ = '2.0.1'
 __url__ = 'https://github.com/LuisAlejandro/agoras'
 __description__ = (
     'A command line python utility to manage your social'

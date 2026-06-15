@@ -2,6 +2,15 @@ Changelog
 ============
 
 
+2.0.1 (2026-06-15)
+------------
+
+Other
+~~~~~~~~~~~~
+
+* Updating documentation. [Luis Alejandro Martínez Faneyth]
+
+
 2.0.0 (2026-06-15)
 ------------
 
