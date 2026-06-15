@@ -2,7 +2,8 @@ Usage for Threads
 ==========================
 
 .. note::
-   **New in version 2.0**: Threads platform support added to Agoras CLI.
+
+   Agoras supports Threads via ``agoras threads``.
 
 Threads is Meta's text-based conversation platform. Agoras provides full CLI support for posting, sharing, and managing Threads content.
 
@@ -25,6 +26,7 @@ The Threads platform supports the following actions:
 * ``post`` - Create text and image posts
 * ``video`` - Upload videos
 * ``share`` - Share/repost existing content
+* ``delete`` - Delete a Threads post
 
 Authorization
 -------------
@@ -86,6 +88,17 @@ Sharing a Post
 Share/repost a Threads post::
 
     agoras threads share \
+      --post-id "threads_post_id"
+
+.. note::
+   You must run ``agoras threads authorize`` first before using this command.
+
+Deleting a Post
+---------------
+
+Delete a Threads post::
+
+    agoras threads delete \
       --post-id "threads_post_id"
 
 .. note::

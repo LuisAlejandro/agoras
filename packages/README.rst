@@ -89,7 +89,7 @@ Each package can be built independently:
 .. code-block:: bash
 
    cd packages/common
-   python setup.py sdist bdist_wheel
+   python -m build
 
 Publishing
 ----------

@@ -2,8 +2,9 @@ Usage for X (formerly Twitter)
 ==============================
 
 .. note::
-   **New in version 2.0**: X commands now use the intuitive ``agoras x`` format.
-   See the :doc:`migration guide <migration>` for upgrading from ``agoras publish``.
+
+   Agoras uses ``agoras x`` for X (formerly Twitter) operations.
+   See the :doc:`migration guide <migration/index>` for upgrading from ``agoras publish``.
 
 .. deprecated:: 2.0
    The ``agoras twitter`` command is deprecated. Use ``agoras x`` instead.

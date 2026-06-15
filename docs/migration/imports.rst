@@ -126,6 +126,6 @@ Authentication
    * - ``from agoras.core.api.auth.base import BaseAuthManager``
      - ``from agoras.core.auth.base import BaseAuthManager``
    * - ``from agoras.core.api.auth.storage import TokenStorage``
-     - ``from agoras.core.auth.storage import TokenStorage``
+     - ``from agoras.core.auth.storage import SecureTokenStorage``
    * - ``from agoras.core.api.auth.callback_server import CallbackServer``
-     - ``from agoras.core.auth.callback_server import CallbackServer``
+     - ``from agoras.core.auth.callback_server import OAuthCallbackServer``

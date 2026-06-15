@@ -2,8 +2,9 @@ Usage for Telegram
 ==================
 
 .. note::
-   **New in version 2.0**: Telegram commands now use the intuitive ``agoras telegram`` format.
-   See the :doc:`migration guide <migration>` for upgrading from ``agoras publish``.
+
+   Agoras uses ``agoras telegram`` for Telegram operations.
+   See the :doc:`migration guide <migration/index>` for upgrading from ``agoras publish``.
 
 Telegram is a cloud-based instant messaging and voice-over-IP service. Agoras can publish messages, videos, images, and manage scheduled content on Telegram using the official `python-telegram-bot library <https://python-telegram-bot.org/>`_.
 

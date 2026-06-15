@@ -8,7 +8,7 @@ Migration Guide: Legacy to New CLI
 Overview
 ========
 
-Agoras 2.0+ introduces a new CLI structure that's more intuitive, discoverable, and aligned with how users think about social media operations. This guide helps you migrate from the legacy ``agoras publish`` command to the new platform-first command structure.
+Agoras uses a platform-first CLI structure that is more intuitive, discoverable, and aligned with how users think about social media operations. This guide helps you migrate from the legacy ``agoras publish`` command to the new ``agoras <platform> <action>`` format.
 
 This migration guide is organized into the following sections:
 

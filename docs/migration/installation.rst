@@ -86,11 +86,11 @@ Package Responsibilities
   - Shared utilities and helper functions
   - Logging configuration
   - Version information
-  - No external dependencies beyond Python standard library
+  - Depends on: ``requests``, ``beautifulsoup4``
 
 **agoras-media** (Media Processing)
   - Image processing (Pillow)
-  - Video processing (moviepy)
+  - Video processing (OpenCV via ``opencv-python-headless``)
   - Media factory for creating media objects
   - Depends on: ``agoras-common``
 

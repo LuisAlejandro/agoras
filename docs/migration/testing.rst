@@ -48,7 +48,7 @@ Gradual Migration Strategy
 4. **Week 4**: Migrate production scripts
 5. **Ongoing**: Keep legacy as fallback until comfortable
 
-Remember: The legacy ``agoras publish`` command will continue to work with deprecation warnings for 12 months.
+Remember: The legacy ``agoras publish`` command remains available with deprecation warnings through Agoras 2.x and will be removed in Agoras 3.0.
 
 Test Migration
 ===============

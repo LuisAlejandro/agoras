@@ -2,8 +2,9 @@ Usage for WhatsApp
 ==================
 
 .. note::
-   **New in version 2.0**: WhatsApp commands now use the intuitive ``agoras whatsapp`` format.
-   See the :doc:`migration guide <migration>` for upgrading from ``agoras publish``.
+
+   Agoras uses ``agoras whatsapp`` for WhatsApp Business API operations.
+   See the :doc:`migration guide <migration/index>` for upgrading from ``agoras publish``.
 
 WhatsApp Business API is Meta's official API for sending messages via WhatsApp. Agoras can send text messages, images, videos, and template messages to WhatsApp recipients using the official `Meta Graph API <https://developers.facebook.com/docs/graph-api>`_.
 

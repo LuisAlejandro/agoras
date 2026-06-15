@@ -2,8 +2,9 @@ Usage for Facebook
 ==================
 
 .. note::
-   **New in version 2.0**: Facebook commands now use the intuitive ``agoras facebook`` format.
-   See the :doc:`migration guide <migration>` for upgrading from ``agoras publish``.
+
+   Agoras uses ``agoras facebook`` for Facebook operations.
+   See the :doc:`migration guide <migration/index>` for upgrading from ``agoras publish``.
 
 Facebook is a social network that allows you to share text, images and videos with your friends, family and followers. Agoras can publish posts, like posts, share posts and delete posts on Facebook by using a popular `Facebook Graph API client <https://github.com/sns-sdks/python-facebook>`_.
 

@@ -198,7 +198,7 @@ Development vs Production
 **Development Mode**:
 - Available immediately after app creation
 - Limited to your own Threads account
-- Can test all basic features (post, reply, share)
+- Can test all basic Agoras actions (post, video, share, delete)
 - May have rate limiting restrictions
 - Good for testing integration
 

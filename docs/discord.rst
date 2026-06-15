@@ -1,9 +1,10 @@
 Usage for Discord
-================
+=================
 
 .. note::
-   **New in version 2.0**: Discord commands now use the intuitive ``agoras discord`` format.
-   See the :doc:`migration guide <migration>` for upgrading from ``agoras publish``.
+
+   Agoras uses ``agoras discord`` for Discord operations.
+   See the :doc:`migration guide <migration/index>` for upgrading from ``agoras publish``.
 
 Discord is a communication platform designed for creating communities. It features text channels, voice channels, and rich media sharing capabilities. Agoras can publish messages, videos, images, and manage scheduled content on Discord using the official `Discord.py library <https://discordpy.readthedocs.io/>`_.
 
@@ -53,7 +54,7 @@ After authorization, you can perform actions without providing credentials. Cred
 For CI/CD environments, see :doc:`credentials/discord` for unattended execution setup.
 
 Publish a Discord message
-------------------------
+-------------------------
 
 This command will send a message to a Discord channel using your bot. The message can include text, links, and up to 4 images. Links will automatically generate rich embeds with previews when possible.
 
@@ -79,7 +80,7 @@ Parameters:
    The ``agoras publish --network "discord"`` command is deprecated. Use ``agoras discord post`` instead.
 
 Publish a Discord video
-----------------------
+-----------------------
 
 This command will upload and send a video file to a Discord channel. The video can include a title and description that will be displayed in a rich embed alongside the video file.
 
@@ -102,7 +103,7 @@ Parameters:
 - **File must be accessible**: The URL must point to a downloadable video file
 
 Delete a Discord message
------------------------
+------------------------
 
 This command will delete an existing Discord message. The bot must have permission to delete messages and the message must be in the specified channel.
 

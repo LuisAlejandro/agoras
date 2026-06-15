@@ -14,7 +14,7 @@ Agoras supports multiple social media platforms, each with different authenticat
 
 **Authorize Action and Credential Storage**
 
-All platforms support an ``authorize`` action that securely stores credentials for future use. After running ``agoras <platform> authorize`` with the required credentials, those credentials are stored securely and automatically loaded for subsequent actions. This means you only need to provide credentials once during authorization, and all future actions (post, video, like, share, delete, etc.) will use the stored credentials automatically.
+All platforms support an ``authorize`` action that securely stores credentials for future use. After running ``agoras <platform> authorize`` with the required credentials, those credentials are stored securely and automatically loaded for subsequent actions. Supported actions vary by platform (post, video, like, share, delete, template, etc.) — see :doc:`action-support` for the full matrix.
 
 You can still override stored credentials by providing them via CLI arguments or environment variables if needed. This provides flexibility for using multiple accounts or temporary credential overrides.
 
@@ -567,7 +567,7 @@ Threads
 
 **Authentication Type**: OAuth 2.0
 
-**Actions**: authorize, post, video, share
+**Actions**: authorize, post, video, share, delete
 
 Authorize Action
 ----------------

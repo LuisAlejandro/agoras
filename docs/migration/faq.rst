@@ -30,7 +30,7 @@ A: The new format is more intuitive and discoverable. Instead of ``agoras publis
 Q: Can I still use ``agoras publish``?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A: Yes, the legacy ``agoras publish`` command still works but shows deprecation warnings. It will be supported for 12 months from the v2.0 release. We recommend migrating to the new format as soon as possible.
+A: Yes, the legacy ``agoras publish`` command still works but shows deprecation warnings. It is supported through all Agoras 2.x releases and will be removed in Agoras 3.0. We recommend migrating to the new format as soon as possible.
 
 Q: What's the difference between platform commands and utils commands?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -107,7 +107,7 @@ Migration Timeline
 Q: How long will legacy commands be supported?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A: The legacy ``agoras publish`` command will be supported with deprecation warnings for 12 months from the v2.0 release. After that, it will be removed. We recommend migrating as soon as possible.
+A: The legacy ``agoras publish`` command is supported with deprecation warnings through all Agoras 2.x releases and will be removed in Agoras 3.0. We recommend migrating as soon as possible.
 
 Q: When should I migrate?
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -202,7 +202,7 @@ A: Old scripts using ``agoras publish`` should still work but may show deprecati
 Q: I see deprecation warnings
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A: Deprecation warnings indicate you're using old commands or parameters that will be removed in the future. Update your commands to the new format. The warnings won't break your scripts, but you should migrate to avoid issues when legacy support is removed.
+A: Deprecation warnings indicate you're using old commands or parameters that will be removed in Agoras 3.0 (legacy ``agoras publish`` is supported through all 2.x releases). Update your commands to the new format. The warnings won't break your scripts, but you should migrate before upgrading to 3.0.
 
 Q: OAuth authorization fails
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~

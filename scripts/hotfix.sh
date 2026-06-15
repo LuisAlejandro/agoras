@@ -70,8 +70,14 @@ git config --local merge.ours.driver true
 export GIT_MERGE_AUTOEDIT=no
 export GPG_TTY=$(tty) 2>/dev/null || true
 
+print_step "Publishing hotfix branch to origin"
+git push -u origin "hotfix/$NEW_VERSION"
+
 print_step "Finishing git flow hotfix"
 git flow hotfix finish -s -p -m "Hotfix version $NEW_VERSION" "$NEW_VERSION"
+
+print_step "Removing remote hotfix branch"
+git push origin --delete "hotfix/$NEW_VERSION" 2>/dev/null || true
 
 git config --local --unset core.editor 2>/dev/null || true
 git config --local --unset merge.ours.driver 2>/dev/null || true
@@ -103,9 +109,40 @@ if [ "$TAG_EXISTS" = false ]; then
     exit 1
 fi
 
+print_step "Creating GitHub release"
 if command -v gh >/dev/null 2>&1; then
-    print_step "Creating GitHub hotfix release"
-    gh release create "$NEW_VERSION" --title "$APP_NAME $NEW_VERSION (Hotfix)" --generate-notes || true
+    if gh auth status >/dev/null 2>&1; then
+        RELEASE_NOTES=""
+        DESCRIPTION_TEXT=""
+        if [ -f "RELEASE_DESCRIPTION.rst" ]; then
+            DESCRIPTION_TEXT=$(cat RELEASE_DESCRIPTION.rst)
+        fi
+
+        if [ -f "HISTORY.rst" ]; then
+            RELEASE_CONTENT=$(awk "/^$NEW_VERSION \(/ { flag=1; next } flag && /^[0-9]+\.[0-9]+\.[0-9]+ \(/ { exit } flag" HISTORY.rst)
+            RELEASE_NOTES="$DESCRIPTION_TEXT
+
+## What's new in $NEW_VERSION
+$RELEASE_CONTENT
+
+Read [HISTORY](HISTORY.rst) for more info.
+
+**Full Changelog**: https://github.com/$(gh repo view --json owner,name -q '.owner.login + "/" + .name')/compare/$CURRENT_VERSION...$NEW_VERSION"
+        fi
+
+        print_step "Creating GitHub release $NEW_VERSION"
+        if gh release create "$NEW_VERSION" \
+            --title "$APP_NAME $NEW_VERSION (Hotfix)" \
+            --notes "$RELEASE_NOTES" \
+            --latest; then
+            print_step "GitHub release created successfully!"
+        else
+            print_warning "Failed to create GitHub release. You can create it manually later."
+        fi
+    else
+        print_warning "GitHub CLI not authenticated. Please run 'gh auth login' first."
+        print_warning "You can create the GitHub release manually later."
+    fi
 else
     print_warning "GitHub CLI not found, skipping GitHub release creation"
 fi

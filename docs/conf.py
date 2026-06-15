@@ -71,7 +71,7 @@ extensions = [
 # This speeds up builds and avoids installation issues on ReadTheDocs
 autodoc_mock_imports = [
     'PIL',
-    'moviepy',
+    'cv2',
     'tweepy',
     'google',
     'googleapiclient',

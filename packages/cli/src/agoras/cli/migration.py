@@ -147,7 +147,7 @@ def format_migration_warning(old_command_parts: Dict[str, str],
 ⚠️  DEPRECATION WARNING
 {'━' * 80}
 
-The 'agoras publish' command is deprecated and will be removed in version 3.0.
+The 'agoras publish' command is deprecated. It is supported through Agoras 2.x and will be removed in version 3.0.
 
 Your current command:
   agoras publish --network {network} --action {action} [options]
@@ -164,7 +164,7 @@ Benefits of the new format:
 Run 'agoras publish --show-migration' to see the migration preview without
 executing.
 
-For more help: https://docs.agoras.io/migration
+For more help: https://agoras.readthedocs.io/en/latest/migration.html
 
 {'━' * 80}
 """

@@ -352,4 +352,4 @@ Legacy Parameters
 
 The legacy ``agoras publish`` command uses the original parameter names with platform prefixes. These are maintained for backward compatibility but are deprecated.
 
-See the :doc:`../migration` for a complete mapping of legacy to new parameters.
+See the :doc:`../migration/index` for a complete mapping of legacy to new parameters.

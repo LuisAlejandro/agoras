@@ -72,4 +72,5 @@ Dependencies
 
 - agoras-common
 - Pillow (image processing)
+- opencv-python-headless (video duration and validation)
 - filetype (file type detection)

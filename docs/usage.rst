@@ -2,9 +2,8 @@ Using Agoras
 ============
 
 .. note::
-   **New in version 2.0**: Agoras introduces a new, more intuitive CLI structure.
-   **New in version 2.0**: OAuth 2.0 "authorize first" workflow for enhanced security.
-   See the :doc:`migration guide <migration>` for upgrading from the legacy ``agoras publish`` command.
+   Agoras uses a platform-first CLI (``agoras <platform> <action>``) and an OAuth ``authorize`` workflow on supported networks.
+   See the :doc:`migration guide <migration/index>` if you are upgrading from the legacy ``agoras publish`` command.
 
 Command Overview
 ----------------
@@ -146,6 +145,24 @@ Automate posting from RSS/Atom feeds or Google Sheets schedules::
 See utils commands::
 
     $ agoras utils --help
+
+Token Management
+~~~~~~~~~~~~~~~~
+
+Inspect and export stored credentials::
+
+    agoras utils tokens list
+    agoras utils tokens list --platform facebook
+    agoras utils tokens show --platform x --identifier <id>
+    agoras utils tokens unattended-format --platform facebook
+
+Media Limits
+~~~~~~~~~~~~
+
+Show per-platform media constraints (MIME types, sizes, durations)::
+
+    agoras utils media-limits
+    agoras utils media-limits --platform discord --kind video
 
 Quick Start Examples
 --------------------
@@ -408,4 +425,4 @@ The legacy command format is still supported with deprecation warnings::
 .. note::
    The ``--network twitter`` parameter is deprecated. Use ``--network x`` instead.
 
-See the :doc:`migration guide <migration>` for converting legacy commands to the new format.
+See the :doc:`migration guide <migration/index>` for converting legacy commands to the new format.
