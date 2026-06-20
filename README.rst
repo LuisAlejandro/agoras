@@ -110,8 +110,8 @@ Therefore, you can use pip to install the stable version::
 
     $ pip install --upgrade agoras
 
-If you want to install the development version (not recomended), you can
-install directlty from GitHub like this::
+If you want to install the development version (not recommended), you can
+install directly from GitHub like this::
 
     $ pip install --upgrade https://github.com/LuisAlejandro/agoras/archive/develop.tar.gz
 
@@ -267,7 +267,7 @@ Getting help
 .. _Discord server: https://discord.gg/GRnq3qQ9SB
 .. _StackOverflow: http://stackoverflow.com/questions/ask
 
-If you have any doubts or problems, suscribe to our `Discord server`_ and ask for help. You can also
+If you have any doubts or problems, subscribe to our `Discord server`_ and ask for help. You can also
 ask your question on StackOverflow_ (tag it ``agoras``) or drop me an email at luis@luisalejandro.org.
 
 Contributing

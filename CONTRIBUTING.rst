@@ -42,6 +42,11 @@ agoras could always use more documentation, whether as part of the
 official agoras docs, in docstrings, or even on the web in blog posts,
 articles, and such.
 
+Submit Feedback
+~~~~~~~~~~~~~~~
+
+The best way to send feedback is to file an issue at https://github.com/LuisAlejandro/agoras/issues.
+
 Suggest Features
 ~~~~~~~~~~~~~~~~
 
@@ -341,15 +346,6 @@ The release process follows this workflow:
 4. Workflow builds all packages in parallel
 5. Workflow publishes packages to PyPI sequentially (with waits between)
 6. Packages become available on PyPI
-
-Hotfix Process
---------------
-
-For urgent fixes, use the hotfix script::
-
-    $ ./scripts/hotfix.sh [major|minor|patch] [Hotfix Name]
-
-This follows the same process but creates a hotfix branch and merges to both develop and master.
 
 Manual Release (Not Recommended)
 ---------------------------------
