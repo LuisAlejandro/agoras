@@ -20,9 +20,16 @@
 End-to-end integration tests for CLI -> Core -> Platform flow.
 """
 
+import importlib
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+# Register namespace subpackages so @patch can resolve dotted targets.
+importlib.import_module('agoras.cli.commands.publish')
+importlib.import_module('agoras.core.interfaces')
+importlib.import_module('agoras.platforms.telegram.wrapper')
+importlib.import_module('agoras.platforms.x.wrapper')
 
 # Test CLI to Platform Flow
 

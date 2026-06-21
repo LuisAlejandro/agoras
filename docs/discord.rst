@@ -184,7 +184,7 @@ Your Google Sheet should have the following columns:
 ::
 
     status_text,status_link,status_image_url_1,status_image_url_2,status_image_url_3,status_image_url_4,date,hour,state
-    "This is a test Discord post","https://agoras.readthedocs.io/en/latest/","https://example.com/image1.jpg","https://example.com/image2.jpg","","","21-11-2022","17","pending"
+    "This is a test Discord post","https://agoras.luisalejandro.org/en/latest/","https://example.com/image1.jpg","https://example.com/image2.jpg","","","21-11-2022","17","pending"
 
 Scheduling Logic
 ~~~~~~~~~~~~~~~~

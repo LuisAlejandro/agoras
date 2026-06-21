@@ -164,7 +164,7 @@ Benefits of the new format:
 Run 'agoras publish --show-migration' to see the migration preview without
 executing.
 
-For more help: https://agoras.readthedocs.io/en/latest/migration.html
+For more help: https://agoras.luisalejandro.org/en/latest/migration.html
 
 {'━' * 80}
 """

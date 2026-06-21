@@ -2,7 +2,7 @@
 set -euo pipefail
 
 VERSION_TYPE=${1:-patch}
-APP_NAME=${2:-Release}
+APP_NAME=${2:-Agoras}
 NON_INTERACTIVE=${NON_INTERACTIVE:-false}
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 

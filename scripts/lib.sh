@@ -29,26 +29,19 @@ release_check_host_tools() {
     local tool
 
     print_step "Checking host release tools"
-    for tool in git gh bumpversion gpg; do
+    for tool in git docker make gh bumpversion gpg; do
         release_require_command "$tool"
     done
-
-    for tool in docker make; do
-        release_require_command "$tool"
-    done
-
 
     if ! git flow version >/dev/null 2>&1; then
         print_error "git-flow is not available (run: git flow version)"
         exit 1
     fi
 
-
     if ! docker info >/dev/null 2>&1; then
         print_error "Docker daemon is not running"
         exit 1
     fi
-
 
     if ! gh auth status >/dev/null 2>&1; then
         print_error "GitHub CLI is not authenticated (run: gh auth login)"
@@ -69,14 +62,12 @@ release_check_host_tools() {
     print_step "Host release tools check passed"
 }
 
-
 release_run_preflight() {
     print_step "Running release preflight (Docker)"
     release_require_command docker
     release_require_command make
     make release-preflight
 }
-
 
 release_enable_noninteractive_git() {
     print_step "Configuring git for non-interactive mode"
@@ -134,7 +125,7 @@ release_wait_for_branch_ci() {
             exit 1
         fi
 
-        if (( $(date +%s) - start_time > RELEASE_CI_TIMEOUT_SECONDS )); then
+        if (($(date +%s) - start_time > RELEASE_CI_TIMEOUT_SECONDS)); then
             print_error "Timed out waiting for GitHub Actions run on $branch_name"
             print_error "Workflow: $RELEASE_CI_WORKFLOW; commit: $commit_sha"
             exit 1

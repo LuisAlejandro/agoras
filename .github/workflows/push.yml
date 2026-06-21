@@ -53,17 +53,44 @@ jobs:
       - name: Run integration tests
         run: |
           cd packages
-          pytest cli/tests/ -v -k integration
+          pytest cli/tests/test_integration.py -v
 
       - name: Test CLI entry point
         run: |
           agoras --version
           agoras --help
 
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install all packages
+        run: |
+          cd packages
+          python3 -m pip install -r ../requirements-dev.txt
+          python3 -m pip install -e common/
+          python3 -m pip install -e media/
+          python3 -m pip install -e core/
+          python3 -m pip install -e platforms/
+          python3 -m pip install -e cli/
+
+      - name: Run E2E tests
+        run: |
+          cd packages
+          pytest cli/tests/test_e2e_integration.py -v
+
   unit:
     name: Unit tests
     runs-on: ubuntu-24.04
-    needs: [lint, integration]
+    needs: [lint, integration, e2e]
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]

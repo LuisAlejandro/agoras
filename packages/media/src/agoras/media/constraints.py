@@ -178,6 +178,7 @@ TRANSFER: Dict[str, Dict[MediaKind, TransferMode]] = {
     'threads': {'image': 'url_pull', 'video': 'upload_bytes'},
 }
 
+
 def resolve_platform(name: str) -> str:
     """Map CLI, class, or env names to canonical platform keys."""
     if not name:
