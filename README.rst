@@ -309,3 +309,5 @@ Made with 💖 and 🍔
 
 __ LuisAlejandroGitHub_
 __ LuisAlejandroTwitter_
+
+<!-- semgrep pilot criterion 1 -->
