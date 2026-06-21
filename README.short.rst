@@ -51,3 +51,5 @@ This repository stores the application. There's also `GitHub actions`_
 that you can incorporate into your workflows.
 
 For more information, please read the `full documentation`_.
+
+.. CI probe: temporary line to exercise pr-auto-merge workflow (revert after validation).
