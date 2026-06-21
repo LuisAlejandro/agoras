@@ -46,11 +46,10 @@ Pull request CI and auto-merge
   sync does not rewrite ``pr.yml``; fleet sync may patch trigger/checkout security
   only (remove ``pull_request_target``, PR-head checkout, and in-file approve/merge
   jobs).
-- **``code-quality.yml``** — static-synced CodeQL on ``pull_request`` to ``develop``
-  (job name **Code Quality**). Fails the PR check when CodeQL reports findings.
-  **``rosey-maintain protect-github --apply``** sets CodeQL merge protection on
-  ``develop`` (alerts and security severities: **all**, including warnings). No
-  weekly schedule.
+- **``code-quality.yml``** — static-synced Semgrep OSS on ``pull_request`` to ``develop``
+  (job name **Code Quality**). Fails the PR check when Semgrep reports findings in
+  the PR diff. Gating is via the required **Code Quality** status check (no GitHub
+  Code scanning SARIF upload).
 - **``pr-auto-merge.yml``** — static-synced. Triggers on ``workflow_run`` after
   **Pull Request** completes on an eligible **head** branch (``feature/**`` or
   ``dependabot/**``; not ``release/**``). A gate job verifies the PR targets
@@ -101,8 +100,7 @@ GitHub branch protection (configure once)
 in ``.github/workflows/pr.yml`` **plus** **Code Quality** from static-synced
 ``code-quality.yml`` when present. Run ``rosey-maintain protect-github --apply``
 (after GitHub Pro on private repos) to create the ``Rosey: develop`` ruleset with
-those checks and CodeQL merge protection (tool **CodeQL**; alert and security
-thresholds **all**).
+those checks (including matrix-expanded job names where applicable).
 
 **``master``** — restrict pushes; disallow force pushes.
 
