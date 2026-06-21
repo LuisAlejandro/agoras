@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 # Shared release gates for release scripts.
+# Managed by rosey-maintainer-tools 0.2.0. Do not edit directly.
 
 RELEASE_CI_WORKFLOW=${RELEASE_CI_WORKFLOW:-push.yml}
 RELEASE_CI_TIMEOUT_SECONDS=${RELEASE_CI_TIMEOUT_SECONDS:-2700}
@@ -124,7 +125,7 @@ release_wait_for_branch_ci() {
             exit 1
         fi
 
-        if (( $(date +%s) - start_time > RELEASE_CI_TIMEOUT_SECONDS )); then
+        if (($(date +%s) - start_time > RELEASE_CI_TIMEOUT_SECONDS)); then
             print_error "Timed out waiting for GitHub Actions run on $branch_name"
             print_error "Workflow: $RELEASE_CI_WORKFLOW; commit: $commit_sha"
             exit 1
@@ -168,7 +169,7 @@ release_build_notes() {
     local repo_slug=""
 
     if [[ -f "RELEASE_DESCRIPTION.rst" ]]; then
-        description_text=$(<RELEASE_DESCRIPTION.rst)
+        description_text=$(<"RELEASE_DESCRIPTION.rst")
     fi
 
     if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then

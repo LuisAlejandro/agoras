@@ -98,6 +98,7 @@ git push -u origin "release/$NEW_VERSION"
 RELEASE_BRANCH_SHA=$(git rev-parse HEAD)
 release_wait_for_branch_ci "release/$NEW_VERSION" "$RELEASE_BRANCH_SHA"
 
+export PREVIOUS_VERSION="$CURRENT_VERSION"
 release_finish_release "$NEW_VERSION" "$APP_NAME"
 
 print_step "Release $NEW_VERSION completed successfully!"

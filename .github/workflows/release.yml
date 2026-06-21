@@ -9,8 +9,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Job 0: Verify the release tag before irreversible publishing
-  test:
+  verify-release-tag:
     name: Verify release tag
     runs-on: ubuntu-24.04
     steps:
@@ -29,21 +28,28 @@ jobs:
           python3 -m pip install -r requirements-dev.txt
 
       - name: Run lint
-        run: |
-          tox -e lint
+        run: tox -e lint
 
       - name: Run unit tests
-        run: |
-          tox -e coverage
+        run: tox -e coverage
 
-  # Job 1: Build all packages
   build-packages:
     name: Build Package ${{ matrix.package }}
     runs-on: ubuntu-24.04
-    needs: test
+    needs: verify-release-tag
     strategy:
       matrix:
-        package: ["common", "media", "core", "platforms", "cli"]
+        package:
+          - common
+
+          - media
+
+          - core
+
+          - platforms
+
+          - cli
+
     steps:
       - name: Checkout release tag
         uses: actions/checkout@v6
@@ -76,14 +82,13 @@ jobs:
           path: packages/${{ matrix.package }}/dist/*
           retention-days: 90
 
-  # Job 2: Publish to PyPI
   publish-to-pypi:
     name: Publish to PyPI
     runs-on: ubuntu-24.04
     needs: build-packages
     permissions:
-      id-token: write # Required for trusted publishing
-      contents: write # Required to upload assets to release
+      id-token: write
+      contents: write
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v8
@@ -93,66 +98,69 @@ jobs:
       - name: Display structure of downloaded files
         run: ls -R dist/
 
-      # Publish packages in dependency order
-      - name: Publish agoras-common
+      - name: Publish common
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/dist-common/
 
-      - name: Wait for agoras-common to be available on PyPI
+      - name: Wait for common to be available on PyPI
         run: |
           echo "Waiting 30 seconds for package to be indexed on PyPI..."
           sleep 30
 
-      - name: Publish agoras-media
+      - name: Publish media
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/dist-media/
 
-      - name: Wait for agoras-media to be available on PyPI
+      - name: Wait for media to be available on PyPI
         run: |
           echo "Waiting 30 seconds for package to be indexed on PyPI..."
           sleep 30
 
-      - name: Publish agoras-core
+      - name: Publish core
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/dist-core/
 
-      - name: Wait for agoras-core to be available on PyPI
+      - name: Wait for core to be available on PyPI
         run: |
           echo "Waiting 30 seconds for package to be indexed on PyPI..."
           sleep 30
 
-      - name: Publish agoras-platforms
+      - name: Publish platforms
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/dist-platforms/
 
-      - name: Wait for agoras-platforms to be available on PyPI
+      - name: Wait for platforms to be available on PyPI
         run: |
           echo "Waiting 30 seconds for package to be indexed on PyPI..."
           sleep 30
 
-      - name: Publish agoras (CLI)
+      - name: Publish cli
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/dist-cli/
 
-      # Upload all distribution files to the GitHub release as assets
       - name: Upload release assets
         uses: softprops/action-gh-release@v3
         with:
           files: |
+
             dist/dist-common/*
+
             dist/dist-media/*
+
             dist/dist-core/*
+
             dist/dist-platforms/*
+
             dist/dist-cli/*
+
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Job 3: Trigger ReadTheDocs webhook
   trigger-readthedocs:
     name: Trigger ReadTheDocs Build
     runs-on: ubuntu-24.04

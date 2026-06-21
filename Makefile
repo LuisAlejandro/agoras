@@ -124,7 +124,7 @@ virtualenv: start
 .PHONY: clean-pyc clean-build docs clean
 
 # >>> rosey-maintainer:ops-docker BEGIN
-# Managed by rosey-maintainer-tools 0.1.0. Do not edit directly.
+# Managed by rosey-maintainer-tools 0.2.0. Do not edit directly.
 
 PROJECT_NAME ?= agoras
 all_ps_hashes = $(shell docker ps -q)
@@ -172,7 +172,7 @@ cataplum:
 # <<< rosey-maintainer:ops-docker END
 
 # >>> rosey-maintainer:ops-release BEGIN
-# Managed by rosey-maintainer-tools 0.1.0. Do not edit directly.
+# Managed by rosey-maintainer-tools 0.2.0. Do not edit directly.
 
 release:
 	@./scripts/release.sh $(VERSION_TYPE)
@@ -186,9 +186,15 @@ release-minor:
 release-major:
 	@./scripts/release.sh major $(APP_NAME)
 
+
 release-preflight: start
+
+
 	@$(exec_on_docker) tox -e lint
+
 	@$(exec_on_docker) tox -e coverage
+
+
 
 undo-release:
 	@: "$${VERSION:?Set VERSION=x.y.z before running make undo-release}"
