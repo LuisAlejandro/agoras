@@ -124,7 +124,9 @@ virtualenv: start
 	@./virtualenv/bin/python3 -m pip install -e packages/platforms
 	@./virtualenv/bin/python3 -m pip install -e packages/cli
 
-.PHONY: clean-pyc clean-build docs clean
+.PHONY: clean clean-pyc clean-build clean-test clean-docs \
+	help lint format lint-and-format test test-all functional-test coverage \
+	docs servedocs pypi-upload dist install console virtualenv
 
 # >>> rosey-maintainer:ops-docker BEGIN
 # Managed by rosey-maintainer-tools 0.2.0. Do not edit directly.
@@ -178,16 +180,16 @@ cataplum:
 # Managed by rosey-maintainer-tools 0.2.0. Do not edit directly.
 
 release:
-	@./scripts/release.sh $(VERSION_TYPE)
+	@./scripts/release.sh $${VERSION_TYPE}
 
 release-patch:
-	@./scripts/release.sh patch $(APP_NAME)
+	@./scripts/release.sh patch $${APP_NAME}
 
 release-minor:
-	@./scripts/release.sh minor $(APP_NAME)
+	@./scripts/release.sh minor $${APP_NAME}
 
 release-major:
-	@./scripts/release.sh major $(APP_NAME)
+	@./scripts/release.sh major $${APP_NAME}
 
 
 release-preflight: start
