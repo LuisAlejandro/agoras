@@ -20,11 +20,18 @@ Repeat 1–2 for every feature in the release.
 
 When ``develop`` is ready to ship:
 
-3. ``rosey-release`` — publish a **release** (patch, minor, or major). Runs five
-   gates: Docker preflight, ``release/<version>`` branch CI, tag and GitHub
-   release, then PyPI verify. Creates a retroactive milestone for patch
-   releases. On failure, rolls back with ``VERSION=<version> make undo-release``
-   and halts.
+3. ``rosey-release`` — publish a **release** (patch, minor, or major). Five gates:
+   (1) Docker preflight (``make lint``, ``make format``, ``make test``;
+   on Python repos ``make test`` runs coverage),
+   (2) ``release/<version>`` branch pushed,
+   (3) ``push.yml`` CI on the release branch,
+   (4) tag and GitHub release,
+   (5) ``release.yml`` after publish
+   (PyPI build and publish) —
+   ``rosey-release`` confirms the workflow passed. Patch releases may attach a
+   retroactive milestone. On failure, rolls back with
+   ``VERSION=<version> make undo-release`` and halts. Optional post-bump hooks
+   live in ``.bumpversion.cfg`` under ``[rosey-maintainer]``.
 
 Skill reference
 ---------------

@@ -31,7 +31,7 @@ help:
 	@echo "lint - check style with flake8"
 	@echo "format - format Python code with autopep8"
 	@echo "lint-and-format - lint and format all Python files"
-	@echo "test - run tests quickly with the default Python"
+	@echo "test - run coverage tests with tox"
 	@echo "test-all - run tests on every Python version with tox"
 	@echo "coverage - check code coverage quickly with the default Python"
 	@echo "docs - generate Sphinx HTML documentation, including API docs"
@@ -75,6 +75,9 @@ lint-and-format: start
 	@$(exec_on_docker) tox -e lint
 
 test: start
+	@$(exec_on_docker) tox -e coverage
+
+test-all: start
 	@$(exec_on_docker) tox -e all
 
 functional-test: start
@@ -190,9 +193,11 @@ release-major:
 release-preflight: start
 
 
-	@$(exec_on_docker) tox -e lint
+	@make lint
 
-	@$(exec_on_docker) tox -e coverage
+	@make format
+
+	@make test
 
 
 
