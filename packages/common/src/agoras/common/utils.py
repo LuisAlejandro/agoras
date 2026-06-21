@@ -33,6 +33,7 @@ from bs4 import BeautifulSoup
 
 
 def add_url_timestamp(url, timestamp):
+    """Append a timestamp query parameter to a URL."""
     parsed = urlparse(url)
     query = dict(parse_qs(str(parsed.query)))
     query['t'] = timestamp
