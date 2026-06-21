@@ -87,8 +87,11 @@ async def test_threads_api_create_post_with_text(mock_media_factory, threads_api
 
 
 @pytest.mark.asyncio
+@patch('agoras.media.preflight.preflight_url_for_platform')
 @patch('agoras.platforms.threads.api.MediaFactory')
-async def test_threads_api_create_post_with_images(mock_media_factory, threads_api):
+async def test_threads_api_create_post_with_images(
+    mock_media_factory, mock_preflight, threads_api,
+):
     """Test ThreadsAPI create_post with images."""
     # Mock MediaFactory.download_images
     mock_image = MagicMock()
@@ -103,6 +106,7 @@ async def test_threads_api_create_post_with_images(mock_media_factory, threads_a
 
     assert result == 'thread-123'
     threads_api.client.create_post.assert_called_once()
+    mock_preflight.assert_called_once_with('http://image.jpg', 'threads', kind='image')
     mock_image.cleanup.assert_called()
 
 

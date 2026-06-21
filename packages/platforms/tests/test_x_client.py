@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock, mock_open, patch
 
 import pytest
 
@@ -186,28 +186,22 @@ class TestXAPIClient:
         mock_to_thread.assert_not_called()
 
     @patch('asyncio.to_thread')
-    @patch('os.unlink')
-    @patch('os.path.exists')
-    @patch('builtins.open')
-    @patch('tempfile.mkstemp')
+    @patch('agoras.platforms.x.client.os.unlink')
+    @patch('agoras.platforms.x.client.os.path.exists')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('agoras.platforms.x.client.tempfile.mkstemp')
     @pytest.mark.asyncio
-    async def test_x_client_upload_media_success(self, mock_mkstemp, mock_open, mock_exists, mock_unlink, mock_to_thread):
+    async def test_x_client_upload_media_success(
+        self, mock_mkstemp, mock_open_fn, mock_exists, mock_unlink, mock_to_thread,
+    ):
         """Test upload_media success."""
-        # Mock tempfile operations
         mock_mkstemp.return_value = (42, '/tmp/test_file')
-        mock_file = MagicMock()
-        mock_open.return_value.__enter__.return_value = mock_file
-        mock_exists.return_value = True  # File exists, so unlink will be called
+        mock_exists.return_value = True
 
-        # Mock the media upload response
         mock_media = MagicMock()
         mock_media.media_id = 'media123'
 
-        # Mock the inner function
-        def mock_inner():
-            return mock_media
-
-        mock_to_thread.side_effect = lambda func: func()
+        mock_to_thread.side_effect = lambda func, /, *args, **kwargs: func(*args, **kwargs)
 
         client = XAPIClient('ck', 'cs', 'ot', 'os')
         client.client_v1 = MagicMock()
@@ -217,8 +211,8 @@ class TestXAPIClient:
 
         assert result == 'media123'
         mock_mkstemp.assert_called_once()
-        mock_open.assert_called_once_with('/tmp/test_file', 'wb')
-        mock_file.write.assert_called_once_with(b'test content')
+        mock_open_fn.assert_any_call('/tmp/test_file', 'wb')
+        mock_open_fn().write.assert_called_once_with(b'test content')
         mock_exists.assert_called_once_with('/tmp/test_file')
         mock_unlink.assert_called_once_with('/tmp/test_file')
 

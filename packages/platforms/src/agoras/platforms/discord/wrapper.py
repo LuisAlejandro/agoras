@@ -305,6 +305,7 @@ class Discord(SocialNetwork):
         self._output_status(message_id)
         return message_id
 
+
 async def main_async(kwargs):
     """
     Async main function to execute Discord actions.
