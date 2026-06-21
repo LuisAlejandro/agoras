@@ -175,17 +175,22 @@ cataplum:
 # Managed by rosey-maintainer-tools 0.1.0. Do not edit directly.
 
 release:
-	@./scripts/release.sh $${VERSION_TYPE}
+	@./scripts/release.sh $(VERSION_TYPE)
 
 release-patch:
-	@./scripts/release.sh patch $${APP_NAME}
+	@./scripts/release.sh patch $(APP_NAME)
 
 release-minor:
-	@./scripts/release.sh minor $${APP_NAME}
+	@./scripts/release.sh minor $(APP_NAME)
 
 release-major:
-	@./scripts/release.sh major $${APP_NAME}
+	@./scripts/release.sh major $(APP_NAME)
 
-hotfix:
-	@./scripts/hotfix.sh $${APP_NAME}
+release-preflight: start
+	@$(exec_on_docker) tox -e lint
+	@$(exec_on_docker) tox -e coverage
+
+undo-release:
+	@: "$${VERSION:?Set VERSION=x.y.z before running make undo-release}"
+	@VERSION=$${VERSION} ./scripts/rollback.sh release
 # <<< rosey-maintainer:ops-release END

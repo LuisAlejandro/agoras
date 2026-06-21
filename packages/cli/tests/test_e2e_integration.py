@@ -22,6 +22,10 @@ End-to-end integration tests for CLI -> Core -> Platform flow.
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import agoras.cli.commands.publish  # noqa: F401 — register namespace for @patch
+import agoras.core.interfaces  # noqa: F401
+import agoras.platforms.telegram.wrapper  # noqa: F401
+import agoras.platforms.x.wrapper  # noqa: F401
 import pytest
 
 # Test CLI to Platform Flow

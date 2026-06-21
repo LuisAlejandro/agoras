@@ -161,7 +161,7 @@ Your Google Sheet should have the following columns:
 ::
 
     status_text,status_link,status_image_url_1,status_image_url_2,status_image_url_3,status_image_url_4,date,hour,state
-    "This is a test instagram post","https://agoras.readthedocs.io/en/latest/","https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg","https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg","","","21-11-2022","17","pending"
+    "This is a test instagram post","https://agoras.luisalejandro.org/en/latest/","https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg","https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg","","","21-11-2022","17","pending"
 
 Scheduling Logic
 ~~~~~~~~~~~~~~~~

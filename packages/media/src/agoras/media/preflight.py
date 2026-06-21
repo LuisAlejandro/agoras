@@ -20,7 +20,7 @@ from typing import Optional
 from urllib.request import Request, urlopen
 
 from .constraints import MediaConstraints, resolve_platform
-from .errors import MediaValidationError, format_limit_error
+from .errors import MediaValidationError
 
 
 def preflight_url(url: str, limits: MediaConstraints, *,

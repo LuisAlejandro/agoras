@@ -2,13 +2,45 @@ name: Publish Release
 
 on:
   release:
-    types: [published, created]
+    types: [published]
+
+concurrency:
+  group: publish-release-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
 
 jobs:
+  # Job 0: Verify the release tag before irreversible publishing
+  test:
+    name: Verify release tag
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install -r requirements-dev.txt
+
+      - name: Run lint
+        run: |
+          tox -e lint
+
+      - name: Run unit tests
+        run: |
+          tox -e coverage
+
   # Job 1: Build all packages
   build-packages:
     name: Build Package ${{ matrix.package }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
+    needs: test
     strategy:
       matrix:
         package: ["common", "media", "core", "platforms", "cli"]
@@ -47,7 +79,7 @@ jobs:
   # Job 2: Publish to PyPI
   publish-to-pypi:
     name: Publish to PyPI
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: build-packages
     permissions:
       id-token: write # Required for trusted publishing
@@ -109,7 +141,7 @@ jobs:
 
       # Upload all distribution files to the GitHub release as assets
       - name: Upload release assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             dist/dist-common/*
@@ -120,43 +152,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Job 3: Verify installation
-  verify-installation:
-    name: Verify PyPI Installation
-    runs-on: ubuntu-22.04
-    needs: publish-to-pypi
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
-    steps:
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Wait for PyPI to index all packages
-        run: |
-          echo "Waiting 60 seconds for all packages to be fully indexed on PyPI..."
-          sleep 60
-
-      - name: Install agoras from PyPI
-        run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install agoras==${{ github.event.release.tag_name }}
-
-      - name: Verify installation
-        run: |
-          agoras --version
-          agoras --help
-
-      - name: Test import
-        run: |
-          python3 -c "import agoras.common; import agoras.media; import agoras.core; import agoras.platforms; import agoras.cli"
-
-  # Job 4: Trigger ReadTheDocs webhook
+  # Job 3: Trigger ReadTheDocs webhook
   trigger-readthedocs:
     name: Trigger ReadTheDocs Build
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: publish-to-pypi
     steps:
       - name: Trigger ReadTheDocs webhook
@@ -164,12 +163,12 @@ jobs:
           RTD_WEBHOOK_URL: ${{ secrets.RTD_WEBHOOK_URL }}
           RTD_WEBHOOK_TOKEN: ${{ secrets.RTD_WEBHOOK_TOKEN }}
         run: |
-          if [ -n "$RTD_WEBHOOK_URL" ] && [ -n "$RTD_WEBHOOK_TOKEN" ]; then
-            curl -X POST \
-              -d "branches=${{ github.event.release.tag_name }}" \
-              -d "token=$RTD_WEBHOOK_TOKEN" \
-              "$RTD_WEBHOOK_URL"
-            echo "Triggered ReadTheDocs build for version ${{ github.event.release.tag_name }}"
-          else
-            echo "ReadTheDocs webhook secrets not configured, skipping webhook trigger"
+          if [ -z "$RTD_WEBHOOK_URL" ] || [ -z "$RTD_WEBHOOK_TOKEN" ]; then
+            echo "ReadTheDocs webhook secrets RTD_WEBHOOK_URL and RTD_WEBHOOK_TOKEN must be configured"
+            exit 1
           fi
+          curl -f -X POST \
+            -d "branches=${{ github.event.release.tag_name }}" \
+            -d "token=$RTD_WEBHOOK_TOKEN" \
+            "$RTD_WEBHOOK_URL"
+          echo "Triggered ReadTheDocs build for version ${{ github.event.release.tag_name }}"

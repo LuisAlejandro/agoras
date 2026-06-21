@@ -342,15 +342,6 @@ The release process follows this workflow:
 5. Workflow publishes packages to PyPI sequentially (with waits between)
 6. Packages become available on PyPI
 
-Hotfix Process
---------------
-
-For urgent fixes, use the hotfix script::
-
-    $ ./scripts/hotfix.sh [major|minor|patch] [Hotfix Name]
-
-This follows the same process but creates a hotfix branch and merges to both develop and master.
-
 Manual Release (Not Recommended)
 ---------------------------------
 
