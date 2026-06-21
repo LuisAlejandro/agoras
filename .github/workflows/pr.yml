@@ -69,8 +69,6 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v6

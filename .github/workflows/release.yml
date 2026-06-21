@@ -40,6 +40,7 @@ jobs:
     strategy:
       matrix:
         package:
+
           - common
 
           - media
@@ -98,50 +99,65 @@ jobs:
       - name: Display structure of downloaded files
         run: ls -R dist/
 
+
       - name: Publish common
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/dist-common/
+
 
       - name: Wait for common to be available on PyPI
         run: |
           echo "Waiting 30 seconds for package to be indexed on PyPI..."
           sleep 30
 
+
+
       - name: Publish media
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/dist-media/
+
 
       - name: Wait for media to be available on PyPI
         run: |
           echo "Waiting 30 seconds for package to be indexed on PyPI..."
           sleep 30
 
+
+
       - name: Publish core
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/dist-core/
+
 
       - name: Wait for core to be available on PyPI
         run: |
           echo "Waiting 30 seconds for package to be indexed on PyPI..."
           sleep 30
 
+
+
       - name: Publish platforms
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/dist-platforms/
+
 
       - name: Wait for platforms to be available on PyPI
         run: |
           echo "Waiting 30 seconds for package to be indexed on PyPI..."
           sleep 30
 
+
+
       - name: Publish cli
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/dist-cli/
+
+
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v3
