@@ -1,0 +1,38 @@
+# Cursor Cloud specific instructions
+
+Agoras is a single product: a Python CLI (`agoras`) that publishes/manages posts across
+social networks. It is organized as a monorepo of five editable namespace packages under
+`packages/` (`common` -> `media` -> `core` -> `platforms` -> `cli`, in dependency order).
+There is no server, database, cache, or queue; the only network port the product ever uses
+is `3456` (the transient local OAuth callback server, started on demand during `authorize`).
+
+## Environment layout (already set up by the update script)
+
+- Dependencies live in a host virtualenv at `./virtualenv` (this mirrors `make virtualenv`
+  but WITHOUT Docker). Use the binaries inside it directly, e.g. `./virtualenv/bin/agoras`,
+  `./virtualenv/bin/tox`, `./virtualenv/bin/python3`.
+- The `make lint` / `make test` / `make console` targets require Docker and are NOT used
+  here. Run the underlying `tox` commands directly against the venv instead (see below).
+- `python3-venv` is a system dependency that is already present; it is not reinstalled by the
+  update script.
+
+## Lint / test / run
+
+- Lint (flake8, all packages): `./virtualenv/bin/tox -e lint`
+- Tests + coverage (all packages): `./virtualenv/bin/tox -e coverage`
+- Run the CLI: `./virtualenv/bin/agoras --help` (entry point `agoras=agoras.cli.main:main`).
+
+## Non-obvious gotchas
+
+- Do NOT run `pytest packages/` (or `pytest` from the repo root) across all packages at
+  once -- it fails with ~47 collection errors because test module names collide across
+  packages. Tests must be run per package directory, e.g.
+  `./virtualenv/bin/python3 -m pytest packages/core/tests/ -q`. `tox -e coverage` already does
+  this correctly (it installs the packages editable and runs each package's `tests/` separately).
+- Unit tests block all real HTTP: `conftest.py` has an autouse fixture that patches
+  `urllib.request.urlopen` and `requests.Session.request` to raise. Tests needing real network
+  must be marked `@pytest.mark.integration`.
+- Live end-to-end posting to social networks requires real platform credentials (see
+  `.env.example`); those flows are not exercised by the default test suite. The feed-ingestion
+  core (`agoras.core.feed.Feed`, used by `agoras utils feed-publish`) and `agoras utils
+  media-limits` run fully offline / with only outbound HTTP and are good smoke checks.
