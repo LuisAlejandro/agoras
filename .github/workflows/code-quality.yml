@@ -32,6 +32,7 @@ jobs:
       - name: Resolve Semgrep baseline
         id: baseline
         run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           if [ -n "${{ github.event.pull_request.base.sha }}" ]; then
             echo "sha=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
           else

@@ -11,6 +11,10 @@ on:
       - 'dependabot/**'
       - '!release/**'
 
+concurrency:
+  group: pr-auto-merge-${{ github.event.workflow_run.head_branch }}-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
 jobs:
   gate:
     name: Verify PR checks passed
@@ -174,9 +178,30 @@ jobs:
       - name: Approve
         uses: actions/github-script@v9
         with:
-          github-token: "${{ github.event.workflow_run.actor.login == github.repository_owner && secrets.GITHUB_TOKEN || secrets.REPO_PERSONAL_ACCESS_TOKEN }}"
+          github-token: "${{ github.event.workflow_run.actor.login == 'dependabot[bot]' && secrets.REPO_PERSONAL_ACCESS_TOKEN || secrets.GITHUB_TOKEN }}"
           script: |
             const pullNumber = Number('${{ needs.gate.outputs.pull_number }}');
+            const { data: pull } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pullNumber,
+            });
+            if (pull.merged) {
+              core.notice(`PR #${pullNumber} is already merged`);
+              return;
+            }
+            const { data: reviews } = await github.rest.pulls.listReviews({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pullNumber,
+            });
+            const hasBotApproval = reviews.some(
+              (review) => review.state === 'APPROVED' && review.user?.type === 'Bot',
+            );
+            if (hasBotApproval) {
+              core.notice(`PR #${pullNumber} already has bot approval`);
+              return;
+            }
             await github.rest.pulls.createReview({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -200,9 +225,18 @@ jobs:
       - name: Merge
         uses: actions/github-script@v9
         with:
-          github-token: "${{ github.event.workflow_run.actor.login == github.repository_owner && secrets.GITHUB_TOKEN || secrets.REPO_PERSONAL_ACCESS_TOKEN }}"
+          github-token: "${{ github.event.workflow_run.actor.login == 'dependabot[bot]' && secrets.REPO_PERSONAL_ACCESS_TOKEN || secrets.GITHUB_TOKEN }}"
           script: |
             const pullNumber = Number('${{ needs.approve.outputs.pull_number }}');
+            const { data: pull } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pullNumber,
+            });
+            if (pull.merged) {
+              core.notice(`PR #${pullNumber} is already merged`);
+              return;
+            }
             await github.rest.pulls.merge({
               owner: context.repo.owner,
               repo: context.repo.repo,
