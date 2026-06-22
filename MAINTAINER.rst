@@ -117,8 +117,8 @@ static sync does not manage ``push.yml``). ``scripts/release.sh`` waits for the 
 **Version tags** — restrict creation to maintainers; prevent tag deletion except
 by admins.
 
-CI probe v9 (auto-merge validation)
------------------------------------
+CI probe v10 (auto-merge validation)
+------------------------------------
 
-Temporary marker for probe v9: retains a non-zero diff if the probe test file
-is removed by Cursor automation (repeat validation after v8 success).
+Temporary marker for probe v10: retains a non-zero diff if the probe test file
+is removed by Cursor automation (synchronize-only retrigger, no MCP dispatch).
