@@ -102,8 +102,9 @@ jobs:
             }
 
             function latestRun(workflowRuns, workflowName) {
+              const ciEvents = new Set(['pull_request', 'push']);
               const matches = workflowRuns.filter(
-                (item) => item.name === workflowName && item.event === 'pull_request',
+                (item) => item.name === workflowName && ciEvents.has(item.event),
               );
               return matches.sort(
                 (a, b) => new Date(b.created_at) - new Date(a.created_at),

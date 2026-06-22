@@ -9,6 +9,10 @@ on:
       - reopened
     branches:
       - develop
+  push:
+    branches:
+      - 'feature/**'
+      - 'dependabot/**'
 
 permissions:
   contents: read
@@ -25,11 +29,21 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Resolve Semgrep baseline
+        id: baseline
+        run: |
+          if [ -n "${{ github.event.pull_request.base.sha }}" ]; then
+            echo "sha=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            git fetch origin develop
+            echo "sha=$(git merge-base HEAD origin/develop)" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Semgrep scan
         run: |
           semgrep scan \
             --config p/ci \
             --config p/python \
-            --baseline-commit "${{ github.event.pull_request.base.sha }}" \
+            --baseline-commit "${{ steps.baseline.outputs.sha }}" \
             --metrics=off \
             --error
