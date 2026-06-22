@@ -4,8 +4,6 @@ name: Pull Request Auto-Merge
 
 
 
-
-
 on:
   workflow_run:
     workflows:
@@ -23,9 +21,7 @@ jobs:
     runs-on: ubuntu-24.04
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
-      (github.event.workflow_run.actor.login == 'dependabot[bot]' ||
-github.event.workflow_run.actor.login == 'cursor[bot]' ||
-github.event.workflow_run.actor.login == github.repository_owner)
+      (github.event.workflow_run.actor.login == 'dependabot[bot]' || github.event.workflow_run.actor.login == 'cursor[bot]' || github.event.workflow_run.actor.login == github.repository_owner)
     permissions:
       pull-requests: read
     outputs:
@@ -90,9 +86,7 @@ github.event.workflow_run.actor.login == github.repository_owner)
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       needs.gate.outputs.eligible == 'true' &&
-      (github.event.workflow_run.actor.login == 'dependabot[bot]' ||
-github.event.workflow_run.actor.login == 'cursor[bot]' ||
-github.event.workflow_run.actor.login == github.repository_owner)
+      (github.event.workflow_run.actor.login == 'dependabot[bot]' || github.event.workflow_run.actor.login == 'cursor[bot]' || github.event.workflow_run.actor.login == github.repository_owner)
     permissions:
       pull-requests: write
     outputs:
@@ -138,9 +132,7 @@ github.event.workflow_run.actor.login == github.repository_owner)
     needs: approve
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
-      (github.event.workflow_run.actor.login == 'dependabot[bot]' ||
-github.event.workflow_run.actor.login == 'cursor[bot]' ||
-github.event.workflow_run.actor.login == github.repository_owner)
+      (github.event.workflow_run.actor.login == 'dependabot[bot]' || github.event.workflow_run.actor.login == 'cursor[bot]' || github.event.workflow_run.actor.login == github.repository_owner)
     permissions:
       contents: write
       pull-requests: write
