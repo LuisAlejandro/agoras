@@ -290,6 +290,47 @@ class LinkedInAPIClient:
 
         raise Exception('Timed out waiting for LinkedIn video to become available')
 
+    @staticmethod
+    def _build_post_content(
+        link: Optional[str],
+        text: str,
+        link_title: Optional[str],
+        link_description: Optional[str],
+        image_ids: Optional[List[str]],
+        video_id: Optional[str],
+        video_title: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
+        """Build the LinkedIn post ``content`` payload for the given media."""
+        if link and text:
+            article: Dict[str, Any] = {
+                "source": link,
+                "title": text,
+            }
+            if image_ids:
+                article["thumbnail"] = image_ids[0]
+            if link_title:
+                article["title"] = link_title
+            if link_description:
+                article["description"] = link_description
+            return {"article": article}
+
+        if not link and video_id:
+            media: Dict[str, Any] = {"id": video_id}
+            if video_title:
+                media["title"] = video_title
+            return {"media": media}
+
+        if not link and image_ids:
+            if len(image_ids) == 1:
+                return {"media": {"id": image_ids[0]}}
+            return {
+                "multiImage": {
+                    "images": [{"id": image_id} for image_id in image_ids]
+                }
+            }
+
+        return None
+
     async def create_post(self,
                           author_urn: str,
                           text: str,
@@ -337,43 +378,12 @@ class LinkedInAPIClient:
                 "isReshareDisabledByAuthor": False
             }
 
-            # Handle link content
-            if link and text:
-                entity["content"] = {
-                    "article": {
-                        "source": link,
-                        "title": text,
-                    }
-                }
-
-                if image_ids and len(image_ids) > 0:
-                    entity["content"]["article"]["thumbnail"] = image_ids[0]
-
-                if link_title:
-                    entity["content"]["article"]["title"] = link_title
-
-                if link_description:
-                    entity["content"]["article"]["description"] = link_description
-
-            # Handle video content (without link)
-            elif not link and video_id:
-                media = {"id": video_id}
-                if video_title:
-                    media["title"] = video_title
-                entity["content"] = {"media": media}
-
-            # Handle media content (without link)
-            elif not link and image_ids:
-                if len(image_ids) == 1:
-                    entity["content"] = {
-                        "media": {"id": image_ids[0]}
-                    }
-                elif len(image_ids) > 1:
-                    entity["content"] = {
-                        "multiImage": {
-                            "images": [{"id": image_id} for image_id in image_ids]
-                        }
-                    }
+            content = self._build_post_content(
+                link, text, link_title, link_description,
+                image_ids, video_id, video_title,
+            )
+            if content:
+                entity["content"] = content
 
             request = self.restli_client.create(
                 resource_path='/posts',

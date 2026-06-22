@@ -23,21 +23,25 @@ import pytest
 from agoras.platforms.linkedin import LinkedIn
 from agoras.platforms.linkedin.api import LinkedInAPI
 
+from .wrapper_test_helpers import (
+    LINKEDIN_KWARGS,
+    configure_linkedin_auth_mock,
+)
+
 # LinkedIn Wrapper Tests
 
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.linkedin.wrapper.LinkedInAPI')
-@patch('agoras.platforms.linkedin.auth.LinkedInAuthManager._load_credentials_from_storage', return_value=False)
-async def test_linkedin_initialize_client(mock_load_credentials, mock_api_class):
+@patch('agoras.platforms.linkedin.auth.LinkedInAuthManager')
+async def test_linkedin_initialize_client(mock_auth_manager_class, mock_api_class):
     """Test LinkedIn _initialize_client extracts config and creates API."""
+    configure_linkedin_auth_mock(mock_auth_manager_class, access_token='test_token')
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    linkedin = LinkedIn(
-        linkedin_access_token='test_token'
-    )
+    linkedin = LinkedIn(**{**LINKEDIN_KWARGS, 'linkedin_access_token': 'test_token'})
 
     await linkedin._initialize_client()
 
@@ -135,14 +139,16 @@ async def test_linkedin_authorize_credentials_failure(mock_auth_manager_class):
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.linkedin.wrapper.LinkedInAPI')
-async def test_linkedin_post(mock_api_class):
+@patch('agoras.platforms.linkedin.auth.LinkedInAuthManager')
+async def test_linkedin_post(mock_auth_manager_class, mock_api_class):
     """Test LinkedIn post method."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
     mock_api.post = AsyncMock(return_value='post-123')
     mock_api_class.return_value = mock_api
 
-    linkedin = LinkedIn(linkedin_access_token='token')
+    linkedin = LinkedIn(**LINKEDIN_KWARGS)
 
     await linkedin._initialize_client()
 
@@ -154,14 +160,16 @@ async def test_linkedin_post(mock_api_class):
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.linkedin.wrapper.LinkedInAPI')
-async def test_linkedin_like(mock_api_class):
+@patch('agoras.platforms.linkedin.auth.LinkedInAuthManager')
+async def test_linkedin_like(mock_auth_manager_class, mock_api_class):
     """Test LinkedIn like method."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
     mock_api.like = AsyncMock(return_value='post-123')
     mock_api_class.return_value = mock_api
 
-    linkedin = LinkedIn(linkedin_access_token='token')
+    linkedin = LinkedIn(**LINKEDIN_KWARGS)
 
     await linkedin._initialize_client()
 
@@ -173,14 +181,16 @@ async def test_linkedin_like(mock_api_class):
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.linkedin.wrapper.LinkedInAPI')
-async def test_linkedin_share(mock_api_class):
+@patch('agoras.platforms.linkedin.auth.LinkedInAuthManager')
+async def test_linkedin_share(mock_auth_manager_class, mock_api_class):
     """Test LinkedIn share method."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
     mock_api.share = AsyncMock(return_value='share-456')
     mock_api_class.return_value = mock_api
 
-    linkedin = LinkedIn(linkedin_access_token='token')
+    linkedin = LinkedIn(**LINKEDIN_KWARGS)
 
     await linkedin._initialize_client()
 
@@ -192,14 +202,16 @@ async def test_linkedin_share(mock_api_class):
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.linkedin.wrapper.LinkedInAPI')
-async def test_linkedin_delete(mock_api_class):
+@patch('agoras.platforms.linkedin.auth.LinkedInAuthManager')
+async def test_linkedin_delete(mock_auth_manager_class, mock_api_class):
     """Test LinkedIn delete method."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
     mock_api.delete = AsyncMock(return_value='post-123')
     mock_api_class.return_value = mock_api
 
-    linkedin = LinkedIn(linkedin_access_token='token')
+    linkedin = LinkedIn(**LINKEDIN_KWARGS)
 
     await linkedin._initialize_client()
 
@@ -211,15 +223,17 @@ async def test_linkedin_delete(mock_api_class):
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.linkedin.wrapper.LinkedInAPI')
-async def test_linkedin_video(mock_api_class):
+@patch('agoras.platforms.linkedin.auth.LinkedInAuthManager')
+async def test_linkedin_video(mock_auth_manager_class, mock_api_class):
     """Test LinkedIn video method uploads and posts."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
     mock_api.upload_video = AsyncMock(return_value='urn:li:video:123')
     mock_api.post = AsyncMock(return_value='post-789')
     mock_api_class.return_value = mock_api
 
-    linkedin = LinkedIn(linkedin_access_token='token')
+    linkedin = LinkedIn(**LINKEDIN_KWARGS)
     await linkedin._initialize_client()
 
     mock_video = MagicMock()
@@ -245,14 +259,16 @@ async def test_linkedin_video(mock_api_class):
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.linkedin.wrapper.LinkedInAPI')
-async def test_linkedin_disconnect(mock_api_class):
+@patch('agoras.platforms.linkedin.auth.LinkedInAuthManager')
+async def test_linkedin_disconnect(mock_auth_manager_class, mock_api_class):
     """Test LinkedIn disconnect method."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
     mock_api.disconnect = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    linkedin = LinkedIn(linkedin_access_token='token')
+    linkedin = LinkedIn(**LINKEDIN_KWARGS)
 
     await linkedin._initialize_client()
     await linkedin.disconnect()

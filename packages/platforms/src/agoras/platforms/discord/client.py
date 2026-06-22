@@ -148,9 +148,13 @@ class DiscordAPIClient:
         """
         if self.client:
             try:
-                # Use asyncio to close the client if it's still running
                 if not self.client.is_closed():
-                    asyncio.create_task(self.client.close())
+                    try:
+                        loop = asyncio.get_running_loop()
+                        loop.create_task(self.client.close())
+                    except RuntimeError:
+                        # No running event loop (sync disconnect); client is cleared below.
+                        pass
             except Exception:
                 pass
 

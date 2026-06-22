@@ -101,6 +101,42 @@ class ThreadsAPI(BaseAPI):
         self.client = None
         self._authenticated = False
 
+    @staticmethod
+    def _cleanup_downloaded_images(images: List[Any]) -> None:
+        """Release temporary image resources after validation failure."""
+        for image in images:
+            try:
+                image.cleanup()
+            except Exception:
+                pass
+
+    @staticmethod
+    def _validate_downloaded_image(
+        image: Any,
+        idx: int,
+        file_captions: Optional[List[str]],
+        allowed_images: frozenset,
+        validated_files: List[str],
+        validated_captions: List[str],
+    ) -> None:
+        """Validate one downloaded image and append to output lists."""
+        if not image.content or not image.file_type:
+            raise Exception(f'Failed to download or validate image: {image.url}')
+
+        if image.file_type.mime not in allowed_images:
+            raise MediaValidationError(
+                'threads', 'image', 'mime_types',
+                image.file_type.mime, sorted(allowed_images),
+            )
+
+        from agoras.media.preflight import preflight_url_for_platform
+
+        preflight_url_for_platform(image.url, 'threads', kind='image')
+        validated_files.append(image.url)
+
+        if file_captions and idx < len(file_captions):
+            validated_captions.append(file_captions[idx])
+
     async def _validate_and_download_images(
         self, files: List[str], file_captions: Optional[List[str]]
     ) -> Tuple[List[str], List[str], List[Any]]:
@@ -128,54 +164,27 @@ class ThreadsAPI(BaseAPI):
             raise Exception('Files list contains no valid URLs')
 
         from agoras.media.constraints import image_limits
-        from agoras.media.preflight import preflight_url_for_platform
 
         allowed_images = image_limits('threads').mime_types
 
         try:
-            # Download and validate all images concurrently
             images = await MediaFactory.download_images(
                 valid_file_urls, platform='threads',
             )
 
-            # Validate each image and collect validated URLs
             for idx, image in enumerate(images):
-                if not image.content or not image.file_type:
-                    raise Exception(f'Failed to download or validate image: {image.url}')
-
-                allowed = allowed_images
-                if image.file_type.mime not in allowed:
-                    raise MediaValidationError(
-                        'threads', 'image', 'mime_types',
-                        image.file_type.mime, sorted(allowed),
-                    )
-                preflight_url_for_platform(image.url, 'threads', kind='image')
-
-                # Use the original URL; Threads Graph API accepts image_url directly.
-                # Media system validation ensures the URL is valid and accessible
-                validated_files.append(image.url)
-
-                # Handle file captions - align with validated files
-                if file_captions and idx < len(file_captions):
-                    validated_captions.append(file_captions[idx])
+                self._validate_downloaded_image(
+                    image, idx, file_captions, allowed_images,
+                    validated_files, validated_captions,
+                )
 
             return validated_files, validated_captions, images
 
         except MediaValidationError:
-            for image in images:
-                try:
-                    image.cleanup()
-                except Exception:
-                    pass
+            self._cleanup_downloaded_images(images)
             raise
         except Exception as e:
-            # Clean up any downloaded images on error
-            for image in images:
-                try:
-                    image.cleanup()
-                except Exception:
-                    pass
-            # Re-raise with more context if it's not already our formatted exception
+            self._cleanup_downloaded_images(images)
             error_msg = str(e)
             if not error_msg.startswith('Media validation failed'):
                 raise Exception(f'Media validation failed: {error_msg}')

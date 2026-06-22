@@ -101,12 +101,15 @@ Quality Checks
 Prefer Docker-backed ``make`` targets when developing with containers::
 
     $ make lint
+    $ make format
     $ make test
 
 Or run tox directly on the host::
 
     $ pip install -r requirements-dev.txt
     $ tox -e lint
+    $ tox -e format
+    $ tox -e coverage
     $ tox -e all
 
 Development dependencies are managed in ``requirements-dev.txt`` and include

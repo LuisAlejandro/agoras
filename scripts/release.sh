@@ -2,7 +2,7 @@
 set -euo pipefail
 
 VERSION_TYPE=${1:-patch}
-APP_NAME=${2:-Agoras}
+APP_NAME=${2:-Release}
 NON_INTERACTIVE=${NON_INTERACTIVE:-false}
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
@@ -77,6 +77,8 @@ git flow release start "$NEW_VERSION"
 
 print_step "Bumping version to $NEW_VERSION"
 bumpversion --no-commit "$VERSION_TYPE"
+
+release_run_post_bump_commands
 
 print_step "Updating changelog"
 if command -v gitchangelog >/dev/null 2>&1; then

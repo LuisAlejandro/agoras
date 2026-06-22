@@ -31,7 +31,7 @@ help:
 	@echo "lint - check style with flake8"
 	@echo "format - format Python code with autopep8"
 	@echo "lint-and-format - lint and format all Python files"
-	@echo "test - run tests quickly with the default Python"
+	@echo "test - run coverage tests with tox"
 	@echo "test-all - run tests on every Python version with tox"
 	@echo "coverage - check code coverage quickly with the default Python"
 	@echo "docs - generate Sphinx HTML documentation, including API docs"
@@ -75,6 +75,9 @@ lint-and-format: start
 	@$(exec_on_docker) tox -e lint
 
 test: start
+	@$(exec_on_docker) tox -e coverage
+
+test-all: start
 	@$(exec_on_docker) tox -e all
 
 functional-test: start
@@ -121,10 +124,12 @@ virtualenv: start
 	@./virtualenv/bin/python3 -m pip install -e packages/platforms
 	@./virtualenv/bin/python3 -m pip install -e packages/cli
 
-.PHONY: clean-pyc clean-build docs clean
+.PHONY: clean clean-pyc clean-build clean-test clean-docs \
+	help lint format lint-and-format test test-all functional-test coverage \
+	docs servedocs pypi-upload dist install console virtualenv
 
 # >>> rosey-maintainer:ops-docker BEGIN
-# Managed by rosey-maintainer-tools 0.2.0. Do not edit directly.
+# Managed by rosey-maintainer-tools 0.4.3. Do not edit directly.
 
 PROJECT_NAME ?= agoras
 all_ps_hashes = $(shell docker ps -q)
@@ -172,27 +177,29 @@ cataplum:
 # <<< rosey-maintainer:ops-docker END
 
 # >>> rosey-maintainer:ops-release BEGIN
-# Managed by rosey-maintainer-tools 0.2.0. Do not edit directly.
+# Managed by rosey-maintainer-tools 0.4.3. Do not edit directly.
 
 release:
-	@./scripts/release.sh $(VERSION_TYPE)
+	@./scripts/release.sh $${VERSION_TYPE}
 
 release-patch:
-	@./scripts/release.sh patch $(APP_NAME)
+	@./scripts/release.sh patch $${APP_NAME}
 
 release-minor:
-	@./scripts/release.sh minor $(APP_NAME)
+	@./scripts/release.sh minor $${APP_NAME}
 
 release-major:
-	@./scripts/release.sh major $(APP_NAME)
+	@./scripts/release.sh major $${APP_NAME}
 
 
 release-preflight: start
 
 
-	@$(exec_on_docker) tox -e lint
+	@make lint
 
-	@$(exec_on_docker) tox -e coverage
+	@make format
+
+	@make test
 
 
 

@@ -151,7 +151,7 @@ async def test_threads_post(mock_api_class):
     threads = Threads(
         threads_app_id='app_id',
         threads_app_secret='secret',
-        threads_access_token='token'
+        threads_refresh_token='token'
     )
 
     await threads._initialize_client()
@@ -248,7 +248,7 @@ async def test_threads_disconnect(mock_api_class):
     threads = Threads(
         threads_app_id='app_id',
         threads_app_secret='secret',
-        threads_access_token='token'
+        threads_refresh_token='token'
     )
 
     await threads._initialize_client()
