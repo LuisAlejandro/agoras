@@ -1,5 +1,11 @@
 name: Pull Request Auto-Merge
 
+
+
+
+
+
+
 on:
   workflow_run:
     workflows:
@@ -11,10 +17,6 @@ on:
       - 'dependabot/**'
       - '!release/**'
 
-concurrency:
-  group: pr-auto-merge-${{ github.event.workflow_run.head_branch }}-${{ github.event.workflow_run.head_sha }}
-  cancel-in-progress: true
-
 jobs:
   gate:
     name: Verify PR checks passed
@@ -22,10 +24,9 @@ jobs:
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       (github.event.workflow_run.actor.login == 'dependabot[bot]' ||
-       github.event.workflow_run.actor.login == 'cursor[bot]' ||
-       github.event.workflow_run.actor.login == github.repository_owner)
+github.event.workflow_run.actor.login == 'cursor[bot]' ||
+github.event.workflow_run.actor.login == github.repository_owner)
     permissions:
-      actions: read
       pull-requests: read
     outputs:
       pull_number: ${{ steps.resolve_pr.outputs.pull_number }}
@@ -82,84 +83,6 @@ jobs:
             core.setOutput('eligible', 'true');
             core.setOutput('pull_number', String(pullNumber));
 
-      - name: Verify required workflow runs
-        if: steps.resolve_pr.outputs.eligible == 'true'
-        uses: actions/github-script@v9
-        with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
-          script: |
-            const run = context.payload.workflow_run;
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const headSha = run.head_sha;
-            const pollIntervalMs = 30_000;
-            const pollTimeoutMs = 30 * 60 * 1000;
-
-            async function listWorkflowRuns() {
-              const { data } = await github.rest.actions.listWorkflowRunsForRepo({
-                owner,
-                repo,
-                head_sha: headSha,
-                per_page: 100,
-              });
-              return data.workflow_runs;
-            }
-
-            function latestRun(workflowRuns, workflowName) {
-              const ciEvents = new Set(['pull_request', 'push']);
-              const matches = workflowRuns.filter(
-                (item) => item.name === workflowName && ciEvents.has(item.event),
-              );
-              return matches.sort(
-                (a, b) => new Date(b.created_at) - new Date(a.created_at),
-              )[0];
-            }
-
-            async function requireSuccess(workflowName, { poll = false } = {}) {
-              const deadline = Date.now() + (poll ? pollTimeoutMs : 0);
-
-              while (true) {
-                const runs = await listWorkflowRuns();
-                const latest = latestRun(runs, workflowName);
-
-                if (!latest) {
-                  if (!poll || Date.now() >= deadline) {
-                    core.setFailed(`Missing workflow run: ${workflowName}`);
-                    return false;
-                  }
-                } else if (latest.conclusion === 'success') {
-                  return true;
-                } else if (
-                  latest.conclusion === 'failure' ||
-                  latest.conclusion === 'cancelled'
-                ) {
-                  core.setFailed(
-                    `Workflow ${workflowName} conclusion is ${latest.conclusion}`,
-                  );
-                  return false;
-                } else if (!poll || Date.now() >= deadline) {
-                  core.setFailed(
-                    `Workflow ${workflowName} conclusion is ${latest.conclusion ?? 'pending'}`,
-                  );
-                  return false;
-                }
-
-                core.info(
-                  `Waiting for ${workflowName} to complete (latest: ${latest?.conclusion ?? 'missing'})`,
-                );
-                await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-              }
-            }
-
-            if (!(await requireSuccess('Pull Request'))) {
-              return;
-            }
-
-            if (!(await requireSuccess('Code Quality', { poll: true }))) {
-              return;
-            }
-
-
   approve:
     name: Approve pull request
     runs-on: ubuntu-24.04
@@ -168,8 +91,8 @@ jobs:
       github.event.workflow_run.conclusion == 'success' &&
       needs.gate.outputs.eligible == 'true' &&
       (github.event.workflow_run.actor.login == 'dependabot[bot]' ||
-       github.event.workflow_run.actor.login == 'cursor[bot]' ||
-       github.event.workflow_run.actor.login == github.repository_owner)
+github.event.workflow_run.actor.login == 'cursor[bot]' ||
+github.event.workflow_run.actor.login == github.repository_owner)
     permissions:
       pull-requests: write
     outputs:
@@ -216,8 +139,8 @@ jobs:
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       (github.event.workflow_run.actor.login == 'dependabot[bot]' ||
-       github.event.workflow_run.actor.login == 'cursor[bot]' ||
-       github.event.workflow_run.actor.login == github.repository_owner)
+github.event.workflow_run.actor.login == 'cursor[bot]' ||
+github.event.workflow_run.actor.login == github.repository_owner)
     permissions:
       contents: write
       pull-requests: write

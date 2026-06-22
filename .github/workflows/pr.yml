@@ -9,16 +9,6 @@ on:
       - reopened
     branches:
       - develop
-  # Backup when App/bot pushes skip pull_request synchronize (Cursor PR automation).
-  push:
-    branches:
-      - 'feature/**'
-      - 'dependabot/**'
-
-concurrency:
-  group: pull-request-${{ github.event.pull_request.head.ref || github.ref }}
-  cancel-in-progress: true
-
 jobs:
   lint:
     name: Linting
@@ -175,3 +165,24 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           parallel-finished: true
 
+  # >>> rosey-maintainer:ci-quality BEGIN
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-24.04
+    container:
+      image: semgrep/semgrep
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Semgrep scan
+        run: |
+          semgrep scan \
+            --config p/ci \
+            --config p/python \
+            --baseline-commit "${{ github.event.pull_request.base.sha }}" \
+            --metrics=off \
+            --error
+  # <<< rosey-maintainer:ci-quality END
