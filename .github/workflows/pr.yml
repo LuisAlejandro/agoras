@@ -9,6 +9,15 @@ on:
       - reopened
     branches:
       - develop
+  # Backup when App/bot pushes skip pull_request synchronize (Cursor PR automation).
+  push:
+    branches:
+      - 'feature/**'
+      - 'dependabot/**'
+
+concurrency:
+  group: pull-request-${{ github.event.pull_request.head.ref || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint:
