@@ -21,7 +21,7 @@ from setuptools import find_namespace_packages, setup
 
 setup(
     name='agoras-common',
-    version='2.0.1',
+    version='2.0.2',
     author='Luis Alejandro Martínez Faneyth',
     author_email='luis@luisalejandro.org',
     url='https://github.com/LuisAlejandro/agoras',
@@ -33,7 +33,7 @@ setup(
     python_requires='>=3.10',
     install_requires=[
         'requests==2.33.1',
-        'beautifulsoup4==4.14.3',
+        'beautifulsoup4==4.15.0',
     ],
     classifiers=[
         'Development Status :: 5 - Production/Stable',

@@ -21,7 +21,7 @@ from setuptools import find_namespace_packages, setup
 
 setup(
     name='agoras-platforms',
-    version='2.0.1',
+    version='2.0.2',
     author='Luis Alejandro Martínez Faneyth',
     author_email='luis@luisalejandro.org',
     url='https://github.com/LuisAlejandro/agoras',
@@ -43,7 +43,7 @@ setup(
         'google-auth-oauthlib>=1.2.0',
         'google-auth-httplib2==0.3.1',
         'oauth2client==4.1.3',
-        'platformdirs==4.9.6',
+        'platformdirs==4.10.0',
         'authlib==1.7.2',
         'cryptography>=42.0.0',
         'python-telegram-bot>=22.1',

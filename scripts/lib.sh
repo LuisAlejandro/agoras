@@ -169,6 +169,36 @@ release_verify_remote_tag() {
     print_error "Please verify the push manually: git push origin --tags"
     exit 1
 }
+release_convert_rst_changelog_to_markdown() {
+    awk '
+    {
+        gsub(/\r$/, "")
+    }
+    /^[[:space:]]*[-=~^`+*]{3,}[[:space:]]*$/ {
+        next
+    }
+    /^[0-9]+\.[0-9]+\.[0-9]+[[:space:]]*\(/ {
+        next
+    }
+    /^[[:space:]]*$/ {
+        if (!prev_blank) {
+            print ""
+            prev_blank = 1
+        }
+        next
+    }
+    {
+        prev_blank = 0
+        if ($0 ~ /^\*/ || $0 ~ /^#/) {
+            print $0
+        } else if ($0 ~ /^[A-Za-z][A-Za-z0-9 _-]*$/) {
+            print "### " $0
+        } else {
+            print $0
+        }
+    }
+    '
+}
 
 release_build_notes() {
     local current_version=$1
@@ -188,7 +218,7 @@ release_build_notes() {
     fi
 
     if [[ -f "HISTORY.rst" ]]; then
-        release_content=$(awk "/^$new_version \(/ { flag=1; next } flag && /^[0-9]+\.[0-9]+\.[0-9]+ \(/ { exit } flag" HISTORY.rst)
+        release_content=$(awk "/^$new_version \(/ { flag=1; next } flag && /^[0-9]+\.[0-9]+\.[0-9]+ \(/ { exit } flag" HISTORY.rst | release_convert_rst_changelog_to_markdown)
         printf '%s\n\n## What'\''s new in %s\n%s\n\nRead [HISTORY](HISTORY.rst) for more info.\n\n**Full Changelog**: https://github.com/%s/compare/%s...%s' \
             "$description_text" \
             "$new_version" \
