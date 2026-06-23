@@ -1,5 +1,5 @@
 # Auto-generated from setup.py by scripts/sync_package_deps.py — do not edit.
-agoras-common==2.0.2
+agoras-common==2.0.3
 filetype==1.2.0
 opencv-python-headless==4.13.0.92
-Pillow>=12.2.0
+Pillow>=10.0.0

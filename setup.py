@@ -37,7 +37,7 @@ def find_monorepo_packages():
 
 packages, package_dir = find_monorepo_packages()
 
-version = '2.0.2'
+version = '2.0.3'
 
 setup(
     name='agoras',
@@ -57,7 +57,7 @@ setup(
     install_requires=[
         # From agoras-common
         'requests==2.33.1',
-        'beautifulsoup4==4.14.3',
+        'beautifulsoup4==4.15.0',
         # From agoras-media
         'filetype==1.2.0',
         'opencv-python-headless==4.13.0.92',
@@ -75,7 +75,7 @@ setup(
         'google-api-python-client==2.197.0',
         'google-api-core>=2.0.0',
         'google-auth-oauthlib>=1.2.0',
-        'google-auth-httplib2==0.3.1',
+        'google-auth-httplib2==0.4.0',
         'oauth2client==4.1.3',
         'platformdirs==4.10.0',
         'authlib==1.7.2',
