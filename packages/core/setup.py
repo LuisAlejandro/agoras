@@ -19,7 +19,7 @@
 
 from setuptools import find_namespace_packages, setup
 
-version = '2.0.2'
+version = '2.0.3'
 
 setup(
     name='agoras-core',
