@@ -2,8 +2,8 @@
 # Used during development and testing of the monorepo
 
 # Testing
-pytest==8.4.2
-pytest-asyncio==1.2.0
+pytest==9.1.1
+pytest-asyncio==1.4.0
 pytest-cov==6.0.0
 coverage==7.13.1
 
