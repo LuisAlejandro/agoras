@@ -19,7 +19,7 @@ Contents
 - **BaseAPI**: Base API client with rate limiting
 - **BaseAuthManager**: OAuth2 authentication base
 - **OAuthCallbackServer**: Local callback server for OAuth flows
-- **TokenStorage**: Secure token storage
+- **SecureTokenStorage**: Secure token storage
 
 Usage
 -----

@@ -1,11 +1,23 @@
 [run]
-source = agoras
+# agoras is a PEP 420 namespace package across packages/*/src/agoras
+source =
+    packages/common/src/agoras
+    packages/media/src/agoras
+    packages/core/src/agoras
+    packages/platforms/src/agoras
+    packages/cli/src/agoras
 omit =
     */tests/*
     */__pycache__/*
     */site-packages/*
     */virtualenv/*
     */venv/*
+    agoras/*
+
+[paths]
+source =
+    */packages/*/src/agoras
+    */packages/*/src/agoras
 
 [report]
 exclude_lines =

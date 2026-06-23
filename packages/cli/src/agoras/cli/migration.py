@@ -147,7 +147,7 @@ def format_migration_warning(old_command_parts: Dict[str, str],
 ⚠️  DEPRECATION WARNING
 {'━' * 80}
 
-The 'agoras publish' command is deprecated and will be removed in version 3.0.
+The 'agoras publish' command is deprecated. It is supported through Agoras 2.x and will be removed in version 3.0.
 
 Your current command:
   agoras publish --network {network} --action {action} [options]
@@ -164,28 +164,8 @@ Benefits of the new format:
 Run 'agoras publish --show-migration' to see the migration preview without
 executing.
 
-For more help: https://docs.agoras.io/migration
+For more help: https://agoras.luisalejandro.org/en/latest/migration.html
 
 {'━' * 80}
 """
     return warning
-
-
-def get_migration_summary(network: str, action: str) -> str:
-    """
-    Get a brief migration summary for help text.
-
-    Args:
-        network: Target social network
-        action: Action to perform
-
-    Returns:
-        Brief migration summary
-    """
-    if action in ['last-from-feed', 'random-from-feed']:
-        mode = 'last' if action == 'last-from-feed' else 'random'
-        return f"Use: agoras utils feed-publish --network {network} --mode {mode}"
-    elif action == 'schedule':
-        return f"Use: agoras utils schedule-run --network {network}"
-    else:
-        return f"Use: agoras {network} {action}"

@@ -17,6 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+import sys
 
 from agoras.core.interfaces import SocialNetwork
 
@@ -129,7 +130,7 @@ class Facebook(SocialNetwork):
                 await self._detect_and_exchange_page_token()
             except Exception as e:
                 # If page detection fails, continue with user token
-                print(f"[WARNING] Page detection/token exchange failed: {str(e)}")
+                print(f"[WARNING] Page detection/token exchange failed: {str(e)}", file=sys.stderr)
 
     async def _detect_and_exchange_page_token(self):
         """Detect if target is a page and exchange for page token."""
@@ -462,11 +463,16 @@ class Facebook(SocialNetwork):
             video.cleanup()
             raise Exception('Failed to download or validate video')
 
-        # Ensure video is MP4 format for Facebook
-        if video.file_type.mime not in ['video/mp4']:
+        from agoras.media.constraints import video_limits
+        from agoras.media.errors import MediaValidationError
+
+        allowed = video_limits('facebook').mime_types
+        if video.file_type.mime not in allowed:
             video.cleanup()
-            raise Exception(f'Invalid video type "{video.file_type.mime}" for {video_url}. '
-                            f'Facebook requires MP4 format.')
+            raise MediaValidationError(
+                'facebook', 'video', 'mime_types',
+                video.file_type.mime, sorted(allowed),
+            )
 
         try:
             # Handle different video types

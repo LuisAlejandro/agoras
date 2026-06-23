@@ -25,7 +25,7 @@ from agoras.core.interfaces import SocialNetwork
 
 
 # Concrete implementation for testing
-class TestSocialNetwork(SocialNetwork):
+class ConcreteSocialNetwork(SocialNetwork):
     """Concrete implementation of SocialNetwork for testing purposes."""
 
     def __init__(self, **kwargs):
@@ -65,7 +65,7 @@ class TestSocialNetwork(SocialNetwork):
         return post_id
 
 
-class TestSocialNetworkWithSuffix(SocialNetwork):
+class ConcreteSocialNetworkWithSuffix(SocialNetwork):
     """Test class with 'Network' suffix for platform name testing."""
 
     async def _initialize_client(self):
@@ -120,27 +120,27 @@ def test_socialnetwork_media_methods():
 
 def test_get_platform_name_without_suffix():
     """Test get_platform_name with class name without 'Network' suffix."""
-    network = TestSocialNetwork()
+    network = ConcreteSocialNetwork()
 
     platform_name = network.get_platform_name()
 
-    # 'TestSocialNetwork' ends with 'Network' so last 7 chars removed -> 'TestSocial'
-    assert platform_name == 'TestSocial'
+    # 'ConcreteSocialNetwork' ends with 'Network' so last 7 chars removed -> 'ConcreteSocial'
+    assert platform_name == 'ConcreteSocial'
 
 
 def test_get_platform_name_with_suffix():
     """Test get_platform_name removes 'Network' suffix."""
-    network = TestSocialNetworkWithSuffix()
+    network = ConcreteSocialNetworkWithSuffix()
 
     platform_name = network.get_platform_name()
 
-    assert platform_name == 'TestSocialNetworkWithSuffix'
+    assert platform_name == 'ConcreteSocialNetworkWithSuffix'
 
 
 @pytest.mark.asyncio
 async def test_video_method_default_raises_exception():
     """Test video method raises not supported exception by default."""
-    network = TestSocialNetwork()
+    network = ConcreteSocialNetwork()
 
     with pytest.raises(Exception, match='Video posting not supported'):
         await network.video('Text', 'http://video.mp4', 'Title')
@@ -148,7 +148,7 @@ async def test_video_method_default_raises_exception():
 
 def test_get_config_value_from_config():
     """Test _get_config_value retrieves from config dict."""
-    network = TestSocialNetwork(api_key='config_key', secret='config_secret')
+    network = ConcreteSocialNetwork(api_key='config_key', secret='config_secret')
 
     value = network._get_config_value('api_key')
 
@@ -158,7 +158,7 @@ def test_get_config_value_from_config():
 @patch.dict(os.environ, {'API_KEY': 'env_key'})
 def test_get_config_value_from_environment():
     """Test _get_config_value retrieves from environment variable."""
-    network = TestSocialNetwork()
+    network = ConcreteSocialNetwork()
 
     value = network._get_config_value('api_key', 'API_KEY')
 
@@ -168,7 +168,7 @@ def test_get_config_value_from_environment():
 @patch.dict(os.environ, {'API_KEY': 'env_key'})
 def test_get_config_value_config_overrides_env():
     """Test _get_config_value prefers config over environment."""
-    network = TestSocialNetwork(api_key='config_key')
+    network = ConcreteSocialNetwork(api_key='config_key')
 
     value = network._get_config_value('api_key', 'API_KEY')
 
@@ -177,7 +177,7 @@ def test_get_config_value_config_overrides_env():
 
 def test_get_config_value_returns_none_when_missing():
     """Test _get_config_value returns None when value not found."""
-    network = TestSocialNetwork()
+    network = ConcreteSocialNetwork()
 
     value = network._get_config_value('missing_key')
 
@@ -187,7 +187,7 @@ def test_get_config_value_returns_none_when_missing():
 @patch('builtins.print')
 def test_output_status(mock_print):
     """Test _output_status prints JSON formatted status."""
-    network = TestSocialNetwork()
+    network = ConcreteSocialNetwork()
 
     network._output_status('post-123')
 
@@ -203,12 +203,12 @@ def test_output_status(mock_print):
 async def test_download_images(mock_download):
     """Test download_images calls MediaFactory."""
     mock_download.return_value = AsyncMock()
-    network = TestSocialNetwork()
+    network = ConcreteSocialNetwork()
 
     image_urls = ['url1.jpg', 'url2.jpg']
     await network.download_images(image_urls)
 
-    mock_download.assert_called_once_with(image_urls)
+    mock_download.assert_called_once_with(image_urls, platform='concretesocial')
 
 
 @pytest.mark.asyncio
@@ -219,12 +219,12 @@ async def test_download_video(mock_create_video):
     mock_video.download = AsyncMock()
     mock_create_video.return_value = mock_video
 
-    network = TestSocialNetwork()
+    network = ConcreteSocialNetwork()
 
     result = await network.download_video('http://video.mp4')
 
-    # TestSocialNetwork -> TestSocial (Network suffix removed)
-    mock_create_video.assert_called_once_with('http://video.mp4', 'TestSocial')
+    # ConcreteSocialNetwork -> ConcreteSocial (Network suffix removed)
+    mock_create_video.assert_called_once_with('http://video.mp4', 'concretesocial')
     mock_video.download.assert_called_once()
 
 
@@ -236,7 +236,7 @@ async def test_download_feed(mock_feed_class):
     mock_feed.download = AsyncMock()
     mock_feed_class.return_value = mock_feed
 
-    network = TestSocialNetwork()
+    network = ConcreteSocialNetwork()
 
     result = await network.download_feed('http://feed.rss')
 
@@ -254,7 +254,7 @@ async def test_create_schedule_sheet(mock_sheet_class):
     mock_sheet.get_worksheet = AsyncMock()
     mock_sheet_class.return_value = mock_sheet
 
-    network = TestSocialNetwork()
+    network = ConcreteSocialNetwork()
 
     result = await network.create_schedule_sheet(
         'sheet-id', 'Sheet1',
@@ -277,7 +277,7 @@ async def test_create_schedule_sheet_replaces_newlines(mock_sheet_class):
     mock_sheet.get_worksheet = AsyncMock()
     mock_sheet_class.return_value = mock_sheet
 
-    network = TestSocialNetwork()
+    network = ConcreteSocialNetwork()
 
     await network.create_schedule_sheet(
         'sheet-id', 'Sheet1',
@@ -295,7 +295,7 @@ async def test_create_schedule_sheet_replaces_newlines(mock_sheet_class):
 @pytest.mark.asyncio
 async def test_execute_action_empty_raises_exception():
     """Test execute_action with empty action raises exception."""
-    network = TestSocialNetwork()
+    network = ConcreteSocialNetwork()
 
     with pytest.raises(Exception, match='Action is a required argument'):
         await network.execute_action('')
@@ -304,7 +304,7 @@ async def test_execute_action_empty_raises_exception():
 @pytest.mark.asyncio
 async def test_execute_action_unknown_raises_exception():
     """Test execute_action with unknown action raises exception."""
-    network = TestSocialNetwork()
+    network = ConcreteSocialNetwork()
 
     with pytest.raises(Exception, match='action not supported'):
         await network.execute_action('unknown_action')
@@ -313,7 +313,7 @@ async def test_execute_action_unknown_raises_exception():
 @pytest.mark.asyncio
 async def test_execute_action_initializes_client():
     """Test execute_action initializes client before action."""
-    network = TestSocialNetwork(status_text='Test', status_link='')
+    network = ConcreteSocialNetwork(status_text='Test', status_link='')
 
     assert network.client is None
 
@@ -325,7 +325,7 @@ async def test_execute_action_initializes_client():
 @pytest.mark.asyncio
 async def test_execute_action_post():
     """Test execute_action routes 'post' action correctly."""
-    network = TestSocialNetwork(
+    network = ConcreteSocialNetwork(
         status_text='Test post',
         status_link='http://link.com',
         status_image_url_1='img1.jpg'
@@ -340,7 +340,7 @@ async def test_execute_action_post():
 @pytest.mark.asyncio
 async def test_execute_action_like():
     """Test execute_action routes 'like' action correctly."""
-    network = TestSocialNetwork(post_id='post-123')
+    network = ConcreteSocialNetwork(post_id='post-123')
 
     with patch.object(network, 'like', new_callable=AsyncMock) as mock_like:
         await network.execute_action('like')
@@ -350,7 +350,7 @@ async def test_execute_action_like():
 @pytest.mark.asyncio
 async def test_execute_action_share():
     """Test execute_action routes 'share' action correctly."""
-    network = TestSocialNetwork(post_id='post-456')
+    network = ConcreteSocialNetwork(post_id='post-456')
 
     with patch.object(network, 'share', new_callable=AsyncMock) as mock_share:
         await network.execute_action('share')
@@ -360,7 +360,7 @@ async def test_execute_action_share():
 @pytest.mark.asyncio
 async def test_execute_action_delete():
     """Test execute_action routes 'delete' action correctly."""
-    network = TestSocialNetwork(post_id='post-789')
+    network = ConcreteSocialNetwork(post_id='post-789')
 
     with patch.object(network, 'delete', new_callable=AsyncMock) as mock_delete:
         await network.execute_action('delete')
@@ -370,7 +370,7 @@ async def test_execute_action_delete():
 @pytest.mark.asyncio
 async def test_execute_action_video():
     """Test execute_action routes 'video' action correctly."""
-    network = TestSocialNetwork(
+    network = ConcreteSocialNetwork(
         status_text='Video post',
         video_url='http://video.mp4',
         video_title='My Video'
@@ -390,7 +390,7 @@ async def test_execute_action_last_from_feed(mock_feed_class):
     mock_feed.get_items_since = MagicMock(return_value=[])
     mock_feed_class.return_value = mock_feed
 
-    network = TestSocialNetwork(feed_url='http://feed.rss')
+    network = ConcreteSocialNetwork(feed_url='http://feed.rss')
 
     await network.execute_action('last-from-feed')
 
@@ -411,7 +411,7 @@ async def test_execute_action_random_from_feed(mock_feed_class):
     mock_feed.get_random_item = MagicMock(return_value=mock_item)
     mock_feed_class.return_value = mock_feed
 
-    network = TestSocialNetwork(feed_url='http://feed.rss')
+    network = ConcreteSocialNetwork(feed_url='http://feed.rss')
 
     await network.execute_action('random-from-feed')
 
@@ -428,7 +428,7 @@ async def test_execute_action_schedule(mock_sheet_class):
     mock_sheet.process_scheduled_posts = AsyncMock(return_value=[])
     mock_sheet_class.return_value = mock_sheet
 
-    network = TestSocialNetwork(
+    network = ConcreteSocialNetwork(
         google_sheets_id='sheet-id',
         google_sheets_name='Sheet1',
         google_sheets_client_email='email@example.com',
@@ -445,7 +445,7 @@ async def test_execute_action_schedule(mock_sheet_class):
 @pytest.mark.asyncio
 async def test_handle_post_action():
     """Test _handle_post_action extracts config values."""
-    network = TestSocialNetwork(
+    network = ConcreteSocialNetwork(
         status_text='Post text',
         status_link='http://link.com',
         status_image_url_1='img1.jpg',
@@ -466,7 +466,7 @@ async def test_handle_post_action():
 async def test_handle_post_action_from_env():
     """Test _handle_post_action uses environment variables as fallback."""
     with patch.dict(os.environ, {'STATUS_TEXT': 'Env text', 'STATUS_LINK': 'http://env.com'}):
-        network = TestSocialNetwork()
+        network = ConcreteSocialNetwork()
 
         await network._handle_post_action()
 
@@ -479,7 +479,7 @@ async def test_handle_post_action_from_env():
 @pytest.mark.asyncio
 async def test_handle_like_action():
     """Test _handle_like_action requires post_id."""
-    network = TestSocialNetwork(post_id='like-123')
+    network = ConcreteSocialNetwork(post_id='like-123')
 
     with patch.object(network, 'like', new_callable=AsyncMock) as mock_like:
         await network._handle_like_action()
@@ -489,7 +489,7 @@ async def test_handle_like_action():
 @pytest.mark.asyncio
 async def test_handle_like_action_missing_post_id():
     """Test _handle_like_action raises exception when post_id missing."""
-    network = TestSocialNetwork()
+    network = ConcreteSocialNetwork()
 
     with pytest.raises(Exception, match='Post ID is required for like'):
         await network._handle_like_action()
@@ -498,7 +498,7 @@ async def test_handle_like_action_missing_post_id():
 @pytest.mark.asyncio
 async def test_handle_share_action():
     """Test _handle_share_action requires post_id."""
-    network = TestSocialNetwork(post_id='share-456')
+    network = ConcreteSocialNetwork(post_id='share-456')
 
     with patch.object(network, 'share', new_callable=AsyncMock) as mock_share:
         await network._handle_share_action()
@@ -508,7 +508,7 @@ async def test_handle_share_action():
 @pytest.mark.asyncio
 async def test_handle_share_action_missing_post_id():
     """Test _handle_share_action raises exception when post_id missing."""
-    network = TestSocialNetwork()
+    network = ConcreteSocialNetwork()
 
     with pytest.raises(Exception, match='Post ID is required for share'):
         await network._handle_share_action()
@@ -517,7 +517,7 @@ async def test_handle_share_action_missing_post_id():
 @pytest.mark.asyncio
 async def test_handle_delete_action():
     """Test _handle_delete_action requires post_id."""
-    network = TestSocialNetwork(post_id='delete-789')
+    network = ConcreteSocialNetwork(post_id='delete-789')
 
     with patch.object(network, 'delete', new_callable=AsyncMock) as mock_delete:
         await network._handle_delete_action()
@@ -527,7 +527,7 @@ async def test_handle_delete_action():
 @pytest.mark.asyncio
 async def test_handle_delete_action_missing_post_id():
     """Test _handle_delete_action raises exception when post_id missing."""
-    network = TestSocialNetwork()
+    network = ConcreteSocialNetwork()
 
     with pytest.raises(Exception, match='Post ID is required for delete'):
         await network._handle_delete_action()
@@ -536,7 +536,7 @@ async def test_handle_delete_action_missing_post_id():
 @pytest.mark.asyncio
 async def test_handle_video_action():
     """Test _handle_video_action requires video_url."""
-    network = TestSocialNetwork(
+    network = ConcreteSocialNetwork(
         status_text='Video text',
         video_url='http://video.mp4',
         video_title='Video Title'
@@ -550,7 +550,7 @@ async def test_handle_video_action():
 @pytest.mark.asyncio
 async def test_handle_video_action_missing_url():
     """Test _handle_video_action raises exception when video_url missing."""
-    network = TestSocialNetwork(status_text='Text')
+    network = ConcreteSocialNetwork(status_text='Text')
 
     with pytest.raises(Exception, match='Video URL is required'):
         await network._handle_video_action()
@@ -565,7 +565,7 @@ async def test_handle_last_from_feed_action(mock_feed_class):
     mock_feed.get_items_since = MagicMock(return_value=[])
     mock_feed_class.return_value = mock_feed
 
-    network = TestSocialNetwork(feed_url='http://feed.rss')
+    network = ConcreteSocialNetwork(feed_url='http://feed.rss')
 
     with patch.object(network, 'last_from_feed', new_callable=AsyncMock) as mock_last:
         await network._handle_last_from_feed_action()
@@ -581,7 +581,7 @@ async def test_handle_last_from_feed_action_custom_values(mock_feed_class):
     mock_feed.get_items_since = MagicMock(return_value=[])
     mock_feed_class.return_value = mock_feed
 
-    network = TestSocialNetwork(
+    network = ConcreteSocialNetwork(
         feed_url='http://feed.rss',
         max_count='5',
         post_lookback='7200'
@@ -595,7 +595,7 @@ async def test_handle_last_from_feed_action_custom_values(mock_feed_class):
 @pytest.mark.asyncio
 async def test_handle_random_from_feed_action():
     """Test _handle_random_from_feed_action with defaults."""
-    network = TestSocialNetwork(feed_url='http://feed.rss')
+    network = ConcreteSocialNetwork(feed_url='http://feed.rss')
 
     with patch.object(network, 'random_from_feed', new_callable=AsyncMock) as mock_random:
         await network._handle_random_from_feed_action()
@@ -605,7 +605,7 @@ async def test_handle_random_from_feed_action():
 @pytest.mark.asyncio
 async def test_handle_random_from_feed_action_custom_age():
     """Test _handle_random_from_feed_action with custom max_post_age."""
-    network = TestSocialNetwork(
+    network = ConcreteSocialNetwork(
         feed_url='http://feed.rss',
         max_post_age='30'
     )
@@ -618,7 +618,7 @@ async def test_handle_random_from_feed_action_custom_age():
 @pytest.mark.asyncio
 async def test_handle_schedule_action():
     """Test _handle_schedule_action extracts values."""
-    network = TestSocialNetwork(
+    network = ConcreteSocialNetwork(
         google_sheets_id='sheet-id',
         google_sheets_name='Sheet1',
         google_sheets_client_email='email@example.com',
@@ -657,7 +657,7 @@ async def test_last_from_feed(mock_feed_class):
     mock_feed.get_items_since = MagicMock(return_value=[mock_item1, mock_item2])
     mock_feed_class.return_value = mock_feed
 
-    network = TestSocialNetwork()
+    network = ConcreteSocialNetwork()
 
     await network.last_from_feed('http://feed.rss', max_count=2, post_lookback=3600)
 
@@ -682,7 +682,7 @@ async def test_last_from_feed_respects_max_count(mock_feed_class):
     mock_feed.get_items_since = MagicMock(return_value=mock_items)
     mock_feed_class.return_value = mock_feed
 
-    network = TestSocialNetwork()
+    network = ConcreteSocialNetwork()
 
     await network.last_from_feed('http://feed.rss', max_count=3, post_lookback=3600)
 
@@ -705,7 +705,7 @@ async def test_random_from_feed(mock_feed_class):
     mock_feed.get_random_item = MagicMock(return_value=mock_item)
     mock_feed_class.return_value = mock_feed
 
-    network = TestSocialNetwork()
+    network = ConcreteSocialNetwork()
 
     await network.random_from_feed('http://feed.rss', max_post_age=30)
 
@@ -743,7 +743,7 @@ async def test_schedule(mock_sheet_class):
     mock_sheet.process_scheduled_posts = AsyncMock(return_value=post_data)
     mock_sheet_class.return_value = mock_sheet
 
-    network = TestSocialNetwork()
+    network = ConcreteSocialNetwork()
 
     await network.schedule(
         'sheet-id', 'Sheet1',

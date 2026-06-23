@@ -62,18 +62,16 @@ class Threads(SocialNetwork):
         self.threads_app_id = self._get_config_value('threads_app_id', 'THREADS_APP_ID')
         self.threads_app_secret = self._get_config_value('threads_app_secret', 'THREADS_APP_SECRET')
         self.threads_refresh_token = self._get_config_value('threads_refresh_token', 'THREADS_REFRESH_TOKEN')
-
         # Configuration options
         self.threads_who_can_reply = (
             self._get_config_value('threads_who_can_reply', 'THREADS_WHO_CAN_REPLY') or 'everyone'
         )
-
         # Action-specific attributes
         self.threads_post_id = self._get_config_value('threads_post_id', 'THREADS_POST_ID')
 
         # If credentials not provided, try loading from storage
         # Threads needs app_id, app_secret, and refresh_token to authenticate
-        if not all([self.threads_app_id, self.threads_app_secret]):
+        if not all([self.threads_app_id, self.threads_app_secret, self.threads_refresh_token]):
             from .auth import ThreadsAuthManager
             auth_manager = ThreadsAuthManager(
                 app_id=self.threads_app_id or '',
@@ -90,7 +88,7 @@ class Threads(SocialNetwork):
                     self.threads_refresh_token = auth_manager.refresh_token
 
         # Validate all credentials are now available
-        if not all([self.threads_app_id, self.threads_app_secret]):
+        if not all([self.threads_app_id, self.threads_app_secret, self.threads_refresh_token]):
             raise Exception("Not authenticated. Please run 'agoras threads authorize' first.")
 
         # Initialize Threads API
@@ -99,6 +97,8 @@ class Threads(SocialNetwork):
             self.threads_app_secret,
             self.threads_refresh_token
         )
+
+        # Authenticate with provided credentials
         await self.api.authenticate()
 
     async def disconnect(self):
@@ -161,15 +161,26 @@ class Threads(SocialNetwork):
 
     async def delete(self, post_id):
         """
-        Delete a Threads post (not supported via API).
+        Delete a Threads post.
 
         Args:
             post_id (str): Post ID to delete
 
-        Raises:
-            Exception: Delete not supported for Threads
+        Returns:
+            str: Deleted post ID
         """
-        raise Exception('Delete not supported for Threads')
+        if not self.api:
+            raise Exception('Threads API not initialized')
+
+        if not post_id:
+            post_id = self.threads_post_id
+
+        if not post_id:
+            raise Exception('Post ID is required for delete action.')
+
+        result = await self.api.delete(post_id)
+        self._output_status(result)
+        return result
 
     async def share(self, post_id):
         """
@@ -221,8 +232,51 @@ class Threads(SocialNetwork):
         await self.like(None)
 
     async def _handle_delete_action(self):
-        """Handle delete action - not supported for Threads."""
-        await self.delete(None)
+        """Handle delete action with Threads-specific parameter extraction."""
+        threads_post_id = self._get_config_value('threads_post_id', 'THREADS_POST_ID')
+        if not threads_post_id:
+            raise Exception('Threads post ID is required for delete action.')
+        await self.delete(threads_post_id)
+
+    async def video(self, status_text, video_url, video_title):
+        """
+        Post a video to Threads.
+
+        Args:
+            status_text (str): Text content to accompany the video
+            video_url (str): URL of the video to post
+            video_title (str): Title / caption for the video
+
+        Returns:
+            str: Post ID
+        """
+        if not self.api:
+            raise Exception('Threads API not initialized')
+
+        if not video_url:
+            raise Exception('Threads video URL is required.')
+
+        post_text = status_text or video_title or ''
+
+        post_id = await self.api.create_video_post(
+            post_text,
+            video_url,
+            who_can_reply=self.threads_who_can_reply
+        )
+
+        self._output_status(post_id)
+        return post_id
+
+    async def _handle_video_action(self):
+        """Handle video action with Threads-specific parameter extraction."""
+        video_url = self._get_config_value('threads_video_url', 'THREADS_VIDEO_URL')
+        video_title = self._get_config_value('threads_video_title', 'THREADS_VIDEO_TITLE') or ''
+        status_text = self._get_config_value('status_text', 'STATUS_TEXT') or video_title
+
+        if not video_url:
+            raise Exception('Threads video URL is required for video action.')
+
+        await self.video(status_text, video_url, video_title)
 
     async def authorize_credentials(self):
         """

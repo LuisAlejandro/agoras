@@ -2,10 +2,23 @@ Usage for Facebook
 ==================
 
 .. note::
-   **New in version 2.0**: Facebook commands now use the intuitive ``agoras facebook`` format.
-   See the :doc:`migration guide <migration>` for upgrading from ``agoras publish``.
+
+   Agoras uses ``agoras facebook`` for Facebook operations.
+   See the :doc:`migration guide <migration/index>` for upgrading from ``agoras publish``.
 
 Facebook is a social network that allows you to share text, images and videos with your friends, family and followers. Agoras can publish posts, like posts, share posts and delete posts on Facebook by using a popular `Facebook Graph API client <https://github.com/sns-sdks/python-facebook>`_.
+
+Required Credentials
+--------------------
+
+Before using Agoras with Facebook, you'll need to manually extract the following credentials from your Facebook App in the Meta Developer Console. These credentials are required for OAuth 2.0 authentication.
+
+- **Client ID** (``FACEBOOK_CLIENT_ID``): Your Facebook App ID, used as the OAuth client identifier
+- **Client Secret** (``FACEBOOK_CLIENT_SECRET``): Your Facebook App Secret, used for OAuth authentication
+- **App ID** (``FACEBOOK_APP_ID``): Your Facebook App ID (same as Client ID)
+- **Object ID** (``FACEBOOK_OBJECT_ID``): The ID of the Facebook page, profile, or group you want to post to
+
+See :doc:`credentials/facebook` for detailed instructions on how to create a Facebook App and obtain these credentials.
 
 Available Actions
 ~~~~~~~~~~~~~~~~~
@@ -80,13 +93,15 @@ Upload a Video
 Like a Post
 -----------
 
+This command will "like" a post identified by ``--post-id`` (read about how to get the id of a post :ref:`here <how-to-get-facebook-post-id>`).
+
+.. note::
+   You must run ``agoras facebook authorize`` first before using this command.
+
 **New format**::
 
     agoras facebook like \
       --post-id "${FACEBOOK_POST_ID}"
-
-.. note::
-   You must run ``agoras facebook authorize`` first before using this command.
 
 Share a Post
 ------------
@@ -162,38 +177,56 @@ Please read about how the RSS feed should be structured in the :doc:`RSS feed se
 
 
 
-Schedule a Facebook post
+Google Sheets Scheduling
 ------------------------
 
-This command will scan a sheet ``--sheets-name`` of a google spreadsheet of id ``--sheets-id``, thats authorized by ``--sheets-client-email`` and ``--sheets-private-key``. The post will be published on ``--facebook-object-id`` (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`).
+Agoras can schedule Facebook posts using Google Sheets. This allows you to plan and automate post publishing.
+
+Run Scheduled Messages
+~~~~~~~~~~~~~~~~~~~~~~
+
+Process scheduled messages from a Google Sheet:
+
+::
+
+    agoras utils schedule-run \
+      --network facebook \
+      --sheets-id "${GOOGLE_SHEETS_ID}" \
+      --sheets-name "Facebook" \
+      --sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
+      --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" \
+      --facebook-object-id "${FACEBOOK_OBJECT_ID}"
 
 .. note::
    You must run ``agoras facebook authorize`` first before using this command.
 
-The order of the columns of the spreadsheet is crucial to the correct functioning of the command. Here's how the information should be organized:
+Sheet Format
+~~~~~~~~~~~~
 
-+--------------------+--------------------+---------------------------+---------------------------+---------------------------+---------------------------+-------------------------+-------------------+------------------------------+
-| ``--status-text``  | ``--status-link``  | ``--status-image-url-1``  | ``--status-image-url-2``  | ``--status-image-url-3``  | ``--status-image-url-4``  | date (%d-%m-%Y format)  | time (%H format)  | status (draft or published)  |
-+--------------------+--------------------+---------------------------+---------------------------+---------------------------+---------------------------+-------------------------+-------------------+------------------------------+
+Your Google Sheet should have the following columns:
 
-As you can see, the first 6 columns correspond to the parameters of the "post" command, the date and time columns correspond to the specific time that you want to publish this post, and the status column tells the script if this post is ready to be published (draft status) or if it was already published and should be skipped (published status). Let's see an example of a working schedule:
+- ``status_text``: Post text content
+- ``status_link``: URL to include in post
+- ``status_image_url_1`` through ``status_image_url_4``: Image URLs (optional)
+- ``date``: Scheduled date (format: DD-MM-YYYY)
+- ``hour``: Scheduled hour (format: HH, 24-hour format)
+- ``state``: Post state (``pending``, ``published``, ``error``)
 
-+-------------------------------+-------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+-------------+-----+--------+
-| This is a test facebook post  | https://agoras.readthedocs.io/en/latest/  | https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg  | https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg  | https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg  | https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg  | 21-11-2022  | 17  | draft  |
-+-------------------------------+-------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+-------------+-----+--------+
+**Example sheet row**:
 
-This schedule entry would be published at 17:00h of 21-11-2022 with text "This is a test facebook post" and 4 images pointed by those URLs.
-
-For this command to work, it should be executed hourly by a cron script.
 ::
 
-      agoras utils schedule-run \
-            --network "facebook" \
-            --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
-            --sheets-id "${GOOGLE_SHEETS_ID}" \
-            --sheets-name "${GOOGLE_SHEETS_NAME}" \
-            --sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-            --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
+    status_text,status_link,status_image_url_1,status_image_url_2,status_image_url_3,status_image_url_4,date,hour,state
+    "This is a test facebook post","https://agoras.luisalejandro.org/en/latest/","https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg","https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg","","","21-11-2022","17","pending"
+
+Scheduling Logic
+~~~~~~~~~~~~~~~~
+
+- Posts with ``state="pending"`` and scheduled time in the past are processed
+- Posts are created at the scheduled date and hour
+- Sheet state is updated to ``published`` after successful posting
+- If posting fails, state is updated to ``error``
+- Use ``--network facebook`` to process only Facebook posts, or omit to process all networks
 
 
 .. _how-to-get-facebook-account-id:

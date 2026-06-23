@@ -152,7 +152,7 @@ class InstagramAPI(BaseAPI):
             video_url (str, optional): Video URL
             caption (str, optional): Media caption
             is_carousel_item (bool): Whether this is part of a carousel
-            media_type (str, optional): Media type (REELS, STORIES, VIDEO)
+            media_type (str, optional): Media type (REELS, STORIES)
 
         Returns:
             str: Media ID

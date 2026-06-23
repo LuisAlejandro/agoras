@@ -14,7 +14,7 @@ Agoras supports multiple social media platforms, each with different authenticat
 
 **Authorize Action and Credential Storage**
 
-All platforms support an ``authorize`` action that securely stores credentials for future use. After running ``agoras <platform> authorize`` with the required credentials, those credentials are stored securely and automatically loaded for subsequent actions. This means you only need to provide credentials once during authorization, and all future actions (post, video, like, share, delete, etc.) will use the stored credentials automatically.
+All platforms support an ``authorize`` action that securely stores credentials for future use. After running ``agoras <platform> authorize`` with the required credentials, those credentials are stored securely and automatically loaded for subsequent actions. Supported actions vary by platform (post, video, like, share, delete, template, etc.) — see :doc:`action-support` for the full matrix.
 
 You can still override stored credentials by providing them via CLI arguments or environment variables if needed. This provides flexibility for using multiple accounts or temporary credential overrides.
 
@@ -25,7 +25,7 @@ Unattended Execution
 
 For OAuth 2.0 platforms (Facebook, Instagram, LinkedIn, YouTube, TikTok, Threads), unattended execution requires:
 
-- ``AGORAS_{PLATFORM}_REFRESH_TOKEN`` - The refresh token from a previous authorization
+- ``{PLATFORM}_REFRESH_TOKEN`` - The refresh token from a previous authorization
 - Additional platform-specific credentials (client ID, client secret, object ID, etc.) as shown in the table below
 
 For unattended execution, you need to provide all required credentials (refresh token plus platform-specific credentials) via environment variables or CLI arguments. See the table below for the complete list of required credentials for each platform.
@@ -98,10 +98,13 @@ Authorize Action
 
 - ``--consumer-key`` (CLI) / ``TWITTER_CONSUMER_KEY`` (ENVVAR) - X API consumer key
 - ``--consumer-secret`` (CLI) / ``TWITTER_CONSUMER_SECRET`` (ENVVAR) - X API consumer secret
-- ``--oauth-token`` (CLI) / ``TWITTER_OAUTH_TOKEN`` (ENVVAR) - X OAuth token
-- ``--oauth-secret`` (CLI) / ``TWITTER_OAUTH_SECRET`` (ENVVAR) - X OAuth secret
 
-**Note**: After running ``authorize``, all credentials are stored securely. Subsequent actions (post, video, like, share, delete) will automatically use the stored credentials and do not require credential parameters.
+**Optional Arguments**:
+
+- ``--oauth-token`` (CLI) / ``TWITTER_OAUTH_TOKEN`` (ENVVAR) - X OAuth token (obtained automatically during interactive authorization)
+- ``--oauth-secret`` (CLI) / ``TWITTER_OAUTH_SECRET`` (ENVVAR) - X OAuth secret (obtained automatically during interactive authorization)
+
+**Note**: The OAuth token and secret are automatically obtained during the interactive authorization process. You only need to provide your API key and secret. After running ``authorize``, all credentials are stored securely. Subsequent actions (post, video, like, share, delete) will automatically use the stored credentials and do not require credential parameters.
 
 Post Action
 -----------
@@ -222,7 +225,7 @@ Post Action
 - ``--image-3`` (CLI) / ``STATUS_IMAGE_URL_3`` (ENVVAR) - Third image URL
 - ``--image-4`` (CLI) / ``STATUS_IMAGE_URL_4`` (ENVVAR) - Fourth image URL
 
-**Unattended Execution**: Set ``FACEBOOK_OBJECT_ID``, ``FACEBOOK_CLIENT_ID``, ``FACEBOOK_CLIENT_SECRET``, and ``AGORAS_FACEBOOK_REFRESH_TOKEN`` environment variables.
+**Unattended Execution**: Set ``FACEBOOK_OBJECT_ID``, ``FACEBOOK_CLIENT_ID``, ``FACEBOOK_CLIENT_SECRET``, and ``FACEBOOK_REFRESH_TOKEN`` environment variables.
 
 Video Action
 ------------
@@ -238,7 +241,7 @@ Video Action
 - ``--video-description`` (CLI) / ``FACEBOOK_VIDEO_DESCRIPTION`` (ENVVAR) - Video description
 - ``--video-type`` (CLI) / ``FACEBOOK_VIDEO_TYPE`` (ENVVAR) - Video type
 
-**Unattended Execution**: Set ``FACEBOOK_OBJECT_ID``, ``FACEBOOK_CLIENT_ID``, ``FACEBOOK_CLIENT_SECRET``, and ``AGORAS_FACEBOOK_REFRESH_TOKEN`` environment variables.
+**Unattended Execution**: Set ``FACEBOOK_OBJECT_ID``, ``FACEBOOK_CLIENT_ID``, ``FACEBOOK_CLIENT_SECRET``, and ``FACEBOOK_REFRESH_TOKEN`` environment variables.
 
 Like Action
 ------------
@@ -249,7 +252,7 @@ Like Action
 
 **Optional Arguments**: None
 
-**Unattended Execution**: Set ``FACEBOOK_OBJECT_ID``, ``FACEBOOK_CLIENT_ID``, ``FACEBOOK_CLIENT_SECRET``, and ``AGORAS_FACEBOOK_REFRESH_TOKEN`` environment variables.
+**Unattended Execution**: Set ``FACEBOOK_OBJECT_ID``, ``FACEBOOK_CLIENT_ID``, ``FACEBOOK_CLIENT_SECRET``, and ``FACEBOOK_REFRESH_TOKEN`` environment variables.
 
 Share Action
 ------------
@@ -262,7 +265,7 @@ Share Action
 
 - ``--profile-id`` (CLI) / ``FACEBOOK_PROFILE_ID`` (ENVVAR) - Facebook profile ID where post will be shared
 
-**Unattended Execution**: Set ``FACEBOOK_OBJECT_ID``, ``FACEBOOK_CLIENT_ID``, ``FACEBOOK_CLIENT_SECRET``, and ``AGORAS_FACEBOOK_REFRESH_TOKEN`` environment variables.
+**Unattended Execution**: Set ``FACEBOOK_OBJECT_ID``, ``FACEBOOK_CLIENT_ID``, ``FACEBOOK_CLIENT_SECRET``, and ``FACEBOOK_REFRESH_TOKEN`` environment variables.
 
 Delete Action
 -------------
@@ -273,7 +276,7 @@ Delete Action
 
 **Optional Arguments**: None
 
-**Unattended Execution**: Set ``FACEBOOK_OBJECT_ID``, ``FACEBOOK_CLIENT_ID``, ``FACEBOOK_CLIENT_SECRET``, and ``AGORAS_FACEBOOK_REFRESH_TOKEN`` environment variables.
+**Unattended Execution**: Set ``FACEBOOK_OBJECT_ID``, ``FACEBOOK_CLIENT_ID``, ``FACEBOOK_CLIENT_SECRET``, and ``FACEBOOK_REFRESH_TOKEN`` environment variables.
 
 Instagram
 =========
@@ -302,7 +305,7 @@ Post Action
 
 - ``--image-1`` (CLI) / ``STATUS_IMAGE_URL_1`` (ENVVAR) - Image URL (required for photo posts)
 
-**Unattended Execution**: Set ``INSTAGRAM_OBJECT_ID``, ``INSTAGRAM_CLIENT_ID``, ``INSTAGRAM_CLIENT_SECRET``, and ``AGORAS_INSTAGRAM_REFRESH_TOKEN`` environment variables.
+**Unattended Execution**: Set ``INSTAGRAM_OBJECT_ID``, ``INSTAGRAM_CLIENT_ID``, ``INSTAGRAM_CLIENT_SECRET``, and ``INSTAGRAM_REFRESH_TOKEN`` environment variables.
 
 Video Action
 ------------
@@ -317,7 +320,7 @@ Video Action
 - ``--video-caption`` (CLI) / ``INSTAGRAM_VIDEO_CAPTION`` (ENVVAR) - Video caption
 - ``--video-type`` (CLI) / ``INSTAGRAM_VIDEO_TYPE`` (ENVVAR) - Video type (e.g., REELS, STORIES)
 
-**Unattended Execution**: Set ``INSTAGRAM_OBJECT_ID``, ``INSTAGRAM_CLIENT_ID``, ``INSTAGRAM_CLIENT_SECRET``, and ``AGORAS_INSTAGRAM_REFRESH_TOKEN`` environment variables.
+**Unattended Execution**: Set ``INSTAGRAM_OBJECT_ID``, ``INSTAGRAM_CLIENT_ID``, ``INSTAGRAM_CLIENT_SECRET``, and ``INSTAGRAM_REFRESH_TOKEN`` environment variables.
 
 LinkedIn
 ========
@@ -344,7 +347,7 @@ Post Action
 - ``--link`` (CLI) / ``STATUS_LINK`` (ENVVAR) - URL to include
 - ``--image-1`` (CLI) / ``STATUS_IMAGE_URL_1`` (ENVVAR) - First image URL
 
-**Unattended Execution**: Set ``LINKEDIN_OBJECT_ID``, ``LINKEDIN_CLIENT_ID``, ``LINKEDIN_CLIENT_SECRET``, and ``AGORAS_LINKEDIN_REFRESH_TOKEN`` environment variables.
+**Unattended Execution**: Set ``LINKEDIN_OBJECT_ID``, ``LINKEDIN_CLIENT_ID``, ``LINKEDIN_CLIENT_SECRET``, and ``LINKEDIN_REFRESH_TOKEN`` environment variables.
 
 Video Action
 ------------
@@ -357,7 +360,7 @@ Video Action
 
 - ``--video-title`` (CLI) / ``LINKEDIN_VIDEO_TITLE`` (ENVVAR) - Video title
 
-**Unattended Execution**: Set ``LINKEDIN_OBJECT_ID``, ``LINKEDIN_CLIENT_ID``, ``LINKEDIN_CLIENT_SECRET``, and ``AGORAS_LINKEDIN_REFRESH_TOKEN`` environment variables.
+**Unattended Execution**: Set ``LINKEDIN_OBJECT_ID``, ``LINKEDIN_CLIENT_ID``, ``LINKEDIN_CLIENT_SECRET``, and ``LINKEDIN_REFRESH_TOKEN`` environment variables.
 
 Like Action
 -----------
@@ -366,7 +369,7 @@ Like Action
 
 - ``--post-id`` (CLI) / ``LINKEDIN_POST_ID`` (ENVVAR) - LinkedIn post ID
 
-**Unattended Execution**: Set ``LINKEDIN_OBJECT_ID``, ``LINKEDIN_CLIENT_ID``, ``LINKEDIN_CLIENT_SECRET``, and ``AGORAS_LINKEDIN_REFRESH_TOKEN`` environment variables.
+**Unattended Execution**: Set ``LINKEDIN_OBJECT_ID``, ``LINKEDIN_CLIENT_ID``, ``LINKEDIN_CLIENT_SECRET``, and ``LINKEDIN_REFRESH_TOKEN`` environment variables.
 
 Share Action
 ------------
@@ -375,7 +378,7 @@ Share Action
 
 - ``--post-id`` (CLI) / ``LINKEDIN_POST_ID`` (ENVVAR) - LinkedIn post ID
 
-**Unattended Execution**: Set ``LINKEDIN_OBJECT_ID``, ``LINKEDIN_CLIENT_ID``, ``LINKEDIN_CLIENT_SECRET``, and ``AGORAS_LINKEDIN_REFRESH_TOKEN`` environment variables.
+**Unattended Execution**: Set ``LINKEDIN_OBJECT_ID``, ``LINKEDIN_CLIENT_ID``, ``LINKEDIN_CLIENT_SECRET``, and ``LINKEDIN_REFRESH_TOKEN`` environment variables.
 
 Delete Action
 -------------
@@ -384,7 +387,7 @@ Delete Action
 
 - ``--post-id`` (CLI) / ``LINKEDIN_POST_ID`` (ENVVAR) - LinkedIn post ID
 
-**Unattended Execution**: Set ``LINKEDIN_OBJECT_ID``, ``LINKEDIN_CLIENT_ID``, ``LINKEDIN_CLIENT_SECRET``, and ``AGORAS_LINKEDIN_REFRESH_TOKEN`` environment variables.
+**Unattended Execution**: Set ``LINKEDIN_OBJECT_ID``, ``LINKEDIN_CLIENT_ID``, ``LINKEDIN_CLIENT_SECRET``, and ``LINKEDIN_REFRESH_TOKEN`` environment variables.
 
 Discord
 =======
@@ -482,7 +485,7 @@ Video Action
 - ``--privacy`` (CLI) / ``YOUTUBE_PRIVACY_STATUS`` (ENVVAR) - Privacy status: ``public``, ``private``, or ``unlisted`` (default: ``private``)
 - ``--keywords`` (CLI) / ``YOUTUBE_KEYWORDS`` (ENVVAR) - Comma-separated keywords
 
-**Unattended Execution**: Set ``YOUTUBE_CLIENT_ID``, ``YOUTUBE_CLIENT_SECRET``, and ``AGORAS_YOUTUBE_REFRESH_TOKEN`` environment variables.
+**Unattended Execution**: Set ``YOUTUBE_CLIENT_ID``, ``YOUTUBE_CLIENT_SECRET``, and ``YOUTUBE_REFRESH_TOKEN`` environment variables.
 
 Like Action
 -----------
@@ -491,7 +494,7 @@ Like Action
 
 - ``--video-id`` (CLI) / ``YOUTUBE_VIDEO_ID`` (ENVVAR) - YouTube video ID
 
-**Unattended Execution**: Set ``YOUTUBE_CLIENT_ID``, ``YOUTUBE_CLIENT_SECRET``, and ``AGORAS_YOUTUBE_REFRESH_TOKEN`` environment variables.
+**Unattended Execution**: Set ``YOUTUBE_CLIENT_ID``, ``YOUTUBE_CLIENT_SECRET``, and ``YOUTUBE_REFRESH_TOKEN`` environment variables.
 
 Delete Action
 -------------
@@ -500,7 +503,7 @@ Delete Action
 
 - ``--video-id`` (CLI) / ``YOUTUBE_VIDEO_ID`` (ENVVAR) - YouTube video ID
 
-**Unattended Execution**: Set ``YOUTUBE_CLIENT_ID``, ``YOUTUBE_CLIENT_SECRET``, and ``AGORAS_YOUTUBE_REFRESH_TOKEN`` environment variables.
+**Unattended Execution**: Set ``YOUTUBE_CLIENT_ID``, ``YOUTUBE_CLIENT_SECRET``, and ``YOUTUBE_REFRESH_TOKEN`` environment variables.
 
 TikTok
 ======
@@ -557,14 +560,14 @@ Video Action
 - ``--brand-organic`` (CLI) / ``TIKTOK_BRAND_ORGANIC`` (ENVVAR) - Mark content as promotional (displays "Promotional content" label)
 - ``--brand-content`` (CLI) / ``TIKTOK_BRAND_CONTENT`` (ENVVAR) - Mark content as paid partnership (displays "Paid partnership" label)
 
-**Unattended Execution**: Set ``TIKTOK_USERNAME``, ``TIKTOK_CLIENT_KEY``, ``TIKTOK_CLIENT_SECRET``, and ``AGORAS_TIKTOK_REFRESH_TOKEN`` environment variables.
+**Unattended Execution**: Set ``TIKTOK_USERNAME``, ``TIKTOK_CLIENT_KEY``, ``TIKTOK_CLIENT_SECRET``, and ``TIKTOK_REFRESH_TOKEN`` environment variables.
 
 Threads
 =======
 
 **Authentication Type**: OAuth 2.0
 
-**Actions**: authorize, post, video, share
+**Actions**: authorize, post, video, share, delete
 
 Authorize Action
 ----------------
@@ -586,7 +589,7 @@ Post Action
 - ``--image-3`` (CLI) / ``STATUS_IMAGE_URL_3`` (ENVVAR) - Third image URL
 - ``--image-4`` (CLI) / ``STATUS_IMAGE_URL_4`` (ENVVAR) - Fourth image URL
 
-**Unattended Execution**: Set ``THREADS_APP_ID``, ``THREADS_APP_SECRET``, ``AGORAS_THREADS_REFRESH_TOKEN``, and ``AGORAS_THREADS_USER_ID`` environment variables.
+**Unattended Execution**: Set ``THREADS_APP_ID``, ``THREADS_APP_SECRET``, ``THREADS_REFRESH_TOKEN``, and ``THREADS_USER_ID`` environment variables.
 
 Video Action
 ------------
@@ -599,7 +602,7 @@ Video Action
 
 - ``--video-title`` (CLI) / ``THREADS_VIDEO_TITLE`` (ENVVAR) - Video caption/description
 
-**Unattended Execution**: Set ``THREADS_APP_ID``, ``THREADS_APP_SECRET``, ``AGORAS_THREADS_REFRESH_TOKEN``, and ``AGORAS_THREADS_USER_ID`` environment variables.
+**Unattended Execution**: Set ``THREADS_APP_ID``, ``THREADS_APP_SECRET``, ``THREADS_REFRESH_TOKEN``, and ``THREADS_USER_ID`` environment variables.
 
 Share Action
 ------------
@@ -608,7 +611,7 @@ Share Action
 
 - ``--post-id`` (CLI) / ``THREADS_POST_ID`` (ENVVAR) - Threads post ID
 
-**Unattended Execution**: Set ``THREADS_APP_ID``, ``THREADS_APP_SECRET``, ``AGORAS_THREADS_REFRESH_TOKEN``, and ``AGORAS_THREADS_USER_ID`` environment variables.
+**Unattended Execution**: Set ``THREADS_APP_ID``, ``THREADS_APP_SECRET``, ``THREADS_REFRESH_TOKEN``, and ``THREADS_USER_ID`` environment variables.
 
 Telegram
 ========
@@ -755,7 +758,7 @@ Environment Variable Naming Patterns
 
 Environment variables follow these patterns:
 
-- **OAuth 2.0 Refresh Tokens**: ``AGORAS_{PLATFORM}_REFRESH_TOKEN``
+- **OAuth 2.0 Refresh Tokens**: ``{PLATFORM}_REFRESH_TOKEN``
 - **Platform Credentials**: ``{PLATFORM}_{CREDENTIAL_TYPE}`` (e.g., ``TWITTER_CONSUMER_KEY``, ``DISCORD_BOT_TOKEN``)
 - **Common Content**: ``STATUS_TEXT``, ``STATUS_LINK``, ``STATUS_IMAGE_URL_1``, etc.
 - **Platform-Specific**: Platform-specific parameters use platform prefix (e.g., ``YOUTUBE_TITLE``, ``TIKTOK_PRIVACY_STATUS``)

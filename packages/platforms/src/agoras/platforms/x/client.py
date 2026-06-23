@@ -17,11 +17,23 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+import mimetypes
 import os
 import tempfile
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from tweepy import API, Client, OAuth1UserHandler
+
+
+def _upload_path_for_media_type(media_type: str) -> Tuple[str, Optional[str]]:
+    """Return temp-file suffix and X media_category for a MIME type."""
+    if media_type.startswith('video/'):
+        suffix = mimetypes.guess_extension(media_type) or '.mp4'
+        return suffix, 'tweet_video'
+    if media_type.startswith('image/'):
+        suffix = mimetypes.guess_extension(media_type) or '.bin'
+        return suffix, 'tweet_image'
+    return '.bin', None
 
 
 class XAPIClient:
@@ -131,29 +143,6 @@ class XAPIClient:
         self.client_v2 = None
         self._authenticated = False
 
-    def _verify_credentials(self):
-        """
-        Verify X credentials using v1 API.
-
-        Raises:
-            Exception: If verification fails
-        """
-        if not self.client_v1:
-            raise Exception('X v1 client not initialized')
-
-        try:
-            user = self.client_v1.verify_credentials()
-            if not user:
-                raise Exception('Failed to verify X credentials')
-        except Exception as e:
-            # Re-raise with more context
-            error_msg = str(e)
-            # Check if this is the specific "missing_token" error
-            if "missing_token" in error_msg or "oauth_token is missing" in error_msg:
-                raise Exception(
-                    f'X credential verification failed. The access token may be invalid or expired. Error: {error_msg}')
-            raise
-
     async def get_user_info(self) -> dict:
         """
         Get authenticated user information using v1 API.
@@ -206,14 +195,19 @@ class XAPIClient:
             raise Exception('X v1 client not initialized')
 
         def _sync_upload():
-            # Create temporary file for upload
-            _, temp_file = tempfile.mkstemp(suffix='.bin')
+            suffix, media_category = _upload_path_for_media_type(media_type)
+            _, temp_file = tempfile.mkstemp(suffix=suffix)
             try:
                 with open(temp_file, 'wb') as f:
                     f.write(media_content)
 
-                # Upload using v1.1 API
-                media = self.client_v1.media_upload(temp_file)  # type: ignore
+                upload_kwargs = {}
+                if media_category:
+                    upload_kwargs['media_category'] = media_category
+
+                # Tweepy infers file_type from temp path suffix; do not pass file_type
+                # (duplicate kwarg breaks chunked_upload for video).
+                media = self.client_v1.media_upload(temp_file, **upload_kwargs)  # type: ignore
                 return media.media_id
             finally:
                 # Clean up temporary file

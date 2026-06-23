@@ -2,125 +2,118 @@
 Maintainer Guide
 ================
 
-If you are reading this, you probably forgot how to release a new version. Keep
-reading.
+Rosey maintainer workflow for Agoras. Each step is a skill invocation; details
+live in the skill files under ``.cursor/skills/``.
 
-Making a new release
---------------------
+Workflow overview
+-----------------
 
-1. Start your project with a cookiecutter template.
+For each feature:
 
-2. Start your git flow workflow.
-::
+1. ``rosey-lfg-code`` — brainstorm requirements, create a plan, implement on a
+   feature branch (via ``rosey-brainstorm``, ``rosey-plan``, ``rosey-work``).
+2. ``rosey-lfg-quality`` — QA review, lint/build after fixes, open or update PR
+   (via ``rosey-qa``, ``rosey-pr``). PRs target ``develop``. This skill does not
+   merge PRs or fix CI; see **Pull request CI and auto-merge** below.
 
-    git flow init
+Repeat 1–2 for every feature in the release.
 
-3. Create a new milestone in GitHub. Plan the features of your new release. Assign
-existing bugs to your new milestone.
+When ``develop`` is ready to ship:
 
-4. Start a new feature.
-::
+3. ``rosey-release`` — publish a **release** (patch, minor, or major). Five gates:
+   (1) Docker preflight (``make release-preflight``: ``make lint``, ``make format``,
+   ``make test``; on Python repos ``make test`` runs
+   coverage),
+   (2) ``release/<version>`` branch pushed,
+   (3) **Push** workflow (``push.yml``) on the release branch — see **GitHub branch
+   protection** for the one-time ``push.yml`` patch,
+   (4) tag and GitHub release (``scripts/release.sh`` / git-flow finish),
+   (5) **Publish Release** workflow (``release.yml``) after publish
+   (PyPI build and publish) —
+   gate 5 is verified by ``rosey-release`` after ``make release-*`` completes, not
+   by the release script. **Patch** releases attach a retroactive milestone from
+   eligible closed issues since the prior release (see ``rosey-release``). **Minor**
+   and **major** require explicit confirmation of milestone handling before release
+   scripts run. On failure, rolls back with ``VERSION=<version> make undo-release``
+   and halts. Optional post-bump hooks live in ``.bumpversion.cfg`` under
+   ``[rosey-maintainer]``.
 
-    git flow feature start <feature name>
+Pull request CI and auto-merge
+------------------------------
 
-5. Code, code and code. More coding. Mess it up several times. Push to feature
-branch. Watch Travis go red. Write unit tests. Watch Travis go red again. Don't
-leave uncommitted changes.
+- **``pr.yml``** — repo-specific CI on ``pull_request`` to ``develop``. Each job's
+  ``name:`` field becomes a candidate required status check on ``develop``. Static
+  sync injects a managed **Code Quality** Semgrep job block when the quality bundle
+  is present; it may strip legacy ``push`` backup triggers and ``concurrency``. The
+  dynamic phase may patch trigger/checkout security only (remove
+  ``pull_request_target``, PR-head checkout, and in-file approve/merge jobs).
+- **``pr-auto-merge.yml``** — static-synced. Triggers on ``workflow_run`` after
+  **Pull Request** completes successfully on an eligible **head** branch
+  (``feature/**`` or ``dependabot/**``; not ``release/**``). A gate job verifies the
+  PR targets ``develop`` and head branch eligibility, then approve/merge via the
+  GitHub API (no checkout of PR code). All jobs in **Pull Request** (including
+  **Code Quality**) must be green. Limited to ``dependabot[bot]``, ``cursor[bot]``
+  (Cursor PR automation), and ``github.repository_owner``. Configure
+  ``REPO_PERSONAL_ACCESS_TOKEN`` when Dependabot merges need permissions beyond
+  ``GITHUB_TOKEN``.
+- **Cursor PR CI automation** — one Cursor automation per repo (fleet prompts in
+  **rosey-maintainer-tools** ``docs/cursor-automations/<repo>.md``; setup in
+  ``docs/cursor-pr-ci-automation.md``). Triggers on **failed PR checks** for
+  owner/Dependabot PRs targeting ``develop`` on ``feature/**`` or ``dependabot/**``
+  (not on direct ``develop`` pushes). The agent pushes fixes to the **PR head
+  branch** only; CI retriggers via ``pull_request`` ``synchronize`` (not workflow
+  dispatch). It does not approve or merge. When the **Pull Request** workflow
+  succeeds (all jobs green, including **Code Quality** when present),
+  ``pr-auto-merge.yml`` completes the merge.
+  ``rosey-lfg-quality`` and ``rosey-pr`` do not fix CI or merge.
 
-6. Finish your feature.
-::
+  Auto-merge eligibility: head ``feature/**`` or ``dependabot/**``; base ``develop``
+  (gate); actor repo owner or Dependabot; required **Pull Request** workflow on same
+  ``head_sha`` (includes **Code Quality** when bundle present); excluded ``release/**``,
+  PRs not targeting ``develop``, external contributors.
 
-    git flow feature finish <feature name>
+Skill reference
+---------------
 
-7. Repeat 4-6 for every other feature you have planned for this release.
+``rosey-lfg-code``
+  Autonomous code stage: requirements → plan → implementation and lint/build.
+  Emits ``ROSEY_LFG_QUALITY_HANDOFF`` for the quality stage.
 
-8. When you're done with the features and ready to publish, start a new release.
-::
+``rosey-lfg-quality``
+  Autonomous quality stage: QA autofix, post-review lint, PR create/update.
+  Emits ``<promise>DONE</promise>`` when the PR is ready. Does not merge,
+  watch, or fix CI, create milestones, or publish releases.
 
-    git flow release start <release number>
+``rosey-release``
+  Release only: ``patch`` (default), ``minor``, or ``major``. Invoke from clean
+  ``develop``. Arguments: ``[mode:interactive|mode:non-interactive] [patch|minor|major]``.
+  In ``mode:non-interactive``, runs ``NON_INTERACTIVE=true make release-<type>``
+  (e.g. ``make release-patch``). Gates 1–4 run inside ``scripts/release.sh``; gate 5
+  is verified by the skill after the Make target succeeds.
 
-9. Bump your version (check everything before next step).
-::
+Prerequisites (checked by release script)
+-------------------------------------------------
 
-    bumpversion --no-commit <major, minor or patch>
+- ``git``, ``git flow``, ``docker`` (daemon running), ``make``, ``gh`` (authenticated),
+  ``bumpversion``, ``gpg``
+- ``user.signingkey`` configured with secret key available locally
+- Clean working tree (no modified or untracked files)
 
-10. Update your changelog (edit HISTORY.rst after to customize).
-::
+GitHub branch protection (configure once)
+-----------------------------------------
 
-    gitchangelog > HISTORY.rst
+**`develop`** — require PR; required status checks must match job ``name:`` fields
+in ``.github/workflows/pr.yml`` (including **Code Quality** when the managed block
+is present). Run ``rosey-maintain protect-github --apply``
+(after GitHub Pro on private repos) to create the ``Rosey: develop`` ruleset with
+those checks (including matrix-expanded job names where applicable).
 
-11. Commit your changes to version files and changelog.
-::
+**``master``** — restrict pushes; disallow force pushes.
 
-    git commit -aS -m "Updating Changelog and version."
+**``release/*``** — ``push.yml`` must list ``release/**`` under ``on.push.branches``
+and include a terminal **Release Gate** job after all CI jobs (one-time manual patch;
+static sync does not manage ``push.yml``). ``scripts/release.sh`` waits for the full
+**Push** workflow to succeed on the release branch before tagging.
 
-12. Delete the tag made by bumpversion.
-::
-
-    git tag -d <release number>
-
-13. Finish your release.
-::
-
-    git flow release finish -s -p <release number>
-
-15. Draft a new release in GitHub (based on the new version tag) and include
-a description. Also pick a codename because it makes you cool.
-
-16. Close the milestone in GitHub.
-
-17. Publish your new version to PyPI.
-::
-
-    make release
-
-18. Write about your new version in your blog. Tweet it, post it on facebook.
-
-Making a new hotfix
--------------------
-
-1. Create a new milestone in GitHub. Assign existing bugs to your new milestone.
-
-2. Start a new hotfix.
-::
-
-    git flow hotfix start <new version>
-
-3. Code your hotfix.
-
-4. Bump your version (check everything before next step).
-::
-
-    bumpversion --no-commit <major, minor or patch>
-
-5. Update your changelog (edit HISTORY.rst after to customize).
-::
-
-    gitchangelog > HISTORY.rst
-
-6. Commit your changes to version files and changelog.
-::
-
-    git commit -aS -m "Updating Changelog and version."
-
-7. Delete the tag made by bumpversion.
-::
-
-    git tag -d <new version>
-
-8. Finish your hotfix.
-::
-
-    git flow hotfix finish -s -p <new version>
-
-10. Draft a new release in GitHub (based on the new version tag) and include
-a description. Don't change the codename if it is a hotfix.
-
-11. Close the milestone in GitHub.
-
-12. Publish your new version to PyPI.
-::
-
-    make release
-
-13. Write about your new version in your blog. Tweet it, post it on facebook.
+**Version tags** — restrict creation to maintainers; prevent tag deletion except
+by admins.

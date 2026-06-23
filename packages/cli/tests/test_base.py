@@ -21,7 +21,7 @@ Tests for base CLI utilities.
 
 from argparse import ArgumentParser
 
-from agoras.cli.base import add_common_content_options, add_feed_options, add_video_options
+from agoras.cli.base import add_common_content_options, add_video_options
 
 
 def test_add_common_content_options_no_images():
@@ -63,24 +63,6 @@ def test_add_common_content_options_single_image():
     args = parser.parse_args(['--image-1', 'img.jpg'])
 
     assert args.image_1 == 'img.jpg'
-
-
-def test_add_feed_options():
-    """Test adding feed options."""
-    parser = ArgumentParser()
-    add_feed_options(parser)
-
-    args = parser.parse_args([
-        '--feed-url', 'https://example.com/feed.xml',
-        '--max-count', '5',
-        '--post-lookback', '3600',
-        '--max-post-age', '7'
-    ])
-
-    assert args.feed_url == 'https://example.com/feed.xml'
-    assert args.max_count == 5
-    assert args.post_lookback == 3600
-    assert args.max_post_age == 7
 
 
 def test_add_video_options():

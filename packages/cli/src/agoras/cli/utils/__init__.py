@@ -25,6 +25,7 @@ and schedule-run for automation and orchestration.
 from argparse import ArgumentParser, _SubParsersAction
 
 from .feed import create_feed_publish_parser
+from .media_limits import create_media_limits_parser
 from .schedule import create_schedule_run_parser
 from .tokens import create_tokens_parser
 
@@ -53,6 +54,7 @@ def create_utils_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     # Add subcommands
     create_feed_publish_parser(utils_subparsers)
     create_schedule_run_parser(utils_subparsers)
+    create_media_limits_parser(utils_subparsers)
     create_tokens_parser(utils_subparsers)
 
     return parser

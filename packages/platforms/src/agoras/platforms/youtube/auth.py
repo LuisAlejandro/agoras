@@ -18,13 +18,13 @@
 
 import asyncio
 import secrets
+import sys
 import webbrowser
 from typing import Optional
 
-from authlib.integrations.requests_client import OAuth2Session
-
 from agoras.core.auth import BaseAuthManager
 from agoras.core.auth.callback_server import OAuthCallbackServer
+from authlib.integrations.requests_client import OAuth2Session
 
 from .client import YouTubeAPIClient
 
@@ -125,8 +125,8 @@ class YouTubeAuthManager(BaseAuthManager):
                 state=state
             )
 
-            print("Opening browser for YouTube authorization...")
-            print(f"If browser doesn't open automatically, visit: {authorization_url}")
+            print("Opening browser for YouTube authorization...", file=sys.stderr)
+            print(f"If browser doesn't open automatically, visit: {authorization_url}", file=sys.stderr)
             webbrowser.open(authorization_url)
 
             auth_code = await callback_server.start_and_wait(timeout=300)
@@ -150,7 +150,7 @@ class YouTubeAuthManager(BaseAuthManager):
 
             return await asyncio.to_thread(_sync_exchange)
         except Exception as e:
-            print(f"Interactive authorization failed: {e}")
+            print(f"Interactive authorization failed: {e}", file=sys.stderr)
             return None
 
     async def _refresh_access_token_with_authlib(self) -> dict:

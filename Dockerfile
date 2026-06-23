@@ -5,11 +5,12 @@ ARG UID=1000
 ARG GID=1000
 
 RUN apt-get update && \
-    apt-get install sudo git make jq
+    apt-get install -y --no-install-recommends sudo git make jq && \
+    rm -rf /var/lib/apt/lists/*
 
 ADD requirements-dev.txt /root/
-RUN pip3 install -r /root/requirements-dev.txt
-RUN rm -rf /root/requirements-dev.txt
+RUN pip3 install -r /root/requirements-dev.txt && \
+    rm -rf /root/requirements-dev.txt
 
 RUN EXISTUSER=$(getent passwd | awk -F':' '$3 == '$UID' {print $1}') && \
     [ -n "${EXISTUSER}" ] && deluser ${EXISTUSER} || true

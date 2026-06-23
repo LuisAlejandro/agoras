@@ -21,6 +21,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from agoras.core.api_base import BaseAPI
 from agoras.media import MediaFactory
+from agoras.media.errors import MediaValidationError
 
 from .auth import ThreadsAuthManager
 
@@ -100,6 +101,42 @@ class ThreadsAPI(BaseAPI):
         self.client = None
         self._authenticated = False
 
+    @staticmethod
+    def _cleanup_downloaded_images(images: List[Any]) -> None:
+        """Release temporary image resources after validation failure."""
+        for image in images:
+            try:
+                image.cleanup()
+            except Exception:
+                pass
+
+    @staticmethod
+    def _validate_downloaded_image(
+        image: Any,
+        idx: int,
+        file_captions: Optional[List[str]],
+        allowed_images: frozenset,
+        validated_files: List[str],
+        validated_captions: List[str],
+    ) -> None:
+        """Validate one downloaded image and append to output lists."""
+        if not image.content or not image.file_type:
+            raise Exception(f'Failed to download or validate image: {image.url}')
+
+        if image.file_type.mime not in allowed_images:
+            raise MediaValidationError(
+                'threads', 'image', 'mime_types',
+                image.file_type.mime, sorted(allowed_images),
+            )
+
+        from agoras.media.preflight import preflight_url_for_platform
+
+        preflight_url_for_platform(image.url, 'threads', kind='image')
+        validated_files.append(image.url)
+
+        if file_captions and idx < len(file_captions):
+            validated_captions.append(file_captions[idx])
+
     async def _validate_and_download_images(
         self, files: List[str], file_captions: Optional[List[str]]
     ) -> Tuple[List[str], List[str], List[Any]]:
@@ -126,40 +163,28 @@ class ThreadsAPI(BaseAPI):
         if not valid_file_urls:
             raise Exception('Files list contains no valid URLs')
 
+        from agoras.media.constraints import image_limits
+
+        allowed_images = image_limits('threads').mime_types
+
         try:
-            # Download and validate all images concurrently
-            images = await MediaFactory.download_images(valid_file_urls)
+            images = await MediaFactory.download_images(
+                valid_file_urls, platform='threads',
+            )
 
-            # Validate each image and collect validated URLs
             for idx, image in enumerate(images):
-                if not image.content or not image.file_type:
-                    raise Exception(f'Failed to download or validate image: {image.url}')
-
-                # Validate image format (Threads supports JPEG, PNG)
-                if image.file_type.mime not in ['image/jpeg', 'image/png', 'image/jpg']:
-                    raise Exception(
-                        f'Invalid image type "{image.file_type.mime}" for {image.url}. '
-                        'Threads supports JPEG and PNG only.'
-                    )
-
-                # Use the original URL; Threads Graph API accepts image_url directly.
-                # Media system validation ensures the URL is valid and accessible
-                validated_files.append(image.url)
-
-                # Handle file captions - align with validated files
-                if file_captions and idx < len(file_captions):
-                    validated_captions.append(file_captions[idx])
+                self._validate_downloaded_image(
+                    image, idx, file_captions, allowed_images,
+                    validated_files, validated_captions,
+                )
 
             return validated_files, validated_captions, images
 
+        except MediaValidationError:
+            self._cleanup_downloaded_images(images)
+            raise
         except Exception as e:
-            # Clean up any downloaded images on error
-            for image in images:
-                try:
-                    image.cleanup()
-                except Exception:
-                    pass
-            # Re-raise with more context if it's not already our formatted exception
+            self._cleanup_downloaded_images(images)
             error_msg = str(e)
             if not error_msg.startswith('Media validation failed'):
                 raise Exception(f'Media validation failed: {error_msg}')
@@ -262,6 +287,76 @@ class ThreadsAPI(BaseAPI):
                 except Exception:
                     pass
 
+    async def create_video_post(self, post_text: str, video_url: str,
+                                who_can_reply: str = "everyone") -> str:
+        """
+        Create a video post on Threads.
+
+        Args:
+            post_text (str): Text content / caption for the video
+            video_url (str): Publicly accessible URL of the video
+            who_can_reply (str): Who can reply to this post
+
+        Returns:
+            str: Post ID
+
+        Raises:
+            Exception: If video post creation fails
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.access_token:
+            raise Exception('Threads API not authenticated')
+
+        if not self.client:
+            raise Exception('Threads client not available')
+
+        if not video_url:
+            raise Exception('Video URL is required')
+
+        await self._rate_limit_check('create_video_post', 2.0)
+
+        video = None
+        try:
+            video = MediaFactory.create_video(video_url, platform='threads')
+            await video.download()
+
+            if not video.content or not video.file_type:
+                raise Exception(f'Failed to download or validate video: {video.url}')
+
+            from agoras.media.constraints import video_limits
+
+            allowed = video_limits('threads').mime_types
+            if video.file_type.mime not in allowed:
+                raise MediaValidationError(
+                    'threads', 'video', 'mime_types',
+                    video.file_type.mime, sorted(allowed),
+                )
+
+            def _sync_create_video_post():
+                if not self.client:
+                    raise Exception('Threads client not available')
+                return self.client.create_video_post(
+                    post_text=post_text,
+                    video_url=video_url,
+                    who_can_reply=who_can_reply
+                )
+
+            response = await asyncio.to_thread(_sync_create_video_post)
+            post_id = response.get('id') or response.get('post_id') or str(response)
+            return post_id
+        except MediaValidationError:
+            raise
+        except Exception as e:
+            self._handle_api_error(e, 'Threads video post creation')
+            raise
+        finally:
+            if video:
+                try:
+                    video.cleanup()
+                except Exception:
+                    pass
+
     async def repost_post(self, post_id: str) -> str:
         """
         Repost an existing post.
@@ -330,15 +425,41 @@ class ThreadsAPI(BaseAPI):
 
     async def delete(self, post_id: str) -> str:
         """
-        Delete a Threads post (not supported via API).
+        Delete a Threads post.
 
         Args:
             post_id (str): Post ID to delete
 
+        Returns:
+            str: Deleted post ID
+
         Raises:
-            Exception: Delete not supported for Threads
+            Exception: If deletion fails
         """
-        raise Exception('Delete not supported for Threads')
+        self.auth_manager.ensure_authenticated()
+
+        if not self.access_token:
+            raise Exception('Threads API not authenticated')
+
+        if not self.client:
+            raise Exception('Threads client not available')
+
+        if not post_id:
+            raise Exception('Post ID is required for delete action.')
+
+        await self._rate_limit_check('delete_post', 1.0)
+
+        def _sync_delete():
+            if not self.client:
+                raise Exception('Threads client not available')
+            return self.client.delete_post(post_id=post_id)
+
+        try:
+            response = await asyncio.to_thread(_sync_delete)
+            return response.get('id', post_id)
+        except Exception as e:
+            self._handle_api_error(e, 'Threads post deletion')
+            raise
 
     async def share(self, post_id: str) -> str:
         """

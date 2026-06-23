@@ -39,7 +39,7 @@ packages, package_dir = find_monorepo_packages()
 
 setup(
     name='agoras',
-    version='2.0.0',
+    version='2.0.2',
     author='Luis Alejandro Martínez Faneyth',
     author_email='luis@luisalejandro.org',
     url='https://github.com/LuisAlejandro/agoras',
@@ -79,7 +79,7 @@ setup(
         'google-auth-httplib2==0.3.0',
         'oauth2client==4.1.3',
         'platformdirs==4.4.0',
-        'authlib==1.6.11',
+        'authlib==1.7.2',
         'cryptography>=42.0.0',
         'python-telegram-bot>=22.1',
     ],

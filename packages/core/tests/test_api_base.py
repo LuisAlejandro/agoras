@@ -25,7 +25,7 @@ from agoras.core.api_base import BaseAPI
 
 
 # Concrete implementation for testing
-class TestAPI(BaseAPI):
+class ConcreteAPI(BaseAPI):
     """Concrete implementation of BaseAPI for testing purposes."""
 
     async def authenticate(self):
@@ -80,7 +80,7 @@ def test_baseapi_error_handling():
 
 def test_initialization_with_credentials():
     """Test BaseAPI initialization with credentials."""
-    api = TestAPI(api_key='test_key', api_secret='test_secret')
+    api = ConcreteAPI(api_key='test_key', api_secret='test_secret')
 
     assert api.credentials == {'api_key': 'test_key', 'api_secret': 'test_secret'}
     assert api.client is None
@@ -91,7 +91,7 @@ def test_initialization_with_credentials():
 
 def test_initialization_without_credentials():
     """Test BaseAPI initialization without credentials."""
-    api = TestAPI()
+    api = ConcreteAPI()
 
     assert api.credentials == {}
     assert api._authenticated is False
@@ -102,7 +102,7 @@ def test_initialization_without_credentials():
 @pytest.mark.asyncio
 async def test_is_authenticated_initial_state():
     """Test is_authenticated returns False initially."""
-    api = TestAPI()
+    api = ConcreteAPI()
 
     assert api.is_authenticated() is False
 
@@ -110,7 +110,7 @@ async def test_is_authenticated_initial_state():
 @pytest.mark.asyncio
 async def test_is_authenticated_after_auth():
     """Test is_authenticated returns True after authentication."""
-    api = TestAPI()
+    api = ConcreteAPI()
 
     await api.authenticate()
 
@@ -122,7 +122,7 @@ async def test_is_authenticated_after_auth():
 @pytest.mark.asyncio
 async def test_rate_limit_check_updates_cache():
     """Test rate_limit_check updates cache after operation."""
-    api = TestAPI()
+    api = ConcreteAPI()
 
     # First call should update cache
     await api._rate_limit_check(operation_type='test_op', min_interval=0.1)
@@ -134,7 +134,7 @@ async def test_rate_limit_check_updates_cache():
 @pytest.mark.asyncio
 async def test_rate_limit_check_separate_operations():
     """Test rate_limit_check tracks different operations separately."""
-    api = TestAPI()
+    api = ConcreteAPI()
 
     await api._rate_limit_check(operation_type='read', min_interval=0.1)
     await api._rate_limit_check(operation_type='write', min_interval=0.1)
@@ -148,7 +148,7 @@ async def test_rate_limit_check_separate_operations():
 
 def test_handle_api_error_formats_message():
     """Test _handle_api_error formats error message correctly."""
-    api = TestAPI()
+    api = ConcreteAPI()
     original_error = ValueError("API returned 404")
 
     with pytest.raises(Exception) as exc_info:
@@ -160,7 +160,7 @@ def test_handle_api_error_formats_message():
 
 def test_handle_api_error_chains_exception():
     """Test _handle_api_error chains original exception."""
-    api = TestAPI()
+    api = ConcreteAPI()
     original_error = ConnectionError("Network timeout")
 
     with pytest.raises(Exception) as exc_info:

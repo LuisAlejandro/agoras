@@ -16,9 +16,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from typing import Optional
+
 import cv2
 
 from .base import Media
+from .constraints import MediaConstraints, resolve_platform, video_limits
+from .errors import MediaValidationError
 
 
 class Video(Media):
@@ -29,48 +33,60 @@ class Video(Media):
     Includes size limit validation for platform-specific requirements.
     """
 
-    def __init__(self, url, max_size=None, platform='generic'):
-        """
-        Initialize video instance.
-
-        Args:
-            url (str): URL of the video to download
-            max_size (int, optional): Maximum file size in bytes
-            platform (str): Platform name for error messages
-        """
+    def __init__(self, url, max_size=None, platform='generic',
+                 constraints: Optional[MediaConstraints] = None):
         super().__init__(url)
-        self.max_size = max_size
-        self.platform = platform
+        self.platform_key = resolve_platform(platform)
+        self.constraints = constraints or video_limits(self.platform_key)
+        self.max_size = max_size if max_size is not None else self.constraints.max_bytes
+        self.platform = self.platform_key
+        self.media_kind = 'video'
 
     @property
     def allowed_types(self):
-        """
-        Get allowed video MIME types.
-
-        Returns:
-            list: List of allowed video MIME types
-        """
-        base_types = ['video/mp4', 'video/mov', 'video/webm', 'video/avi']
-
-        # YouTube supports additional formats
-        if self.platform.lower() == 'youtube':
-            return base_types + ['video/quicktime']
-
-        return base_types
+        return list(self.constraints.mime_types)
 
     def _validate_content(self):
-        """
-        Validate video content including size limits.
+        limits = self.constraints
+        file_size = self.get_file_size()
+        if self.max_size is not None and file_size > self.max_size:
+            self.cleanup()
+            raise MediaValidationError(
+                self.platform_key, self.media_kind, 'max_bytes', file_size, self.max_size
+            )
 
-        Raises:
-            Exception: If video exceeds size limits
-        """
-        if self.max_size:
-            file_size = self.get_file_size()
-            if file_size > self.max_size:
+        duration = None
+        if self._downloaded and self.temp_file:
+            duration = self.get_duration()
+        if duration is not None:
+            if limits.max_duration_s is not None and duration > limits.max_duration_s:
                 self.cleanup()
-                raise Exception(f'Video file size ({file_size} bytes) exceeds '
-                                f'{self.platform} limit of {self.max_size} bytes')
+                raise MediaValidationError(
+                    self.platform_key, self.media_kind, 'max_duration_s', duration,
+                    limits.max_duration_s,
+                )
+            if limits.min_duration_s is not None and duration < limits.min_duration_s:
+                self.cleanup()
+                raise MediaValidationError(
+                    self.platform_key, self.media_kind, 'min_duration_s', duration,
+                    limits.min_duration_s,
+                )
+
+        dimensions = self._get_frame_dimensions()
+        if dimensions:
+            width, height = dimensions
+            if limits.max_width is not None and width > limits.max_width:
+                self.cleanup()
+                raise MediaValidationError(
+                    self.platform_key, self.media_kind, 'max_width',
+                    f'{width}x{height}', limits.max_width,
+                )
+            if limits.max_height is not None and height > limits.max_height:
+                self.cleanup()
+                raise MediaValidationError(
+                    self.platform_key, self.media_kind, 'max_height',
+                    f'{width}x{height}', limits.max_height,
+                )
 
     def get_duration(self):
         """
@@ -92,87 +108,22 @@ class Video(Media):
             cap.release()
 
             if fps > 0:
-                duration = frame_count / fps
-                return float(duration)
-            else:
-                return None
+                return float(frame_count / fps)
+            return None
         except Exception:
             return None
 
-    @classmethod
-    def for_discord(cls, url):
-        """
-        Create video instance with Discord-specific limits.
-
-        Args:
-            url (str): Video URL
-
-        Returns:
-            Video: Video instance configured for Discord
-        """
-        return cls(url, max_size=8 * 1024 * 1024, platform='Discord')  # 8MB limit
-
-    @classmethod
-    def for_twitter(cls, url):
-        """
-        Create video instance with Twitter-specific limits.
-
-        Args:
-            url (str): Video URL
-
-        Returns:
-            Video: Video instance configured for Twitter
-        """
-        return cls(url, max_size=512 * 1024 * 1024, platform='Twitter')  # 512MB limit
-
-    @classmethod
-    def for_facebook(cls, url):
-        """
-        Create video instance with Facebook-specific limits.
-
-        Args:
-            url (str): Video URL
-
-        Returns:
-            Video: Video instance configured for Facebook
-        """
-        return cls(url, max_size=4 * 1024 * 1024 * 1024, platform='Facebook')  # 4GB limit
-
-    @classmethod
-    def for_instagram(cls, url):
-        """
-        Create video instance with Instagram-specific limits.
-
-        Args:
-            url (str): Video URL
-
-        Returns:
-            Video: Video instance configured for Instagram
-        """
-        return cls(url, max_size=4 * 1024 * 1024 * 1024, platform='Instagram')  # 4GB limit
-
-    @classmethod
-    def for_youtube(cls, url):
-        """
-        Create video instance with YouTube-specific limits.
-
-        Args:
-            url (str): Video URL
-
-        Returns:
-            Video: Video instance configured for YouTube
-        """
-        return cls(url, max_size=256 * 1024 * 1024 * 1024, platform='YouTube')  # 256GB limit
-
-    @classmethod
-    def for_tiktok(cls, url):
-        """
-        Create video instance with TikTok-specific limits.
-
-        Args:
-            url (str): Video URL
-
-        Returns:
-            Video: Video instance configured for TikTok
-        """
-        return cls(url, max_size=2 * 1024 * 1024 * 1024, platform='TikTok')  # 2GB limit
+    def _get_frame_dimensions(self):
+        """Return (width, height) of the first video frame."""
+        if not self._downloaded or not self.temp_file:
+            return None
+        try:
+            cap = cv2.VideoCapture(self.temp_file)
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            cap.release()
+            if width > 0 and height > 0:
+                return width, height
+        except Exception:
+            pass
+        return None

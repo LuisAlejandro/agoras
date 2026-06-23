@@ -12,14 +12,6 @@ agoras package
     :private-members:
     :special-members:
 
-agoras.cli module
------------------
-
-.. automodule:: agoras.cli
-    :members:
-    :private-members:
-    :special-members:
-
 Subpackages
 -----------
 
@@ -34,4 +26,3 @@ Subpackages
    api/core_sheet
    api/platforms
    api/cli
-   api/commands

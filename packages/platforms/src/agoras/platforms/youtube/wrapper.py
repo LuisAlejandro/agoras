@@ -68,6 +68,7 @@ class YouTube(SocialNetwork):
         # Try params/environment first
         self.youtube_client_id = self._get_config_value('youtube_client_id', 'YOUTUBE_CLIENT_ID')
         self.youtube_client_secret = self._get_config_value('youtube_client_secret', 'YOUTUBE_CLIENT_SECRET')
+        self.youtube_refresh_token = self._get_config_value('youtube_refresh_token', 'YOUTUBE_REFRESH_TOKEN')
         self.youtube_video_id = self._get_config_value('youtube_video_id', 'YOUTUBE_VIDEO_ID')
         self.youtube_title = self._get_config_value('youtube_title', 'YOUTUBE_TITLE')
         self.youtube_description = self._get_config_value('youtube_description', 'YOUTUBE_DESCRIPTION')
@@ -78,12 +79,13 @@ class YouTube(SocialNetwork):
         self.youtube_video_url = self._get_config_value('youtube_video_url', 'YOUTUBE_VIDEO_URL')
 
         # If credentials not provided, try loading from storage
-        # YouTube needs client_id and client_secret to authenticate
-        if not all([self.youtube_client_id, self.youtube_client_secret]):
+        # YouTube needs client_id, client_secret, and refresh_token to authenticate
+        if not all([self.youtube_client_id, self.youtube_client_secret, self.youtube_refresh_token]):
             from .auth import YouTubeAuthManager
             auth_manager = YouTubeAuthManager(
-                client_id=self.youtube_client_id or '',
-                client_secret=self.youtube_client_secret or ''
+                client_id=self.youtube_client_id,
+                client_secret=self.youtube_client_secret,
+                refresh_token=self.youtube_refresh_token
             )
 
             if auth_manager._load_credentials_from_storage():
@@ -92,16 +94,21 @@ class YouTube(SocialNetwork):
                     self.youtube_client_id = auth_manager.client_id
                 if not self.youtube_client_secret:
                     self.youtube_client_secret = auth_manager.client_secret
+                if not self.youtube_refresh_token:
+                    self.youtube_refresh_token = auth_manager.refresh_token
 
         # Validate all credentials are now available
-        if not all([self.youtube_client_id, self.youtube_client_secret]):
+        if not all([self.youtube_client_id, self.youtube_client_secret, self.youtube_refresh_token]):
             raise Exception("Not authenticated. Please run 'agoras youtube authorize' first.")
 
         # Initialize YouTube API
         self.api = YouTubeAPI(
             self.youtube_client_id,
-            self.youtube_client_secret
+            self.youtube_client_secret,
+            self.youtube_refresh_token
         )
+
+        # Authenticate with provided credentials
         await self.api.authenticate()
 
     async def disconnect(self):
@@ -211,12 +218,16 @@ class YouTube(SocialNetwork):
             video.cleanup()
             raise Exception('Failed to download or validate video')
 
-        # Ensure video is in allowed format for YouTube
-        allowed_types = ['video/quicktime', 'video/mp4', 'video/webm']
-        if video.file_type.mime not in allowed_types:
+        from agoras.media.constraints import video_limits
+        from agoras.media.errors import MediaValidationError
+
+        allowed = video_limits('youtube').mime_types
+        if video.file_type.mime not in allowed:
             video.cleanup()
-            raise Exception(f'Invalid video type "{video.file_type.mime}" for {video_url}. '
-                            f'YouTube supports: {allowed_types}')
+            raise MediaValidationError(
+                'youtube', 'video', 'mime_types',
+                video.file_type.mime, sorted(allowed),
+            )
 
         # Ensure temp file exists
         if not video.temp_file:

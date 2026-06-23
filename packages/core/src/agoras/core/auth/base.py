@@ -16,8 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import asyncio
-import os
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
@@ -126,18 +124,6 @@ class BaseAuthManager(ABC):
 
         return None
 
-    def _load_refresh_token_from_env(self) -> Optional[str]:
-        """
-        Load refresh token from environment variable for CI/CD.
-
-        Checks for AGORAS_{PLATFORM}_REFRESH_TOKEN environment variable.
-
-        Returns:
-            str or None: Refresh token from environment if found
-        """
-        platform = self._get_platform_name().upper()
-        return os.environ.get(f'AGORAS_{platform}_REFRESH_TOKEN')
-
     def _try_seed_from_environment(self) -> bool:
         """
         Try to seed storage from environment variables (CI/CD support).
@@ -211,17 +197,3 @@ class BaseAuthManager(ABC):
         Returns:
             str: Unique identifier for this authentication session
         """
-
-    async def _run_sync_in_thread(self, sync_func, *args, **kwargs):
-        """
-        Run synchronous function in thread using asyncio.
-
-        Args:
-            sync_func: Synchronous function to run
-            *args: Arguments for the function
-            **kwargs: Keyword arguments for the function
-
-        Returns:
-            Result of the synchronous function
-        """
-        return await asyncio.to_thread(sync_func, *args, **kwargs)

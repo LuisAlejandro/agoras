@@ -47,6 +47,11 @@ Submit Feedback
 
 The best way to send feedback is to file an issue at https://github.com/LuisAlejandro/agoras/issues.
 
+Suggest Features
+~~~~~~~~~~~~~~~~
+
+The best way to suggest a feature is to file an issue at https://github.com/LuisAlejandro/agoras/issues.
+
 If you are proposing a feature:
 
 * Explain in detail how it would work.
@@ -54,36 +59,33 @@ If you are proposing a feature:
 * Remember that this is a volunteer-driven project, and that contributions
   are welcome :)
 
-Get Started!
-------------
+Local Development
+-----------------
 
-Ready to contribute? Here's how to set up `agoras` for local development.
+Ready to contribute? Set up ``agoras`` for local development.
 
-1. Fork the `agoras` repo on GitHub.
+1. Fork the ``agoras`` repo on GitHub.
 2. Clone your fork locally::
 
     $ git clone git@github.com:your_name_here/agoras.git
+    $ cd agoras
+    $ git checkout develop
 
-3. Install your local copy into a virtualenv. Assuming you have virtualenvwrapper installed, this is how you set up your fork for local development::
+3. Copy environment placeholders when you need credentials for integration tests::
 
-    $ mkvirtualenv agoras
-    $ cd agoras/
-    $ pip install -e packages/common -e packages/media -e packages/core -e packages/platforms -e packages/cli
+    $ cp .env.example .env
 
-4. Create a branch for local development::
+4. Start the Docker development environment::
+
+    $ make image
+    $ make start
+    $ make console    # optional interactive shell
+
+   Alternatively, create a host virtualenv with ``make virtualenv`` and activate ``./virtualenv/bin/activate``.
+
+5. Create a branch for local development::
 
     $ git checkout -b name-of-your-bugfix-or-feature
-
-   Now you can make your changes locally.
-
-5. When you're done making changes, check that your changes pass flake8 and the tests, including testing other Python versions with tox::
-
-    $ pip install -r requirements-dev.txt  # Install development dependencies
-    $ tox -e lint
-    $ tox -e all
-
-   Development dependencies are managed in ``requirements-dev.txt`` and include:
-   pytest, coverage, flake8, pydocstyle, tox, and build tools.
 
 6. Commit your changes and push your branch to GitHub::
 
@@ -92,6 +94,26 @@ Ready to contribute? Here's how to set up `agoras` for local development.
     $ git push origin name-of-your-bugfix-or-feature
 
 7. Submit a pull request through the GitHub website.
+
+Quality Checks
+--------------
+
+Prefer Docker-backed ``make`` targets when developing with containers::
+
+    $ make lint
+    $ make format
+    $ make test
+
+Or run tox directly on the host::
+
+    $ pip install -r requirements-dev.txt
+    $ tox -e lint
+    $ tox -e format
+    $ tox -e coverage
+    $ tox -e all
+
+Development dependencies are managed in ``requirements-dev.txt`` and include
+pytest, coverage, flake8, pydocstyle, tox, and build tools.
 
 Monorepo Development (v2.0)
 ----------------------------
@@ -104,7 +126,7 @@ Development Setup
 
 Prerequisites:
 
-* Python 3.9 or higher
+* Python 3.10 or higher
 * Git
 * pip
 
@@ -207,15 +229,13 @@ Test a single package::
 
 Test a specific package with tox::
 
-    $ tox -e py39-common    # Test common package on Python 3.9
     $ tox -e py310-media     # Test media package on Python 3.10
     $ tox -e py311-core      # Test core package on Python 3.11
     $ tox -e py312-platforms # Test platforms package on Python 3.12
-    $ tox -e py39-cli        # Test CLI package on Python 3.9
 
 Test all packages with tox::
 
-    $ tox                    # Tests all packages on all Python versions (3.9, 3.10, 3.11, 3.12)
+    $ tox                    # Tests all packages on all Python versions (3.10, 3.11, 3.12, 3.13, 3.14)
 
 Test all packages together (integration)::
 
@@ -245,7 +265,7 @@ Testing Best Practices
 2. **Test dependencies**: If you change a lower-level package, test all dependent packages
 3. **Integration tests**: Run integration tests when making cross-package changes
 4. **Coverage**: Aim to maintain or improve test coverage
-5. **Python versions**: Ensure tests pass on all supported Python versions (3.9-3.12)
+5. **Python versions**: Ensure tests pass on all supported Python versions (3.10-3.14)
 
 Building Packages
 ~~~~~~~~~~~~~~~~~
@@ -305,6 +325,11 @@ Release Steps
      5. agoras (CLI) (waits for platforms)
    * Uploads build artifacts to GitHub release
 
+   **First v2 monorepo release:** PyPI only allows one pending trusted publisher
+   per GitHub repo/workflow. Bootstrap ``agoras-media``, ``agoras-core``, and
+   ``agoras-platforms`` with a one-time ``twine`` upload, then add trusted
+   publishers on each project. See ``MAINTAINER.rst`` (PyPI monorepo bootstrap).
+
 4. **Verification**: After release, verify packages are available::
 
     $ pip install agoras-common==2.0.0
@@ -324,15 +349,6 @@ The release process follows this workflow:
 4. Workflow builds all packages in parallel
 5. Workflow publishes packages to PyPI sequentially (with waits between)
 6. Packages become available on PyPI
-
-Hotfix Process
---------------
-
-For urgent fixes, use the hotfix script::
-
-    $ ./scripts/hotfix.sh [major|minor|patch] [Hotfix Name]
-
-This follows the same process but creates a hotfix branch and merges to both develop and master.
 
 Manual Release (Not Recommended)
 ---------------------------------
@@ -516,7 +532,7 @@ When submitting pull requests:
 * Integration tests must pass (CLI with all packages)
 * Linting must pass for all packages (flake8, pydocstyle)
 * Coverage reports are aggregated across packages
-* GitHub Actions will run tests on Python 3.9, 3.10, 3.11, 3.12
+* GitHub Actions will run tests on Python 3.10, 3.11, 3.12, 3.13, 3.14
 
 Pull Request Guidelines
 -----------------------
@@ -529,6 +545,13 @@ Before you submit a pull request, check that it meets these guidelines:
    feature to the list in README.rst.
 3. Check https://github.com/LuisAlejandro/agoras/actions
    and make sure that the tests pass for all supported Python versions.
+4. Keep scope focused and link related issues when applicable.
+
+Maintainer Notes
+----------------
+
+Releases, version bumps, PyPI publishing, and git tags are handled by maintainers.
+Contributors do not need to publish packages or push release tags.
 
 Tips
 ----

@@ -21,7 +21,7 @@ from setuptools import find_namespace_packages, setup
 
 setup(
     name='agoras-core',
-    version='2.0.0',
+    version='2.0.2',
     author='Luis Alejandro Martínez Faneyth',
     author_email='luis@luisalejandro.org',
     url='https://github.com/LuisAlejandro/agoras',
@@ -36,7 +36,7 @@ setup(
         'agoras-media>=2.0.0',
         'atoma==0.0.17',
         'gspread==6.2.1',
-        'google-auth==2.47.0',
+        'google-auth==2.55.0',
         'python-dateutil==2.9.0.post0',
     ],
     classifiers=[

@@ -1,10 +1,21 @@
 Usage for LinkedIn
 ==================
 
-LinkedIn is a social network for professionals. It's a great place to share your content and to connect with other professionals. Agoras makes use of the `official LinkedIn API client <https://github.com/linkedin-developers/linkedin-api-python-client#linkedin-api-python-client>`_ to publish content on your behalf. Currently, Agoras supports the following actions: authorize, publish a post, like a post, share a post, delete a post, post the last URL from an RSS feed, post a random URL from an RSS feed and schedule a post (using a google spreadsheet).
+LinkedIn is a social network for professionals. It's a great place to share your content and to connect with other professionals. Agoras makes use of the `official LinkedIn API client <https://github.com/linkedin-developers/linkedin-api-python-client#linkedin-api-python-client>`_ to publish content on your behalf. Currently, Agoras supports the following actions: authorize, publish a post, like a post, share a post, delete a post, post the last URL from an RSS feed, post a random URL from an RSS feed and schedule a post (using a Google spreadsheet).
 
-Actions
-~~~~~~~
+Required Credentials
+--------------------
+
+Before using Agoras with LinkedIn, you'll need to manually extract the following credentials from your LinkedIn App in the LinkedIn Developer Portal. These credentials are required for OAuth 2.0 authentication.
+
+- **Client ID** (``LINKEDIN_CLIENT_ID``): Your LinkedIn App's client identifier for OAuth authentication
+- **Client Secret** (``LINKEDIN_CLIENT_SECRET``): Your LinkedIn App's client secret for OAuth authentication
+- **Object ID** (``LINKEDIN_OBJECT_ID``): The LinkedIn user or organization ID you want to post as
+
+See :doc:`credentials/linkedin` for detailed instructions on how to create a LinkedIn App and obtain these credentials.
+
+Available Actions
+~~~~~~~~~~~~~~~~~
 
 * ``authorize`` - Set up OAuth 2.0 authentication (required first step)
 * ``post`` - Create text and image posts (up to 4 images)
@@ -142,37 +153,55 @@ Please read about how the RSS feed should be structured in the :doc:`RSS feed se
 
 
 
-Schedule a LinkedIn post
+Google Sheets Scheduling
 ------------------------
 
-This command will scan a sheet ``--sheets-name`` of a google spreadsheet of id ``--sheets-id``, thats authorized by ``--sheets-client-email`` and ``--sheets-private-key`` (read about how to get google credentials :doc:`here <credentials/google>`).
+Agoras can schedule LinkedIn posts using Google Sheets. This allows you to plan and automate post publishing.
+
+Run Scheduled Messages
+~~~~~~~~~~~~~~~~~~~~~~
+
+Process scheduled messages from a Google Sheet:
+
+::
+
+    agoras utils schedule-run \
+      --network linkedin \
+      --sheets-id "${GOOGLE_SHEETS_ID}" \
+      --sheets-name "LinkedIn" \
+      --sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
+      --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
 
 .. note::
    You must run ``agoras linkedin authorize`` first before using this command.
 
-The order of the columns of the spreadsheet is crucial to the correct functioning of the command. Here's how the information should be organized:
+Sheet Format
+~~~~~~~~~~~~
 
-+--------------------+--------------------+---------------------------+---------------------------+---------------------------+---------------------------+-------------------------+-------------------+------------------------------+
-| ``--status-text``  | ``--status-link``  | ``--status-image-url-1``  | ``--status-image-url-2``  | ``--status-image-url-3``  | ``--status-image-url-4``  | date (%d-%m-%Y format)  | time (%H format)  | status (draft or published)  |
-+--------------------+--------------------+---------------------------+---------------------------+---------------------------+---------------------------+-------------------------+-------------------+------------------------------+
+Your Google Sheet should have the following columns:
 
-As you can see, the first 6 columns correspond to the parameters of the "post" command, the date and time columns correspond to the specific time that you want to publish this post, and the status column tells the script if this post is ready to be published (draft status) or if it was already published and should be skipped (published status). Let's see an example of a working schedule:
+- ``status_text``: Post text content
+- ``status_link``: URL to include in post
+- ``status_image_url_1`` through ``status_image_url_4``: Image URLs (optional)
+- ``date``: Scheduled date (format: DD-MM-YYYY)
+- ``hour``: Scheduled hour (format: HH, 24-hour format)
+- ``state``: Post state (``pending``, ``published``, ``error``)
 
-+-------------------------------+-------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+-------------+-----+--------+
-| This is a test facebook post  | https://agoras.readthedocs.io/en/latest/  | https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg  | https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg  | https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg  | https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg  | 21-11-2022  | 17  | draft  |
-+-------------------------------+-------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+-------------+-----+--------+
+**Example sheet row**:
 
-This schedule entry would be published at 17:00h of 21-11-2022 with text "This is a test linkedin post" and 4 images pointed by those URLs.
-
-For this command to work, it should be executed hourly by a cron script.
 ::
 
-      agoras utils schedule-run \
-            --network "linkedin" \
-            --sheets-id "${GOOGLE_SHEETS_ID}" \
-            --sheets-name "${GOOGLE_SHEETS_NAME}" \
-            --sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-            --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
+    status_text,status_link,status_image_url_1,status_image_url_2,status_image_url_3,status_image_url_4,date,hour,state
+    "This is a test linkedin post","https://agoras.luisalejandro.org/en/latest/","https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg","https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg","","","21-11-2022","17","pending"
+
+Scheduling Logic
+~~~~~~~~~~~~~~~~
+
+- Posts with ``state="pending"`` and scheduled time in the past are processed
+- Posts are created at the scheduled date and hour
+- Sheet state is updated to ``published`` after successful posting
+- If posting fails, state is updated to ``error``
+- Use ``--network linkedin`` to process only LinkedIn posts, or omit to process all networks
 
 
 .. _how-to-get-linkedin-post-id:

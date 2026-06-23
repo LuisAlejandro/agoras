@@ -20,6 +20,8 @@ from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
+from agoras.media.errors import MediaValidationError
+from agoras.media.factory import MediaFactory
 from agoras.media.video import Video
 
 
@@ -74,11 +76,11 @@ def test_validate_content_within_limit():
 @patch('agoras.media.video.Video.cleanup')
 def test_validate_content_exceeds_limit(mock_cleanup):
     """Test _validate_content with size exceeding limit."""
-    video = Video('https://example.com/video.mp4', max_size=10 * 1024 * 1024, platform='Discord')
+    video = Video('https://example.com/video.mp4', max_size=10 * 1024 * 1024, platform='discord')
     video.content = b'x' * (15 * 1024 * 1024)  # 15MB
     video._downloaded = True  # Simulate post-download state
 
-    with pytest.raises(Exception, match='exceeds.*Discord.*limit'):
+    with pytest.raises(MediaValidationError, match='exceeds.*discord.*limit'):
         video._validate_content()
 
     # Verify cleanup was called
@@ -165,60 +167,60 @@ def test_get_duration_no_temp_file(mock_capture):
         video.get_duration()
 
 
-# Platform-Specific Factory Method Tests
+@patch('agoras.media.video.Video.cleanup')
+@patch('agoras.media.video.cv2.VideoCapture')
+def test_validate_content_exceeds_max_duration(mock_capture, mock_cleanup):
+    """Test _validate_content rejects videos over platform max duration."""
+    mock_cap = MagicMock()
+    mock_cap.get.side_effect = [30.0, 30.0 * 700]
+    mock_capture.return_value = mock_cap
 
-def test_for_discord():
-    """Test for_discord creates video with Discord limits."""
-    video = Video.for_discord('https://example.com/video.mp4')
+    video = MediaFactory.create_video('https://example.com/video.mp4', 'tiktok')
+    video.content = b'x' * 1024
+    video._downloaded = True
+    video.temp_file = '/tmp/video.mp4'
 
-    assert isinstance(video, Video)
-    assert video.max_size == 8 * 1024 * 1024  # 8MB
-    assert video.platform == 'Discord'
-    assert video.url == 'https://example.com/video.mp4'
+    with pytest.raises(MediaValidationError, match='exceeds.*tiktok limit'):
+        video._validate_content()
 
-
-def test_for_twitter():
-    """Test for_twitter creates video with Twitter limits."""
-    video = Video.for_twitter('https://example.com/video.mp4')
-
-    assert isinstance(video, Video)
-    assert video.max_size == 512 * 1024 * 1024  # 512MB
-    assert video.platform == 'Twitter'
+    mock_cleanup.assert_called_once()
 
 
-def test_for_facebook():
-    """Test for_facebook creates video with Facebook limits."""
-    video = Video.for_facebook('https://example.com/video.mp4')
+@patch('agoras.media.video.Video.cleanup')
+@patch('agoras.media.video.cv2.VideoCapture')
+def test_validate_content_below_min_duration(mock_capture, mock_cleanup):
+    """Test _validate_content rejects videos under platform min duration."""
+    mock_cap = MagicMock()
+    mock_cap.get.side_effect = [30.0, 60.0]
+    mock_capture.return_value = mock_cap
 
-    assert isinstance(video, Video)
-    assert video.max_size == 4 * 1024 * 1024 * 1024  # 4GB
-    assert video.platform == 'Facebook'
+    video = MediaFactory.create_video('https://example.com/video.mp4', 'tiktok')
+    video.content = b'x' * 1024
+    video._downloaded = True
+    video.temp_file = '/tmp/video.mp4'
+
+    with pytest.raises(MediaValidationError, match='below tiktok minimum'):
+        video._validate_content()
+
+    mock_cleanup.assert_called_once()
 
 
-def test_for_instagram():
-    """Test for_instagram creates video with Instagram limits."""
-    video = Video.for_instagram('https://example.com/video.mp4')
+# Platform limits via MediaFactory / contract
 
-    assert isinstance(video, Video)
-    assert video.max_size == 4 * 1024 * 1024 * 1024  # 4GB
-    assert video.platform == 'Instagram'
+@pytest.mark.parametrize('platform,expected_bytes', [
+    ('discord', 8 * 1024 * 1024),
+    ('twitter', 512 * 1024 * 1024),
+    ('facebook', 4 * 1024 * 1024 * 1024),
+    ('instagram', 4 * 1024 * 1024 * 1024),
+    ('youtube', 256 * 1024 * 1024 * 1024),
+    ('tiktok', 2 * 1024 * 1024 * 1024),
+])
+def test_factory_platform_video_limits(platform, expected_bytes):
+    video = MediaFactory.create_video('https://example.com/video.mp4', platform)
+    assert video.max_size == expected_bytes
+    assert video.platform_key == platform
 
 
-def test_for_youtube():
-    """Test for_youtube creates video with YouTube limits."""
-    video = Video.for_youtube('https://example.com/video.mp4')
-
-    assert isinstance(video, Video)
-    assert video.max_size == 256 * 1024 * 1024 * 1024  # 256GB
-    assert video.platform == 'YouTube'
-    # YouTube supports additional video/quicktime format
+def test_factory_youtube_quicktime_allowed():
+    video = MediaFactory.create_video('https://example.com/video.mp4', 'youtube')
     assert 'video/quicktime' in video.allowed_types
-
-
-def test_for_tiktok():
-    """Test for_tiktok creates video with TikTok limits."""
-    video = Video.for_tiktok('https://example.com/video.mp4')
-
-    assert isinstance(video, Video)
-    assert video.max_size == 2 * 1024 * 1024 * 1024  # 2GB
-    assert video.platform == 'TikTok'

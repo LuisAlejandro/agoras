@@ -17,6 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+import sys
 
 from agoras.core.interfaces import SocialNetwork
 
@@ -66,7 +67,7 @@ class X(SocialNetwork):
 
         # If any credentials missing, try loading from storage
         if not all([self.twitter_consumer_key, self.twitter_consumer_secret,
-                   self.twitter_oauth_token, self.twitter_oauth_secret]):
+                    self.twitter_oauth_token, self.twitter_oauth_secret]):
             from .auth import XAuthManager
             auth_manager = XAuthManager(
                 consumer_key=self.twitter_consumer_key,
@@ -85,13 +86,8 @@ class X(SocialNetwork):
                     self.twitter_oauth_secret = auth_manager.oauth_secret
 
         # Validate all credentials are now available
-        if not self.twitter_consumer_key:
-            raise Exception("Not authenticated. Please run 'agoras x authorize' first.")
-        if not self.twitter_consumer_secret:
-            raise Exception("Not authenticated. Please run 'agoras x authorize' first.")
-        if not self.twitter_oauth_token:
-            raise Exception("Not authenticated. Please run 'agoras x authorize' first.")
-        if not self.twitter_oauth_secret:
+        if not all([self.twitter_consumer_key, self.twitter_consumer_secret,
+                    self.twitter_oauth_token, self.twitter_oauth_secret]):
             raise Exception("Not authenticated. Please run 'agoras x authorize' first.")
 
         # Initialize X API
@@ -198,7 +194,7 @@ class X(SocialNetwork):
                     media_obj.cleanup()
 
                 except Exception as e:
-                    print(f"Failed to upload media {media_url}: {str(e)}")
+                    print(f"Failed to upload media {media_url}: {str(e)}", file=sys.stderr)
 
         # Compose tweet text
         tweet_text = f'{status_text} {status_link}'.strip()
@@ -300,15 +296,19 @@ class X(SocialNetwork):
             video.cleanup()
             raise Exception('Failed to download or validate video')
 
-        # Ensure video is MP4 format for X
-        if video.file_type.mime not in ['video/mp4']:
+        from agoras.media.constraints import video_limits
+        from agoras.media.errors import MediaValidationError
+
+        allowed = video_limits('twitter').mime_types
+        if video.file_type.mime not in allowed:
             video.cleanup()
-            raise Exception(f'Invalid video type "{video.file_type.mime}" for {video_url}. '
-                            f'X only supports MP4 videos.')
+            raise MediaValidationError(
+                'twitter', 'video', 'mime_types',
+                video.file_type.mime, sorted(allowed),
+            )
 
         try:
             # Upload video to X
-
             media_id = await self.api.upload_media(video.content, video.file_type.mime)
 
             # Compose tweet text with title and description

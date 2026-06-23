@@ -45,6 +45,10 @@ class Discord(SocialNetwork):
         # Map platform-specific keys to generic keys for core interface compatibility
         if 'discord_post_id' in kwargs:
             kwargs['post_id'] = kwargs['discord_post_id']
+        if 'discord_video_url' in kwargs:
+            kwargs['video_url'] = kwargs['discord_video_url']
+        if 'discord_video_title' in kwargs:
+            kwargs['video_title'] = kwargs['discord_video_title']
 
         super().__init__(**kwargs)
         self.discord_bot_token = None
@@ -64,10 +68,16 @@ class Discord(SocialNetwork):
         self.discord_channel_name = self._get_config_value('discord_channel_name', 'DISCORD_CHANNEL_NAME')
 
         # If credentials not provided, try loading from storage
-        if not self.discord_bot_token or not self.discord_server_name or not self.discord_channel_name:
+        if not all([self.discord_bot_token, self.discord_server_name, self.discord_channel_name]):
             from .auth import DiscordAuthManager
-            auth_manager = DiscordAuthManager()
+            auth_manager = DiscordAuthManager(
+                bot_token=self.discord_bot_token,
+                server_name=self.discord_server_name,
+                channel_name=self.discord_channel_name
+            )
+
             if auth_manager._load_credentials_from_storage():
+                # Fill in missing credentials from storage
                 if not self.discord_bot_token:
                     self.discord_bot_token = auth_manager.bot_token
                 if not self.discord_server_name:
@@ -75,11 +85,8 @@ class Discord(SocialNetwork):
                 if not self.discord_channel_name:
                     self.discord_channel_name = auth_manager.channel_name
 
-        if not self.discord_bot_token:
-            raise Exception("Not authenticated. Please run 'agoras discord authorize' first.")
-        if not self.discord_server_name:
-            raise Exception("Not authenticated. Please run 'agoras discord authorize' first.")
-        if not self.discord_channel_name:
+        # Validate all credentials are now available
+        if not all([self.discord_bot_token, self.discord_server_name, self.discord_channel_name]):
             raise Exception("Not authenticated. Please run 'agoras discord authorize' first.")
 
         # Initialize Discord API
@@ -88,7 +95,34 @@ class Discord(SocialNetwork):
             self.discord_server_name,
             self.discord_channel_name
         )
+
+        # Authenticate with provided credentials
         await self.api.authenticate()
+
+    async def authorize_credentials(self):
+        """
+        Authorize and store Discord credentials for future use.
+
+        Returns:
+            bool: True if authorization successful
+        """
+        from .auth import DiscordAuthManager
+
+        bot_token = self._get_config_value('discord_bot_token', 'DISCORD_BOT_TOKEN')
+        server_name = self._get_config_value('discord_server_name', 'DISCORD_SERVER_NAME')
+        channel_name = self._get_config_value('discord_channel_name', 'DISCORD_CHANNEL_NAME')
+
+        auth_manager = DiscordAuthManager(
+            bot_token=bot_token,
+            server_name=server_name,
+            channel_name=channel_name
+        )
+
+        result = await auth_manager.authorize()
+        if result:
+            print(result)
+            return True
+        return False
 
     async def disconnect(self):
         """
@@ -96,43 +130,6 @@ class Discord(SocialNetwork):
         """
         if self.api:
             await self.api.disconnect()
-
-    def _build_embeds(self, status_link, status_link_title, status_link_description,
-                      status_link_image, attached_media):
-        """
-        Build Discord embeds for a message.
-
-        Args:
-            status_link (str): URL to include
-            status_link_title (str): Link title
-            status_link_description (str): Link description
-            status_link_image (str): Link image URL
-            attached_media (list): List of attached media info
-
-        Returns:
-            list: List of Discord embeds
-        """
-        if not self.api:
-            raise Exception('Discord API not initialized')
-
-        embeds = []
-
-        # Add link embed
-        if status_link:
-            link_embed = self.api.create_embed(
-                title=status_link_title,
-                description=status_link_description,
-                url=status_link,
-                image_url=status_link_image
-            )
-            embeds.append(link_embed)
-
-        # Add media embeds
-        for media in attached_media:
-            media_embed = self.api.create_embed(image_url=media['url'])
-            embeds.append(media_embed)
-
-        return embeds
 
     async def post(self, status_text, status_link,
                    status_image_url_1=None, status_image_url_2=None,
@@ -215,6 +212,9 @@ class Discord(SocialNetwork):
         if not self.api:
             raise Exception('Discord API not initialized')
 
+        if not discord_post_id:
+            raise Exception('Discord post ID is required.')
+
         result = await self.api.like(discord_post_id, '❤️')
         self._output_status(result)
         return result
@@ -231,6 +231,9 @@ class Discord(SocialNetwork):
         """
         if not self.api:
             raise Exception('Discord API not initialized')
+
+        if not discord_post_id:
+            raise Exception('Discord post ID is required.')
 
         result = await self.api.delete(discord_post_id)
         self._output_status(result)
@@ -273,57 +276,34 @@ class Discord(SocialNetwork):
             video.cleanup()
             raise Exception('Failed to download or validate video')
 
-        # Create embed for video title and description
-        embeds = []
-        if video_title or status_text:
-            embed = self.api.create_embed(
-                title=video_title or "Video",
-                description=status_text
+        try:
+            # Create embed for video title and description
+            embeds = []
+            if video_title or status_text:
+                embed = self.api.create_embed(
+                    title=video_title or "Video",
+                    description=status_text
+                )
+                embeds.append(embed)
+
+            # Get file-like object directly from video content in memory
+            video_file = video.get_file_like_object()
+            filename = f"video.{video.file_type.extension}"
+
+            # Upload file using Discord API
+            message_id = await self.api.upload_file(
+                video_file,
+                filename,
+                content=None,
+                embeds=embeds if embeds else None
             )
-            embeds.append(embed)
 
-        # Get file-like object directly from video content in memory
-        video_file = video.get_file_like_object()
-        filename = f"video.{video.file_type.extension}"
-
-        # Upload file using Discord API
-        message_id = await self.api.upload_file(
-            video_file,
-            filename,
-            content=None,
-            embeds=embeds if embeds else None
-        )
-
-        # Clean up
-        video.cleanup()
+        finally:
+            # Clean up
+            video.cleanup()
 
         self._output_status(message_id)
         return message_id
-
-    async def authorize_credentials(self):
-        """
-        Authorize and store Discord credentials for future use.
-
-        Returns:
-            bool: True if authorization successful
-        """
-        from .auth import DiscordAuthManager
-
-        bot_token = self._get_config_value('discord_bot_token', 'DISCORD_BOT_TOKEN')
-        server_name = self._get_config_value('discord_server_name', 'DISCORD_SERVER_NAME')
-        channel_name = self._get_config_value('discord_channel_name', 'DISCORD_CHANNEL_NAME')
-
-        auth_manager = DiscordAuthManager(
-            bot_token=bot_token,
-            server_name=server_name,
-            channel_name=channel_name
-        )
-
-        result = await auth_manager.authorize()
-        if result:
-            print(result)
-            return True
-        return False
 
 
 async def main_async(kwargs):

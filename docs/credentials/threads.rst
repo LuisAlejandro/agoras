@@ -198,7 +198,7 @@ Development vs Production
 **Development Mode**:
 - Available immediately after app creation
 - Limited to your own Threads account
-- Can test all basic features (post, reply, share)
+- Can test all basic Agoras actions (post, video, share, delete)
 - May have rate limiting restrictions
 - Good for testing integration
 
@@ -234,7 +234,7 @@ Agoras parameters
 +------------------------------+--------------------------+
 | THREADS_REFRESH_TOKEN        | Long-lived token (60-day)|
 +------------------------------+--------------------------+
-| AGORAS_THREADS_REFRESH_TOKEN | Refresh token for unattended execution |
+| THREADS_USER_ID              | User ID for unattended execution |
 +------------------------------+--------------------------+
 
 **Note**: After authorization, refresh tokens are managed automatically by Agoras. You no longer need to provide tokens for actions.

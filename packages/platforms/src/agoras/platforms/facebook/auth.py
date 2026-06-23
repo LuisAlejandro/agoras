@@ -18,6 +18,7 @@
 
 import asyncio
 import secrets
+import sys
 import webbrowser
 from typing import Optional
 
@@ -146,8 +147,8 @@ class FacebookAuthManager(BaseAuthManager):
                 state=state
             )
 
-            print("Opening browser for Facebook authorization...")
-            print(f"If browser doesn't open automatically, visit: {authorization_url}")
+            print("Opening browser for Facebook authorization...", file=sys.stderr)
+            print(f"If browser doesn't open automatically, visit: {authorization_url}", file=sys.stderr)
             webbrowser.open(authorization_url)
 
             # Wait for callback (no manual paste needed!)
@@ -172,7 +173,7 @@ class FacebookAuthManager(BaseAuthManager):
 
             return await asyncio.to_thread(_sync_exchange)
         except Exception as e:
-            print(f"Interactive authorization failed: {e}")
+            print(f"Interactive authorization failed: {e}", file=sys.stderr)
             return None
 
     def _exchange_for_long_lived_token(self, short_lived_token: str) -> str:

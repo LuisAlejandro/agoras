@@ -17,6 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+import time
 from typing import Any, Dict, List, Optional
 
 from pyfacebook import GraphAPI
@@ -125,6 +126,47 @@ class InstagramAPIClient:
         except Exception as e:
             raise Exception(f'Instagram get_object failed: {str(e)}')
 
+    async def wait_for_media_container(self, container_id: str,
+                                       max_wait_time: int = 300,
+                                       poll_interval: float = 3.0) -> None:
+        """
+        Wait until an Instagram media container is ready to publish.
+
+        Args:
+            container_id (str): Media container ID from create_media/create_carousel
+            max_wait_time (int): Maximum wait time in seconds
+            poll_interval (float): Seconds between status checks
+
+        Raises:
+            Exception: If container fails, expires, or times out
+        """
+        def _sync_wait():
+            start = time.time()
+            while True:
+                if time.time() - start > max_wait_time:
+                    raise Exception(
+                        f'Instagram media container {container_id} not ready after '
+                        f'{max_wait_time} seconds'
+                    )
+
+                response = self.get_object(
+                    object_id=container_id,
+                    fields='status_code,status'
+                )
+                status_code = response.get('status_code')
+
+                if status_code in ('FINISHED', 'PUBLISHED'):
+                    return
+                if status_code in ('ERROR', 'EXPIRED'):
+                    detail = response.get('status', status_code)
+                    raise Exception(
+                        f'Instagram media container {container_id} failed: {detail}'
+                    )
+
+                time.sleep(poll_interval)
+
+        await asyncio.to_thread(_sync_wait)
+
     async def create_media(self, object_id: str, image_url: Optional[str] = None,
                            video_url: Optional[str] = None, caption: Optional[str] = None,
                            is_carousel_item: bool = False, media_type: Optional[str] = None) -> str:
@@ -137,7 +179,7 @@ class InstagramAPIClient:
             video_url (str, optional): Video URL
             caption (str, optional): Media caption
             is_carousel_item (bool): Whether this is part of a carousel
-            media_type (str, optional): Media type (REELS, STORIES, VIDEO)
+            media_type (str, optional): Media type (REELS, STORIES)
 
         Returns:
             str: Media ID
@@ -155,7 +197,7 @@ class InstagramAPIClient:
                 if media_type:
                     data['media_type'] = media_type
                 elif not is_carousel_item:
-                    data['media_type'] = 'VIDEO'
+                    data['media_type'] = 'REELS'
             elif image_url:
                 data['image_url'] = image_url
 
@@ -169,7 +211,9 @@ class InstagramAPIClient:
             )
             return response['id']
 
-        return await asyncio.to_thread(_sync_create_media)
+        media_id = await asyncio.to_thread(_sync_create_media)
+        await self.wait_for_media_container(media_id)
+        return media_id
 
     async def create_carousel(self, object_id: str, media_ids: List[str],
                               caption: Optional[str] = None) -> str:
@@ -203,7 +247,9 @@ class InstagramAPIClient:
             )
             return response['id']
 
-        return await asyncio.to_thread(_sync_create_carousel)
+        carousel_id = await asyncio.to_thread(_sync_create_carousel)
+        await self.wait_for_media_container(carousel_id)
+        return carousel_id
 
     async def publish_media(self, object_id: str, creation_id: str) -> str:
         """
@@ -219,6 +265,8 @@ class InstagramAPIClient:
         Raises:
             Exception: If media publishing fails
         """
+        await self.wait_for_media_container(creation_id)
+
         def _sync_publish_media():
             data = {
                 'creation_id': creation_id,
@@ -244,7 +292,7 @@ class InstagramAPIClient:
             image_url (str, optional): Image URL
             video_url (str, optional): Video URL
             caption (str, optional): Post caption
-            media_type (str, optional): Media type (REELS, STORIES, VIDEO)
+            media_type (str, optional): Media type (REELS, STORIES)
 
         Returns:
             str: Published post ID

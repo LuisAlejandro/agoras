@@ -93,8 +93,8 @@ def test_get_supported_actions_threads():
     assert 'post' in actions
     assert 'video' in actions
     assert 'share' in actions
+    assert 'delete' in actions
     assert 'like' not in actions
-    assert 'delete' not in actions
 
 
 def test_validate_action_valid():

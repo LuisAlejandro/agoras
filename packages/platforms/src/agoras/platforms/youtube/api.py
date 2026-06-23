@@ -31,13 +31,14 @@ class YouTubeAPI(BaseAPI):
     and all YouTube API operations.
     """
 
-    def __init__(self, client_id, client_secret):
+    def __init__(self, client_id, client_secret, refresh_token=None):
         """
         Initialize YouTube API instance.
 
         Args:
             client_id (str): YouTube client ID
             client_secret (str): YouTube client secret
+            refresh_token (str, optional): YouTube refresh token
         """
         super().__init__(
             client_id=client_id,
@@ -47,7 +48,8 @@ class YouTubeAPI(BaseAPI):
         # Initialize the authentication manager
         self.auth_manager = YouTubeAuthManager(
             client_id=client_id,
-            client_secret=client_secret
+            client_secret=client_secret,
+            refresh_token=refresh_token
         )
 
     @property

@@ -2,7 +2,6 @@
 # -*- makefile -*-
 
 SHELL = bash -e
-all_ps_hashes = $(shell docker ps -q)
 img_hash = $(shell docker images -q luisalejandro/agoras:latest)
 exec_on_docker = docker compose \
 	-p agoras -f docker-compose.yml exec \
@@ -32,7 +31,7 @@ help:
 	@echo "lint - check style with flake8"
 	@echo "format - format Python code with autopep8"
 	@echo "lint-and-format - lint and format all Python files"
-	@echo "test - run tests quickly with the default Python"
+	@echo "test - run coverage tests with tox"
 	@echo "test-all - run tests on every Python version with tox"
 	@echo "coverage - check code coverage quickly with the default Python"
 	@echo "docs - generate Sphinx HTML documentation, including API docs"
@@ -76,6 +75,9 @@ lint-and-format: start
 	@$(exec_on_docker) tox -e lint
 
 test: start
+	@$(exec_on_docker) tox -e coverage
+
+test-all: start
 	@$(exec_on_docker) tox -e all
 
 functional-test: start
@@ -107,18 +109,6 @@ dist: clean start
 install: clean start
 	@$(exec_on_docker) pip3 install .
 
-image:
-	@docker compose -p agoras -f docker-compose.yml build \
-		--build-arg UID=$(shell id -u) \
-		--build-arg GID=$(shell id -g)
-
-start:
-	@if [ -z "$(img_hash)" ]; then\
-		make image;\
-	fi
-	@docker compose -p agoras -f docker-compose.yml up \
-		--remove-orphans --no-build --detach
-
 console: start
 	@$(exec_on_docker) bash
 
@@ -134,11 +124,33 @@ virtualenv: start
 	@./virtualenv/bin/python3 -m pip install -e packages/platforms
 	@./virtualenv/bin/python3 -m pip install -e packages/cli
 
+.PHONY: clean clean-pyc clean-build clean-test clean-docs \
+	help lint format lint-and-format test test-all functional-test coverage \
+	docs servedocs pypi-upload dist install console virtualenv
+
+# >>> rosey-maintainer:ops-docker BEGIN
+# Managed by rosey-maintainer-tools 0.4.3. Do not edit directly.
+
+PROJECT_NAME ?= agoras
+all_ps_hashes = $(shell docker ps -q)
+
+image:
+	@docker compose -p $(PROJECT_NAME) -f docker-compose.yml build \
+		--build-arg UID=$(shell id -u) \
+		--build-arg GID=$(shell id -g)
+
+start:
+	@if [ -z "$(img_hash)" ]; then\
+		make image;\
+	fi
+	@docker compose -p $(PROJECT_NAME) -f docker-compose.yml up \
+		--remove-orphans --no-build --detach
+
 stop:
-	@docker compose -p agoras -f docker-compose.yml stop app
+	@docker compose -p $(PROJECT_NAME) -f docker-compose.yml stop
 
 down:
-	@docker compose -p agoras -f docker-compose.yml down \
+	@docker compose -p $(PROJECT_NAME) -f docker-compose.yml down \
 		--remove-orphans
 
 destroy:
@@ -147,7 +159,7 @@ destroy:
 	@echo "This will stop and delete all containers, images and volumes related to this project."
 	@echo
 	@read -p "Press ctrl+c to abort or enter to continue." -n 1 -r
-	@docker compose -p agoras -f docker-compose.yml down \
+	@docker compose -p $(PROJECT_NAME) -f docker-compose.yml down \
 		--rmi all --remove-orphans --volumes
 
 cataplum:
@@ -159,25 +171,39 @@ cataplum:
 	@if [ -n "$(all_ps_hashes)" ]; then\
 		docker kill $(shell docker ps -q);\
 	fi
-	@docker compose -p agoras -f docker-compose.yml down \
+	@docker compose -p $(PROJECT_NAME) -f docker-compose.yml down \
 		--rmi all --remove-orphans --volumes
 	@docker system prune -a -f --volumes
+# <<< rosey-maintainer:ops-docker END
 
-# Release management
+# >>> rosey-maintainer:ops-release BEGIN
+# Managed by rosey-maintainer-tools 0.4.3. Do not edit directly.
+
 release:
-	@./scripts/release.sh $(VERSION_TYPE)
+	@./scripts/release.sh $${VERSION_TYPE}
 
 release-patch:
-	@./scripts/release.sh patch $(APP_NAME)
+	@./scripts/release.sh patch $${APP_NAME}
 
 release-minor:
-	@./scripts/release.sh minor $(APP_NAME)
+	@./scripts/release.sh minor $${APP_NAME}
 
 release-major:
-	@./scripts/release.sh major $(APP_NAME)
+	@./scripts/release.sh major $${APP_NAME}
 
-# Hotfix management
-hotfix:
-	@./scripts/hotfix.sh $(APP_NAME)
 
-.PHONY: clean-pyc clean-build docs clean release release-patch release-minor release-major hotfix
+release-preflight: start
+
+
+	@make lint
+
+	@make format
+
+	@make test
+
+
+
+undo-release:
+	@: "$${VERSION:?Set VERSION=x.y.z before running make undo-release}"
+	@VERSION=$${VERSION} ./scripts/rollback.sh release
+# <<< rosey-maintainer:ops-release END

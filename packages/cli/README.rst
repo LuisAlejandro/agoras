@@ -22,19 +22,25 @@ Usage
 
 .. code-block:: bash
 
-   # Post to Facebook
-   agoras facebook post \
-       --facebook-access-token "$TOKEN" \
-       --status-text "Hello World" \
-       --status-link "https://example.com"
+   # Authorize Facebook (one-time OAuth setup)
+   agoras facebook authorize \
+       --client-id "$CLIENT_ID" \
+       --client-secret "$CLIENT_SECRET" \
+       --app-id "$APP_ID" \
+       --object-id "$OBJECT_ID"
 
-   # Post to X (Twitter)
+   # Post to Facebook (after authorize)
+   agoras facebook post \
+       --text "Hello World" \
+       --link "https://example.com"
+
+   # Post to X (after authorize, or pass credentials inline)
    agoras x post \
-       --x-api-key "$KEY" \
-       --x-api-secret "$SECRET" \
-       --x-access-token "$TOKEN" \
-       --x-access-token-secret "$TOKEN_SECRET" \
-       --status-text "Hello X!"
+       --consumer-key "$KEY" \
+       --consumer-secret "$SECRET" \
+       --oauth-token "$TOKEN" \
+       --oauth-secret "$TOKEN_SECRET" \
+       --text "Hello X!"
 
    # See all commands
    agoras --help

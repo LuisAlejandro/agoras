@@ -18,13 +18,13 @@
 
 import asyncio
 import secrets
+import sys
 import webbrowser
 from typing import Optional
 
-from authlib.integrations.requests_client import OAuth2Session
-
 from agoras.core.auth import BaseAuthManager
 from agoras.core.auth.callback_server import OAuthCallbackServer
+from authlib.integrations.requests_client import OAuth2Session
 
 from .client import InstagramAPIClient
 
@@ -99,7 +99,7 @@ class InstagramAuthManager(BaseAuthManager):
 
         # Ensure OAuth session has correct credentials
         if not hasattr(self, 'oauth_session') or self.oauth_session.client_id != self.client_id:
-            print(f"[DEBUG] Recreating OAuth session with correct credentials: {self.client_id}")
+            print("Recreating OAuth session with updated credentials.", file=sys.stderr)
             self.oauth_session = OAuth2Session(
                 client_id=self.client_id,
                 client_secret=self.client_secret,
@@ -158,8 +158,8 @@ class InstagramAuthManager(BaseAuthManager):
                 state=state
             )
 
-            print("Opening browser for Instagram authorization...")
-            print(f"If browser doesn't open automatically, visit: {authorization_url}")
+            print("Opening browser for Instagram authorization...", file=sys.stderr)
+            print(f"If browser doesn't open automatically, visit: {authorization_url}", file=sys.stderr)
             webbrowser.open(authorization_url)
 
             auth_code = await callback_server.start_and_wait(timeout=300)
@@ -178,7 +178,7 @@ class InstagramAuthManager(BaseAuthManager):
 
             return await asyncio.to_thread(_sync_exchange)
         except Exception as e:
-            print(f"Interactive authorization failed: {e}")
+            print(f"Interactive authorization failed: {e}", file=sys.stderr)
             return None
 
     def _exchange_for_long_lived_token(self, short_lived_token: str) -> str:

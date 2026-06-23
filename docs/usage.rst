@@ -2,9 +2,8 @@ Using Agoras
 ============
 
 .. note::
-   **New in version 2.0**: Agoras introduces a new, more intuitive CLI structure.
-   **New in version 2.0**: OAuth 2.0 "authorize first" workflow for enhanced security.
-   See the :doc:`migration guide <migration>` for upgrading from the legacy ``agoras publish`` command.
+   Agoras uses a platform-first CLI (``agoras <platform> <action>``) and an OAuth ``authorize`` workflow on supported networks.
+   See the :doc:`migration guide <migration/index>` if you are upgrading from the legacy ``agoras publish`` command.
 
 Command Overview
 ----------------
@@ -107,7 +106,7 @@ Post directly to social networks with intuitive, platform-first commands::
     agoras x post --consumer-key "$KEY" --text "Hello World!"
 
     # Upload to YouTube
-    agoras youtube video --client-id "$ID" --video-url "video.mp4"
+    agoras youtube video --video-url "video.mp4"
 
 See the full list of available platforms::
 
@@ -146,6 +145,24 @@ Automate posting from RSS/Atom feeds or Google Sheets schedules::
 See utils commands::
 
     $ agoras utils --help
+
+Token Management
+~~~~~~~~~~~~~~~~
+
+Inspect and export stored credentials::
+
+    agoras utils tokens list
+    agoras utils tokens list --platform facebook
+    agoras utils tokens show --platform x --identifier <id>
+    agoras utils tokens unattended-format --platform facebook
+
+Media Limits
+~~~~~~~~~~~~
+
+Show per-platform media constraints (MIME types, sizes, durations)::
+
+    agoras utils media-limits
+    agoras utils media-limits --platform discord --kind video
 
 Quick Start Examples
 --------------------
@@ -258,7 +275,8 @@ First, authorize Agoras to access your LinkedIn account::
 
     agoras linkedin authorize \
       --client-id "$LINKEDIN_CLIENT_ID" \
-      --client-secret "$LINKEDIN_CLIENT_SECRET"
+      --client-secret "$LINKEDIN_CLIENT_SECRET" \
+      --object-id "$LINKEDIN_OBJECT_ID"
 
 Then post to LinkedIn::
 
@@ -278,8 +296,9 @@ TikTok
 First, authorize Agoras to access your TikTok account::
 
     agoras tiktok authorize \
-      --client-id "$TIKTOK_CLIENT_ID" \
-      --client-secret "$TIKTOK_CLIENT_SECRET"
+      --client-key "$TIKTOK_CLIENT_KEY" \
+      --client-secret "$TIKTOK_CLIENT_SECRET" \
+      --username "$TIKTOK_USERNAME"
 
 Then upload a video::
 
@@ -294,8 +313,8 @@ Threads
 First, authorize Agoras to access your Threads account::
 
     agoras threads authorize \
-      --client-id "$THREADS_CLIENT_ID" \
-      --client-secret "$THREADS_CLIENT_SECRET"
+      --app-id "$THREADS_APP_ID" \
+      --app-secret "$THREADS_APP_SECRET"
 
 Then post to Threads::
 
@@ -325,7 +344,7 @@ Send a message via WhatsApp Business API::
     agoras whatsapp post \
       --access-token "$WHATSAPP_ACCESS_TOKEN" \
       --phone-number-id "$WHATSAPP_PHONE_NUMBER_ID" \
-      --to "$RECIPIENT_PHONE_NUMBER" \
+      --recipient "$RECIPIENT_PHONE_NUMBER" \
       --text "Hello from Agoras!"
 
 Feed Automation
@@ -406,4 +425,4 @@ The legacy command format is still supported with deprecation warnings::
 .. note::
    The ``--network twitter`` parameter is deprecated. Use ``--network x`` instead.
 
-See the :doc:`migration guide <migration>` for converting legacy commands to the new format.
+See the :doc:`migration guide <migration/index>` for converting legacy commands to the new format.

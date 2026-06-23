@@ -24,7 +24,6 @@ from abc import ABC, abstractmethod
 from urllib.request import Request, urlopen
 
 import filetype
-
 from agoras.common import __version__
 
 
@@ -164,8 +163,21 @@ class Media(ABC):
         if kind.mime not in self.allowed_types:
             self.cleanup()
             media_type = self.__class__.__name__.lower()
-            raise Exception(f'Invalid {media_type} type "{kind.mime}" for {self.url}. '
-                            f'Allowed types: {self.allowed_types}')
+            platform_key = getattr(self, 'platform_key', 'generic')
+            media_kind = getattr(self, 'media_kind', media_type)
+            if hasattr(self, 'constraints'):
+                from .errors import MediaValidationError
+                raise MediaValidationError(
+                    platform_key,
+                    media_kind,
+                    'mime_types',
+                    kind.mime,
+                    sorted(self.allowed_types),
+                )
+            raise Exception(
+                f'Invalid {media_type} type "{kind.mime}" for {self.url}. '
+                f'Allowed types: {self.allowed_types}'
+            )
 
         return kind
 

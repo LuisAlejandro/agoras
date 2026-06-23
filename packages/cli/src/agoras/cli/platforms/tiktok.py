@@ -26,6 +26,7 @@ from argparse import ArgumentParser, Namespace, _SubParsersAction
 from agoras.platforms.tiktok.wrapper import main as tiktok_main
 
 from ..base import add_common_content_options
+from ..media_help import video_url_help
 from ..converter import ParameterConverter
 from ..validator import ActionValidator
 
@@ -158,6 +159,11 @@ def _add_post_options(parser: ArgumentParser):
         default=None,
         help='Mark content as paid partnership (displays "Paid partnership" label)'
     )
+    post_opts.add_argument(
+        '--description',
+        metavar='<description>',
+        help='Post description/caption (max 4000 UTF-16 runes)'
+    )
 
 
 def _add_video_options(parser: ArgumentParser):
@@ -172,7 +178,7 @@ def _add_video_options(parser: ArgumentParser):
         '--video-url',
         required=True,
         metavar='<url>',
-        help='URL of video file to upload'
+        help=video_url_help('tiktok')
     )
     video.add_argument(
         '--title',

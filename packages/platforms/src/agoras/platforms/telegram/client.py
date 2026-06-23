@@ -16,11 +16,34 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import os
 from typing import Any, Dict, List, Optional
 
 from telegram import Bot
 from telegram.constants import ParseMode
-from telegram.error import TelegramError
+from telegram.error import TelegramError, TimedOut
+from telegram.request import HTTPXRequest
+
+# PTB defaults (5s read, 20s media write) are too low for multi-MB uploads.
+TELEGRAM_CONNECT_TIMEOUT = 30.0
+TELEGRAM_READ_TIMEOUT = 60.0
+TELEGRAM_WRITE_TIMEOUT = 60.0
+TELEGRAM_POOL_TIMEOUT = 30.0
+TELEGRAM_MEDIA_WRITE_TIMEOUT = 300.0
+
+
+def build_telegram_request() -> HTTPXRequest:
+    """Build an HTTPX request client with timeouts suited to media uploads."""
+    media_write_timeout = float(
+        os.environ.get('TELEGRAM_MEDIA_WRITE_TIMEOUT', TELEGRAM_MEDIA_WRITE_TIMEOUT)
+    )
+    return HTTPXRequest(
+        connect_timeout=TELEGRAM_CONNECT_TIMEOUT,
+        read_timeout=TELEGRAM_READ_TIMEOUT,
+        write_timeout=TELEGRAM_WRITE_TIMEOUT,
+        pool_timeout=TELEGRAM_POOL_TIMEOUT,
+        media_write_timeout=media_write_timeout,
+    )
 
 
 class TelegramAPIClient:
@@ -38,7 +61,7 @@ class TelegramAPIClient:
             bot_token (str): Telegram bot token from @BotFather
         """
         self.bot_token = bot_token
-        self.bot = Bot(token=bot_token)
+        self.bot = Bot(token=bot_token, request=build_telegram_request())
         self.default_parse_mode = ParseMode.HTML
 
     async def get_me(self) -> Dict[str, Any]:
@@ -133,6 +156,13 @@ class TelegramAPIClient:
             )
             return message.to_dict()
         except TelegramError as e:
+            error_text = str(e)
+            if 'Chat not found' in error_text:
+                raise Exception(
+                    'Failed to send photo: chat not found. '
+                    'Check TELEGRAM_CHAT_ID, send /start to the bot for private chats, '
+                    'and ensure the bot is a member/admin of groups or channels.'
+                ) from e
             raise Exception(f"Failed to send photo: {e}") from e
         except Exception as e:
             raise Exception(f"Unexpected error sending photo: {e}") from e
@@ -174,7 +204,20 @@ class TelegramAPIClient:
                 height=height
             )
             return message.to_dict()
+        except TimedOut as e:
+            raise Exception(
+                'Failed to send video: upload timed out. '
+                'Large videos may need a slower connection or a higher '
+                'TELEGRAM_MEDIA_WRITE_TIMEOUT (seconds).'
+            ) from e
         except TelegramError as e:
+            error_text = str(e)
+            if 'Chat not found' in error_text:
+                raise Exception(
+                    'Failed to send video: chat not found. '
+                    'Check TELEGRAM_CHAT_ID, send /start to the bot for private chats, '
+                    'and ensure the bot is a member/admin of groups or channels.'
+                ) from e
             raise Exception(f"Failed to send video: {e}") from e
         except Exception as e:
             raise Exception(f"Unexpected error sending video: {e}") from e

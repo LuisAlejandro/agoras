@@ -18,6 +18,7 @@
 
 import asyncio
 import os
+import sys
 from typing import Optional
 
 import discord
@@ -186,7 +187,7 @@ class DiscordAuthManager(BaseAuthManager):
                 }
                 validation_result['success'] = True
             except Exception as e:
-                print(f"Discord validation failed: {e}")
+                print(f"Discord validation failed: {e}", file=sys.stderr)
                 validation_result['success'] = False
             finally:
                 validation_complete.set()
@@ -200,7 +201,7 @@ class DiscordAuthManager(BaseAuthManager):
             try:
                 await asyncio.wait_for(validation_complete.wait(), timeout=30.0)
             except asyncio.TimeoutError:
-                print("Discord validation timed out")
+                print("Discord validation timed out", file=sys.stderr)
                 validation_result['success'] = False
             finally:
                 # Ensure client is closed
@@ -220,7 +221,7 @@ class DiscordAuthManager(BaseAuthManager):
                 return True
             return False
         except Exception as e:
-            print(f"Discord connection failed: {e}")
+            print(f"Discord connection failed: {e}", file=sys.stderr)
             return False
 
     def _find_guild(self, client: discord.Client) -> discord.Guild:

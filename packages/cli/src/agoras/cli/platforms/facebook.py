@@ -26,6 +26,7 @@ from argparse import ArgumentParser, Namespace, _SubParsersAction
 from agoras.platforms.facebook.wrapper import main as facebook_main
 
 from ..base import add_common_content_options
+from ..media_help import video_url_help
 from ..converter import ParameterConverter
 from ..validator import ActionValidator
 
@@ -172,7 +173,7 @@ def _add_video_options(parser: ArgumentParser):
         '--video-url',
         required=True,
         metavar='<url>',
-        help='URL of video file to upload'
+        help=video_url_help('facebook')
     )
     video.add_argument(
         '--video-title',
