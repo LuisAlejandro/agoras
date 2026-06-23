@@ -43,7 +43,7 @@ setup(
         'google-api-core>=2.0.0',
         'google-auth==2.55.0',
         'google-auth-oauthlib>=1.2.0',
-        'google-auth-httplib2==0.3.1',
+        'google-auth-httplib2==0.4.0',
         'oauth2client==4.1.3',
         'platformdirs==4.10.0',
         'authlib==1.7.2',
