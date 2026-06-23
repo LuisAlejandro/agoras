@@ -19,9 +19,11 @@
 
 from setuptools import find_namespace_packages, setup
 
+version = '2.0.2'
+
 setup(
     name='agoras-platforms',
-    version='2.0.2',
+    version=version,
     author='Luis Alejandro Martínez Faneyth',
     author_email='luis@luisalejandro.org',
     url='https://github.com/LuisAlejandro/agoras',
@@ -32,7 +34,7 @@ setup(
     package_dir={'': 'src'},
     python_requires='>=3.10',
     install_requires=[
-        'agoras-core>=2.0.0',
+        f'agoras-core=={version}',
         'tweepy==4.16.0',
         'python-facebook-api==0.24.0',
         'linkedin-api-client==0.3.0',
@@ -48,6 +50,7 @@ setup(
         'cryptography>=42.0.0',
         'python-telegram-bot>=22.1',
     ],
+
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',

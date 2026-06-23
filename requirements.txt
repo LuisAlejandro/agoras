@@ -1,12 +1,19 @@
 # Auto-generated from setup.py by scripts/sync_package_deps.py — do not edit.
-agoras-core==2.0.2
+requests==2.33.1
+beautifulsoup4==4.14.3
+filetype==1.2.0
+opencv-python-headless==4.13.0.92
+Pillow>=10.0.0
+atoma==0.0.17
+gspread==6.2.1
+google-auth==2.55.0
+python-dateutil==2.9.0.post0
 tweepy==4.16.0
 python-facebook-api==0.24.0
 linkedin-api-client==0.3.0
 discord.py==2.7.1
 google-api-python-client==2.197.0
 google-api-core>=2.0.0
-google-auth==2.55.0
 google-auth-oauthlib>=1.2.0
 google-auth-httplib2==0.3.1
 oauth2client==4.1.3
