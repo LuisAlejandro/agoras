@@ -1,4 +1,4 @@
-agoras-common>=2.0.0
+agoras-common>=2.0.1
 filetype==1.2.0
 opencv-python-headless==4.13.0.92
 Pillow>=12.2.0
