@@ -164,6 +164,36 @@ release_verify_remote_tag() {
     print_error "Please verify the push manually: git push origin --tags"
     exit 1
 }
+release_convert_rst_changelog_to_markdown() {
+    awk '
+    {
+        gsub(/\r$/, "")
+    }
+    /^[[:space:]]*[-=~^`+*]{3,}[[:space:]]*$/ {
+        next
+    }
+    /^[0-9]+\.[0-9]+\.[0-9]+[[:space:]]*\(/ {
+        next
+    }
+    /^[[:space:]]*$/ {
+        if (!prev_blank) {
+            print ""
+            prev_blank = 1
+        }
+        next
+    }
+    {
+        prev_blank = 0
+        if ($0 ~ /^\*/ || $0 ~ /^#/) {
+            print $0
+        } else if ($0 ~ /^[A-Za-z][A-Za-z0-9 _-]*$/) {
+            print "### " $0
+        } else {
+            print $0
+        }
+    }
+    '
+}
 
 release_convert_rst_changelog_to_markdown() {
     awk '
