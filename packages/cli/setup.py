@@ -21,7 +21,7 @@ from setuptools import find_namespace_packages, setup
 
 setup(
     name='agoras',
-    version='2.0.1',
+    version='2.0.2',
     author='Luis Alejandro Martínez Faneyth',
     author_email='luis@luisalejandro.org',
     url='https://github.com/LuisAlejandro/agoras',
