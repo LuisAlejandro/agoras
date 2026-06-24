@@ -1,5 +1,5 @@
 # Auto-generated from setup.py by scripts/sync_package_deps.py — do not edit.
-agoras-core==2.0.3
+agoras-core==2.0.4
 tweepy==4.16.0
 python-facebook-api==0.24.0
 linkedin-api-client==0.3.0

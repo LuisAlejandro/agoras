@@ -2,6 +2,15 @@ Changelog
 ============
 
 
+2.0.4 (2026-06-24)
+------------
+
+Other
+~~~~~~~~~~~~
+
+* Updating readthedocs generation. [Luis Alejandro Martínez Faneyth]
+
+
 2.0.3 (2026-06-23)
 ------------
 
