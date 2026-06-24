@@ -23,6 +23,19 @@ from agoras.core.interfaces import SocialNetwork
 from .api import InstagramAPI
 
 
+def _instagram_video_media_type(video_type):
+    """
+    Map CLI/env video type to Instagram Graph API media_type.
+
+    Accepts REELS/STORIES (documented values) and reel/story aliases.
+    Unknown or empty values default to REELS.
+    """
+    normalized = (video_type or '').strip().lower()
+    if normalized in ('story', 'stories'):
+        return 'STORIES'
+    return 'REELS'
+
+
 class Instagram(SocialNetwork):
     """
     Instagram social network implementation.
@@ -293,13 +306,7 @@ class Instagram(SocialNetwork):
             )
 
         try:
-            # Set media type based on video type
-            media_type = None
-            if video_type == 'story':
-                media_type = 'STORIES'
-            else:
-                # Feed videos must use REELS; VIDEO is deprecated by the Graph API.
-                media_type = 'REELS'
+            media_type = _instagram_video_media_type(video_type)
 
             # Create media for video
             creation_id = await self.api.create_media(

@@ -16,16 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from agoras.platforms.discord.wrapper import main as discord
-from agoras.platforms.facebook.wrapper import main as facebook
-from agoras.platforms.instagram.wrapper import main as instagram
-from agoras.platforms.linkedin.wrapper import main as linkedin
-from agoras.platforms.telegram.wrapper import main as telegram
-from agoras.platforms.threads.wrapper import main as threads
-from agoras.platforms.tiktok.wrapper import main as tiktok
-from agoras.platforms.whatsapp.wrapper import main as whatsapp
-from agoras.platforms.x.wrapper import main as x
-from agoras.platforms.youtube.wrapper import main as youtube
+from ..platform_runner import execute_platform_action
 
 
 def main(**kwargs):
@@ -34,35 +25,12 @@ def main(**kwargs):
 
     network = kwargs.get('network')
 
-    if network == 'x':
-        x(kwargs)
-    elif network == 'twitter':
+    if network == 'twitter':
         print("Warning: The 'twitter' network name is deprecated. Use 'x' instead.", file=sys.stderr)
         warnings.warn(
             "The 'twitter' network name is deprecated. Use 'x' instead.",
             DeprecationWarning,
             stacklevel=2
         )
-        x(kwargs)
-    elif network == 'facebook':
-        facebook(kwargs)
-    elif network == 'instagram':
-        instagram(kwargs)
-    elif network == 'linkedin':
-        linkedin(kwargs)
-    elif network == 'discord':
-        discord(kwargs)
-    elif network == 'youtube':
-        youtube(kwargs)
-    elif network == 'tiktok':
-        tiktok(kwargs)
-    elif network == 'threads':
-        threads(kwargs)
-    elif network == 'telegram':
-        telegram(kwargs)
-    elif network == 'whatsapp':
-        whatsapp(kwargs)
-    elif network == '':
-        raise Exception('--network is a required argument.')
-    else:
-        raise Exception(f'"{network}" network not supported.')
+
+    return execute_platform_action(**kwargs)

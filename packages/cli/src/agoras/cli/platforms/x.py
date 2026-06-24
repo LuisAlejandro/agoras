@@ -56,14 +56,13 @@ def create_x_parser(subparsers: _SubParsersAction) -> ArgumentParser:
         'authorize',
         help='Authorize X account (OAuth 1.0a). Run this first before any other actions.'
     )
-    _add_x_auth_options(authorize, required=True)
+    _add_x_auth_options(authorize)
 
     # Post action
     post = actions.add_parser(
         'post',
         help='Create a text/image post on X. Requires prior authorization via "agoras x authorize".'
     )
-    _add_x_auth_options(post, required=False)
     add_common_content_options(post, images=4)
 
     # Video action
@@ -71,7 +70,6 @@ def create_x_parser(subparsers: _SubParsersAction) -> ArgumentParser:
         'video',
         help='Upload a video to X. Requires prior authorization via "agoras x authorize".'
     )
-    _add_x_auth_options(video, required=False)
     _add_video_options(video)
     add_common_content_options(video, images=0)
 
@@ -80,7 +78,6 @@ def create_x_parser(subparsers: _SubParsersAction) -> ArgumentParser:
         'like',
         help='Like a tweet. Requires prior authorization via "agoras x authorize".'
     )
-    _add_x_auth_options(like, required=False)
     _add_post_id_option(like)
 
     # Share action (retweet)
@@ -88,7 +85,6 @@ def create_x_parser(subparsers: _SubParsersAction) -> ArgumentParser:
         'share',
         help='Retweet/share a tweet. Requires prior authorization via "agoras x authorize".'
     )
-    _add_x_auth_options(share, required=False)
     _add_post_id_option(share)
 
     # Delete action
@@ -96,7 +92,6 @@ def create_x_parser(subparsers: _SubParsersAction) -> ArgumentParser:
         'delete',
         help='Delete a tweet. Requires prior authorization via "agoras x authorize".'
     )
-    _add_x_auth_options(delete, required=False)
     _add_post_id_option(delete)
 
     # Set handler
@@ -105,47 +100,30 @@ def create_x_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     return parser
 
 
-def _add_x_auth_options(parser: ArgumentParser, required: bool = True):
+def _add_x_auth_options(parser: ArgumentParser):
     """
-    Add X authentication options.
+    Add X authentication options for the authorize action.
 
     Args:
         parser: ArgumentParser to add options to
-        required: Whether credentials are required (True for authorize, False for other actions)
     """
     auth = parser.add_argument_group(
         'X Authentication',
         'X API credentials from developer.twitter.com'
     )
 
-    help_suffix = ' (optional if already authorized)' if not required else ''
-
     auth.add_argument(
         '--consumer-key',
-        required=required,
+        required=True,
         metavar='<key>',
-        help='X API consumer key' + help_suffix
+        help='X API consumer key'
     )
     auth.add_argument(
         '--consumer-secret',
-        required=required,
+        required=True,
         metavar='<secret>',
-        help='X API consumer secret' + help_suffix
+        help='X API consumer secret'
     )
-    # Only add oauth-token/oauth-secret for non-authorize actions (when required=False)
-    if not required:
-        auth.add_argument(
-            '--oauth-token',
-            required=False,
-            metavar='<token>',
-            help='X OAuth token' + help_suffix
-        )
-        auth.add_argument(
-            '--oauth-secret',
-            required=False,
-            metavar='<secret>',
-            help='X OAuth secret' + help_suffix
-        )
 
 
 def _add_video_options(parser: ArgumentParser):
@@ -235,14 +213,13 @@ def create_twitter_parser_alias(subparsers: _SubParsersAction) -> ArgumentParser
         'authorize',
         help='Authorize Twitter/X account (OAuth 1.0a). Run this first before any other actions.'
     )
-    _add_x_auth_options(authorize, required=True)
+    _add_x_auth_options(authorize)
 
     # Post action
     post = actions.add_parser(
         'post',
         help='Create a text/image post on Twitter/X. Requires prior authorization via "agoras twitter authorize".'
     )
-    _add_x_auth_options(post, required=False)
     add_common_content_options(post, images=4)
 
     # Video action
@@ -250,7 +227,6 @@ def create_twitter_parser_alias(subparsers: _SubParsersAction) -> ArgumentParser
         'video',
         help='Upload a video to Twitter/X. Requires prior authorization via "agoras twitter authorize".'
     )
-    _add_x_auth_options(video, required=False)
     _add_video_options(video)
     add_common_content_options(video, images=0)
 
@@ -259,7 +235,6 @@ def create_twitter_parser_alias(subparsers: _SubParsersAction) -> ArgumentParser
         'like',
         help='Like a tweet. Requires prior authorization via "agoras twitter authorize".'
     )
-    _add_x_auth_options(like, required=False)
     _add_post_id_option(like)
 
     # Share action (retweet)
@@ -267,7 +242,6 @@ def create_twitter_parser_alias(subparsers: _SubParsersAction) -> ArgumentParser
         'share',
         help='Retweet/share a tweet. Requires prior authorization via "agoras twitter authorize".'
     )
-    _add_x_auth_options(share, required=False)
     _add_post_id_option(share)
 
     # Delete action
@@ -275,7 +249,6 @@ def create_twitter_parser_alias(subparsers: _SubParsersAction) -> ArgumentParser
         'delete',
         help='Delete a tweet. Requires prior authorization via "agoras twitter authorize".'
     )
-    _add_x_auth_options(delete, required=False)
     _add_post_id_option(delete)
 
     # Set handler

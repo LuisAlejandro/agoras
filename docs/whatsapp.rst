@@ -68,8 +68,6 @@ This command will send a text message to a WhatsApp recipient. The message can i
 Parameters:
 
 - ``--recipient``: Target recipient phone number in E.164 format, e.g., +1234567890 (required)
-- ``--access-token``: Meta Graph API access token (optional if already authorized)
-- ``--phone-number-id``: WhatsApp Business phone number ID (optional if already authorized)
 - ``--text``: The text content of your message (optional)
 - ``--link``: A URL to include in the message (optional)
 
@@ -91,8 +89,6 @@ This command will send an image message to a WhatsApp recipient. The image can i
 Parameters:
 
 - ``--recipient``: Target recipient phone number in E.164 format (required)
-- ``--access-token``: Meta Graph API access token (optional if already authorized)
-- ``--phone-number-id``: WhatsApp Business phone number ID (optional if already authorized)
 - ``--image-1`` through ``--image-4``: URLs pointing to publicly accessible images (JPEG, PNG, GIF)
 - ``--text``: Caption text for the image (optional)
 - ``--link``: A URL to include in the message (optional)
@@ -122,8 +118,6 @@ Parameters:
 
 - ``--recipient``: Target recipient phone number in E.164 format (required)
 - ``--video-url``: URL pointing to a publicly accessible video file (required)
-- ``--access-token``: Meta Graph API access token (optional if already authorized)
-- ``--phone-number-id``: WhatsApp Business phone number ID (optional if already authorized)
 - ``--video-title``: Title for the video (optional, not used by WhatsApp but kept for compatibility)
 - ``--text``: Caption text for the video (optional)
 
@@ -151,8 +145,6 @@ Parameters:
 
 - ``--recipient``: Target recipient phone number in E.164 format (required)
 - ``--template-name``: Name of the pre-approved template (required)
-- ``--access-token``: Meta Graph API access token (optional if already authorized)
-- ``--phone-number-id``: WhatsApp Business phone number ID (optional if already authorized)
 - ``--language-code``: Language code in ISO 639-1 format, e.g., "en", "es", "fr" (default: "en")
 - ``--template-components``: Template components as JSON string (optional, for parameters, buttons, etc.)
 
@@ -181,8 +173,7 @@ Please read about how the RSS feed should be structured in the :doc:`RSS feed se
       --mode last \
       --feed-url "${FEED_URL}" \
       --max-count "${MAX_COUNT}" \
-      --post-lookback "${POST_LOOKBACK}" \
-      --whatsapp-recipient "${WHATSAPP_RECIPIENT}"
+      --post-lookback "${POST_LOOKBACK}"
 
 
 
@@ -201,8 +192,7 @@ Please read about how the RSS feed should be structured in the :doc:`RSS feed se
       --network whatsapp \
       --mode random \
       --feed-url "${FEED_URL}" \
-      --max-post-age "${MAX_POST_AGE}" \
-      --whatsapp-recipient "${WHATSAPP_RECIPIENT}"
+      --max-post-age "${MAX_POST_AGE}"
 
 Google Sheets Scheduling
 ------------------------
@@ -250,4 +240,4 @@ Scheduling Logic
 - Posts are created at the scheduled date and hour
 - Sheet state is updated to ``published`` after successful posting
 - If posting fails, state is updated to ``error``
-- Use ``--network whatsapp`` to process only WhatsApp posts, or omit to process all networks
+- Use ``--network whatsapp`` to process WhatsApp posts from the sheet (required since 2.1.0; one platform per run)

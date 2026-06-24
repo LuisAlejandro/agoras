@@ -15,9 +15,12 @@ This will show::
 
     Migration Preview:
       Old: agoras publish --network twitter --action post [options]
-      New: agoras x post --consumer-key "$KEY" --text "Test"
+      New: agoras x post --text "Test"
 
     No action executed (preview mode)
+
+.. versionchanged:: 2.1
+   Since 2.1.0, ``--show-migration`` omits credential flags from platform **action** suggestions. Run ``agoras <platform> authorize`` separately, or set the platform environment variables documented in :doc:`../reference/platform-arguments-envvars`.
 
 Platform-Specific Help
 ----------------------

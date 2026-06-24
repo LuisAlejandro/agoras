@@ -76,7 +76,7 @@ Getting Started
 ~~~~~~~~~~~~~~~
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    installation
    usage
@@ -86,7 +86,7 @@ Platform Guides
 ~~~~~~~~~~~~~~~
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    x
    facebook
@@ -103,7 +103,7 @@ Getting Credentials
 ~~~~~~~~~~~~~~~~~~~
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    credentials/x
    credentials/facebook
@@ -121,7 +121,7 @@ Reference
 ~~~~~~~~~
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    reference/action-support
    reference/parameters
@@ -131,7 +131,7 @@ Advanced Topics
 ~~~~~~~~~~~~~~~
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    rss
    api
@@ -140,7 +140,7 @@ Developer Documentation
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    contributing
    authors

@@ -2,6 +2,21 @@ Changelog
 ============
 
 
+2.1.0 (unreleased)
+------------
+
+Breaking Changes
+~~~~~~~~~~~~~~~~
+
+* Platform action commands and utils automation commands (``agoras utils feed-publish``, ``agoras utils schedule-run``) no longer accept credential or identity CLI flags for social networks. Run ``agoras <platform> authorize`` first, or set the platform environment variables documented in :doc:`reference/platform-arguments-envvars`. ``schedule-run`` now requires ``--network`` (one platform per invocation). Legacy ``agoras publish`` still accepts prefixed credential flags until version 3.0. Google Sheets credentials remain on the utils CLI surface.
+
+Other
+~~~~~~~~~~~~
+
+* Migration suggestions for platform actions omit auth parameters so ``agoras publish --show-migration`` no longer recommends invalid credential flags on action commands.
+* Utils automation now dispatches through an internal platform runner instead of the legacy ``publish`` command module (internal refactor only; user-facing breaks are listed above).
+
+
 2.0.5 (2026-06-24)
 ------------
 
@@ -411,4 +426,3 @@ Other
 * Update requirements.txt. [Luis Alejandro]
 
 * Initial commit. [Luis Alejandro Martínez Faneyth]
-

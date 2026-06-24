@@ -34,7 +34,7 @@ importlib.import_module('agoras.platforms.x.wrapper')
 # Test CLI to Platform Flow
 
 
-@patch('agoras.cli.commands.publish.x')
+@patch('agoras.cli.platform_runner.x')
 def test_cli_to_platform_x_flow(mock_x):
     """Test CLI parser to X platform execution flow."""
     from agoras.cli.commands.publish import main
@@ -56,7 +56,7 @@ def test_cli_to_platform_x_flow(mock_x):
     mock_x.assert_called_once()
 
 
-@patch('agoras.cli.commands.publish.facebook')
+@patch('agoras.cli.platform_runner.facebook')
 def test_cli_to_platform_facebook_flow(mock_facebook):
     """Test CLI parser to Facebook platform execution flow."""
     from agoras.cli.commands.publish import main
@@ -117,7 +117,7 @@ def test_feed_integration_flow(mock_post, mock_init_client, mock_feed_class):
 
 # Test Error Propagation
 
-@patch('agoras.cli.commands.publish.discord')
+@patch('agoras.cli.platform_runner.discord')
 def test_platform_error_propagates_to_cli(mock_discord):
     """Test platform errors propagate correctly to CLI."""
     from agoras.cli.commands.publish import main

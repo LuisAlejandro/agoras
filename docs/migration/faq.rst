@@ -35,20 +35,22 @@ A: Yes, the legacy ``agoras publish`` command still works but shows deprecation 
 Q: What's the difference between platform commands and utils commands?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A: **Platform commands** (e.g., ``agoras x post``) are for direct platform operations and use simplified parameter names (``--consumer-key`` instead of ``--x-consumer-key``). **Utils commands** (e.g., ``agoras utils feed-publish``) are for automation tasks and use prefixed parameters to support multiple platforms in one command.
+A: **Platform commands** (e.g., ``agoras x post``) are for direct platform operations and use simplified **content** parameter names (``--text``, ``--image-1``). **Utils commands** (e.g., ``agoras utils feed-publish``) automate feeds and schedules. Since **2.1.0**, both use the same auth model: run ``agoras <platform> authorize`` or set platform environment variables. Credential CLI flags are not accepted on actions or utils (legacy ``agoras publish`` still accepts them until 3.0).
 
 Q: Why do utils commands use prefixed parameters?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A: Utils commands need to support multiple platforms, so they use prefixed parameters (e.g., ``--x-consumer-key``, ``--facebook-object-id``) to avoid conflicts when specifying credentials for different platforms in the same command.
+A: Since **2.1.0**, utils commands no longer use prefixed **credential** parameters. They still use feed and Google Sheets flags (``--feed-url``, ``--sheets-id``, etc.). ``schedule-run`` requires ``--network`` — run one platform per invocation.
 
-OAuth 2.0 Authentication
-------------------------
+Authorization
+---------------
 
 Q: Why do I need to run ``authorize`` first for some platforms?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A: OAuth 2.0 platforms (Facebook, Instagram, LinkedIn, YouTube, TikTok, Threads) require a one-time authorization step. This is more secure than passing tokens directly and allows automatic token refresh. Bot-based platforms (Discord, Telegram) and API key platforms (X) don't require this step.
+A: **OAuth 2.0 platforms** (Facebook, Instagram, LinkedIn, YouTube, TikTok, Threads) require a one-time interactive authorization step. This is more secure than passing tokens directly and allows automatic token refresh.
+
+Since **2.1.0**, **X, Discord, Telegram, and WhatsApp** also require ``agoras <platform> authorize`` (or environment variables) before actions. Credential CLI flags are no longer accepted on ``post``, ``video``, and other action commands. See :ref:`common-migration-pitfalls` below for wrong vs. correct examples.
 
 Q: Do I need to re-authorize if I upgrade?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -71,7 +73,7 @@ Parameter Names
 Q: Why did parameter names change?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A: Parameter names were simplified for better usability. For example, ``--status-text`` became ``--text``, and ``--twitter-consumer-key`` became ``--consumer-key`` in platform commands. This makes commands shorter and easier to remember.
+A: Parameter names were simplified for better usability. For example, ``--status-text`` became ``--text``. Credential parameters such as ``--consumer-key`` belong on ``agoras <platform> authorize`` (or in environment variables), not on action commands since 2.1.0.
 
 Q: Can I still use old parameter names?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -81,7 +83,7 @@ A: In platform commands, old parameter names are not supported. In utils command
 Q: Why are some parameters different in utils commands?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A: Utils commands support multiple platforms, so they use prefixed parameters (e.g., ``--x-consumer-key``) to avoid conflicts. Platform commands only work with one platform, so they use simplified names (e.g., ``--consumer-key``).
+A: Since **2.1.0**, utils and platform actions share the same auth model (``authorize`` or environment variables). Platform action commands use simplified content names only; credentials are not accepted on ``post``, ``video``, utils, or similar commands.
 
 Import Paths (Python)
 ---------------------
@@ -122,15 +124,18 @@ A: Yes! You can use both old and new commands during the transition period. Star
 Common Migration Pitfalls
 ==========================
 
-1. **Forgetting to remove platform prefix**
+.. _common-migration-pitfalls:
+
+1. **Passing credentials on platform actions (removed in 2.1.0)**
 
    Wrong::
 
-       agoras x post --twitter-consumer-key "$KEY"
+       agoras x post --consumer-key "$KEY" --text "Hello"
 
    Correct::
 
-       agoras x post --consumer-key "$KEY"
+       agoras x authorize --consumer-key "$KEY" --consumer-secret "$SECRET"
+       agoras x post --text "Hello"
 
 2. **Using old parameter names**
 
@@ -146,11 +151,11 @@ Common Migration Pitfalls
 
    Wrong::
 
-       agoras twitter post --consumer-key "$KEY"
+       agoras twitter post --text "Hello"
 
    Correct::
 
-       agoras x post --consumer-key "$KEY"
+       agoras x post --text "Hello"
 
 4. **Using platform command for feed automation**
 
@@ -172,15 +177,16 @@ Common Migration Pitfalls
 
        agoras utils feed-publish --network x --mode last --feed-url "feed.xml"
 
-6. **Using deprecated parameters in utils commands**
+6. **Using credential flags on utils commands (removed in 2.1.0)**
 
    Wrong::
 
-       agoras utils feed-publish --network twitter --twitter-consumer-key "$KEY"
+       agoras utils feed-publish --network x --x-consumer-key "$KEY"
 
    Correct::
 
-       agoras utils feed-publish --network x --x-consumer-key "$KEY"
+       agoras x authorize  # once, or set TWITTER_* env vars
+       agoras utils feed-publish --network x --mode last --feed-url "feed.xml"
 
 Troubleshooting
 ===============

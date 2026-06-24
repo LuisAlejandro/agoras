@@ -68,8 +68,6 @@ This command will send a message to a Telegram chat using your bot. The message 
 
 Parameters:
 
-- ``--bot-token``: Your Telegram bot token from @BotFather (optional if already authorized)
-- ``--chat-id``: Target chat ID (user, group, or channel) (optional if already authorized)
 - ``--text``: The text content of your message
 - ``--link``: A URL to include in the message
 - ``--image-X``: URLs pointing to downloadable images (JPEG, PNG, JPG)
@@ -93,8 +91,6 @@ This command will upload and send a video file to a Telegram chat. The video can
 
 Parameters:
 
-- ``--bot-token``: Your Telegram bot token from @BotFather (optional if already authorized)
-- ``--chat-id``: Target chat ID (user, group, or channel) (optional if already authorized)
 - ``--video-url``: URL pointing to a downloadable video file (required)
 - ``--video-title``: Title for the video (optional, used as caption if text not provided)
 - ``--text``: Caption text for the video (optional)
@@ -116,8 +112,6 @@ This command will delete an existing Telegram message. The bot must have permiss
 
 Parameters:
 
-- ``--bot-token``: Your Telegram bot token from @BotFather (optional if already authorized)
-- ``--chat-id``: Target chat ID (user, group, or channel) (optional if already authorized)
 - ``--post-id``: ID of the message to delete (required)
 
 **Note**: Like and share functionality are not supported for Telegram.
@@ -201,7 +195,7 @@ Scheduling Logic
 - Posts are created at the scheduled date and hour
 - Sheet state is updated to ``published`` after successful posting
 - If posting fails, state is updated to ``error``
-- Use ``--network telegram`` to process only Telegram posts, or omit to process all networks
+- Use ``--network telegram`` to process Telegram posts from the sheet (required since 2.1.0; one platform per run)
 
 Telegram Features and Limitations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
