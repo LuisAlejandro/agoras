@@ -10,8 +10,7 @@ build:
       - python3 -m pip install -r docs/requirements.txt
     build:
       html:
-        - cd docs
-        - python3 -m sphinx -T -b html -d _build/doctrees -D language=en . $READTHEDOCS_OUTPUT/html
+        - python3 -m sphinx -T -b html -d docs/_build/doctrees -D language=en docs $READTHEDOCS_OUTPUT/html
 
 sphinx:
   configuration: docs/conf.py
