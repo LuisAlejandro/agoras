@@ -135,23 +135,15 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install all packages
-        run: |
-          cd packages
-          python3 -m pip install -r ../requirements-dev.txt
-          python3 -m pip install -e common/
-          python3 -m pip install -e media/
-          python3 -m pip install -e core/
-          python3 -m pip install -e platforms/
-          python3 -m pip install -e cli/
-
       - name: Install documentation dependencies
         run: |
+          python3 -m pip install --upgrade pip setuptools
           python3 -m pip install -r docs/requirements.txt
 
       - name: Build documentation
         run: |
-          make -C docs html
+          cd docs
+          python3 -m sphinx -T -b html -d _build/doctrees -D language=en . _build/html
 
       - name: Trigger ReadTheDocs webhook
         if: success() && (github.ref_name == 'master' || github.ref_name == 'develop')

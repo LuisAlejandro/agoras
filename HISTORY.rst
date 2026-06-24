@@ -2,6 +2,45 @@ Changelog
 ============
 
 
+2.0.5 (2026-06-24)
+------------
+
+Other
+~~~~~~~~~~~~
+
+* Updating readthedocs generation. [Luis Alejandro Martínez Faneyth]
+
+
+2.0.4 (2026-06-24)
+------------
+
+Other
+~~~~~~~~~~~~
+
+* Updating readthedocs generation. [Luis Alejandro Martínez Faneyth]
+
+
+2.0.3 (2026-06-23)
+------------
+
+Other
+~~~~~~~~~~~~
+
+* Chore: export BASH_ENV in Makefile for bash recipe env. [Luis Alejandro Martínez Faneyth]
+
+* Solving bumpversion multiline issue. [Luis Alejandro Martínez Faneyth]
+
+* Chore: sync maintainer ops and inline post_bump_commands parser. [Luis Alejandro Martínez Faneyth]
+
+* Test(common): ignore pytest logging handlers in logger tests. [Cursor Agent]
+
+* Chore: sync maintainer release scripts and CI workflows. [Luis Alejandro Martínez Faneyth]
+
+* Chore(deps-dev): bump pytest-asyncio to 1.4.0 for pytest 9.x compatibility. [Cursor Agent]
+
+* Improving dependency resolution robustness. [Luis Alejandro Martínez Faneyth]
+
+
 2.0.2 (2026-06-23)
 ------------
 

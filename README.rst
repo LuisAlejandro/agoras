@@ -43,7 +43,7 @@
 .. _full documentation: https://agoras.luisalejandro.org
 .. _migration guide: https://agoras.luisalejandro.org/en/latest/migration.html
 
-Current version: 2.0.2
+Current version: 2.0.5
 
 .. note::
 

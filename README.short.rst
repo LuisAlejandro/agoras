@@ -42,7 +42,7 @@
 .. _GitHub actions: https://github.com/LuisAlejandro/agoras-actions
 .. _full documentation: https://agoras.luisalejandro.org
 
-Current version: 2.0.2
+Current version: 2.0.5
 
 Agoras is a python utility that helps publish and delete posts on the most
 popular social networks (X, Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, Threads, Telegram, and WhatsApp).
