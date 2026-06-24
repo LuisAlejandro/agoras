@@ -37,15 +37,18 @@ release_check_host_tools() {
         release_require_command "$tool"
     done
 
+
     if ! git flow version >/dev/null 2>&1; then
         print_error "git-flow is not available (run: git flow version)"
         exit 1
     fi
 
+
     if ! docker info >/dev/null 2>&1; then
         print_error "Docker daemon is not running"
         exit 1
     fi
+
 
     if ! gh auth status >/dev/null 2>&1; then
         print_error "GitHub CLI is not authenticated (run: gh auth login)"
@@ -66,12 +69,48 @@ release_check_host_tools() {
     print_step "Host release tools check passed"
 }
 
+
 release_run_preflight() {
+    local preflight_snapshot
+    local command
+
     print_step "Running release preflight (Docker)"
     release_require_command docker
     release_require_command make
-    make release-preflight
+    release_require_clean_worktree
+
+
+
+    print_step "Preflight: make format"
+    preflight_snapshot=$(git status --porcelain)
+    make format
+    if [[ "$(git status --porcelain)" != "$preflight_snapshot" ]]; then
+        print_error "make format changed files; run make format and commit on develop before releasing"
+        git status --short >&2
+        exit 1
+    fi
+
+
+
+    print_step "Preflight: make lint"
+    if ! make lint; then
+        print_error "make lint failed; fix lint errors on develop before releasing"
+        exit 1
+    fi
+
+
+
+    print_step "Preflight: make test"
+    if ! make test; then
+        print_error "Preflight command failed: make test"
+        exit 1
+    fi
+
+
+
+    print_step "Release preflight passed"
 }
+
 
 release_enable_noninteractive_git() {
     print_step "Configuring git for non-interactive mode"
@@ -129,7 +168,7 @@ release_wait_for_branch_ci() {
             exit 1
         fi
 
-        if (($(date +%s) - start_time > RELEASE_CI_TIMEOUT_SECONDS)); then
+        if (( $(date +%s) - start_time > RELEASE_CI_TIMEOUT_SECONDS )); then
             print_error "Timed out waiting for GitHub Actions run on $branch_name"
             print_error "Workflow: $RELEASE_CI_WORKFLOW; commit: $commit_sha"
             exit 1
@@ -164,37 +203,6 @@ release_verify_remote_tag() {
     print_error "Please verify the push manually: git push origin --tags"
     exit 1
 }
-release_convert_rst_changelog_to_markdown() {
-    awk '
-    {
-        gsub(/\r$/, "")
-    }
-    /^[[:space:]]*[-=~^`+*]{3,}[[:space:]]*$/ {
-        next
-    }
-    /^[0-9]+\.[0-9]+\.[0-9]+[[:space:]]*\(/ {
-        next
-    }
-    /^[[:space:]]*$/ {
-        if (!prev_blank) {
-            print ""
-            prev_blank = 1
-        }
-        next
-    }
-    {
-        prev_blank = 0
-        if ($0 ~ /^\*/ || $0 ~ /^#/) {
-            print $0
-        } else if ($0 ~ /^[A-Za-z][A-Za-z0-9 _-]*$/) {
-            print "### " $0
-        } else {
-            print $0
-        }
-    }
-    '
-}
-
 release_convert_rst_changelog_to_markdown() {
     awk '
     {
