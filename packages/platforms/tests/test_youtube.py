@@ -19,7 +19,6 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from agoras.platforms.youtube import YouTube
 from agoras.platforms.youtube.api import YouTubeAPI
 from agoras.platforms.youtube.auth import YouTubeAuthManager
@@ -38,7 +37,9 @@ async def test_youtube_initialize_client(mock_api_class):
     mock_api.authenticate = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    youtube = YouTube(**{**YOUTUBE_KWARGS, 'youtube_client_id': 'test_client_id', 'youtube_client_secret': 'test_secret'})
+    youtube = YouTube(**{**YOUTUBE_KWARGS,
+                         'youtube_client_id': 'test_client_id',
+                         'youtube_client_secret': 'test_secret'})
 
     await youtube._initialize_client()
 
@@ -48,8 +49,11 @@ async def test_youtube_initialize_client(mock_api_class):
 
 
 @pytest.mark.asyncio
+@patch('agoras.platforms.youtube.wrapper.YouTube._get_config_value', return_value=None)
 @patch('agoras.platforms.youtube.auth.YouTubeAuthManager')
-async def test_youtube_initialize_client_missing_credentials(mock_auth_manager_class):
+async def test_youtube_initialize_client_missing_credentials(
+    mock_auth_manager_class, _mock_get_config,
+):
     """Test YouTube _initialize_client raises exception without credentials."""
     # Mock auth manager to not load from storage
     mock_auth_manager = MagicMock()
@@ -60,6 +64,46 @@ async def test_youtube_initialize_client_missing_credentials(mock_auth_manager_c
 
     with pytest.raises(Exception, match="Not authenticated"):
         await youtube._initialize_client()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.youtube.wrapper.YouTube._get_config_value')
+@patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
+@patch('agoras.platforms.youtube.auth.YouTubeAuthManager')
+async def test_youtube_initialize_client_prefers_storage_refresh_token(
+    mock_auth_manager_class, mock_api_class, mock_get_config,
+):
+    """Stored refresh token wins over stale YOUTUBE_REFRESH_TOKEN in environment."""
+    mock_auth_manager = MagicMock()
+    mock_auth_manager.client_id = 'stored_client_id'
+    mock_auth_manager.client_secret = 'stored_client_secret'
+    mock_auth_manager.refresh_token = 'stored_refresh_token'
+    mock_auth_manager._load_credentials_from_storage = MagicMock(return_value=True)
+    mock_auth_manager_class.return_value = mock_auth_manager
+
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    def config_side_effect(key, env_key=None):
+        values = {
+            'youtube_client_id': 'stored_client_id',
+            'youtube_client_secret': 'stored_client_secret',
+            'youtube_refresh_token': 'stale_env_refresh_token',
+        }
+        return values.get(key)
+
+    mock_get_config.side_effect = config_side_effect
+
+    youtube = YouTube()
+    await youtube._initialize_client()
+
+    assert youtube.youtube_refresh_token == 'stored_refresh_token'
+    mock_api_class.assert_called_once_with(
+        'stored_client_id',
+        'stored_client_secret',
+        'stored_refresh_token',
+    )
 
 
 @pytest.mark.asyncio
@@ -401,7 +445,7 @@ async def test_youtube_last_from_feed(mock_api_class):
 
     # Mock feed operations
     with patch.object(youtube, 'download_feed', new_callable=AsyncMock) as mock_download_feed, \
-         patch.object(youtube, 'video', new_callable=AsyncMock) as mock_video:
+            patch.object(youtube, 'video', new_callable=AsyncMock) as mock_video:
 
         mock_feed = MagicMock()
         mock_item = MagicMock()
@@ -432,7 +476,7 @@ async def test_youtube_random_from_feed(mock_api_class):
 
     # Mock feed operations
     with patch.object(youtube, 'download_feed', new_callable=AsyncMock) as mock_download_feed, \
-         patch.object(youtube, 'video', new_callable=AsyncMock) as mock_video:
+            patch.object(youtube, 'video', new_callable=AsyncMock) as mock_video:
 
         mock_feed = MagicMock()
         mock_item = MagicMock()
@@ -463,7 +507,7 @@ async def test_youtube_schedule(mock_api_class):
 
     # Mock schedule operations
     with patch.object(youtube, 'create_schedule_sheet', new_callable=AsyncMock) as mock_create_sheet, \
-         patch.object(youtube, 'video', new_callable=AsyncMock) as mock_video:
+            patch.object(youtube, 'video', new_callable=AsyncMock) as mock_video:
 
         mock_sheet = MagicMock()
         mock_videos = [{

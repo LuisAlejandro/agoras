@@ -63,7 +63,7 @@ def create_whatsapp_parser(subparsers: _SubParsersAction) -> ArgumentParser:
         'post',
         help='Send a text/image message via WhatsApp. Requires prior authorization via "agoras whatsapp authorize".'
     )
-    _add_whatsapp_auth_options(post, required=False)
+    _add_whatsapp_recipient_option(post)
     add_common_content_options(post, images=4)
 
     # Video action
@@ -71,7 +71,7 @@ def create_whatsapp_parser(subparsers: _SubParsersAction) -> ArgumentParser:
         'video',
         help='Send a video message via WhatsApp. Requires prior authorization via "agoras whatsapp authorize".'
     )
-    _add_whatsapp_auth_options(video, required=False)
+    _add_whatsapp_recipient_option(video)
     add_video_options(video, platform='whatsapp')
 
     # Template action
@@ -79,7 +79,7 @@ def create_whatsapp_parser(subparsers: _SubParsersAction) -> ArgumentParser:
         'template',
         help='Send a template message via WhatsApp. Requires prior authorization via "agoras whatsapp authorize".'
     )
-    _add_whatsapp_auth_options(template, required=False)
+    _add_whatsapp_recipient_option(template)
     _add_template_options(template)
 
     # Set handler
@@ -118,36 +118,14 @@ def _add_whatsapp_authorize_options(parser: ArgumentParser):
     )
 
 
-def _add_whatsapp_auth_options(parser: ArgumentParser, required: bool = True):
+def _add_whatsapp_recipient_option(parser: ArgumentParser):
     """
-    Add WhatsApp authentication options.
+    Add WhatsApp recipient option for action commands.
 
     Args:
         parser: ArgumentParser to add options to
-        required: Whether credentials are required (True for authorize, False for other actions)
     """
-    auth = parser.add_argument_group(
-        'WhatsApp Authentication',
-        'WhatsApp Business API credentials from Meta Business Manager'
-    )
-    auth.add_argument(
-        '--access-token',
-        required=required,
-        metavar='<token>',
-        help='Meta Graph API access token' + (' (optional if already authorized)' if not required else '')
-    )
-    auth.add_argument(
-        '--phone-number-id',
-        required=required,
-        metavar='<id>',
-        help='WhatsApp Business phone number ID' + (' (optional if already authorized)' if not required else '')
-    )
-    auth.add_argument(
-        '--business-account-id',
-        metavar='<id>',
-        help='WhatsApp Business Account ID (optional)'
-    )
-    auth.add_argument(
+    parser.add_argument(
         '--recipient',
         required=True,
         metavar='<phone>',

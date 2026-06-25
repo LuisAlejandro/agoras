@@ -202,26 +202,11 @@ Agoras parameters
 | Post ID             | --post-id                  | Required for like/delete/share |
 +---------------------+----------------------------+--------------------------------+
 
-**Note**: After running ``agoras x authorize``, all credentials become optional for action commands as they are loaded from secure storage automatically. The OAuth token and secret are obtained automatically during authorization and stored securely. For convenience, you can also use environment variables:
+**Note**: After running ``agoras x authorize``, action commands do not accept credential CLI flags; credentials load from secure storage automatically. The OAuth token and secret are obtained during authorization and stored securely. For unattended execution, set environment variables:
 
 ::
 
     export TWITTER_CONSUMER_KEY="your_api_key_here"
     export TWITTER_CONSUMER_SECRET="your_api_secret_here"
 
-**Utils commands** (``agoras utils``):
-
-+---------------------+----------------------------+
-| X credential        | Agoras parameter           |
-+=====================+============================+
-| API key             | --x-consumer-key           |
-+---------------------+----------------------------+
-| API secret key      | --x-consumer-secret        |
-+---------------------+----------------------------+
-| Access token        | --x-oauth-token            |
-+---------------------+----------------------------+
-| Access token secret | --x-oauth-secret           |
-+---------------------+----------------------------+
-
-.. deprecated:: 2.0
-   The ``--twitter-*`` parameters in utils commands are deprecated. Use ``--x-*`` parameters instead.
+**Utils commands** (``agoras utils``): use the same environment variables as platform actions (``TWITTER_CONSUMER_KEY``, etc.). Run ``agoras x authorize`` once, or export env vars for CI/cron. Credential CLI flags are not accepted on utils commands since 2.1.0.

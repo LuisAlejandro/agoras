@@ -38,19 +38,17 @@ def test_x_parser_creation():
 
 
 def test_x_actions_listed():
-    """Test that all X actions are available."""
+    """Test that X post action parses without auth flags."""
     root_parser = ArgumentParser()
     subparsers = root_parser.add_subparsers(dest='platform')
 
     create_x_parser(subparsers)
 
-    # Parse x command to get actions
-    args = root_parser.parse_args(['x', 'post', '--consumer-key', 'k',
-                                   '--consumer-secret', 's', '--oauth-token', 't',
-                                   '--oauth-secret', 'o'])
+    args = root_parser.parse_args(['x', 'post', '--text', 'Hello'])
 
     assert args.platform == 'x'
     assert args.action == 'post'
+    assert args.text == 'Hello'
 
 
 def test_x_post_has_content_options():
@@ -62,10 +60,6 @@ def test_x_post_has_content_options():
 
     args = root_parser.parse_args([
         'x', 'post',
-        '--consumer-key', 'k',
-        '--consumer-secret', 's',
-        '--oauth-token', 't',
-        '--oauth-secret', 'o',
         '--text', 'Hello',
         '--image-1', 'img1.jpg',
         '--image-2', 'img2.jpg'
@@ -85,10 +79,6 @@ def test_x_video_has_video_options():
 
     args = root_parser.parse_args([
         'x', 'video',
-        '--consumer-key', 'k',
-        '--consumer-secret', 's',
-        '--oauth-token', 't',
-        '--oauth-secret', 'o',
         '--video-url', 'video.mp4',
         '--video-title', 'My Video'
     ])
@@ -106,10 +96,6 @@ def test_x_like_requires_post_id():
 
     args = root_parser.parse_args([
         'x', 'like',
-        '--consumer-key', 'k',
-        '--consumer-secret', 's',
-        '--oauth-token', 't',
-        '--oauth-secret', 'o',
         '--post-id', '12345'
     ])
 
@@ -127,19 +113,17 @@ def test_twitter_alias_parser_creation():
 
 
 def test_twitter_alias_actions_listed():
-    """Test that Twitter alias has all X actions available."""
+    """Test that Twitter alias post parses without auth flags."""
     root_parser = ArgumentParser()
     subparsers = root_parser.add_subparsers(dest='platform')
 
     create_twitter_parser_alias(subparsers)
 
-    # Parse twitter command to get actions
-    args = root_parser.parse_args(['twitter', 'post', '--consumer-key', 'k',
-                                   '--consumer-secret', 's', '--oauth-token', 't',
-                                   '--oauth-secret', 'o'])
+    args = root_parser.parse_args(['twitter', 'post', '--text', 'Hello'])
 
     assert args.platform == 'twitter'
     assert args.action == 'post'
+    assert args.text == 'Hello'
 
 
 def test_twitter_alias_shows_deprecation_warning():
@@ -148,24 +132,17 @@ def test_twitter_alias_shows_deprecation_warning():
 
     from agoras.cli.platforms.x import _handle_twitter_command
 
-    # Capture stderr
     stderr_capture = StringIO()
 
     args = Namespace(
         action='post',
-        consumer_key='k',
-        consumer_secret='s',
-        oauth_token='t',
-        oauth_secret='o',
         text='Hello'
     )
 
     with patch('sys.stderr', stderr_capture):
         try:
-            # This will fail because we don't have actual credentials, but we can check the warning
             _handle_twitter_command(args)
         except Exception:
-            # Expected to fail, but we check if warning was printed
             pass
 
     stderr_capture.seek(0)

@@ -1,6 +1,9 @@
 Automation Commands Migration
 ==============================
 
+Utils automation (``feed-publish``, ``schedule-run``) invokes platform wrappers
+through the shared platform runner, not ``agoras publish``.
+
 Feed Automation
 ---------------
 
@@ -16,20 +19,19 @@ Legacy::
       --twitter-oauth-token "$TOKEN" \
       --twitter-oauth-secret "$OAUTH_SECRET"
 
-New::
+New (2.1.0+)::
 
+    # Authorize once, or set TWITTER_* env vars for CI
     agoras utils feed-publish \
       --network x \
       --mode last \
       --feed-url "https://example.com/feed.xml" \
-      --max-count 1 \
-      --x-consumer-key "$KEY" \
-      --x-consumer-secret "$SECRET" \
-      --x-oauth-token "$TOKEN" \
-      --x-oauth-secret "$OAUTH_SECRET"
+      --max-count 1
 
 .. note::
-   The ``--network twitter`` and ``--twitter-*`` parameters are deprecated. Use ``--network x`` and ``--x-*`` parameters instead.
+   The ``--network twitter`` alias is deprecated. Use ``--network x`` instead.
+   Utils commands accept ``twitter`` silently (no stderr warning); legacy
+   ``agoras publish`` still emits a deprecation warning.
 
 **Publishing Random Entry from Feed**
 
@@ -39,9 +41,8 @@ Legacy::
       --feed-url "https://example.com/feed.xml" \
       --facebook-access-token "$TOKEN"
 
-New (v2.0+)::
+New (2.1.0+)::
 
-    # After authorization
     agoras utils feed-publish \
       --network facebook \
       --mode random \
@@ -61,15 +62,14 @@ Legacy::
       --google-sheets-private-key "$KEY" \
       --twitter-consumer-key "$KEY"
 
-New::
+New (2.1.0+)::
 
     agoras utils schedule-run \
       --network x \
       --sheets-id "$SHEET_ID" \
       --sheets-name "Schedule" \
       --sheets-client-email "$EMAIL" \
-      --sheets-private-key "$KEY" \
-      --x-consumer-key "$KEY"
+      --sheets-private-key "$KEY"
 
 .. note::
-   The ``--network twitter`` and ``--twitter-*`` parameters are deprecated. Use ``--network x`` and ``--x-*`` parameters instead.
+   ``schedule-run`` requires ``--network``. Run separate jobs for each platform. The ``--network twitter`` alias is deprecated; use ``--network x``.

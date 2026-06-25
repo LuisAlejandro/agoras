@@ -9,13 +9,15 @@ This reference documents all parameters available in Agoras CLI commands.
 Platform Commands vs Utils Commands
 ------------------------------------
 
-**Platform commands** use simplified parameter names::
+**Platform commands** use simplified content parameter names (credentials on ``authorize`` only since 2.1.0)::
 
-    agoras x post --consumer-key "$KEY" --text "Hello"
+    agoras x authorize --consumer-key "$KEY" --consumer-secret "$SECRET"
+    agoras x post --text "Hello"
 
-**Utils commands** use prefixed parameter names to support multiple platforms::
+**Utils commands** use feed and Google Sheets flags only. Platform auth comes from ``agoras <platform> authorize`` or environment variables (same as actions since 2.1.0)::
 
-    agoras utils feed-publish --network x --x-consumer-key "$KEY"
+    agoras x authorize --consumer-key "$KEY" --consumer-secret "$SECRET"
+    agoras utils feed-publish --network x --mode last --feed-url "https://example.com/feed.xml"
 
 .. note::
    The ``agoras twitter`` command and ``--twitter-*`` parameters are deprecated. Use ``agoras x`` and ``--x-*`` parameters instead.
@@ -26,12 +28,15 @@ Authentication Parameters
 X (formerly Twitter)
 --------------------
 
-**Platform commands** (``agoras x``):
+.. versionchanged:: 2.1
+   Credential CLI flags are accepted on ``authorize`` only. Action commands load credentials from storage or environment variables.
+
+**``authorize`` action** (``agoras x authorize``):
 
 * ``--consumer-key`` - X API consumer key (required)
 * ``--consumer-secret`` - X API consumer secret (required)
-* ``--oauth-token`` - X OAuth token (required for most actions)
-* ``--oauth-secret`` - X OAuth secret (required for most actions)
+
+**Action commands** (``post``, ``video``, ``like``, ``share``, ``delete``): no credential flags; use content/action parameters such as ``--text``, ``--post-id``, ``--video-url``.
 
 .. deprecated:: 2.0
    The ``--twitter-*`` parameters in utils commands are deprecated. Use ``--x-*`` parameters instead.
@@ -91,11 +96,16 @@ LinkedIn
 Discord
 -------
 
-**Platform commands** (``agoras discord``):
+.. versionchanged:: 2.1
+   Credential CLI flags are accepted on ``authorize`` only.
+
+**``authorize`` action**:
 
 * ``--bot-token`` - Discord bot token (required)
 * ``--server-name`` - Discord server/guild name (required)
 * ``--channel-name`` - Discord channel name (required)
+
+**Action commands**: content parameters only (``--text``, ``--video-url``, ``--post-id``).
 
 YouTube
 -------
@@ -146,31 +156,37 @@ Threads
 Telegram
 --------
 
-**Platform commands** (``agoras telegram``):
+.. versionchanged:: 2.1
+   ``--bot-token`` and ``--chat-id`` are accepted on ``authorize`` only. ``--parse-mode`` remains on ``post`` and ``video``.
+
+**``authorize`` action**:
 
 * ``--bot-token`` - Telegram bot token from @BotFather (required)
 * ``--chat-id`` - Target chat ID (user, group, or channel) (required)
-* ``--message-id`` - Message ID for delete action (required for delete)
 
-**Telegram-specific parameters**:
+**Action commands**:
 
-* ``--parse-mode`` - Message parse mode: ``HTML``, ``Markdown``, ``MarkdownV2``, or ``None`` (default: HTML)
+* ``--parse-mode`` - Message parse mode: ``HTML``, ``Markdown``, ``MarkdownV2``, or ``None`` (default: HTML; ``post``/``video`` only)
+* ``--post-id`` - Message ID for delete action (required for delete)
 
 WhatsApp
 --------
 
-**Platform commands** (``agoras whatsapp``):
+.. versionchanged:: 2.1
+   ``--access-token`` and ``--phone-number-id`` are accepted on ``authorize`` only. ``--recipient`` remains on action commands.
+
+**``authorize`` action**:
 
 * ``--access-token`` - Meta Graph API access token (required)
 * ``--phone-number-id`` - WhatsApp Business phone number ID (required)
-* ``--recipient`` - Target recipient phone number in E.164 format, e.g., +1234567890 (required)
+* ``--business-account-id`` - WhatsApp Business Account ID (optional)
 
-**WhatsApp-specific parameters**:
+**Action commands**:
 
+* ``--recipient`` - Target recipient phone number in E.164 format (required on post/video/template)
 * ``--template-name`` - Template name (for template action)
 * ``--language-code`` - Template language code (ISO 639-1 format, default: en, for template action)
 * ``--template-components`` - Template components as JSON string (optional, for template action)
-* ``--business-account-id`` - WhatsApp Business Account ID (optional)
 
 Content Parameters
 ==================
@@ -247,15 +263,18 @@ Facebook
 Utils Command Parameters
 ========================
 
-Platform Authentication Parameters
-----------------------------------
+Platform Authentication (legacy utils reference)
+------------------------------------------------
 
-These parameters are used in utils commands (``agoras utils feed-publish`` and ``agoras utils schedule-run``) with platform prefixes.
+.. versionchanged:: 2.1
+   Prefixed platform credential flags (``--x-consumer-key``, ``--facebook-access-token``, etc.) were removed from utils commands. Use ``authorize`` or environment variables; see :doc:`platform-arguments-envvars`.
+
+The following applied before 2.1.0 and remain valid on legacy ``agoras publish`` until 3.0:
 
 X (formerly Twitter)
 ~~~~~~~~~~~~~~~~~~~~
 
-* ``--x-consumer-key`` - X API consumer key
+* ``--x-consumer-key`` - X API consumer key (legacy publish / pre-2.1 utils)
 * ``--x-consumer-secret`` - X API consumer secret
 * ``--x-oauth-token`` - X OAuth token
 * ``--x-oauth-secret`` - X OAuth secret
@@ -341,7 +360,7 @@ Feed Automation
 Schedule Automation
 -------------------
 
-* ``--network`` - Target network (optional; if omitted, processes all networks from sheet)
+* ``--network`` - Target network (required since 2.1.0; one platform per run)
 * ``--sheets-id`` - Google Sheets document ID (required)
 * ``--sheets-name`` - Sheet name within document (required)
 * ``--sheets-client-email`` - Google service account email (required)

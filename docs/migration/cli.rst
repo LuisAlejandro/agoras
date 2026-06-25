@@ -57,7 +57,7 @@ Automation Commands
    * - ``agoras publish --network facebook --action random-from-feed``
      - ``agoras utils feed-publish --network facebook --mode random``
    * - ``agoras publish --action schedule``
-     - ``agoras utils schedule-run``
+     - ``agoras utils schedule-run --network <platform>``
 
 Parameter Changes
 =================
@@ -89,11 +89,33 @@ Within platform commands, platform prefixes are removed:
    * - Discord
      - ``--discord-bot-token``
      - ``--bot-token``
+   * - Discord
+     - ``--discord-server-name``
+     - ``--server-name``
+   * - Discord
+     - ``--discord-channel-name``
+     - ``--channel-name``
+   * - Telegram
+     - ``--telegram-bot-token``
+     - ``--bot-token``
+   * - Telegram
+     - ``--telegram-chat-id``
+     - ``--chat-id``
+   * - WhatsApp
+     - ``--whatsapp-access-token``
+     - ``--access-token``
+   * - WhatsApp
+     - ``--whatsapp-phone-number-id``
+     - ``--phone-number-id``
    * - YouTube
      - ``--youtube-client-id``
      - ``--client-id``
 
-**Note**: Utils commands use prefixed parameters. For X, use ``--x-consumer-key`` (``--twitter-consumer-key`` is deprecated but still works).
+.. versionchanged:: 2.1
+   Credential parameters in the table above apply to ``agoras <platform> authorize`` only.
+   Platform action commands no longer accept credential or identity CLI flags.
+
+**Note**: Utils commands use the same auth model as platform actions since 2.1.0. Run ``agoras <platform> authorize`` or set environment variables; credential CLI flags are not accepted on utils. Legacy ``agoras publish`` still accepts prefixed credential flags until 3.0.
 
 Content Parameters
 ------------------

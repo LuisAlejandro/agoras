@@ -10,7 +10,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck source=lib/common.sh
 source "${SCRIPT_DIR}/lib/common.sh"
 
-source "${PROJECT_ROOT}/unattended.env"
+load_authorize_env "${PROJECT_ROOT}/unattended.env"
 
 verify_env_vars() {
     local platform=$1
@@ -134,7 +134,6 @@ run_utils_if_applicable() {
         skip_case "utils tests skipped for facebook-video-only run"
         return 0
     fi
-    echo "NOTE: utils feed-publish and schedule-run create posts that are not auto-deleted" >&2
     run_utils_unattended
 }
 

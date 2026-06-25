@@ -57,6 +57,7 @@ class YouTube(SocialNetwork):
         self.youtube_privacy_status = None
         self.youtube_keywords = None
         self.youtube_video_url = None
+        self.youtube_refresh_token = None
         self.api = None
 
     async def _initialize_client(self):
@@ -65,10 +66,9 @@ class YouTube(SocialNetwork):
 
         Tries to load credentials from CLI params, environment variables, or storage.
         """
-        # Try params/environment first
+        # App credentials from CLI params or environment.
         self.youtube_client_id = self._get_config_value('youtube_client_id', 'YOUTUBE_CLIENT_ID')
         self.youtube_client_secret = self._get_config_value('youtube_client_secret', 'YOUTUBE_CLIENT_SECRET')
-        self.youtube_refresh_token = self._get_config_value('youtube_refresh_token', 'YOUTUBE_REFRESH_TOKEN')
         self.youtube_video_id = self._get_config_value('youtube_video_id', 'YOUTUBE_VIDEO_ID')
         self.youtube_title = self._get_config_value('youtube_title', 'YOUTUBE_TITLE')
         self.youtube_description = self._get_config_value('youtube_description', 'YOUTUBE_DESCRIPTION')
@@ -78,24 +78,25 @@ class YouTube(SocialNetwork):
         self.youtube_keywords = self._get_config_value('youtube_keywords', 'YOUTUBE_KEYWORDS')
         self.youtube_video_url = self._get_config_value('youtube_video_url', 'YOUTUBE_VIDEO_URL')
 
-        # If credentials not provided, try loading from storage
-        # YouTube needs client_id, client_secret, and refresh_token to authenticate
-        if not all([self.youtube_client_id, self.youtube_client_secret, self.youtube_refresh_token]):
-            from .auth import YouTubeAuthManager
-            auth_manager = YouTubeAuthManager(
-                client_id=self.youtube_client_id,
-                client_secret=self.youtube_client_secret,
-                refresh_token=self.youtube_refresh_token
-            )
+        # OAuth refresh token: prefer secure storage (post-authorize source of truth),
+        # then fall back to environment for CI/unattended runs without stored tokens.
+        from .auth import YouTubeAuthManager
+        auth_manager = YouTubeAuthManager(
+            client_id=self.youtube_client_id,
+            client_secret=self.youtube_client_secret,
+            refresh_token=None,
+        )
 
-            if auth_manager._load_credentials_from_storage():
-                # Fill in missing credentials from storage
-                if not self.youtube_client_id:
-                    self.youtube_client_id = auth_manager.client_id
-                if not self.youtube_client_secret:
-                    self.youtube_client_secret = auth_manager.client_secret
-                if not self.youtube_refresh_token:
-                    self.youtube_refresh_token = auth_manager.refresh_token
+        if auth_manager._load_credentials_from_storage():
+            if not self.youtube_client_id:
+                self.youtube_client_id = auth_manager.client_id
+            if not self.youtube_client_secret:
+                self.youtube_client_secret = auth_manager.client_secret
+            self.youtube_refresh_token = auth_manager.refresh_token
+
+        if not self.youtube_refresh_token:
+            self.youtube_refresh_token = self._get_config_value(
+                'youtube_refresh_token', 'YOUTUBE_REFRESH_TOKEN')
 
         # Validate all credentials are now available
         if not all([self.youtube_client_id, self.youtube_client_secret, self.youtube_refresh_token]):

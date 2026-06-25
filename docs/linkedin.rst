@@ -201,7 +201,7 @@ Scheduling Logic
 - Posts are created at the scheduled date and hour
 - Sheet state is updated to ``published`` after successful posting
 - If posting fails, state is updated to ``error``
-- Use ``--network linkedin`` to process only LinkedIn posts, or omit to process all networks
+- Use ``--network linkedin`` to process LinkedIn posts from the sheet (required since 2.1.0; one platform per run)
 
 
 .. _how-to-get-linkedin-post-id:

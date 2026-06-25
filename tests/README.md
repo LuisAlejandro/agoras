@@ -21,7 +21,7 @@ tests/authorize-platforms.sh          # all platforms
 tests/authorize-platforms.sh facebook   # one platform
 ```
 
-3. Run:
+1. Run:
 
 ```bash
 tests/test-authorize.sh all
@@ -83,13 +83,13 @@ Unsupported or blocked actions print `SKIP: <reason>` and return success for tha
 
 - **x**, **threads**, **instagram**, **linkedin**, **telegram**, **whatsapp** video
 - **whatsapp template** (requires `WHATSAPP_TEMPLATE_NAME` in env; optional `WHATSAPP_TEMPLATE_LANGUAGE`, default `en`)
-- **feed-publish** for multiple networks via `FEED_PUBLISH_NETWORKS` (default: `x facebook linkedin`)
+- **feed-publish** and **schedule-run** on one network (`UTILS_TEST_NETWORK`, default `x`); posts are deleted after each utils run
 
 ## Optional env vars
 
 | Variable | Purpose |
 |----------|---------|
-| `FEED_PUBLISH_NETWORKS` | Space-separated networks for feed-publish utils |
+| `UTILS_TEST_NETWORK` | Network for utils feed/schedule tests (default `x`) |
 | `WHATSAPP_TEMPLATE_NAME` | Pre-approved template for whatsapp template test |
 | `WHATSAPP_TEMPLATE_LANGUAGE` | Template language code (default `en`) |
 | `AGORAS_LIVE_E2E=1` | Override CI guard |

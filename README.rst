@@ -153,13 +153,13 @@ Using the application
 Quick Start
 ~~~~~~~~~~~
 
-Post to X with the platform-first CLI::
+Post to X with the platform-first CLI (authorize once, then post with content flags only)::
+
+    $ agoras x authorize \
+        --consumer-key "${TWITTER_CONSUMER_KEY}" \
+        --consumer-secret "${TWITTER_CONSUMER_SECRET}"
 
     $ agoras x post \
-        --consumer-key "${TWITTER_CONSUMER_KEY}" \
-        --consumer-secret "${TWITTER_CONSUMER_SECRET}" \
-        --oauth-token "${TWITTER_OAUTH_TOKEN}" \
-        --oauth-secret "${TWITTER_OAUTH_SECRET}" \
         --text "Hello from Agoras!" \
         --image-1 "https://example.com/image.jpg"
 
@@ -202,8 +202,11 @@ Publish from RSS/Atom feeds::
 Run scheduled posts from Google Sheets::
 
     $ agoras utils schedule-run \
+        --network x \
         --sheets-id "${GOOGLE_SHEETS_ID}" \
-        --sheets-name "Schedule"
+        --sheets-name "Schedule" \
+        --sheets-client-email "${GOOGLE_SERVICE_ACCOUNT_EMAIL}" \
+        --sheets-private-key "${GOOGLE_PRIVATE_KEY}"
 
 
 Examples of usage
@@ -309,4 +312,3 @@ Made with 💖 and 🍔
 
 __ LuisAlejandroGitHub_
 __ LuisAlejandroTwitter_
-
