@@ -194,15 +194,9 @@ release-major:
 
 
 release-preflight: start
-
-
-	@make lint
-
 	@make format
-
+	@make lint
 	@make test
-
-
 
 undo-release:
 	@: "$${VERSION:?Set VERSION=x.y.z before running make undo-release}"
