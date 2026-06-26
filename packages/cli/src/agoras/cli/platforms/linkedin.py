@@ -41,55 +41,44 @@ def create_linkedin_parser(subparsers: _SubParsersAction) -> ArgumentParser:
         ArgumentParser for LinkedIn commands
     """
     parser = subparsers.add_parser(
-        'linkedin',
-        help='LinkedIn operations. Run "agoras linkedin authorize" before any actions.'
+        "linkedin", help='LinkedIn operations. Run "agoras linkedin authorize" before any actions.'
     )
 
-    actions = parser.add_subparsers(
-        dest='action',
-        title='LinkedIn Actions',
-        required=True
-    )
+    actions = parser.add_subparsers(dest="action", title="LinkedIn Actions", required=True)
 
     # Authorize action
     authorize = actions.add_parser(
-        'authorize',
-        help='Authorize LinkedIn account (OAuth 2.0). Run this first before any other actions.'
+        "authorize", help="Authorize LinkedIn account (OAuth 2.0). Run this first before any other actions."
     )
     _add_linkedin_authorize_options(authorize)
 
     # Post action
     post = actions.add_parser(
-        'post',
-        help='Create a post on LinkedIn. Requires prior authorization via "agoras linkedin authorize".'
+        "post", help='Create a post on LinkedIn. Requires prior authorization via "agoras linkedin authorize".'
     )
     add_common_content_options(post, images=1)
 
     # Video action
     video = actions.add_parser(
-        'video',
-        help='Upload a video to LinkedIn. Requires prior authorization via "agoras linkedin authorize".'
+        "video", help='Upload a video to LinkedIn. Requires prior authorization via "agoras linkedin authorize".'
     )
     _add_video_options(video)
 
     # Like action
     like = actions.add_parser(
-        'like',
-        help='Like a LinkedIn post. Requires prior authorization via "agoras linkedin authorize".'
+        "like", help='Like a LinkedIn post. Requires prior authorization via "agoras linkedin authorize".'
     )
     _add_post_id_option(like)
 
     # Share action
     share = actions.add_parser(
-        'share',
-        help='Share a LinkedIn post. Requires prior authorization via "agoras linkedin authorize".'
+        "share", help='Share a LinkedIn post. Requires prior authorization via "agoras linkedin authorize".'
     )
     _add_post_id_option(share)
 
     # Delete action
     delete = actions.add_parser(
-        'delete',
-        help='Delete a LinkedIn post. Requires prior authorization via "agoras linkedin authorize".'
+        "delete", help='Delete a LinkedIn post. Requires prior authorization via "agoras linkedin authorize".'
     )
     _add_post_id_option(delete)
 
@@ -107,32 +96,16 @@ def _add_linkedin_authorize_options(parser: ArgumentParser):
         parser: ArgumentParser to add options to
     """
     auth = parser.add_argument_group(
-        'LinkedIn OAuth Credentials',
-        'Get these from https://www.linkedin.com/developers/apps'
+        "LinkedIn OAuth Credentials", "Get these from https://www.linkedin.com/developers/apps"
     )
-    auth.add_argument(
-        '--client-id',
-        required=True,
-        metavar='<id>',
-        help='LinkedIn App client ID'
-    )
-    auth.add_argument(
-        '--client-secret',
-        required=True,
-        metavar='<secret>',
-        help='LinkedIn App client secret'
-    )
-    auth.add_argument(
-        '--object-id',
-        required=True,
-        metavar='<id>',
-        help='LinkedIn user/organization ID'
-    )
+    auth.add_argument("--client-id", required=True, metavar="<id>", help="LinkedIn App client ID")
+    auth.add_argument("--client-secret", required=True, metavar="<secret>", help="LinkedIn App client secret")
+    auth.add_argument("--object-id", required=True, metavar="<id>", help="LinkedIn user/organization ID")
 
 
 def _add_video_options(parser: ArgumentParser):
     """Add video-specific options for LinkedIn."""
-    add_video_options(parser, platform='linkedin')
+    add_video_options(parser, platform="linkedin")
 
 
 def _add_post_id_option(parser: ArgumentParser):
@@ -142,12 +115,7 @@ def _add_post_id_option(parser: ArgumentParser):
     Args:
         parser: ArgumentParser to add options to
     """
-    parser.add_argument(
-        '--post-id',
-        required=True,
-        metavar='<id>',
-        help='LinkedIn post ID to interact with'
-    )
+    parser.add_argument("--post-id", required=True, metavar="<id>", help="LinkedIn post ID to interact with")
 
 
 def _handle_linkedin_command(args: Namespace):
@@ -161,10 +129,10 @@ def _handle_linkedin_command(args: Namespace):
         Exit status from core execution
     """
     # Validate action
-    ActionValidator.validate('linkedin', args.action)
+    ActionValidator.validate("linkedin", args.action)
 
     # Convert new args to legacy format
-    converter = ParameterConverter('linkedin')
+    converter = ParameterConverter("linkedin")
     legacy_args = converter.convert_to_legacy(args)
 
     # Call core LinkedIn module

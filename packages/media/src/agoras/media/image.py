@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.media.image module."""
 
 from typing import Optional
 
@@ -32,15 +33,16 @@ class Image(Media):
     Handles downloading, validation, and processing of image files.
     """
 
-    def __init__(self, url, platform: str = 'generic',
-                 constraints: Optional[MediaConstraints] = None):
+    def __init__(self, url, platform: str = "generic", constraints: Optional[MediaConstraints] = None):
+        """Initialize an image media handler for the given URL and platform."""
         super().__init__(url)
         self.platform_key = resolve_platform(platform)
         self.constraints = constraints or image_limits(self.platform_key)
-        self.media_kind = 'image'
+        self.media_kind = "image"
 
     @property
     def allowed_types(self):
+        """Return allowed MIME types for the configured platform."""
         return list(self.constraints.mime_types)
 
     def get_dimensions(self):
@@ -63,9 +65,7 @@ class Image(Media):
         file_size = self.get_file_size()
         if limits.max_bytes is not None and file_size > limits.max_bytes:
             self.cleanup()
-            raise MediaValidationError(
-                self.platform_key, self.media_kind, 'max_bytes', file_size, limits.max_bytes
-            )
+            raise MediaValidationError(self.platform_key, self.media_kind, "max_bytes", file_size, limits.max_bytes)
 
         dimensions = self.get_dimensions()
         if dimensions:
@@ -73,12 +73,18 @@ class Image(Media):
             if limits.max_width is not None and width > limits.max_width:
                 self.cleanup()
                 raise MediaValidationError(
-                    self.platform_key, self.media_kind, 'max_width',
-                    f'{width}x{height}', limits.max_width,
+                    self.platform_key,
+                    self.media_kind,
+                    "max_width",
+                    f"{width}x{height}",
+                    limits.max_width,
                 )
             if limits.max_height is not None and height > limits.max_height:
                 self.cleanup()
                 raise MediaValidationError(
-                    self.platform_key, self.media_kind, 'max_height',
-                    f'{width}x{height}', limits.max_height,
+                    self.platform_key,
+                    self.media_kind,
+                    "max_height",
+                    f"{width}x{height}",
+                    limits.max_height,
                 )

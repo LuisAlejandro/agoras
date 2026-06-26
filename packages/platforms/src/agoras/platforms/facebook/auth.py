@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.facebook.auth module."""
 
 import asyncio
 import secrets
@@ -33,8 +34,7 @@ from .client import FacebookAPIClient
 class FacebookAuthManager(BaseAuthManager):
     """Facebook authentication manager using Authlib OAuth2Session with Facebook compliance fixes."""
 
-    def __init__(self, user_id: str, client_id: str, client_secret: str,
-                 refresh_token: Optional[str] = None):
+    def __init__(self, user_id: str, client_id: str, client_secret: str, refresh_token: Optional[str] = None):
         """Initialize Facebook authentication manager."""
         super().__init__()
         self.user_id = user_id
@@ -65,7 +65,7 @@ class FacebookAuthManager(BaseAuthManager):
                 client_id=self.client_id,
                 client_secret=self.client_secret,
                 scope="email,public_profile,pages_manage_posts,pages_read_engagement,user_posts",
-                redirect_uri="https://localhost:3456/callback"
+                redirect_uri="https://localhost:3456/callback",
             )
 
         try:
@@ -74,14 +74,14 @@ class FacebookAuthManager(BaseAuthManager):
         except Exception:
             return False
 
-        if 'access_token' not in token_data:
+        if "access_token" not in token_data:
             return False
 
-        self.access_token = token_data['access_token']
+        self.access_token = token_data["access_token"]
 
         # Update refresh token if new one provided
-        if token_data.get('refresh_token') and token_data['refresh_token'] != self.refresh_token:
-            self.refresh_token = token_data['refresh_token']
+        if token_data.get("refresh_token") and token_data["refresh_token"] != self.refresh_token:
+            self.refresh_token = token_data["refresh_token"]
             self._save_credentials_to_storage()
 
         # Create client and get user info
@@ -109,7 +109,7 @@ class FacebookAuthManager(BaseAuthManager):
             str or None: The refresh token if successful, None if failed
         """
         if not self._validate_credentials():
-            raise Exception('Facebook credentials are required for authorization.')
+            raise Exception("Facebook credentials are required for authorization.")
 
         # Interactive mode with callback server
         return await self._authorize_interactive()
@@ -135,7 +135,7 @@ class FacebookAuthManager(BaseAuthManager):
                     client_id=self.client_id,
                     client_secret=self.client_secret,
                     scope="email,public_profile,pages_manage_posts,pages_read_engagement",
-                    redirect_uri=redirect_uri
+                    redirect_uri=redirect_uri,
                 )
             else:
                 # Update OAuth session redirect URI
@@ -143,8 +143,7 @@ class FacebookAuthManager(BaseAuthManager):
 
             # Create authorization URL with state
             authorization_url, _ = self.oauth_session.create_authorization_url(
-                'https://www.facebook.com/v21.0/dialog/oauth',
-                state=state
+                "https://www.facebook.com/v21.0/dialog/oauth", state=state
             )
 
             print("Opening browser for Facebook authorization...", file=sys.stderr)
@@ -156,14 +155,15 @@ class FacebookAuthManager(BaseAuthManager):
 
             # Exchange authorization code for tokens
             def _sync_exchange():
-                token = self.oauth_session.fetch_token(
-                    'https://graph.facebook.com/v21.0/oauth/access_token',
-                    code=auth_code,
-                    redirect_uri=redirect_uri
+                oauth_session = self.oauth_session
+                if not oauth_session:
+                    raise Exception("OAuth session not initialized")
+                token = oauth_session.fetch_token(
+                    "https://graph.facebook.com/v21.0/oauth/access_token", code=auth_code, redirect_uri=redirect_uri
                 )
 
                 # Exchange short-lived token for long-lived token
-                long_lived_token = self._exchange_for_long_lived_token(token['access_token'])
+                long_lived_token = self._exchange_for_long_lived_token(token["access_token"])
 
                 # Save the long-lived token as refresh token
                 self.refresh_token = long_lived_token
@@ -178,35 +178,43 @@ class FacebookAuthManager(BaseAuthManager):
 
     def _exchange_for_long_lived_token(self, short_lived_token: str) -> str:
         """Exchange short-lived token for long-lived token using authlib."""
+        oauth_session = self.oauth_session
+        if not oauth_session:
+            raise Exception("OAuth session not initialized")
         try:
             # Use authlib's fetch_token with custom grant type and parameters
-            token_data = self.oauth_session.fetch_token(
-                url='https://graph.facebook.com/v21.0/oauth/access_token',
-                grant_type='fb_exchange_token',
-                fb_exchange_token=short_lived_token
+            token_data = oauth_session.fetch_token(
+                url="https://graph.facebook.com/v21.0/oauth/access_token",
+                grant_type="fb_exchange_token",
+                fb_exchange_token=short_lived_token,
             )
 
-            return token_data.get('access_token')
+            access_token = token_data.get("access_token")
+            if not access_token:
+                raise Exception("Long-lived token exchange did not return an access token")
+            return access_token
         except Exception as e:
             raise Exception(f"Long-lived token exchange failed: {str(e)}")
 
     async def _refresh_access_token(self) -> dict:
         """
         Refresh Facebook access token using manual fb_exchange_token request.
+
         Facebook doesn't follow standard OAuth2 refresh_token flow.
         """
+
         def _sync_refresh():
             import requests
 
             # Facebook requires fb_exchange_token instead of standard refresh_token
             data = {
-                'grant_type': 'fb_exchange_token',
-                'client_id': self.client_id,
-                'client_secret': self.client_secret,
-                'fb_exchange_token': self.refresh_token
+                "grant_type": "fb_exchange_token",
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
+                "fb_exchange_token": self.refresh_token,
             }
 
-            response = requests.post('https://graph.facebook.com/v21.0/oauth/access_token', data=data)
+            response = requests.post("https://graph.facebook.com/v21.0/oauth/access_token", data=data, timeout=30)
             response.raise_for_status()
 
             return response.json()
@@ -220,13 +228,13 @@ class FacebookAuthManager(BaseAuthManager):
     async def _get_user_info(self) -> dict:
         """Get user information from Facebook API."""
         if not self.client:
-            raise Exception('No client available')
+            raise Exception("No client available")
 
         def _sync_get_info():
             if not self.client:
-                raise Exception('No client available')
+                raise Exception("No client available")
 
-            user_data = self.client.get_object(object_id='me', fields='id,name')
+            user_data = self.client.get_object(object_id="me", fields="id,name")
 
             # For Facebook, user_id is the object_id (page/user to post to),
             # not necessarily the authenticated user's personal ID
@@ -243,11 +251,11 @@ class FacebookAuthManager(BaseAuthManager):
 
     def _get_platform_name(self) -> str:
         """Get the platform name for this auth manager."""
-        return 'facebook'
+        return "facebook"
 
     def _get_token_identifier(self) -> str:
         """Get unique identifier for token storage."""
-        return self.user_id
+        return self.user_id or "default"
 
     def _save_credentials_to_storage(self):
         """Save all Facebook credentials to secure storage."""
@@ -255,10 +263,10 @@ class FacebookAuthManager(BaseAuthManager):
         identifier = self._get_token_identifier()
 
         token_data = {
-            'user_id': self.user_id,
-            'client_id': self.client_id,
-            'client_secret': self.client_secret,
-            'refresh_token': self.refresh_token
+            "user_id": self.user_id,
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "refresh_token": self.refresh_token,
         }
 
         self.token_storage.save_token(platform_name, identifier, token_data)
@@ -283,13 +291,13 @@ class FacebookAuthManager(BaseAuthManager):
         if token_data:
             # Only update if not already set (allow override from constructor)
             if not self.user_id:
-                self.user_id = token_data.get('user_id')
+                self.user_id = token_data.get("user_id")
             if not self.client_id:
-                self.client_id = token_data.get('client_id')
+                self.client_id = token_data.get("client_id")
             if not self.client_secret:
-                self.client_secret = token_data.get('client_secret')
+                self.client_secret = token_data.get("client_secret")
             if not self.refresh_token:
-                self.refresh_token = token_data.get('refresh_token')
+                self.refresh_token = token_data.get("refresh_token")
 
             return bool(all([self.user_id, self.client_id, self.client_secret, self.refresh_token]))
 

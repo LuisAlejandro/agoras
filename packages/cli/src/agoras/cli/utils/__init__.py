@@ -40,16 +40,9 @@ def create_utils_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     Returns:
         ArgumentParser for utils commands
     """
-    parser = subparsers.add_parser(
-        'utils',
-        help='Cross-platform automation and utility commands'
-    )
+    parser = subparsers.add_parser("utils", help="Cross-platform automation and utility commands")
 
-    utils_subparsers = parser.add_subparsers(
-        dest='utils_command',
-        title='Utility Commands',
-        required=True
-    )
+    utils_subparsers = parser.add_subparsers(dest="utils_command", title="Utility Commands", required=True)
 
     # Add subcommands
     create_feed_publish_parser(utils_subparsers)

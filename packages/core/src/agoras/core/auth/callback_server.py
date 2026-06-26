@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.core.auth.callback_server module."""
 
 import asyncio
 import ipaddress
@@ -25,7 +26,7 @@ import tempfile
 import time
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Optional
+from typing import Optional, cast
 from urllib.parse import parse_qs, urlparse
 
 try:
@@ -33,9 +34,29 @@ try:
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import rsa
     from cryptography.x509.oid import NameOID
+
     CRYPTOGRAPHY_AVAILABLE = True
 except ImportError:
     CRYPTOGRAPHY_AVAILABLE = False
+
+
+class OAuthHTTPServer(HTTPServer):
+    """HTTPServer subclass that stores OAuth callback state."""
+
+    expected_state: Optional[str]
+    auth_code: Optional[str]
+    callback_url: Optional[str]
+    oauth_version: Optional[str]
+    error: Optional[str]
+
+    def __init__(self, server_address, RequestHandlerClass):
+        """Initialize OAuth callback state on the HTTP server."""
+        super().__init__(server_address, RequestHandlerClass)
+        self.expected_state = None
+        self.auth_code = None
+        self.callback_url = None
+        self.oauth_version = None
+        self.error = None
 
 
 class OAuthCallbackHandler(BaseHTTPRequestHandler):
@@ -46,64 +67,65 @@ class OAuthCallbackHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         """Handle GET request from OAuth callback."""
+        server = cast(OAuthHTTPServer, self.server)
         try:
             # Parse the callback URL
             parsed_url = urlparse(self.path)
             params = parse_qs(parsed_url.query)
 
             # Check for authorization code (OAuth 2.0)
-            if 'code' in params:
-                code = params['code'][0]
-                state = params.get('state', [None])[0]
+            if "code" in params:
+                code = params["code"][0]
+                state = params.get("state", [None])[0]
 
                 # Validate state if expected_state is set
-                if hasattr(self.server, 'expected_state') and self.server.expected_state:
-                    if state != self.server.expected_state:
-                        self.server.error = 'State mismatch - possible CSRF attack'
-                        self._send_error_response('Authorization failed: State validation error')
+                if hasattr(server, "expected_state") and server.expected_state:
+                    if state != server.expected_state:
+                        server.error = "State mismatch - possible CSRF attack"
+                        self._send_error_response("Authorization failed: State validation error")
                         return
 
                 # Store the authorization code
-                self.server.auth_code = code
-                self.server.oauth_version = '2.0'
+                server.auth_code = code
+                server.oauth_version = "2.0"
                 self._send_success_response()
 
             # Check for OAuth 1.0a callback
-            elif 'oauth_token' in params and 'oauth_verifier' in params:
+            elif "oauth_token" in params and "oauth_verifier" in params:
                 # Store the full callback URL for OAuth 1.0a parsing
-                self.server.callback_url = self.path  # Full path with query string
-                self.server.oauth_version = '1.0a'
+                server.callback_url = self.path  # Full path with query string
+                server.oauth_version = "1.0a"
                 self._send_success_response()
 
             # Check for OAuth 1.0a denial
-            elif 'denied' in params:
-                self.server.error = 'User denied authorization'
-                self.server.oauth_version = '1.0a'
-                self._send_error_response('Authorization denied by user')
+            elif "denied" in params:
+                server.error = "User denied authorization"
+                server.oauth_version = "1.0a"
+                self._send_error_response("Authorization denied by user")
 
             # Check for OAuth 1.0a errors
-            elif 'oauth_problem' in params:
-                oauth_problem = params['oauth_problem'][0]
-                self.server.error = f'OAuth 1.0a error: {oauth_problem}'
-                self.server.oauth_version = '1.0a'
-                self._send_error_response(f'Authorization failed: {oauth_problem}')
+            elif "oauth_problem" in params:
+                oauth_problem = params["oauth_problem"][0]
+                server.error = f"OAuth 1.0a error: {oauth_problem}"
+                server.oauth_version = "1.0a"
+                self._send_error_response(f"Authorization failed: {oauth_problem}")
 
-            elif 'error' in params:
+            elif "error" in params:
                 # OAuth error from provider
-                error = params['error'][0]
-                error_description = params.get('error_description', [''])[0]
-                self.server.error = f"{error}: {error_description}"
-                self._send_error_response(f'Authorization failed: {error}')
+                error = params["error"][0]
+                error_description = params.get("error_description", [""])[0]
+                server.error = f"{error}: {error_description}"
+                self._send_error_response(f"Authorization failed: {error}")
 
             else:
                 # Unknown callback format
-                self.server.error = 'Invalid callback URL'
-                self._send_error_response('Invalid callback URL')
+                server.error = "Invalid callback URL"
+                self._send_error_response("Invalid callback URL")
         except Exception as e:
             # Catch any exceptions to prevent connection reset
-            self.server.error = f'Handler error: {str(e)}'
+            server.error = f"Handler error: {str(e)}"
             try:
-                self._send_error_response(f'Server error: {str(e)}')
+                self._send_error_response(f"Server error: {str(e)}")
             except Exception:
                 # If we can't send error response, at least log it
                 pass
@@ -111,8 +133,8 @@ class OAuthCallbackHandler(BaseHTTPRequestHandler):
     def _send_success_response(self):
         """Send success HTML response to user."""
         self.send_response(200)
-        self.send_header('Content-type', 'text/html')
-        self.send_header('Connection', 'close')
+        self.send_header("Content-type", "text/html")
+        self.send_header("Connection", "close")
         self.end_headers()
 
         html = """
@@ -195,8 +217,8 @@ class OAuthCallbackHandler(BaseHTTPRequestHandler):
     def _send_error_response(self, message: str):
         """Send error HTML response to user."""
         self.send_response(400)
-        self.send_header('Content-type', 'text/html')
-        self.send_header('Connection', 'close')
+        self.send_header("Content-type", "text/html")
+        self.send_header("Connection", "close")
         self.end_headers()
 
         html = """
@@ -276,10 +298,11 @@ class OAuthCallbackHandler(BaseHTTPRequestHandler):
         self.wfile.flush()
 
 
-class SSLHTTPServer(HTTPServer):
+class SSLHTTPServer(OAuthHTTPServer):
     """HTTPS server with SSL support."""
 
     def __init__(self, server_address, RequestHandlerClass, ssl_context):
+        """Initialize the SSL-enabled OAuth callback server."""
         super().__init__(server_address, RequestHandlerClass)
         self.ssl_context = ssl_context
 
@@ -290,10 +313,7 @@ class SSLHTTPServer(HTTPServer):
             # Wrap socket but don't do handshake immediately
             # This allows the browser to show the security warning first
             ssl_conn = self.ssl_context.wrap_socket(
-                conn,
-                server_side=True,
-                do_handshake_on_connect=False,
-                suppress_ragged_eofs=True
+                conn, server_side=True, do_handshake_on_connect=False, suppress_ragged_eofs=True
             )
             # Perform handshake - this may fail if browser rejects cert
             # but we'll let it try and the browser will show the warning
@@ -303,7 +323,7 @@ class SSLHTTPServer(HTTPServer):
                 # If handshake fails due to certificate rejection, close and let browser retry
                 # The browser will show the security warning and user can accept
                 error_msg = str(e)
-                if 'CERTIFICATE' in error_msg.upper() or 'alert' in error_msg.lower():
+                if "CERTIFICATE" in error_msg.upper() or "alert" in error_msg.lower():
                     # Browser rejected cert - it will show warning and user can accept
                     # Close this connection and wait for browser to retry after user accepts
                     conn.close()
@@ -320,6 +340,7 @@ class SSLHTTPServer(HTTPServer):
         except Exception as e:
             conn.close()
             import sys
+
             print(f"Connection error from {addr}: {e}", file=sys.stderr, flush=True)
             raise
 
@@ -337,8 +358,7 @@ class OAuthCallbackServer:
     which is required by OAuth providers (e.g., Facebook/Instagram).
     """
 
-    def __init__(self, expected_state: Optional[str] = None, port: Optional[int] = None,
-                 oauth_version: str = '2.0'):
+    def __init__(self, expected_state: Optional[str] = None, port: Optional[int] = None, oauth_version: str = "2.0"):
         """
         Initialize OAuth callback server.
 
@@ -348,7 +368,7 @@ class OAuthCallbackServer:
             oauth_version (str): OAuth version ('2.0' or '1.0a'), defaults to '2.0'
         """
         self.expected_state = expected_state
-        self.server: Optional[HTTPServer] = None
+        self.server: Optional[SSLHTTPServer] = None
         self.port: Optional[int] = port
         self.oauth_version = oauth_version
         self._cert_file: Optional[str] = None
@@ -366,7 +386,7 @@ class OAuthCallbackServer:
             # Check if port is available
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 try:
-                    s.bind(('localhost', self.port))
+                    s.bind(("localhost", self.port))
                     s.listen(1)
                     return self.port
                 except OSError:
@@ -375,7 +395,7 @@ class OAuthCallbackServer:
 
         # Let the OS assign an available port
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(('localhost', 0))
+            s.bind(("localhost", 0))
             s.listen(1)
             port = s.getsockname()[1]
         return port
@@ -389,8 +409,7 @@ class OAuthCallbackServer:
         """
         if not CRYPTOGRAPHY_AVAILABLE:
             raise Exception(
-                "cryptography library is required for HTTPS support. "
-                "Please install it: pip install cryptography"
+                "cryptography library is required for HTTPS support. Please install it: pip install cryptography"
             )
 
         # Generate private key
@@ -400,47 +419,53 @@ class OAuthCallbackServer:
         )
 
         # Create certificate
-        subject = issuer = x509.Name([
-            x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
-            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "Local"),
-            x509.NameAttribute(NameOID.LOCALITY_NAME, "Local"),
-            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Agoras"),
-            x509.NameAttribute(NameOID.COMMON_NAME, "localhost"),
-        ])
+        subject = issuer = x509.Name(
+            [
+                x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
+                x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "Local"),
+                x509.NameAttribute(NameOID.LOCALITY_NAME, "Local"),
+                x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Agoras"),
+                x509.NameAttribute(NameOID.COMMON_NAME, "localhost"),
+            ]
+        )
 
         now = datetime.utcnow()
-        cert = x509.CertificateBuilder().subject_name(
-            subject
-        ).issuer_name(
-            issuer
-        ).public_key(
-            private_key.public_key()
-        ).serial_number(
-            x509.random_serial_number()
-        ).add_extension(
-            x509.SubjectAlternativeName([
-                x509.DNSName("localhost"),
-                x509.DNSName("*.localhost"),
-                x509.IPAddress(ipaddress.IPv4Address("127.0.0.1")),
-                x509.IPAddress(ipaddress.IPv6Address("::1")),
-            ]),
-            critical=False,
-        ).not_valid_before(
-            now
-        ).not_valid_after(
-            now + timedelta(days=365)  # 1 year
-        ).sign(private_key, hashes.SHA256())
+        cert = (
+            x509.CertificateBuilder()
+            .subject_name(subject)
+            .issuer_name(issuer)
+            .public_key(private_key.public_key())
+            .serial_number(x509.random_serial_number())
+            .add_extension(
+                x509.SubjectAlternativeName(
+                    [
+                        x509.DNSName("localhost"),
+                        x509.DNSName("*.localhost"),
+                        x509.IPAddress(ipaddress.IPv4Address("127.0.0.1")),
+                        x509.IPAddress(ipaddress.IPv6Address("::1")),
+                    ]
+                ),
+                critical=False,
+            )
+            .not_valid_before(now)
+            .not_valid_after(
+                now + timedelta(days=365)  # 1 year
+            )
+            .sign(private_key, hashes.SHA256())
+        )
 
         # Write to temporary files
-        cert_file = tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.pem')
-        key_file = tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.pem')
+        cert_file = tempfile.NamedTemporaryFile(mode="wb", delete=False, suffix=".pem")
+        key_file = tempfile.NamedTemporaryFile(mode="wb", delete=False, suffix=".pem")
 
         cert_file.write(cert.public_bytes(serialization.Encoding.PEM))
-        key_file.write(private_key.private_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PrivateFormat.PKCS8,
-            encryption_algorithm=serialization.NoEncryption()
-        ))
+        key_file.write(
+            private_key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption(),
+            )
+        )
 
         cert_file.close()
         key_file.close()
@@ -488,7 +513,7 @@ class OAuthCallbackServer:
         ssl_context.verify_mode = ssl.CERT_NONE
 
         # Create server with SSL support
-        self.server = SSLHTTPServer(('localhost', self.port), OAuthCallbackHandler, ssl_context)
+        self.server = SSLHTTPServer(("localhost", self.port), OAuthCallbackHandler, ssl_context)
 
         self.server.expected_state = self.expected_state
         self.server.auth_code = None
@@ -528,17 +553,21 @@ class OAuthCallbackServer:
 
     async def _handle_request_with_timeout(self, start_time: float, timeout: int):
         """Handle a single request with timeout."""
+        if self.server is None:
+            return
         elapsed = time.time() - start_time
         remaining_timeout = timeout - elapsed
 
         await asyncio.wait_for(
             asyncio.to_thread(self.server.handle_request),
-            timeout=min(remaining_timeout, 10)  # Check every 10 seconds
+            timeout=min(remaining_timeout, 10),  # Check every 10 seconds
         )
 
     def _has_callback_result(self) -> bool:
         """Check if we have received a callback result."""
-        return self.server.auth_code or self.server.callback_url or self.server.error
+        if self.server is None:
+            return False
+        return bool(self.server.auth_code or self.server.callback_url or self.server.error)
 
     def _handle_connection_error(self, error: Exception):
         """Handle connection errors during callback waiting."""
@@ -548,13 +577,12 @@ class OAuthCallbackServer:
             return
 
         import sys
+
         print(f"Connection attempt failed: {error}", file=sys.stderr, flush=True)
 
     def _is_ssl_certificate_error(self, error_str: str) -> bool:
         """Check if error is related to SSL certificate issues."""
-        return ('SSL' in error_str or
-                'certificate' in error_str.lower() or
-                'alert' in error_str.lower())
+        return "SSL" in error_str or "certificate" in error_str.lower() or "alert" in error_str.lower()
 
     def _cleanup(self):
         """Clean up server and certificate files."""
@@ -567,10 +595,13 @@ class OAuthCallbackServer:
 
     def _get_result(self) -> str:
         """Get the authorization result."""
+        if self.server is None:
+            raise Exception("Authorization failed: callback server not initialized")
+
         if self.server.error:
             raise Exception(f"Authorization failed: {self.server.error}")
 
-        if self.server.oauth_version == '1.0a':
+        if self.server.oauth_version == "1.0a":
             if self.server.callback_url:
                 return self.server.callback_url
             raise Exception("No callback URL received")

@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.linkedin.auth module."""
 
 import asyncio
 import secrets
@@ -33,8 +34,7 @@ from .client import LinkedInAPIClient
 class LinkedInAuthManager(BaseAuthManager):
     """LinkedIn authentication manager using Authlib OAuth2Session for OAuth 2.0."""
 
-    def __init__(self, user_id: str, client_id: str, client_secret: str,
-                 refresh_token: Optional[str] = None):
+    def __init__(self, user_id: str, client_id: str, client_secret: str, refresh_token: Optional[str] = None):
         """
         Initialize LinkedIn authentication manager.
 
@@ -56,7 +56,7 @@ class LinkedInAuthManager(BaseAuthManager):
             client_id=self.client_id,
             client_secret=self.client_secret,
             scope="openid profile email w_member_social",
-            redirect_uri="https://localhost:3456/callback"
+            redirect_uri="https://localhost:3456/callback",
         )
 
     async def authenticate(self) -> bool:
@@ -76,11 +76,11 @@ class LinkedInAuthManager(BaseAuthManager):
         try:
             # Refresh access token using authlib's built-in method
             token_data = await self._refresh_access_token_with_authlib()
-            self.access_token = token_data['access_token']
+            self.access_token = token_data["access_token"]
 
             # Update refresh token if new one provided
-            if token_data.get('refresh_token') and token_data['refresh_token'] != self.refresh_token:
-                self.refresh_token = token_data['refresh_token']
+            if token_data.get("refresh_token") and token_data["refresh_token"] != self.refresh_token:
+                self.refresh_token = token_data["refresh_token"]
                 # Save all credentials to storage
                 self._save_credentials_to_storage()
 
@@ -103,7 +103,7 @@ class LinkedInAuthManager(BaseAuthManager):
             str or None: The refresh token if successful, None if failed
         """
         if not self._validate_credentials():
-            raise Exception('LinkedIn credentials are required for authorization.')
+            raise Exception("LinkedIn credentials are required for authorization.")
 
         # Interactive mode with callback server
         return await self._authorize_interactive()
@@ -118,8 +118,7 @@ class LinkedInAuthManager(BaseAuthManager):
             self.oauth_session.redirect_uri = redirect_uri
 
             authorization_url, _ = self.oauth_session.create_authorization_url(
-                'https://www.linkedin.com/oauth/v2/authorization',
-                state=state
+                "https://www.linkedin.com/oauth/v2/authorization", state=state
             )
 
             print("Opening browser for LinkedIn authorization...", file=sys.stderr)
@@ -130,15 +129,15 @@ class LinkedInAuthManager(BaseAuthManager):
 
             def _sync_exchange():
                 token = self.oauth_session.fetch_token(
-                    'https://www.linkedin.com/oauth/v2/accessToken',
+                    "https://www.linkedin.com/oauth/v2/accessToken",
                     code=auth_code,
                     redirect_uri=redirect_uri,
-                    client_secret=self.client_secret
+                    client_secret=self.client_secret,
                 )
 
-                access_token = token.get('access_token')
+                access_token = token.get("access_token")
                 if access_token:
-                    refresh_token = token.get('refresh_token')
+                    refresh_token = token.get("refresh_token")
                     if refresh_token:
                         self.refresh_token = refresh_token
                     else:
@@ -146,7 +145,7 @@ class LinkedInAuthManager(BaseAuthManager):
                         self.refresh_token = access_token
 
                     return access_token
-                    raise Exception('No refresh token or access token in LinkedIn response')
+                    raise Exception("No refresh token or access token in LinkedIn response")
 
             access_token = await asyncio.to_thread(_sync_exchange)
             if access_token:
@@ -155,7 +154,7 @@ class LinkedInAuthManager(BaseAuthManager):
                 await temp_client.authenticate()  # Authenticate the client first
                 # Get the actual LinkedIn user ID from API
                 user_info = await temp_client.get_user_info()
-                api_user_id = user_info.get('sub', '')
+                api_user_id = user_info.get("sub", "")
                 if api_user_id:
                     # Update user_id to the API's user ID
                     self.user_id = api_user_id
@@ -170,23 +169,21 @@ class LinkedInAuthManager(BaseAuthManager):
     async def _refresh_access_token_with_authlib(self) -> dict:
         """
         Refresh LinkedIn access token using authlib's built-in method.
+
         LinkedIn uses standard OAuth2 refresh token flow.
         """
+
         def _sync_refresh():
             try:
                 # Try to refresh using refresh_token method
                 token_data = self.oauth_session.refresh_token(
-                    token_url='https://www.linkedin.com/oauth/v2/accessToken',
-                    refresh_token=self.refresh_token
+                    token_url="https://www.linkedin.com/oauth/v2/accessToken", refresh_token=self.refresh_token
                 )
                 return token_data
             except Exception:
                 # If refresh fails, the stored token might be an access token
                 # In this case, return it as-is (LinkedIn tokens can be long-lived)
-                return {
-                    'access_token': self.refresh_token,
-                    'token_type': 'bearer'
-                }
+                return {"access_token": self.refresh_token, "token_type": "bearer"}
 
         return await asyncio.to_thread(_sync_refresh)
 
@@ -197,7 +194,7 @@ class LinkedInAuthManager(BaseAuthManager):
     async def _get_user_info(self) -> dict:
         """Get user information from LinkedIn API."""
         if not self.client:
-            raise Exception('No client available')
+            raise Exception("No client available")
 
         # Authenticate the client first
         await self.client.authenticate()
@@ -207,23 +204,23 @@ class LinkedInAuthManager(BaseAuthManager):
             result = await self.client.get_user_info()
 
             # Extract object_id
-            object_id = result.get('sub', '')
+            object_id = result.get("sub", "")
             if not object_id:
-                raise Exception('Unable to get LinkedIn object ID from user info')
+                raise Exception("Unable to get LinkedIn object ID from user info")
 
             # Return enriched user data
             return {
-                'object_id': object_id,
-                'sub': object_id,
-                'name': result.get('name', ''),
-                'given_name': result.get('given_name', ''),
-                'family_name': result.get('family_name', ''),
-                'email': result.get('email', ''),
-                'picture': result.get('picture', ''),
-                'locale': result.get('locale', '')
+                "object_id": object_id,
+                "sub": object_id,
+                "name": result.get("name", ""),
+                "given_name": result.get("given_name", ""),
+                "family_name": result.get("family_name", ""),
+                "email": result.get("email", ""),
+                "picture": result.get("picture", ""),
+                "locale": result.get("locale", ""),
             }
         except Exception as e:
-            raise Exception(f'Failed to get LinkedIn user info: {str(e)}')
+            raise Exception(f"Failed to get LinkedIn user info: {str(e)}")
 
     def _validate_credentials(self) -> bool:
         """Validate that all required credentials are present."""
@@ -233,11 +230,11 @@ class LinkedInAuthManager(BaseAuthManager):
 
     def _get_platform_name(self) -> str:
         """Get the platform name for this auth manager."""
-        return 'linkedin'
+        return "linkedin"
 
     def _get_token_identifier(self) -> str:
         """Get unique identifier for token storage."""
-        return self.user_id
+        return self.user_id or "default"
 
     def _save_credentials_to_storage(self):
         """Save all LinkedIn credentials to secure storage."""
@@ -245,10 +242,10 @@ class LinkedInAuthManager(BaseAuthManager):
         identifier = self._get_token_identifier()
 
         token_data = {
-            'user_id': self.user_id,
-            'client_id': self.client_id,
-            'client_secret': self.client_secret,
-            'refresh_token': self.refresh_token
+            "user_id": self.user_id,
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "refresh_token": self.refresh_token,
         }
 
         self.token_storage.save_token(platform_name, identifier, token_data)
@@ -273,13 +270,13 @@ class LinkedInAuthManager(BaseAuthManager):
         if token_data:
             # Only update if not already set (allow override from constructor)
             if not self.user_id:
-                self.user_id = token_data.get('user_id')
+                self.user_id = token_data.get("user_id")
             if not self.client_id:
-                self.client_id = token_data.get('client_id')
+                self.client_id = token_data.get("client_id")
             if not self.client_secret:
-                self.client_secret = token_data.get('client_secret')
+                self.client_secret = token_data.get("client_secret")
             if not self.refresh_token:
-                self.refresh_token = token_data.get('refresh_token')
+                self.refresh_token = token_data.get("refresh_token")
 
             return bool(all([self.user_id, self.client_id, self.client_secret, self.refresh_token]))
 

@@ -28,76 +28,153 @@ from .converter import ParameterConverter
 
 # New-format parameter names to omit from platform action command suggestions.
 PLATFORM_ACTION_AUTH_PARAMS: Dict[str, FrozenSet[str]] = {
-    'x': frozenset({
-        'consumer_key', 'consumer_secret', 'oauth_token', 'oauth_secret',
-    }),
-    'twitter': frozenset({
-        'consumer_key', 'consumer_secret', 'oauth_token', 'oauth_secret',
-    }),
-    'discord': frozenset({
-        'bot_token', 'server_name', 'channel_name',
-    }),
-    'telegram': frozenset({
-        'bot_token', 'chat_id',
-    }),
-    'whatsapp': frozenset({
-        'access_token', 'phone_number_id', 'business_account_id',
-    }),
-    'facebook': frozenset({
-        'client_id', 'client_secret', 'app_id', 'object_id', 'profile_id',
-        'refresh_token', 'facebook_access_token',
-    }),
-    'instagram': frozenset({
-        'client_id', 'client_secret', 'object_id', 'instagram_access_token',
-    }),
-    'linkedin': frozenset({
-        'client_id', 'client_secret', 'object_id', 'linkedin_access_token',
-    }),
-    'youtube': frozenset({
-        'client_id', 'client_secret', 'refresh_token',
-    }),
-    'tiktok': frozenset({
-        'client_key', 'client_secret', 'username',
-        'access_token', 'refresh_token',
-        'tiktok_access_token', 'tiktok_refresh_token',
-    }),
-    'threads': frozenset({
-        'app_id', 'app_secret', 'threads_access_token',
-    }),
+    "x": frozenset(
+        {
+            "consumer_key",
+            "consumer_secret",
+            "oauth_token",
+            "oauth_secret",
+        }
+    ),
+    "twitter": frozenset(
+        {
+            "consumer_key",
+            "consumer_secret",
+            "oauth_token",
+            "oauth_secret",
+        }
+    ),
+    "discord": frozenset(
+        {
+            "bot_token",
+            "server_name",
+            "channel_name",
+        }
+    ),
+    "telegram": frozenset(
+        {
+            "bot_token",
+            "chat_id",
+        }
+    ),
+    "whatsapp": frozenset(
+        {
+            "access_token",
+            "phone_number_id",
+            "business_account_id",
+        }
+    ),
+    "facebook": frozenset(
+        {
+            "client_id",
+            "client_secret",
+            "app_id",
+            "object_id",
+            "profile_id",
+            "refresh_token",
+            "facebook_access_token",
+        }
+    ),
+    "instagram": frozenset(
+        {
+            "client_id",
+            "client_secret",
+            "object_id",
+            "instagram_access_token",
+        }
+    ),
+    "linkedin": frozenset(
+        {
+            "client_id",
+            "client_secret",
+            "object_id",
+            "linkedin_access_token",
+        }
+    ),
+    "youtube": frozenset(
+        {
+            "client_id",
+            "client_secret",
+            "refresh_token",
+        }
+    ),
+    "tiktok": frozenset(
+        {
+            "client_key",
+            "client_secret",
+            "username",
+            "access_token",
+            "refresh_token",
+            "tiktok_access_token",
+            "tiktok_refresh_token",
+        }
+    ),
+    "threads": frozenset(
+        {
+            "app_id",
+            "app_secret",
+            "threads_access_token",
+        }
+    ),
 }
 
-UTILS_ACTIONS = frozenset({'last-from-feed', 'random-from-feed', 'schedule'})
-AUTHORIZE_ACTION = 'authorize'
+UTILS_ACTIONS = frozenset({"last-from-feed", "random-from-feed", "schedule"})
+AUTHORIZE_ACTION = "authorize"
 
 # Legacy publish dest names omitted from utils command suggestions (not whatsapp_recipient).
-UTILS_ACTION_AUTH_PARAMS: FrozenSet[str] = frozenset({
-    'x_consumer_key', 'x_consumer_secret', 'x_oauth_token', 'x_oauth_secret',
-    'twitter_consumer_key', 'twitter_consumer_secret',
-    'twitter_oauth_token', 'twitter_oauth_secret',
-    'facebook_access_token', 'facebook_object_id', 'facebook_app_id',
-    'instagram_access_token', 'instagram_object_id',
-    'instagram_client_id', 'instagram_client_secret',
-    'linkedin_access_token', 'linkedin_client_id', 'linkedin_client_secret',
-    'discord_bot_token', 'discord_server_name', 'discord_channel_name',
-    'youtube_client_id', 'youtube_client_secret',
-    'tiktok_client_key', 'tiktok_client_secret', 'tiktok_access_token',
-    'tiktok_refresh_token', 'tiktok_username',
-    'threads_app_id', 'threads_app_secret', 'threads_refresh_token',
-    'telegram_bot_token', 'telegram_chat_id',
-    'whatsapp_access_token', 'whatsapp_phone_number_id',
-    'whatsapp_business_account_id',
-})
+UTILS_ACTION_AUTH_PARAMS: FrozenSet[str] = frozenset(
+    {
+        "x_consumer_key",
+        "x_consumer_secret",
+        "x_oauth_token",
+        "x_oauth_secret",
+        "twitter_consumer_key",
+        "twitter_consumer_secret",
+        "twitter_oauth_token",
+        "twitter_oauth_secret",
+        "facebook_access_token",
+        "facebook_object_id",
+        "facebook_app_id",
+        "instagram_access_token",
+        "instagram_object_id",
+        "instagram_client_id",
+        "instagram_client_secret",
+        "linkedin_access_token",
+        "linkedin_client_id",
+        "linkedin_client_secret",
+        "discord_bot_token",
+        "discord_server_name",
+        "discord_channel_name",
+        "youtube_client_id",
+        "youtube_client_secret",
+        "tiktok_client_key",
+        "tiktok_client_secret",
+        "tiktok_access_token",
+        "tiktok_refresh_token",
+        "tiktok_username",
+        "threads_app_id",
+        "threads_app_secret",
+        "threads_refresh_token",
+        "telegram_bot_token",
+        "telegram_chat_id",
+        "whatsapp_access_token",
+        "whatsapp_phone_number_id",
+        "whatsapp_business_account_id",
+    }
+)
 
 # Sensitive Sheets fields omitted from utils migration suggestions (routing IDs may remain).
-UTILS_ACTION_SHEETS_SECRET_PARAMS: FrozenSet[str] = frozenset({
-    'google_sheets_client_email',
-    'google_sheets_private_key',
-})
+UTILS_ACTION_SHEETS_SECRET_PARAMS: FrozenSet[str] = frozenset(
+    {
+        "google_sheets_client_email",
+        "google_sheets_private_key",
+    }
+)
 
 # Content params valid only on specific platform actions (new-format keys).
 PLATFORM_ACTION_CONTENT_PARAMS: Dict[str, Dict[str, FrozenSet[str]]] = {
-    'telegram': {
-        'parse_mode': frozenset({'post', 'video'}),
+    "telegram": {
+        "parse_mode": frozenset({"post", "video"}),
     },
 }
 
@@ -115,16 +192,16 @@ def suggest_new_command(network: str, action: str, args_dict: Dict[str, Any]) ->
         String with the new command format
     """
     # Determine command type based on action
-    if action in ['last-from-feed', 'random-from-feed']:
-        mode = 'last' if action == 'last-from-feed' else 'random'
-        new_base = f'agoras utils feed-publish --network {network} --mode {mode}'
-    elif action == 'schedule':
+    if action in ["last-from-feed", "random-from-feed"]:
+        mode = "last" if action == "last-from-feed" else "random"
+        new_base = f"agoras utils feed-publish --network {network} --mode {mode}"
+    elif action == "schedule":
         if network:
-            new_base = f'agoras utils schedule-run --network {network}'
+            new_base = f"agoras utils schedule-run --network {network}"
         else:
-            new_base = 'agoras utils schedule-run --network <platform>'
+            new_base = "agoras utils schedule-run --network <platform>"
     else:
-        new_base = f'agoras {network} {action}'
+        new_base = f"agoras {network} {action}"
 
     # Convert parameters to new format
     new_params = convert_legacy_params_to_new_format(network, action, args_dict)
@@ -135,8 +212,7 @@ def suggest_new_command(network: str, action: str, args_dict: Dict[str, Any]) ->
         return new_base
 
 
-def convert_legacy_params_to_new_format(network: str, action: str,
-                                        args_dict: Dict[str, Any]) -> str:
+def convert_legacy_params_to_new_format(network: str, action: str, args_dict: Dict[str, Any]) -> str:
     """
     Convert legacy parameter names to new format for command suggestion.
 
@@ -150,18 +226,23 @@ def convert_legacy_params_to_new_format(network: str, action: str,
     """
     # Parameters to skip in suggestions
     skip_params = {
-        'network', 'action', 'command', 'handler', 'loglevel',
-        'show_migration',  # Don't include migration flag
+        "network",
+        "action",
+        "command",
+        "handler",
+        "loglevel",
+        "show_migration",  # Don't include migration flag
         # Default values that shouldn't appear
-        'youtube_privacy_status', 'tiktok_privacy_status',
-        'privacy',  # Skip privacy if it's a default value
+        "youtube_privacy_status",
+        "tiktok_privacy_status",
+        "privacy",  # Skip privacy if it's a default value
     }
 
     # Default values to skip
     default_values = {
-        'privacy': 'private',
-        'youtube_privacy_status': 'private',
-        'tiktok_privacy_status': 'SELF_ONLY',
+        "privacy": "private",
+        "youtube_privacy_status": "private",
+        "tiktok_privacy_status": "SELF_ONLY",
     }
 
     converter = ParameterConverter(network)
@@ -173,7 +254,7 @@ def convert_legacy_params_to_new_format(network: str, action: str,
             if key in skip_params or key in UTILS_ACTION_AUTH_PARAMS or key in UTILS_ACTION_SHEETS_SECRET_PARAMS:
                 continue
             # Skip empty strings and default values
-            if value is None or value == '' or value == 'INFO':
+            if value is None or value == "" or value == "INFO":
                 continue
             # Skip if it's a default value
             if key in default_values and value == default_values[key]:
@@ -194,7 +275,7 @@ def convert_legacy_params_to_new_format(network: str, action: str,
             if not _platform_action_allows_content_param(network, action, key):
                 continue
             # Skip empty strings and default values
-            if value is None or value == '' or value == 'INFO':
+            if value is None or value == "" or value == "INFO":
                 continue
             # Skip if it's a default value
             if key in default_values and value == default_values[key]:
@@ -203,7 +284,7 @@ def convert_legacy_params_to_new_format(network: str, action: str,
             safe_value = str(value).replace('"', '\\"')
             param_parts.append(f'--{key.replace("_", "-")} "{safe_value}"')
 
-    return ' '.join(param_parts)
+    return " ".join(param_parts)
 
 
 def _platform_action_auth_skip(network: str, action: str) -> Set[str]:
@@ -227,8 +308,7 @@ def _platform_action_allows_content_param(network: str, action: str, key: str) -
     return action in allowed_actions
 
 
-def format_migration_warning(old_command_parts: Dict[str, str],
-                             new_command: str) -> str:
+def format_migration_warning(old_command_parts: Dict[str, str], new_command: str) -> str:
     """
     Format a user-friendly deprecation message.
 
@@ -239,13 +319,13 @@ def format_migration_warning(old_command_parts: Dict[str, str],
     Returns:
         Formatted warning message
     """
-    network = old_command_parts.get('network', 'unknown')
-    action = old_command_parts.get('action', 'unknown')
+    network = old_command_parts.get("network", "unknown")
+    action = old_command_parts.get("action", "unknown")
 
     warning = f"""
-{'━' * 80}
+{"━" * 80}
 ⚠️  DEPRECATION WARNING
-{'━' * 80}
+{"━" * 80}
 
 The 'agoras publish' command is deprecated. It is supported through Agoras 2.x and will be removed in version 3.0.
 
@@ -266,6 +346,6 @@ executing.
 
 For more help: https://agoras.luisalejandro.org/en/latest/migration.html
 
-{'━' * 80}
+{"━" * 80}
 """
     return warning

@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.media.factory module."""
 
 import asyncio
 
@@ -24,9 +25,7 @@ from .video import Video
 
 
 class MediaFactory:
-    """
-    Factory class for creating appropriate media instances.
-    """
+    """Factory class for creating appropriate media instances."""
 
     @staticmethod
     def create_image(url, platform=None):
@@ -40,12 +39,12 @@ class MediaFactory:
         Returns:
             Image: Image instance
         """
-        platform_key = resolve_platform(platform) if platform else 'generic'
+        platform_key = resolve_platform(platform) if platform else "generic"
         limits = image_limits(platform_key)
         return Image(url, platform=platform_key, constraints=limits)
 
     @staticmethod
-    def create_video(url, platform='generic', max_size=None):
+    def create_video(url, platform="generic", max_size=None):
         """
         Create a Video instance with platform-specific configuration.
 
@@ -82,10 +81,7 @@ class MediaFactory:
         if not urls:
             return []
 
-        images = [
-            MediaFactory.create_image(url, platform=platform)
-            for url in urls if url
-        ]
+        images = [MediaFactory.create_image(url, platform=platform) for url in urls if url]
 
         download_tasks = [image.download() for image in images]
         await asyncio.gather(*download_tasks, return_exceptions=True)
@@ -93,7 +89,7 @@ class MediaFactory:
         return images
 
     @staticmethod
-    async def download_video_and_images(video_url, image_urls, platform='generic'):
+    async def download_video_and_images(video_url, image_urls, platform="generic"):
         """
         Download video and images concurrently.
 
@@ -115,10 +111,7 @@ class MediaFactory:
 
         images = []
         if image_urls:
-            images = [
-                MediaFactory.create_image(url, platform=platform_key)
-                for url in image_urls if url
-            ]
+            images = [MediaFactory.create_image(url, platform=platform_key) for url in image_urls if url]
             tasks.extend([image.download() for image in images])
 
         if tasks:

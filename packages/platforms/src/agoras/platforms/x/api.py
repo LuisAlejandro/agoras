@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.x.api module."""
 
 from typing import List, Optional
 
@@ -41,18 +42,14 @@ class XAPI(BaseAPI):
             oauth_token (str): X OAuth token
             oauth_secret (str): X OAuth secret
         """
-        super().__init__(
-            access_token=oauth_token,
-            client_id=consumer_key,
-            client_secret=consumer_secret
-        )
+        super().__init__(access_token=oauth_token, client_id=consumer_key, client_secret=consumer_secret)
 
         # Initialize the authentication manager
         self.auth_manager = XAuthManager(
             consumer_key=consumer_key,
             consumer_secret=consumer_secret,
             oauth_token=oauth_token,
-            oauth_secret=oauth_secret
+            oauth_secret=oauth_secret,
         )
 
     @property
@@ -100,7 +97,7 @@ class XAPI(BaseAPI):
 
         success = await self.auth_manager.authenticate()
         if not success:
-            raise Exception('X authentication failed')
+            raise Exception("X authentication failed")
 
         # Set the client from auth manager for BaseAPI compatibility
         self.client = self.auth_manager.client
@@ -138,15 +135,15 @@ class XAPI(BaseAPI):
             Exception: If media upload fails
         """
         if not self._authenticated or not self.client:
-            raise Exception('X API not authenticated')
+            raise Exception("X API not authenticated")
 
-        await self._rate_limit_check('upload_media', 1.0)
+        await self._rate_limit_check("upload_media", 1.0)
 
         try:
             media_id = await self.client.upload_media(media_content, media_type)
             return media_id
         except Exception as e:
-            self._handle_api_error(e, 'X media upload')
+            self._handle_api_error(e, "X media upload")
             raise
 
     async def post(self, text: str, media_ids: Optional[List[str]] = None) -> str:
@@ -164,19 +161,19 @@ class XAPI(BaseAPI):
             Exception: If tweet creation fails
         """
         if not self._authenticated or not self.client:
-            raise Exception('X API not authenticated')
+            raise Exception("X API not authenticated")
 
-        await self._rate_limit_check('post', 1.0)
+        await self._rate_limit_check("post", 1.0)
 
         # X has a 280 character limit
         if len(text) > 280:
-            text = text[:277] + '...'
+            text = text[:277] + "..."
 
         try:
             tweet_id = await self.client.create_tweet(text, media_ids)
             return tweet_id
         except Exception as e:
-            self._handle_api_error(e, 'X tweet creation')
+            self._handle_api_error(e, "X tweet creation")
             raise
 
     async def like(self, tweet_id: str) -> str:
@@ -193,15 +190,15 @@ class XAPI(BaseAPI):
             Exception: If like operation fails
         """
         if not self._authenticated or not self.client:
-            raise Exception('X API not authenticated')
+            raise Exception("X API not authenticated")
 
-        await self._rate_limit_check('like', 0.5)
+        await self._rate_limit_check("like", 0.5)
 
         try:
             result = await self.client.like_tweet(tweet_id)
             return result
         except Exception as e:
-            self._handle_api_error(e, 'X like')
+            self._handle_api_error(e, "X like")
             raise
 
     async def share(self, tweet_id: str) -> str:
@@ -218,15 +215,15 @@ class XAPI(BaseAPI):
             Exception: If retweet operation fails
         """
         if not self._authenticated or not self.client:
-            raise Exception('X API not authenticated')
+            raise Exception("X API not authenticated")
 
-        await self._rate_limit_check('share', 0.5)
+        await self._rate_limit_check("share", 0.5)
 
         try:
             result = await self.client.retweet(tweet_id)
             return result
         except Exception as e:
-            self._handle_api_error(e, 'X retweet')
+            self._handle_api_error(e, "X retweet")
             raise
 
     async def delete(self, tweet_id: str) -> str:
@@ -243,13 +240,13 @@ class XAPI(BaseAPI):
             Exception: If deletion fails
         """
         if not self._authenticated or not self.client:
-            raise Exception('X API not authenticated')
+            raise Exception("X API not authenticated")
 
-        await self._rate_limit_check('delete', 0.5)
+        await self._rate_limit_check("delete", 0.5)
 
         try:
             result = await self.client.delete_tweet(tweet_id)
             return result
         except Exception as e:
-            self._handle_api_error(e, 'X delete')
+            self._handle_api_error(e, "X delete")
             raise

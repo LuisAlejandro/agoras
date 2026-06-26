@@ -16,8 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-agoras.core
-===========
+agoras.core.
 
 Core interfaces, Feed, Sheet, and Base API/Auth classes for Agoras.
 
@@ -36,14 +35,14 @@ from .interfaces import SocialNetwork
 from .sheet import ScheduleSheet, Sheet
 
 __all__ = [
-    'SocialNetwork',
-    'BaseAPI',
-    'BaseAuthManager',
-    'SecureTokenStorage',
-    'OAuthCallbackServer',
-    'AuthenticationError',
-    'Feed',
-    'FeedItem',
-    'ScheduleSheet',
-    'Sheet',
+    "SocialNetwork",
+    "BaseAPI",
+    "BaseAuthManager",
+    "SecureTokenStorage",
+    "OAuthCallbackServer",
+    "AuthenticationError",
+    "Feed",
+    "FeedItem",
+    "ScheduleSheet",
+    "Sheet",
 ]

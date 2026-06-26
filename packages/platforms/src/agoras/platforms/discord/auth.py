@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.discord.auth module."""
 
 import asyncio
 import os
@@ -32,10 +33,8 @@ class DiscordAuthManager(BaseAuthManager):
     """Discord authentication manager using bot token authentication."""
 
     def __init__(
-            self,
-            bot_token: Optional[str] = None,
-            server_name: Optional[str] = None,
-            channel_name: Optional[str] = None):
+        self, bot_token: Optional[str] = None, server_name: Optional[str] = None, channel_name: Optional[str] = None
+    ):
         """
         Initialize Discord authentication manager.
 
@@ -51,11 +50,11 @@ class DiscordAuthManager(BaseAuthManager):
             if loaded:
                 # Use loaded credentials if available
                 if not bot_token:
-                    bot_token = getattr(self, 'bot_token', None)
+                    bot_token = getattr(self, "bot_token", None)
                 if not server_name:
-                    server_name = getattr(self, 'server_name', None)
+                    server_name = getattr(self, "server_name", None)
                 if not channel_name:
-                    channel_name = getattr(self, 'channel_name', None)
+                    channel_name = getattr(self, "channel_name", None)
 
         self.bot_token = bot_token
         self.server_name = server_name
@@ -85,7 +84,7 @@ class DiscordAuthManager(BaseAuthManager):
                 self.access_token = self.bot_token
 
                 # Create Discord client
-                self.client = self._create_client(self.access_token)
+                self.client = self._create_client(self._require_bot_token())
 
                 # Authenticate the client
                 await self.client.authenticate()
@@ -114,14 +113,16 @@ class DiscordAuthManager(BaseAuthManager):
             str: Success message if authorization successful, None otherwise
         """
         # Get credentials from parameters or environment variables
-        bot_token = self.bot_token or os.environ.get('DISCORD_BOT_TOKEN')
-        server_name = self.server_name or os.environ.get('DISCORD_SERVER_NAME')
-        channel_name = self.channel_name or os.environ.get('DISCORD_CHANNEL_NAME')
+        bot_token = self.bot_token or os.environ.get("DISCORD_BOT_TOKEN")
+        server_name = self.server_name or os.environ.get("DISCORD_SERVER_NAME")
+        channel_name = self.channel_name or os.environ.get("DISCORD_CHANNEL_NAME")
 
         if not bot_token or not server_name or not channel_name:
-            raise Exception('Discord bot token, server name, and channel name are required. '
-                            'Provide via parameters or environment variables (DISCORD_BOT_TOKEN, '
-                            'DISCORD_SERVER_NAME, DISCORD_CHANNEL_NAME).')
+            raise Exception(
+                "Discord bot token, server name, and channel name are required. "
+                "Provide via parameters or environment variables (DISCORD_BOT_TOKEN, "
+                "DISCORD_SERVER_NAME, DISCORD_CHANNEL_NAME)."
+            )
 
         # Set credentials for validation
         self.bot_token = bot_token
@@ -130,7 +131,7 @@ class DiscordAuthManager(BaseAuthManager):
 
         # Validate credentials
         if not await self._validate_bot_token():
-            raise Exception('Discord bot token validation failed. Please check your credentials.')
+            raise Exception("Discord bot token validation failed. Please check your credentials.")
 
         # Save credentials to secure storage
         self._save_credentials_to_storage(bot_token, server_name, channel_name)
@@ -146,7 +147,7 @@ class DiscordAuthManager(BaseAuthManager):
             bool: True if token is valid and server/channel accessible
         """
         client = discord.Client(intents=discord.Intents.default())
-        validation_result = {'success': False, 'user_info': None}
+        validation_result = {"success": False, "user_info": None}
         validation_complete = asyncio.Event()
 
         @client.event
@@ -162,47 +163,38 @@ class DiscordAuthManager(BaseAuthManager):
                 bot_user_info = None
                 if client.user:
                     bot_user_info = {
-                        'id': str(client.user.id),
-                        'name': client.user.name,
-                        'discriminator': (client.user.discriminator
-                                          if hasattr(client.user, 'discriminator')
-                                          else None)
+                        "id": str(client.user.id),
+                        "name": client.user.name,
+                        "discriminator": (client.user.discriminator if hasattr(client.user, "discriminator") else None),
                     }
 
-                validation_result['user_info'] = {
-                    'bot_token': self.bot_token[:20] + '...',  # Partial token for security
-                    'server_name': self.server_name,
-                    'channel_name': self.channel_name,
-                    'bot_user': bot_user_info,
-                    'guild': {
-                        'id': str(guild.id),
-                        'name': guild.name,
-                        'member_count': guild.member_count
-                    },
-                    'channel': {
-                        'id': str(channel.id),
-                        'name': channel.name,
-                        'type': str(channel.type)
-                    }
+                bot_token = self._require_bot_token()
+                validation_result["user_info"] = {
+                    "bot_token": bot_token[:20] + "...",  # Partial token for security
+                    "server_name": self._require_server_name(),
+                    "channel_name": self._require_channel_name(),
+                    "bot_user": bot_user_info,
+                    "guild": {"id": str(guild.id), "name": guild.name, "member_count": guild.member_count},
+                    "channel": {"id": str(channel.id), "name": channel.name, "type": str(channel.type)},
                 }
-                validation_result['success'] = True
+                validation_result["success"] = True
             except Exception as e:
                 print(f"Discord validation failed: {e}", file=sys.stderr)
-                validation_result['success'] = False
+                validation_result["success"] = False
             finally:
                 validation_complete.set()
                 await client.close()
 
         try:
             # Start the client and wait for validation to complete
-            client_task = asyncio.create_task(client.start(self.bot_token))
+            client_task = asyncio.create_task(client.start(self._require_bot_token()))
 
             # Wait for validation to complete (with timeout)
             try:
                 await asyncio.wait_for(validation_complete.wait(), timeout=30.0)
             except asyncio.TimeoutError:
                 print("Discord validation timed out", file=sys.stderr)
-                validation_result['success'] = False
+                validation_result["success"] = False
             finally:
                 # Ensure client is closed
                 if not client.is_closed():
@@ -215,9 +207,9 @@ class DiscordAuthManager(BaseAuthManager):
                     except asyncio.CancelledError:
                         pass
 
-            if validation_result['success']:
+            if validation_result["success"]:
                 # Store the user info for later use
-                self._cached_user_info = validation_result['user_info']
+                self._cached_user_info = validation_result["user_info"]
                 return True
             return False
         except Exception as e:
@@ -242,28 +234,45 @@ class DiscordAuthManager(BaseAuthManager):
         """Create Discord API client instance."""
         return DiscordAPIClient(
             bot_token=access_token,
-            server_name=self.server_name,
-            channel_name=self.channel_name
+            server_name=self._require_server_name(),
+            channel_name=self._require_channel_name(),
         )
 
     async def _get_user_info(self) -> dict:
         """Get bot and server information from Discord API."""
+
         def _sync_get_info():
             # Return cached user info from validation if available
-            if hasattr(self, '_cached_user_info') and self._cached_user_info:
+            if hasattr(self, "_cached_user_info") and self._cached_user_info:
                 return self._cached_user_info
 
             # Fallback to basic info if no cached validation
+            bot_token = self._require_bot_token()
             return {
-                'bot_token': self.bot_token[:20] + '...',  # Partial token for security
-                'server_name': self.server_name,
-                'channel_name': self.channel_name,
-                'bot_user': None,
-                'guild': None,
-                'channel': None
+                "bot_token": bot_token[:20] + "...",  # Partial token for security
+                "server_name": self._require_server_name(),
+                "channel_name": self._require_channel_name(),
+                "bot_user": None,
+                "guild": None,
+                "channel": None,
             }
 
         return await asyncio.to_thread(_sync_get_info)
+
+    def _require_bot_token(self) -> str:
+        if not self.bot_token:
+            raise ValueError("Discord bot token is required")
+        return self.bot_token
+
+    def _require_server_name(self) -> str:
+        if not self.server_name:
+            raise ValueError("Discord server name is required")
+        return self.server_name
+
+    def _require_channel_name(self) -> str:
+        if not self.channel_name:
+            raise ValueError("Discord channel name is required")
+        return self.channel_name
 
     def _validate_credentials(self) -> bool:
         """Validate that all required credentials are present."""
@@ -271,7 +280,7 @@ class DiscordAuthManager(BaseAuthManager):
 
     def _get_platform_name(self) -> str:
         """Get the platform name for this auth manager."""
-        return 'discord'
+        return "discord"
 
     def _get_token_identifier(self) -> str:
         """Get unique identifier for token storage."""
@@ -291,11 +300,7 @@ class DiscordAuthManager(BaseAuthManager):
         platform_name = self._get_platform_name()
         identifier = f"{server_name}-{channel_name}"
 
-        token_data = {
-            'bot_token': bot_token,
-            'server_name': server_name,
-            'channel_name': channel_name
-        }
+        token_data = {"bot_token": bot_token, "server_name": server_name, "channel_name": channel_name}
 
         self.token_storage.save_token(platform_name, identifier, token_data)
         # Also save as default so it becomes the primary credential loaded
@@ -323,9 +328,9 @@ class DiscordAuthManager(BaseAuthManager):
                 token_data = self.token_storage.load_token(platform_name, identifier)
 
         if token_data:
-            self.bot_token = token_data.get('bot_token')
-            self.server_name = token_data.get('server_name')
-            self.channel_name = token_data.get('channel_name')
+            self.bot_token = token_data.get("bot_token")
+            self.server_name = token_data.get("server_name")
+            self.channel_name = token_data.get("channel_name")
             return bool(self.bot_token and self.server_name and self.channel_name)
 
         return False
@@ -337,12 +342,12 @@ class DiscordAuthManager(BaseAuthManager):
         token_data = self.token_storage.load_token(platform_name, identifier)
 
         # Only load if the bot token matches (for security)
-        if token_data and token_data.get('bot_token_hash') == hash(self.bot_token):
-            self._cached_user_info = token_data.get('user_info')
+        if token_data and token_data.get("bot_token_hash") == hash(self.bot_token):
+            self._cached_user_info = token_data.get("user_info")
 
     def _save_validation_cache(self):
         """Save validation results to secure storage."""
-        if hasattr(self, '_cached_user_info') and self._cached_user_info:
+        if hasattr(self, "_cached_user_info") and self._cached_user_info:
             platform_name = self._get_platform_name()
             identifier = self._get_token_identifier()
 
@@ -350,9 +355,11 @@ class DiscordAuthManager(BaseAuthManager):
             token_data = self.token_storage.load_token(platform_name, identifier) or {}
 
             # Update with validation cache data
-            token_data.update({
-                'bot_token_hash': hash(self.bot_token),  # For validation without storing actual token
-                'user_info': self._cached_user_info
-            })
+            token_data.update(
+                {
+                    "bot_token_hash": hash(self.bot_token),  # For validation without storing actual token
+                    "user_info": self._cached_user_info,
+                }
+            )
 
             self.token_storage.save_token(platform_name, identifier, token_data)

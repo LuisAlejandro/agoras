@@ -112,7 +112,13 @@ Or run tox directly on the host::
     $ tox -e all
 
 Development dependencies are managed in ``requirements-dev.txt`` and include
-pytest, coverage, flake8, pydocstyle, tox, and build tools.
+pytest, coverage, Ruff, Pyright, pydocstyle, bandit, tox, and build tools.
+
+If you develop with Docker and ``requirements-dev.txt`` changes after a pull,
+rebuild the image so the container picks up new tools (``make start`` alone does
+not rebuild an existing image)::
+
+    $ make image
 
 Monorepo Development (v2.0)
 ----------------------------
@@ -305,17 +311,13 @@ Test that packages install correctly::
 Code Style
 ~~~~~~~~~~
 
-Run linting::
+Lint and format production source under ``packages/*/src/agoras`` with tox
+(Ruff format check, Ruff lint, pydocstyle, bandit, and Pyright)::
 
-    $ flake8 packages/common/src/agoras
-    $ flake8 packages/media/src/agoras
-    $ flake8 packages/core/src/agoras
-    $ flake8 packages/platforms/src/agoras
-    $ flake8 packages/cli/src/agoras
+    $ tox -e lint
+    $ tox -e format
 
-Format code::
-
-    $ autopep8 --in-place --recursive packages/*/src/agoras
+Docker users can run the same checks via ``make lint`` and ``make format``.
 
 Common Development Workflows
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -337,7 +339,7 @@ Making Changes to a Single Package
 
 5. Run linting::
 
-    $ flake8 src/agoras
+    $ tox -e lint
 
 6. Commit changes::
 
@@ -436,7 +438,7 @@ When submitting pull requests:
 
 * All 5 packages must pass their individual test suites
 * Integration tests must pass (CLI with all packages)
-* Linting must pass for all packages (flake8, pydocstyle)
+* Linting must pass for all packages (``tox -e lint``: Ruff, pydocstyle, bandit, Pyright)
 * Coverage reports are aggregated across packages
 * GitHub Actions will run tests on Python 3.10, 3.11, 3.12, 3.13, 3.14
 

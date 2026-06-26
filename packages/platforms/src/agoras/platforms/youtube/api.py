@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.youtube.api module."""
 
 from typing import Any, Dict, Optional
 
@@ -40,16 +41,11 @@ class YouTubeAPI(BaseAPI):
             client_secret (str): YouTube client secret
             refresh_token (str, optional): YouTube refresh token
         """
-        super().__init__(
-            client_id=client_id,
-            client_secret=client_secret
-        )
+        super().__init__(client_id=client_id, client_secret=client_secret)
 
         # Initialize the authentication manager
         self.auth_manager = YouTubeAuthManager(
-            client_id=client_id,
-            client_secret=client_secret,
-            refresh_token=refresh_token
+            client_id=client_id, client_secret=client_secret, refresh_token=refresh_token
         )
 
     @property
@@ -84,7 +80,7 @@ class YouTubeAPI(BaseAPI):
         """
         access_token = await self.auth_manager.authorize()
         if not access_token:
-            raise Exception('YouTube authorization failed')
+            raise Exception("YouTube authorization failed")
         return self
 
     async def authenticate(self):
@@ -102,7 +98,7 @@ class YouTubeAPI(BaseAPI):
 
         success = await self.auth_manager.authenticate()
         if not success:
-            raise Exception('YouTube authentication failed - please run authorization first')
+            raise Exception("YouTube authentication failed - please run authorization first")
 
         # Set the client from auth manager for BaseAPI compatibility
         self.client = self.auth_manager.client
@@ -125,8 +121,15 @@ class YouTubeAPI(BaseAPI):
         self.client = None
         self._authenticated = False
 
-    async def upload_video(self, video_file_path: str, title: str, description: str,
-                           category_id: str, privacy_status: str, keywords: Optional[str] = None) -> Dict[str, Any]:
+    async def upload_video(
+        self,
+        video_file_path: str,
+        title: str,
+        description: str,
+        category_id: str,
+        privacy_status: str,
+        keywords: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Upload a video to YouTube.
 
@@ -147,9 +150,9 @@ class YouTubeAPI(BaseAPI):
         self.auth_manager.ensure_authenticated()
 
         if not self.client:
-            raise Exception('YouTube API not authenticated')
+            raise Exception("YouTube API not authenticated")
 
-        await self._rate_limit_check('upload_video', 2.0)
+        await self._rate_limit_check("upload_video", 2.0)
 
         try:
             return await self.client.upload_video(
@@ -158,10 +161,10 @@ class YouTubeAPI(BaseAPI):
                 description=description,
                 category_id=category_id,
                 privacy_status=privacy_status,
-                keywords=keywords
+                keywords=keywords,
             )
         except Exception as e:
-            self._handle_api_error(e, 'YouTube video upload')
+            self._handle_api_error(e, "YouTube video upload")
             raise
 
     async def like(self, video_id: str) -> None:
@@ -177,14 +180,14 @@ class YouTubeAPI(BaseAPI):
         self.auth_manager.ensure_authenticated()
 
         if not self.client:
-            raise Exception('YouTube API not authenticated')
+            raise Exception("YouTube API not authenticated")
 
-        await self._rate_limit_check('like', 1.0)
+        await self._rate_limit_check("like", 1.0)
 
         try:
             await self.client.like_video(video_id)
         except Exception as e:
-            self._handle_api_error(e, 'YouTube video like')
+            self._handle_api_error(e, "YouTube video like")
             raise
 
     async def delete(self, video_id: str) -> None:
@@ -198,14 +201,14 @@ class YouTubeAPI(BaseAPI):
             Exception: If delete operation fails
         """
         if not self.client:
-            raise Exception('YouTube API not authenticated')
+            raise Exception("YouTube API not authenticated")
 
-        await self._rate_limit_check('delete', 1.0)
+        await self._rate_limit_check("delete", 1.0)
 
         try:
             await self.client.delete_video(video_id)
         except Exception as e:
-            self._handle_api_error(e, 'YouTube video deletion')
+            self._handle_api_error(e, "YouTube video deletion")
             raise
 
     async def post(self, *args, **kwargs) -> str:
@@ -215,7 +218,7 @@ class YouTubeAPI(BaseAPI):
         Raises:
             Exception: Post not supported for YouTube
         """
-        raise Exception('Regular posts not supported for YouTube - use upload_video() method instead')
+        raise Exception("Regular posts not supported for YouTube - use upload_video() method instead")
 
     async def share(self, video_id: str) -> str:
         """
@@ -227,4 +230,4 @@ class YouTubeAPI(BaseAPI):
         Raises:
             Exception: Share not supported for YouTube
         """
-        raise Exception('Share not supported for YouTube')
+        raise Exception("Share not supported for YouTube")

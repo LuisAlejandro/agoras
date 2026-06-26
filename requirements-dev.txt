@@ -5,16 +5,16 @@
 pytest==9.1.1
 pytest-asyncio==1.4.0
 pytest-cov==6.0.0
-coverage==7.14.3
+coverage==7.13.1
 
 # Code Quality
-flake8==7.3.0
+ruff==0.11.12
+pyright==1.1.400
 pydocstyle==6.3.0
-autopep8==2.3.2
-autoflake==2.3.1
+bandit==1.9.4
 
 # Build Tools
-build==1.5.0
+build==1.4.0
 setuptools==82.0.1
 wheel==0.47.0
 

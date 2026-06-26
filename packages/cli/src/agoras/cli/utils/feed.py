@@ -37,52 +37,29 @@ def create_feed_publish_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     Returns:
         ArgumentParser for feed-publish command
     """
-    parser = subparsers.add_parser(
-        'feed-publish',
-        help='Publish content from RSS/Atom feed to social network'
-    )
+    parser = subparsers.add_parser("feed-publish", help="Publish content from RSS/Atom feed to social network")
 
     parser.add_argument(
-        '--network',
+        "--network",
         required=True,
         choices=PlatformRegistry.get_platform_names(),
-        metavar='<platform>',
-        help='Target social network'
+        metavar="<platform>",
+        help="Target social network",
     )
 
     parser.add_argument(
-        '--mode',
+        "--mode",
         required=True,
-        choices=['last', 'random'],
-        metavar='<mode>',
-        help='Feed entry selection mode (last or random)'
+        choices=["last", "random"],
+        metavar="<mode>",
+        help="Feed entry selection mode (last or random)",
     )
 
-    feed = parser.add_argument_group('Feed Options')
-    feed.add_argument(
-        '--feed-url',
-        required=True,
-        metavar='<url>',
-        help='URL of RSS/Atom feed'
-    )
-    feed.add_argument(
-        '--max-count',
-        type=int,
-        metavar='<number>',
-        help='Maximum posts to publish at once (default: 1)'
-    )
-    feed.add_argument(
-        '--post-lookback',
-        type=int,
-        metavar='<seconds>',
-        help='Only posts within last N seconds'
-    )
-    feed.add_argument(
-        '--max-post-age',
-        type=int,
-        metavar='<days>',
-        help='Maximum post age in days'
-    )
+    feed = parser.add_argument_group("Feed Options")
+    feed.add_argument("--feed-url", required=True, metavar="<url>", help="URL of RSS/Atom feed")
+    feed.add_argument("--max-count", type=int, metavar="<number>", help="Maximum posts to publish at once (default: 1)")
+    feed.add_argument("--post-lookback", type=int, metavar="<seconds>", help="Only posts within last N seconds")
+    feed.add_argument("--max-post-age", type=int, metavar="<days>", help="Maximum post age in days")
 
     parser.set_defaults(command=_handle_feed_publish)
 
@@ -99,15 +76,15 @@ def _handle_feed_publish(args: Namespace):
     Returns:
         Exit status from core execution
     """
-    action = 'last-from-feed' if args.mode == 'last' else 'random-from-feed'
+    action = "last-from-feed" if args.mode == "last" else "random-from-feed"
 
     legacy_args = {
-        'network': args.network,
-        'action': action,
-        'feed_url': args.feed_url,
-        'max_count': args.max_count,
-        'post_lookback': args.post_lookback,
-        'max_post_age': args.max_post_age,
+        "network": args.network,
+        "action": action,
+        "feed_url": args.feed_url,
+        "max_count": args.max_count,
+        "post_lookback": args.post_lookback,
+        "max_post_age": args.max_post_age,
     }
 
     return execute_platform_action(**legacy_args)

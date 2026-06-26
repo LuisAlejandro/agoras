@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.x.client module."""
 
 import asyncio
 import mimetypes
@@ -27,13 +28,13 @@ from tweepy import API, Client, OAuth1UserHandler
 
 def _upload_path_for_media_type(media_type: str) -> Tuple[str, Optional[str]]:
     """Return temp-file suffix and X media_category for a MIME type."""
-    if media_type.startswith('video/'):
-        suffix = mimetypes.guess_extension(media_type) or '.mp4'
-        return suffix, 'tweet_video'
-    if media_type.startswith('image/'):
-        suffix = mimetypes.guess_extension(media_type) or '.bin'
-        return suffix, 'tweet_image'
-    return '.bin', None
+    if media_type.startswith("video/"):
+        suffix = mimetypes.guess_extension(media_type) or ".mp4"
+        return suffix, "tweet_video"
+    if media_type.startswith("image/"):
+        suffix = mimetypes.guess_extension(media_type) or ".bin"
+        return suffix, "tweet_image"
+    return ".bin", None
 
 
 class XAPIClient:
@@ -44,8 +45,7 @@ class XAPIClient:
     tweet operations, and user interactions using the appropriate API version.
     """
 
-    def __init__(self, consumer_key: str, consumer_secret: str,
-                 oauth_token: str, oauth_secret: str):
+    def __init__(self, consumer_key: str, consumer_secret: str, oauth_token: str, oauth_secret: str):
         """
         Initialize X API client.
 
@@ -76,9 +76,8 @@ class XAPIClient:
         if self._authenticated:
             return True
 
-        if not all([self.consumer_key, self.consumer_secret,
-                   self.oauth_token, self.oauth_secret]):
-            raise Exception('All X OAuth credentials are required.')
+        if not all([self.consumer_key, self.consumer_secret, self.oauth_token, self.oauth_secret]):
+            raise Exception("All X OAuth credentials are required.")
 
         try:
             # Ensure all tokens are strings (not None or other types)
@@ -88,25 +87,23 @@ class XAPIClient:
             oauth_secret = str(self.oauth_secret) if self.oauth_secret else None
 
             if not all([consumer_key, consumer_secret, oauth_token, oauth_secret]):
-                raise Exception('All X OAuth credentials are required and must be non-empty strings.')
+                raise Exception("All X OAuth credentials are required and must be non-empty strings.")
 
             # Set up OAuth 1.0a authentication
             # Note: access_token and access_token_secret must be keyword arguments in Tweepy 4.x
             auth = OAuth1UserHandler(
-                consumer_key, consumer_secret,
-                access_token=oauth_token,
-                access_token_secret=oauth_secret
+                consumer_key, consumer_secret, access_token=oauth_token, access_token_secret=oauth_secret
             )
 
             # Verify the access tokens are set correctly on the auth object
-            if not hasattr(auth, 'access_token') or auth.access_token != oauth_token:
+            if not hasattr(auth, "access_token") or auth.access_token != oauth_token:
                 # If tokens aren't set correctly, try using set_access_token as fallback
                 auth.set_access_token(oauth_token, oauth_secret)
 
             # Clear any request_token that might be set (from OAuth flow)
             # This ensures we're using access tokens, not request tokens
-            if hasattr(auth, 'request_token') and auth.request_token:
-                auth.request_token = None
+            if hasattr(auth, "request_token") and auth.request_token:
+                object.__setattr__(auth, "request_token", None)
 
             # Create both v1.1 and v2 clients
             self.client_v1 = API(auth, wait_on_rate_limit=False)
@@ -115,7 +112,7 @@ class XAPIClient:
                 consumer_secret=consumer_secret,
                 access_token=oauth_token,
                 access_token_secret=oauth_secret,
-                wait_on_rate_limit=False
+                wait_on_rate_limit=False,
             )
 
             # Skip credential verification - other platforms don't verify during auth
@@ -129,11 +126,11 @@ class XAPIClient:
             # an issue with how Tweepy is handling the tokens internally
             if "missing_token" in error_msg or "oauth_token is missing" in error_msg:
                 raise Exception(
-                    f'X authentication failed: Invalid or expired access tokens. '
+                    f"X authentication failed: Invalid or expired access tokens. "
                     f'Please re-authorize using "agoras x authorize". '
-                    f'Technical error: {error_msg}'
+                    f"Technical error: {error_msg}"
                 )
-            raise Exception(f'X authentication failed: {error_msg}')
+            raise Exception(f"X authentication failed: {error_msg}")
 
     def disconnect(self):
         """
@@ -154,25 +151,25 @@ class XAPIClient:
             Exception: If unable to get user info
         """
         if not self.client_v1:
-            raise Exception('X v1 client not initialized')
+            raise Exception("X v1 client not initialized")
 
         def _sync_get_info():
             if not self.client_v1:
-                raise Exception('X v1 client not initialized')
+                raise Exception("X v1 client not initialized")
 
             user = self.client_v1.verify_credentials()
             if not user:
-                raise Exception('Failed to verify X credentials')
+                raise Exception("Failed to verify X credentials")
 
             return {
-                'user_id': str(user.id),
-                'screen_name': user.screen_name,
-                'name': user.name,
-                'description': getattr(user, 'description', ''),
-                'followers_count': getattr(user, 'followers_count', 0),
-                'friends_count': getattr(user, 'friends_count', 0),
-                'statuses_count': getattr(user, 'statuses_count', 0),
-                'verified': getattr(user, 'verified', False)
+                "user_id": str(user.id),
+                "screen_name": user.screen_name,
+                "name": user.name,
+                "description": getattr(user, "description", ""),
+                "followers_count": getattr(user, "followers_count", 0),
+                "friends_count": getattr(user, "friends_count", 0),
+                "statuses_count": getattr(user, "statuses_count", 0),
+                "verified": getattr(user, "verified", False),
             }
 
         return await asyncio.to_thread(_sync_get_info)
@@ -192,18 +189,18 @@ class XAPIClient:
             Exception: If media upload fails
         """
         if not self.client_v1:
-            raise Exception('X v1 client not initialized')
+            raise Exception("X v1 client not initialized")
 
         def _sync_upload():
             suffix, media_category = _upload_path_for_media_type(media_type)
             _, temp_file = tempfile.mkstemp(suffix=suffix)
             try:
-                with open(temp_file, 'wb') as f:
+                with open(temp_file, "wb") as f:
                     f.write(media_content)
 
                 upload_kwargs = {}
                 if media_category:
-                    upload_kwargs['media_category'] = media_category
+                    upload_kwargs["media_category"] = media_category
 
                 # Tweepy infers file_type from temp path suffix; do not pass file_type
                 # (duplicate kwarg breaks chunked_upload for video).
@@ -232,7 +229,7 @@ class XAPIClient:
             Exception: If tweet creation fails
         """
         if not self.client_v2:
-            raise Exception('X v2 client not initialized')
+            raise Exception("X v2 client not initialized")
 
         def _sync_create_tweet():
             try:
@@ -243,13 +240,13 @@ class XAPIClient:
                     response = self.client_v2.create_tweet(text=text)  # type: ignore
 
                 # Handle Tweepy response object safely
-                response_data = getattr(response, 'data', None)
-                if response_data and isinstance(response_data, dict) and 'id' in response_data:
-                    return str(response_data['id'])
+                response_data = getattr(response, "data", None)
+                if response_data and isinstance(response_data, dict) and "id" in response_data:
+                    return str(response_data["id"])
                 else:
-                    raise Exception('Invalid response from X API')
+                    raise Exception("Invalid response from X API")
             except Exception as api_error:
-                raise Exception(f'X API error: {str(api_error)}')
+                raise Exception(f"X API error: {str(api_error)}")
 
         tweet_id = await asyncio.to_thread(_sync_create_tweet)
         return tweet_id
@@ -268,7 +265,7 @@ class XAPIClient:
             Exception: If like operation fails
         """
         if not self.client_v2:
-            raise Exception('X v2 client not initialized')
+            raise Exception("X v2 client not initialized")
 
         def _sync_like():
             self.client_v2.like(tweet_id)  # type: ignore
@@ -291,7 +288,7 @@ class XAPIClient:
             Exception: If retweet operation fails
         """
         if not self.client_v2:
-            raise Exception('X v2 client not initialized')
+            raise Exception("X v2 client not initialized")
 
         def _sync_retweet():
             self.client_v2.retweet(tweet_id)  # type: ignore
@@ -314,7 +311,7 @@ class XAPIClient:
             Exception: If deletion fails
         """
         if not self.client_v2:
-            raise Exception('X v2 client not initialized')
+            raise Exception("X v2 client not initialized")
 
         def _sync_delete():
             self.client_v2.delete_tweet(tweet_id)  # type: ignore

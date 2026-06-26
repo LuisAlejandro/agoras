@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.telegram.wrapper module."""
 
 import asyncio
 from typing import List
@@ -55,6 +56,12 @@ class Telegram(SocialNetwork):
         self.telegram_reply_to_message_id = None
         self.api = None
 
+    def _require_chat_id(self) -> str:
+        chat_id = self.telegram_chat_id
+        if not chat_id:
+            raise Exception("Telegram chat ID is required")
+        return chat_id
+
     async def _initialize_client(self):
         """
         Initialize Telegram API client.
@@ -63,22 +70,19 @@ class Telegram(SocialNetwork):
         Tries to load credentials from storage if not provided via parameters.
         """
         # Get configuration values
-        self.telegram_bot_token = self._get_config_value('telegram_bot_token', 'TELEGRAM_BOT_TOKEN')
-        self.telegram_chat_id = normalize_chat_id(
-            self._get_config_value('telegram_chat_id', 'TELEGRAM_CHAT_ID')
-        )
-        self.telegram_parse_mode = self._get_config_value('telegram_parse_mode', 'TELEGRAM_PARSE_MODE') or 'HTML'
+        self.telegram_bot_token = self._get_config_value("telegram_bot_token", "TELEGRAM_BOT_TOKEN")
+        self.telegram_chat_id = normalize_chat_id(self._get_config_value("telegram_chat_id", "TELEGRAM_CHAT_ID"))
+        self.telegram_parse_mode = self._get_config_value("telegram_parse_mode", "TELEGRAM_PARSE_MODE") or "HTML"
         self.telegram_reply_to_message_id = self._get_config_value(
-            'telegram_reply_to_message_id', 'TELEGRAM_REPLY_TO_MESSAGE_ID')
-        self.telegram_message_id = self._get_config_value('telegram_message_id', 'TELEGRAM_MESSAGE_ID')
+            "telegram_reply_to_message_id", "TELEGRAM_REPLY_TO_MESSAGE_ID"
+        )
+        self.telegram_message_id = self._get_config_value("telegram_message_id", "TELEGRAM_MESSAGE_ID")
 
         # If credentials not provided, try loading from storage
         if not all([self.telegram_bot_token, self.telegram_chat_id]):
             from .auth import TelegramAuthManager
-            auth_manager = TelegramAuthManager(
-                bot_token=self.telegram_bot_token,
-                chat_id=self.telegram_chat_id
-            )
+
+            auth_manager = TelegramAuthManager(bot_token=self.telegram_bot_token, chat_id=self.telegram_chat_id)
 
             if auth_manager._load_credentials_from_storage():
                 # Fill in missing credentials from storage
@@ -91,8 +95,13 @@ class Telegram(SocialNetwork):
         if not all([self.telegram_bot_token, self.telegram_chat_id]):
             raise Exception("Not authenticated. Please run 'agoras telegram authorize' first.")
 
+        bot_token = self.telegram_bot_token
+        chat_id = self.telegram_chat_id
+        if not bot_token or not chat_id:
+            raise Exception("Not authenticated. Please run 'agoras telegram authorize' first.")
+
         # Initialize Telegram API
-        self.api = TelegramAPI(self.telegram_bot_token, self.telegram_chat_id)
+        self.api = TelegramAPI(bot_token, chat_id)
 
         # Authenticate with provided credentials
         await self.api.authenticate()
@@ -104,9 +113,15 @@ class Telegram(SocialNetwork):
         if self.api:
             await self.api.disconnect()
 
-    async def post(self, status_text, status_link,
-                   status_image_url_1=None, status_image_url_2=None,
-                   status_image_url_3=None, status_image_url_4=None):
+    async def post(
+        self,
+        status_text,
+        status_link,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+    ):
         """
         Create a post on Telegram.
 
@@ -122,16 +137,15 @@ class Telegram(SocialNetwork):
             str: Message ID
         """
         if not self.api:
-            raise Exception('Telegram API not initialized')
+            raise Exception("Telegram API not initialized")
 
         # Combine text and link
-        message_text = f'{status_text}\n{status_link}'.strip() if status_link else status_text
+        message_text = f"{status_text}\n{status_link}".strip() if status_link else status_text
 
         # Handle images
-        image_urls = list(filter(None, [
-            status_image_url_1, status_image_url_2,
-            status_image_url_3, status_image_url_4
-        ]))
+        image_urls = list(
+            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        )
 
         if image_urls:
             # For multiple images, create a media group
@@ -144,22 +158,20 @@ class Telegram(SocialNetwork):
                     image = images[0]
                     if image.content and image.file_type:
                         message_id = await self.api.send_photo(
-                            chat_id=self.telegram_chat_id,
+                            chat_id=self._require_chat_id(),
                             photo_url=image.url,
                             caption=message_text,
-                            parse_mode=self.telegram_parse_mode
+                            parse_mode=self.telegram_parse_mode,
                         )
                     else:
-                        raise Exception(f'Failed to validate image: {image.url}')
+                        raise Exception(f"Failed to validate image: {image.url}")
                 finally:
                     for image in images:
                         image.cleanup()
         else:
             # Text-only message
             message_id = await self.api.send_message(
-                chat_id=self.telegram_chat_id,
-                text=message_text,
-                parse_mode=self.telegram_parse_mode
+                chat_id=self._require_chat_id(), text=message_text, parse_mode=self.telegram_parse_mode
             )
 
         self._output_status(message_id)
@@ -180,30 +192,33 @@ class Telegram(SocialNetwork):
         """
         # Download all images
         images = await self.download_images(image_urls)
+        api = self.api
+        if not api:
+            raise Exception("Telegram API not initialized")
+        chat_id = self._require_chat_id()
         try:
             # Prepare media items for Telegram API
             media_items = []
             for i, image in enumerate(images):
                 if image.content and image.file_type:
-                    media_items.append({
-                        'type': 'photo',
-                        'media': image.content,
-                        'caption': caption if i == 0 else None  # Caption only on first
-                    })
+                    media_items.append(
+                        {
+                            "type": "photo",
+                            "media": image.content,
+                            "caption": caption if i == 0 else None,  # Caption only on first
+                        }
+                    )
                 else:
-                    raise Exception(f'Failed to validate image: {image.url}')
+                    raise Exception(f"Failed to validate image: {image.url}")
 
             if not media_items:
-                raise Exception('No valid images to send')
+                raise Exception("No valid images to send")
 
             # Send as media group
-            message_ids = await self.api.send_media_group(
-                chat_id=self.telegram_chat_id,
-                media=media_items
-            )
+            message_ids = await api.send_media_group(chat_id=chat_id, media=media_items)
 
             # Return first message ID
-            return message_ids[0] if message_ids else ''
+            return message_ids[0] if message_ids else ""
         finally:
             for image in images:
                 image.cleanup()
@@ -221,27 +236,27 @@ class Telegram(SocialNetwork):
             str: Message ID
         """
         if not self.api:
-            raise Exception('Telegram API not initialized')
+            raise Exception("Telegram API not initialized")
 
         if not video_url:
-            raise Exception('Video URL is required.')
+            raise Exception("Video URL is required.")
 
         # Use status_text or video_title as caption
-        caption = status_text or video_title or ''
+        caption = status_text or video_title or ""
 
         # Download and validate video using Media system
         video = await self.download_video(video_url)
 
         try:
             if not video.content or not video.file_type:
-                raise Exception('Failed to download or validate video')
+                raise Exception("Failed to download or validate video")
 
             # Send downloaded bytes (avoid re-downloading in the API layer)
             message_id = await self.api.send_video(
-                chat_id=self.telegram_chat_id,
+                chat_id=self._require_chat_id(),
                 video_content=video.content,
                 caption=caption,
-                parse_mode=self.telegram_parse_mode
+                parse_mode=self.telegram_parse_mode,
             )
 
             self._output_status(message_id)
@@ -252,9 +267,9 @@ class Telegram(SocialNetwork):
 
     async def _handle_delete_action(self):
         """Handle delete action with Telegram-specific parameter extraction."""
-        message_id = self._get_config_value('telegram_message_id', 'TELEGRAM_MESSAGE_ID')
+        message_id = self._get_config_value("telegram_message_id", "TELEGRAM_MESSAGE_ID")
         if not message_id:
-            raise Exception('Message ID is required for delete action.')
+            raise Exception("Message ID is required for delete action.")
         await self.delete(message_id)
 
     async def like(self, post_id):
@@ -267,7 +282,7 @@ class Telegram(SocialNetwork):
         Raises:
             Exception: Like not supported for Telegram
         """
-        raise Exception('Like not supported for Telegram')
+        raise Exception("Like not supported for Telegram")
 
     async def delete(self, post_id):
         """
@@ -280,15 +295,12 @@ class Telegram(SocialNetwork):
             str: Message ID
         """
         if not self.api:
-            raise Exception('Telegram API not initialized')
+            raise Exception("Telegram API not initialized")
 
         if not post_id:
-            raise Exception('Message ID is required for deletion')
+            raise Exception("Message ID is required for deletion")
 
-        message_id = await self.api.delete(
-            post_id=post_id,
-            chat_id=self.telegram_chat_id
-        )
+        message_id = await self.api.delete(post_id=post_id, chat_id=self.telegram_chat_id)
 
         self._output_status(message_id)
         return message_id
@@ -303,7 +315,7 @@ class Telegram(SocialNetwork):
         Raises:
             Exception: Share not supported for Telegram
         """
-        raise Exception('Share not supported for Telegram')
+        raise Exception("Share not supported for Telegram")
 
     async def authorize_credentials(self):
         """
@@ -314,13 +326,10 @@ class Telegram(SocialNetwork):
         """
         from .auth import TelegramAuthManager
 
-        bot_token = self._get_config_value('telegram_bot_token', 'TELEGRAM_BOT_TOKEN')
-        chat_id = self._get_config_value('telegram_chat_id', 'TELEGRAM_CHAT_ID')
+        bot_token = self._get_config_value("telegram_bot_token", "TELEGRAM_BOT_TOKEN")
+        chat_id = self._get_config_value("telegram_chat_id", "TELEGRAM_CHAT_ID")
 
-        auth_manager = TelegramAuthManager(
-            bot_token=bot_token,
-            chat_id=chat_id
-        )
+        auth_manager = TelegramAuthManager(bot_token=bot_token, chat_id=chat_id)
 
         result = await auth_manager.authorize()
         if result:
@@ -336,16 +345,16 @@ async def main_async(kwargs):
     Args:
         kwargs (dict): Configuration arguments
     """
-    action = kwargs.get('action', '')
+    action = kwargs.get("action", "")
 
-    if action == '':
-        raise Exception('Action is a required argument.')
+    if action == "":
+        raise Exception("Action is a required argument.")
 
     # Create Telegram instance with configuration
     instance = Telegram(**kwargs)
 
     # Handle authorize action separately (doesn't need client initialization)
-    if action == 'authorize':
+    if action == "authorize":
         success = await instance.authorize_credentials()
         return 0 if success else 1
 
