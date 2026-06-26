@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.media.base module."""
 
 import asyncio
 import io
@@ -24,6 +25,7 @@ from abc import ABC, abstractmethod
 from urllib.request import Request, urlopen
 
 import filetype
+
 from agoras.common import __version__
 
 
@@ -51,7 +53,7 @@ class Media(ABC):
 
     @property
     @abstractmethod
-    def allowed_types(self):
+    def allowed_types(self) -> list[str]:
         """
         Get list of allowed MIME types for this media type.
 
@@ -73,10 +75,10 @@ class Media(ABC):
             return self.temp_file, self.content, self.file_type
 
         def _sync_download():
-            _, tmpfile = tempfile.mkstemp(prefix=self._get_file_prefix(), suffix='.bin')
+            _, tmpfile = tempfile.mkstemp(prefix=self._get_file_prefix(), suffix=".bin")
 
-            with open(tmpfile, 'wb') as f:
-                request = Request(url=self.url, headers={'User-Agent': f'Agoras/{__version__}'})
+            with open(tmpfile, "wb") as f:
+                request = Request(url=self.url, headers={"User-Agent": f"Agoras/{__version__}"})
                 content = urlopen(request).read()
                 f.write(content)
 
@@ -89,7 +91,7 @@ class Media(ABC):
 
         return self.temp_file, self.content, self.file_type
 
-    def get_file_handle(self, mode='rb'):
+    def get_file_handle(self, mode="rb"):
         """
         Get a file handle for the downloaded content.
 
@@ -103,7 +105,7 @@ class Media(ABC):
             Exception: If file hasn't been downloaded
         """
         if not self._downloaded:
-            raise Exception('File must be downloaded before getting file handle')
+            raise Exception("File must be downloaded before getting file handle")
 
         if self.content is not None:
             # Return BytesIO handle from in-memory content
@@ -112,7 +114,7 @@ class Media(ABC):
             # Fallback to file handle if content not in memory
             return open(self.temp_file, mode)
         else:
-            raise Exception('No file content available')
+            raise Exception("No file content available")
 
     def get_file_like_object(self):
         """
@@ -125,12 +127,12 @@ class Media(ABC):
             Exception: If file hasn't been downloaded
         """
         if not self._downloaded:
-            raise Exception('File must be downloaded before getting file object')
+            raise Exception("File must be downloaded before getting file object")
 
         if self.content is not None:
             return io.BytesIO(self.content)
         else:
-            raise Exception('No file content available in memory')
+            raise Exception("No file content available in memory")
 
     def _get_file_prefix(self):
         """
@@ -139,7 +141,7 @@ class Media(ABC):
         Returns:
             str: File prefix
         """
-        return f'{self.__class__.__name__.lower()}-'
+        return f"{self.__class__.__name__.lower()}-"
 
     def _validate_file_type(self):
         """
@@ -152,31 +154,31 @@ class Media(ABC):
             Exception: If file type is invalid
         """
         if not self.temp_file:
-            raise Exception('File must be downloaded before validation')
+            raise Exception("File must be downloaded before validation")
 
         kind = filetype.guess(self.temp_file)
 
         if not kind:
             self.cleanup()
-            raise Exception(f'Invalid {self.__class__.__name__.lower()} type for {self.url}')
+            raise Exception(f"Invalid {self.__class__.__name__.lower()} type for {self.url}")
 
         if kind.mime not in self.allowed_types:
             self.cleanup()
             media_type = self.__class__.__name__.lower()
-            platform_key = getattr(self, 'platform_key', 'generic')
-            media_kind = getattr(self, 'media_kind', media_type)
-            if hasattr(self, 'constraints'):
+            platform_key = getattr(self, "platform_key", "generic")
+            media_kind = getattr(self, "media_kind", media_type)
+            if hasattr(self, "constraints"):
                 from .errors import MediaValidationError
+
                 raise MediaValidationError(
                     platform_key,
                     media_kind,
-                    'mime_types',
+                    "mime_types",
                     kind.mime,
                     sorted(self.allowed_types),
                 )
             raise Exception(
-                f'Invalid {media_type} type "{kind.mime}" for {self.url}. '
-                f'Allowed types: {self.allowed_types}'
+                f'Invalid {media_type} type "{kind.mime}" for {self.url}. Allowed types: {self.allowed_types}'
             )
 
         return kind
@@ -201,7 +203,7 @@ class Media(ABC):
         elif self._downloaded and self.temp_file:
             return os.path.getsize(self.temp_file)
         else:
-            raise Exception('File must be downloaded before getting size')
+            raise Exception("File must be downloaded before getting size")
 
     def cleanup(self):
         """

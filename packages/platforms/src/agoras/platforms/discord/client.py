@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.discord.client module."""
 
 import asyncio
 from typing import Any, List, Optional
@@ -60,7 +61,7 @@ class DiscordAPIClient:
             return True
 
         if not self.bot_token:
-            raise Exception('Discord bot token is required')
+            raise Exception("Discord bot token is required")
 
         try:
             await self._create_client()
@@ -69,7 +70,7 @@ class DiscordAPIClient:
             self._authenticated = True
             return True
         except Exception as e:
-            raise Exception(f'Discord authentication failed: {str(e)}') from e
+            raise Exception(f"Discord authentication failed: {str(e)}") from e
 
     async def _create_client(self):
         """Create Discord client instance."""
@@ -77,53 +78,72 @@ class DiscordAPIClient:
 
     async def _login_with_timeout(self):
         """Login to Discord with timeout."""
+        client = self.client
+        if client is None:
+            raise Exception("Discord client not available")
         try:
-            await asyncio.wait_for(self.client.login(self.bot_token), timeout=10.0)
+            await asyncio.wait_for(client.login(self.bot_token), timeout=10.0)
         except asyncio.TimeoutError:
             raise Exception(
-                'Discord login timed out. The bot token appears to be invalid or Discord servers are unreachable.')
+                "Discord login timed out. The bot token appears to be invalid or Discord servers are unreachable."
+            )
 
     async def _wait_until_ready_with_fallback(self):
         """Wait for client to be ready, with fallback manual guild fetching."""
+        client = self.client
+        if client is None:
+            raise Exception("Discord client not available")
         try:
-            await asyncio.wait_for(self.client.wait_until_ready(), timeout=30.0)
+            await asyncio.wait_for(client.wait_until_ready(), timeout=30.0)
         except asyncio.TimeoutError:
             await self._handle_ready_timeout()
 
     async def _handle_ready_timeout(self):
         """Handle timeout when waiting for client ready event."""
-        if len(self.client.guilds) == 0 and self.client.user:
+        client = self.client
+        if client is None:
+            raise Exception("Discord client not available")
+        if len(client.guilds) == 0 and client.user:
             await self._fetch_guilds_manually()
         else:
             raise Exception(
-                'Discord authentication timed out after login. The bot may not have proper '
-                'permissions or the server/channel may not exist.')
+                "Discord authentication timed out after login. The bot may not have proper "
+                "permissions or the server/channel may not exist."
+            )
 
     async def _fetch_guilds_manually(self):
         """Manually fetch guilds when ready event times out."""
+        client = self.client
+        if client is None:
+            raise Exception("Discord client not available")
         try:
             # fetch_guilds() returns an async iterator, convert to list
-            fetched_guilds = [guild async for guild in self.client.fetch_guilds()]
+            fetched_guilds = [guild async for guild in client.fetch_guilds()]
 
             if len(fetched_guilds) > 0:
                 await self._process_fetched_guilds(fetched_guilds)
                 # Mark as ready since we have guilds
-                self.client._ready.set()
+                client._ready.set()
             else:
                 raise Exception(
-                    'Discord bot is not added to any servers. Please invite the bot to your '
-                    'Discord server using the OAuth2 URL from the Developer Portal.')
+                    "Discord bot is not added to any servers. Please invite the bot to your "
+                    "Discord server using the OAuth2 URL from the Developer Portal."
+                )
         except Exception:
             raise Exception(
-                'Discord authentication failed. Please check your bot token and ensure the '
-                'bot is invited to your server.')
+                "Discord authentication failed. Please check your bot token and ensure the "
+                "bot is invited to your server."
+            )
 
     async def _process_fetched_guilds(self, fetched_guilds):
         """Process and store fetched guilds with full details."""
+        client = self.client
+        if client is None:
+            raise Exception("Discord client not available")
         self._fetched_guilds = []
         for guild in fetched_guilds:
             try:
-                full_guild = await self.client.fetch_guild(guild.id)
+                full_guild = await client.fetch_guild(guild.id)
                 await self._fetch_channels_if_needed(full_guild)
                 self._fetched_guilds.append(full_guild)
             except Exception:
@@ -135,8 +155,7 @@ class DiscordAPIClient:
         if len(guild.text_channels) == 0:
             try:
                 channels = await guild.fetch_channels()
-                text_channels = [
-                    c for c in channels if isinstance(c, discord.TextChannel)]
+                text_channels = [c for c in channels if isinstance(c, discord.TextChannel)]
                 # Store the fetched channels for later use
                 self._fetched_channels[guild.name] = text_channels
             except Exception:
@@ -175,7 +194,7 @@ class DiscordAPIClient:
             Exception: If guild not found
         """
         if not self.client:
-            raise Exception('Discord client not available')
+            raise Exception("Discord client not available")
 
         # First try the client's guilds list
         for guild in self.client.guilds:
@@ -183,12 +202,12 @@ class DiscordAPIClient:
                 return guild
 
         # If not found, try the fetched guilds (for when wait_until_ready timed out)
-        if hasattr(self, '_fetched_guilds'):
+        if hasattr(self, "_fetched_guilds"):
             for guild in self._fetched_guilds:
                 if guild.name == self.server_name:
                     return guild
 
-        raise Exception(f'Guild {self.server_name} not found.')
+        raise Exception(f"Guild {self.server_name} not found.")
 
     def _get_channel(self) -> discord.TextChannel:
         """
@@ -216,11 +235,14 @@ class DiscordAPIClient:
                 if channel.name == self.channel_name:
                     return channel
 
-        raise Exception(f'Text channel {self.channel_name} not found.')
+        raise Exception(f"Text channel {self.channel_name} not found.")
 
-    async def send_message(self, content: Optional[str] = None,
-                           embeds: Optional[List[discord.Embed]] = None,
-                           file: Optional[discord.File] = None) -> str:
+    async def send_message(
+        self,
+        content: Optional[str] = None,
+        embeds: Optional[List[discord.Embed]] = None,
+        file: Optional[discord.File] = None,
+    ) -> str:
         """
         Send a message to the configured Discord channel.
 
@@ -236,21 +258,21 @@ class DiscordAPIClient:
             Exception: If message sending fails
         """
         if not self._authenticated:
-            raise Exception('Discord client not authenticated')
+            raise Exception("Discord client not authenticated")
 
         if not self.client:
-            raise Exception('Discord client not available')
+            raise Exception("Discord client not available")
 
         try:
             channel = self._get_channel()
             # Build kwargs dict with only non-None values
             kwargs = {}
             if content is not None:
-                kwargs['content'] = content
+                kwargs["content"] = content
             if embeds is not None:
-                kwargs['embeds'] = embeds
+                kwargs["embeds"] = embeds
             if file is not None:
-                kwargs['file'] = file
+                kwargs["file"] = file
 
             # Send message with appropriate parameters
             if kwargs:
@@ -260,10 +282,10 @@ class DiscordAPIClient:
 
             return str(message.id)
         except Exception as e:
-            error_msg = f'Discord send message failed: {str(e)}'
+            error_msg = f"Discord send message failed: {str(e)}"
             raise Exception(error_msg) from e
 
-    async def add_reaction(self, message_id: str, emoji: str = '❤️') -> str:
+    async def add_reaction(self, message_id: str, emoji: str = "❤️") -> str:
         """
         Add a reaction to a Discord message.
 
@@ -278,10 +300,10 @@ class DiscordAPIClient:
             Exception: If reaction fails
         """
         if not self._authenticated:
-            raise Exception('Discord client not authenticated')
+            raise Exception("Discord client not authenticated")
 
         if not self.client:
-            raise Exception('Discord client not available')
+            raise Exception("Discord client not available")
 
         try:
             channel = self._get_channel()
@@ -289,7 +311,7 @@ class DiscordAPIClient:
             await message.add_reaction(emoji)
             return message_id
         except Exception as e:
-            error_msg = f'Discord add reaction failed: {str(e)}'
+            error_msg = f"Discord add reaction failed: {str(e)}"
             raise Exception(error_msg) from e
 
     async def delete_message(self, message_id: str) -> str:
@@ -306,10 +328,10 @@ class DiscordAPIClient:
             Exception: If deletion fails
         """
         if not self._authenticated:
-            raise Exception('Discord client not authenticated')
+            raise Exception("Discord client not authenticated")
 
         if not self.client:
-            raise Exception('Discord client not available')
+            raise Exception("Discord client not available")
 
         try:
             channel = self._get_channel()
@@ -317,12 +339,16 @@ class DiscordAPIClient:
             await message.delete()
             return message_id
         except Exception as e:
-            error_msg = f'Discord delete message failed: {str(e)}'
+            error_msg = f"Discord delete message failed: {str(e)}"
             raise Exception(error_msg) from e
 
-    async def upload_file(self, file_content: Any, filename: str,
-                          content: Optional[str] = None,
-                          embeds: Optional[List[discord.Embed]] = None) -> str:
+    async def upload_file(
+        self,
+        file_content: Any,
+        filename: str,
+        content: Optional[str] = None,
+        embeds: Optional[List[discord.Embed]] = None,
+    ) -> str:
         """
         Upload a file to Discord.
 
@@ -339,32 +365,36 @@ class DiscordAPIClient:
             Exception: If file upload fails
         """
         if not self._authenticated:
-            raise Exception('Discord client not authenticated')
+            raise Exception("Discord client not authenticated")
 
         if not self.client:
-            raise Exception('Discord client not available')
+            raise Exception("Discord client not available")
 
         try:
             channel = self._get_channel()
 
             kwargs = {}
-            kwargs['file'] = discord.File(file_content, filename=filename)
+            kwargs["file"] = discord.File(file_content, filename=filename)
 
             if content is not None:
-                kwargs['content'] = content
+                kwargs["content"] = content
             if embeds is not None:
-                kwargs['embeds'] = embeds
+                kwargs["embeds"] = embeds
 
             message = await channel.send(**kwargs)
             return str(message.id)
         except Exception as e:
-            error_msg = f'Discord file upload failed: {str(e)}'
+            error_msg = f"Discord file upload failed: {str(e)}"
             raise Exception(error_msg) from e
 
-    def create_embed(self, title: Optional[str] = None,
-                     description: Optional[str] = None,
-                     url: Optional[str] = None, embed_type: str = 'rich',
-                     image_url: Optional[str] = None) -> discord.Embed:
+    def create_embed(
+        self,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        url: Optional[str] = None,
+        embed_type: str = "rich",
+        image_url: Optional[str] = None,
+    ) -> discord.Embed:
         """
         Create a Discord embed object.
 

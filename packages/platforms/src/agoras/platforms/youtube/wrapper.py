@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.youtube.wrapper module."""
 
 import asyncio
 
@@ -67,20 +68,22 @@ class YouTube(SocialNetwork):
         Tries to load credentials from CLI params, environment variables, or storage.
         """
         # App credentials from CLI params or environment.
-        self.youtube_client_id = self._get_config_value('youtube_client_id', 'YOUTUBE_CLIENT_ID')
-        self.youtube_client_secret = self._get_config_value('youtube_client_secret', 'YOUTUBE_CLIENT_SECRET')
-        self.youtube_video_id = self._get_config_value('youtube_video_id', 'YOUTUBE_VIDEO_ID')
-        self.youtube_title = self._get_config_value('youtube_title', 'YOUTUBE_TITLE')
-        self.youtube_description = self._get_config_value('youtube_description', 'YOUTUBE_DESCRIPTION')
-        self.youtube_category_id = self._get_config_value('youtube_category_id', 'YOUTUBE_CATEGORY_ID')
-        self.youtube_privacy_status = (self._get_config_value('youtube_privacy_status', 'YOUTUBE_PRIVACY_STATUS')
-                                       or 'private')
-        self.youtube_keywords = self._get_config_value('youtube_keywords', 'YOUTUBE_KEYWORDS')
-        self.youtube_video_url = self._get_config_value('youtube_video_url', 'YOUTUBE_VIDEO_URL')
+        self.youtube_client_id = self._get_config_value("youtube_client_id", "YOUTUBE_CLIENT_ID")
+        self.youtube_client_secret = self._get_config_value("youtube_client_secret", "YOUTUBE_CLIENT_SECRET")
+        self.youtube_video_id = self._get_config_value("youtube_video_id", "YOUTUBE_VIDEO_ID")
+        self.youtube_title = self._get_config_value("youtube_title", "YOUTUBE_TITLE")
+        self.youtube_description = self._get_config_value("youtube_description", "YOUTUBE_DESCRIPTION")
+        self.youtube_category_id = self._get_config_value("youtube_category_id", "YOUTUBE_CATEGORY_ID")
+        self.youtube_privacy_status = (
+            self._get_config_value("youtube_privacy_status", "YOUTUBE_PRIVACY_STATUS") or "private"
+        )
+        self.youtube_keywords = self._get_config_value("youtube_keywords", "YOUTUBE_KEYWORDS")
+        self.youtube_video_url = self._get_config_value("youtube_video_url", "YOUTUBE_VIDEO_URL")
 
         # OAuth refresh token: prefer secure storage (post-authorize source of truth),
         # then fall back to environment for CI/unattended runs without stored tokens.
         from .auth import YouTubeAuthManager
+
         auth_manager = YouTubeAuthManager(
             client_id=self.youtube_client_id,
             client_secret=self.youtube_client_secret,
@@ -95,19 +98,14 @@ class YouTube(SocialNetwork):
             self.youtube_refresh_token = auth_manager.refresh_token
 
         if not self.youtube_refresh_token:
-            self.youtube_refresh_token = self._get_config_value(
-                'youtube_refresh_token', 'YOUTUBE_REFRESH_TOKEN')
+            self.youtube_refresh_token = self._get_config_value("youtube_refresh_token", "YOUTUBE_REFRESH_TOKEN")
 
         # Validate all credentials are now available
         if not all([self.youtube_client_id, self.youtube_client_secret, self.youtube_refresh_token]):
             raise Exception("Not authenticated. Please run 'agoras youtube authorize' first.")
 
         # Initialize YouTube API
-        self.api = YouTubeAPI(
-            self.youtube_client_id,
-            self.youtube_client_secret,
-            self.youtube_refresh_token
-        )
+        self.api = YouTubeAPI(self.youtube_client_id, self.youtube_client_secret, self.youtube_refresh_token)
 
         # Authenticate with provided credentials
         await self.api.authenticate()
@@ -119,9 +117,15 @@ class YouTube(SocialNetwork):
         if self.api:
             await self.api.disconnect()
 
-    async def post(self, status_text, status_link,
-                   status_image_url_1=None, status_image_url_2=None,
-                   status_image_url_3=None, status_image_url_4=None):
+    async def post(
+        self,
+        status_text,
+        status_link,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+    ):
         """
         Post is not supported for YouTube (videos only).
 
@@ -136,7 +140,7 @@ class YouTube(SocialNetwork):
         Raises:
             Exception: Post not supported for YouTube
         """
-        raise Exception('Regular posts not supported for YouTube. Use video action instead.')
+        raise Exception("Regular posts not supported for YouTube. Use video action instead.")
 
     async def like(self, youtube_video_id=None):
         """
@@ -150,11 +154,11 @@ class YouTube(SocialNetwork):
             str: Video ID
         """
         if not self.api:
-            raise Exception('YouTube API not initialized')
+            raise Exception("YouTube API not initialized")
 
         video_id = youtube_video_id or self.youtube_video_id
         if not video_id:
-            raise Exception('YouTube video ID is required.')
+            raise Exception("YouTube video ID is required.")
 
         await self.api.like(video_id)
         self._output_status(video_id)
@@ -172,11 +176,11 @@ class YouTube(SocialNetwork):
             str: Video ID
         """
         if not self.api:
-            raise Exception('YouTube API not initialized')
+            raise Exception("YouTube API not initialized")
 
         video_id = youtube_video_id or self.youtube_video_id
         if not video_id:
-            raise Exception('YouTube video ID is required.')
+            raise Exception("YouTube video ID is required.")
 
         await self.api.delete(video_id)
         self._output_status(video_id)
@@ -192,7 +196,7 @@ class YouTube(SocialNetwork):
         Raises:
             Exception: Share not supported for YouTube
         """
-        raise Exception('Share not supported for YouTube')
+        raise Exception("Share not supported for YouTube")
 
     async def video(self, status_text, video_url, video_title):
         """
@@ -207,33 +211,36 @@ class YouTube(SocialNetwork):
             str: Video ID
         """
         if not self.api:
-            raise Exception('YouTube API not initialized')
+            raise Exception("YouTube API not initialized")
 
         if not video_title or not video_url:
-            raise Exception('Video title and URL are required.')
+            raise Exception("Video title and URL are required.")
 
         # Download and validate video using the Media system
         video = await self.download_video(video_url)
 
         if not video.content or not video.file_type:
             video.cleanup()
-            raise Exception('Failed to download or validate video')
+            raise Exception("Failed to download or validate video")
 
         from agoras.media.constraints import video_limits
         from agoras.media.errors import MediaValidationError
 
-        allowed = video_limits('youtube').mime_types
+        allowed = video_limits("youtube").mime_types
         if video.file_type.mime not in allowed:
             video.cleanup()
             raise MediaValidationError(
-                'youtube', 'video', 'mime_types',
-                video.file_type.mime, sorted(allowed),
+                "youtube",
+                "video",
+                "mime_types",
+                video.file_type.mime,
+                sorted(allowed),
             )
 
         # Ensure temp file exists
         if not video.temp_file:
             video.cleanup()
-            raise Exception('No temporary file created for video')
+            raise Exception("No temporary file created for video")
 
         try:
             # Upload video using YouTube API
@@ -241,14 +248,14 @@ class YouTube(SocialNetwork):
                 video_file_path=video.temp_file,
                 title=video_title,
                 description=status_text,
-                category_id=self.youtube_category_id or '',
-                privacy_status=self.youtube_privacy_status or 'private',
-                keywords=self.youtube_keywords
+                category_id=self.youtube_category_id or "",
+                privacy_status=self.youtube_privacy_status or "private",
+                keywords=self.youtube_keywords,
             )
 
-            video_id = response.get('id')
+            video_id = response.get("id")
             if not video_id:
-                raise Exception('Failed to get video ID from upload response')
+                raise Exception("Failed to get video ID from upload response")
 
         finally:
             # Clean up using Media system
@@ -277,7 +284,7 @@ class YouTube(SocialNetwork):
 
             video_title = item.title
             # Get video URL from enclosures
-            video_url = ''
+            video_url = ""
             try:
                 if item.raw_item.enclosures and len(item.raw_item.enclosures) > 0:
                     video_url = item.raw_item.enclosures[0].url
@@ -286,7 +293,7 @@ class YouTube(SocialNetwork):
 
             if video_url:
                 count += 1
-                await self.video(self.youtube_description or '', video_url, video_title)
+                await self.video(self.youtube_description or "", video_url, video_title)
 
     async def random_from_feed(self, feed_url, max_post_age):
         """
@@ -301,7 +308,7 @@ class YouTube(SocialNetwork):
 
         video_title = random_item.title
         # Get video URL from enclosures
-        video_url = ''
+        video_url = ""
         try:
             if random_item.raw_item.enclosures and len(random_item.raw_item.enclosures) > 0:
                 video_url = random_item.raw_item.enclosures[0].url
@@ -309,10 +316,11 @@ class YouTube(SocialNetwork):
             pass
 
         if video_url:
-            await self.video(self.youtube_description or '', video_url, video_title)
+            await self.video(self.youtube_description or "", video_url, video_title)
 
-    async def schedule(self, google_sheets_id, google_sheets_name,
-                       google_sheets_client_email, google_sheets_private_key, max_count):
+    async def schedule(
+        self, google_sheets_id, google_sheets_name, google_sheets_client_email, google_sheets_private_key, max_count
+    ):
         """
         Schedule video uploads from Google Sheets asynchronously.
 
@@ -328,8 +336,7 @@ class YouTube(SocialNetwork):
         """
         # Create and configure the schedule sheet
         sheet = await self.create_schedule_sheet(
-            google_sheets_id, google_sheets_name,
-            google_sheets_client_email, google_sheets_private_key
+            google_sheets_id, google_sheets_name, google_sheets_client_email, google_sheets_private_key
         )
 
         # Process scheduled videos
@@ -338,9 +345,9 @@ class YouTube(SocialNetwork):
         # Upload videos asynchronously
         for video_data in videos_to_upload:
             # YouTube-specific columns
-            title = video_data.get('youtube_title', '')
-            description = video_data.get('youtube_description', '')
-            video_url = video_data.get('youtube_video_url', '')
+            title = video_data.get("youtube_title", "")
+            description = video_data.get("youtube_description", "")
+            video_url = video_data.get("youtube_video_url", "")
 
             if title and video_url:
                 # Temporarily update instance variables for this upload
@@ -348,9 +355,9 @@ class YouTube(SocialNetwork):
                 original_privacy = self.youtube_privacy_status
                 original_keywords = self.youtube_keywords
 
-                self.youtube_category_id = video_data.get('youtube_category_id', '')
-                self.youtube_privacy_status = video_data.get('youtube_privacy_status', 'private')
-                self.youtube_keywords = video_data.get('youtube_keywords', '')
+                self.youtube_category_id = video_data.get("youtube_category_id", "")
+                self.youtube_privacy_status = video_data.get("youtube_privacy_status", "private")
+                self.youtube_keywords = video_data.get("youtube_keywords", "")
 
                 try:
                     await self.video(description, video_url, title)
@@ -363,9 +370,9 @@ class YouTube(SocialNetwork):
     # Override action handlers to use YouTube-specific parameter names
     async def _handle_like_action(self):
         """Handle like action with YouTube-specific parameter extraction."""
-        youtube_video_id = self._get_config_value('youtube_video_id', 'YOUTUBE_VIDEO_ID')
+        youtube_video_id = self._get_config_value("youtube_video_id", "YOUTUBE_VIDEO_ID")
         if not youtube_video_id:
-            raise Exception('YouTube video ID is required for like action.')
+            raise Exception("YouTube video ID is required for like action.")
         await self.like(youtube_video_id)
 
     async def _handle_share_action(self):
@@ -374,21 +381,21 @@ class YouTube(SocialNetwork):
 
     async def _handle_delete_action(self):
         """Handle delete action with YouTube-specific parameter extraction."""
-        youtube_video_id = self._get_config_value('youtube_video_id', 'YOUTUBE_VIDEO_ID')
+        youtube_video_id = self._get_config_value("youtube_video_id", "YOUTUBE_VIDEO_ID")
         if not youtube_video_id:
-            raise Exception('YouTube video ID is required for delete action.')
+            raise Exception("YouTube video ID is required for delete action.")
         await self.delete(youtube_video_id)
 
     async def _handle_video_action(self):
         """Handle video action with YouTube-specific parameter extraction."""
-        status_text = self._get_config_value('youtube_description', 'YOUTUBE_DESCRIPTION') or ''
-        video_url = self._get_config_value('youtube_video_url', 'YOUTUBE_VIDEO_URL')
-        video_title = self._get_config_value('youtube_title', 'YOUTUBE_TITLE') or ''
+        status_text = self._get_config_value("youtube_description", "YOUTUBE_DESCRIPTION") or ""
+        video_url = self._get_config_value("youtube_video_url", "YOUTUBE_VIDEO_URL")
+        video_title = self._get_config_value("youtube_title", "YOUTUBE_TITLE") or ""
 
         if not video_url:
-            raise Exception('YouTube video URL is required for video action.')
+            raise Exception("YouTube video URL is required for video action.")
         if not video_title:
-            raise Exception('YouTube video title is required for video action.')
+            raise Exception("YouTube video title is required for video action.")
 
         await self.video(status_text, video_url, video_title)
 
@@ -401,13 +408,10 @@ class YouTube(SocialNetwork):
         """
         from .auth import YouTubeAuthManager
 
-        client_id = self._get_config_value('youtube_client_id', 'YOUTUBE_CLIENT_ID')
-        client_secret = self._get_config_value('youtube_client_secret', 'YOUTUBE_CLIENT_SECRET')
+        client_id = self._get_config_value("youtube_client_id", "YOUTUBE_CLIENT_ID")
+        client_secret = self._get_config_value("youtube_client_secret", "YOUTUBE_CLIENT_SECRET")
 
-        auth_manager = YouTubeAuthManager(
-            client_id=client_id,
-            client_secret=client_secret
-        )
+        auth_manager = YouTubeAuthManager(client_id=client_id, client_secret=client_secret)
 
         result = await auth_manager.authorize()
         if result:
@@ -423,16 +427,16 @@ async def main_async(kwargs):
     Args:
         kwargs (dict): Configuration parameters
     """
-    action = kwargs.get('action', '')
+    action = kwargs.get("action", "")
 
-    if action == '':
-        raise Exception('Action is a required argument.')
+    if action == "":
+        raise Exception("Action is a required argument.")
 
     # Create YouTube instance with configuration
     instance = YouTube(**kwargs)
 
     # Handle authorize action separately (doesn't need client initialization)
-    if action == 'authorize':
+    if action == "authorize":
         success = await instance.authorize_credentials()
         return 0 if success else 1
 

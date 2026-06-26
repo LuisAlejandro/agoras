@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.whatsapp.auth module."""
 
 import asyncio
 import os
@@ -28,8 +29,12 @@ from .client import WhatsAppAPIClient
 class WhatsAppAuthManager(BaseAuthManager):
     """WhatsApp authentication manager using Meta Graph API with direct access token authentication."""
 
-    def __init__(self, access_token: Optional[str] = None, phone_number_id: Optional[str] = None,
-                 business_account_id: Optional[str] = None):
+    def __init__(
+        self,
+        access_token: Optional[str] = None,
+        phone_number_id: Optional[str] = None,
+        business_account_id: Optional[str] = None,
+    ):
         """
         Initialize WhatsApp authentication manager.
 
@@ -44,11 +49,11 @@ class WhatsAppAuthManager(BaseAuthManager):
             loaded = self._load_credentials_from_storage()
             if loaded:
                 if not access_token:
-                    access_token = getattr(self, 'access_token', None)
+                    access_token = getattr(self, "access_token", None)
                 if not phone_number_id:
-                    phone_number_id = getattr(self, 'phone_number_id', None)
+                    phone_number_id = getattr(self, "phone_number_id", None)
                 if not business_account_id:
-                    business_account_id = getattr(self, 'business_account_id', None)
+                    business_account_id = getattr(self, "business_account_id", None)
 
         self.access_token = access_token
         self.phone_number_id = phone_number_id
@@ -90,14 +95,16 @@ class WhatsAppAuthManager(BaseAuthManager):
             str: Success message if authorization successful, None otherwise
         """
         # Get credentials from parameters or environment variables
-        access_token = self.access_token or os.environ.get('WHATSAPP_ACCESS_TOKEN')
-        phone_number_id = self.phone_number_id or os.environ.get('WHATSAPP_PHONE_NUMBER_ID')
-        business_account_id = self.business_account_id or os.environ.get('WHATSAPP_BUSINESS_ACCOUNT_ID')
+        access_token = self.access_token or os.environ.get("WHATSAPP_ACCESS_TOKEN")
+        phone_number_id = self.phone_number_id or os.environ.get("WHATSAPP_PHONE_NUMBER_ID")
+        business_account_id = self.business_account_id or os.environ.get("WHATSAPP_BUSINESS_ACCOUNT_ID")
 
         if not access_token or not phone_number_id:
-            raise Exception('WhatsApp access token and phone number ID are required. '
-                            'Provide via parameters or environment variables (WHATSAPP_ACCESS_TOKEN, '
-                            'WHATSAPP_PHONE_NUMBER_ID).')
+            raise Exception(
+                "WhatsApp access token and phone number ID are required. "
+                "Provide via parameters or environment variables (WHATSAPP_ACCESS_TOKEN, "
+                "WHATSAPP_PHONE_NUMBER_ID)."
+            )
 
         # Set credentials for validation
         self.access_token = access_token
@@ -106,7 +113,7 @@ class WhatsAppAuthManager(BaseAuthManager):
 
         # Validate credentials
         if not await self._validate_access_token():
-            raise Exception('WhatsApp access token validation failed. Please check your credentials.')
+            raise Exception("WhatsApp access token validation failed. Please check your credentials.")
 
         # Save credentials to secure storage
         self._save_credentials_to_storage(access_token, phone_number_id, business_account_id)
@@ -122,8 +129,9 @@ class WhatsAppAuthManager(BaseAuthManager):
         """
         try:
             from pyfacebook import GraphAPI
-            graph_api = GraphAPI(access_token=self.access_token, version="23.0")
-            response = graph_api.get_object(self.phone_number_id)
+
+            graph_api = GraphAPI(access_token=self._require_access_token(), version="23.0")
+            response = graph_api.get_object(self._require_phone_number_id())
             return bool(response and response.get("verified_name"))
         except Exception:
             return False
@@ -138,10 +146,12 @@ class WhatsAppAuthManager(BaseAuthManager):
         Raises:
             Exception: If phone info retrieval fails
         """
+
         def _sync_get_phone_info():
             from pyfacebook import GraphAPI
-            graph_api = GraphAPI(access_token=self.access_token, version="23.0")
-            return graph_api.get_object(self.phone_number_id)
+
+            graph_api = GraphAPI(access_token=self._require_access_token(), version="23.0")
+            return graph_api.get_object(self._require_phone_number_id())
 
         return await asyncio.to_thread(_sync_get_phone_info)
 
@@ -155,7 +165,7 @@ class WhatsAppAuthManager(BaseAuthManager):
         Returns:
             WhatsAppAPIClient: API client instance
         """
-        return WhatsAppAPIClient(access_token=access_token, phone_number_id=self.phone_number_id)
+        return WhatsAppAPIClient(access_token=access_token, phone_number_id=self._require_phone_number_id())
 
     async def _get_user_info(self) -> Dict[str, Any]:
         """
@@ -168,18 +178,19 @@ class WhatsAppAuthManager(BaseAuthManager):
             Exception: If user info retrieval fails
         """
         if not self.client:
-            raise Exception('No client available')
+            raise Exception("No client available")
 
         def _sync_get_info():
             if not self.client:
-                raise Exception('No client available')
+                raise Exception("No client available")
 
             # Get phone number details
-            phone_data = self.client.get_object(object_id=self.phone_number_id)
+            phone_number_id = self._require_phone_number_id()
+            phone_data = self.client.get_object(object_id=phone_number_id)
 
             # Verify phone number ID matches
-            if phone_data.get('id') != self.phone_number_id:
-                raise Exception(f"Phone number ID mismatch: {phone_data.get('id')} != {self.phone_number_id}")
+            if phone_data.get("id") != phone_number_id:
+                raise Exception(f"Phone number ID mismatch: {phone_data.get('id')} != {phone_number_id}")
 
             return phone_data
 
@@ -194,6 +205,16 @@ class WhatsAppAuthManager(BaseAuthManager):
         """
         return bool(self.access_token and self.phone_number_id)
 
+    def _require_access_token(self) -> str:
+        if not self.access_token:
+            raise ValueError("WhatsApp access token is required")
+        return self.access_token
+
+    def _require_phone_number_id(self) -> str:
+        if not self.phone_number_id:
+            raise ValueError("WhatsApp phone number ID is required")
+        return self.phone_number_id
+
     def _get_platform_name(self) -> str:
         """
         Get the platform name for this auth manager.
@@ -201,7 +222,7 @@ class WhatsAppAuthManager(BaseAuthManager):
         Returns:
             str: Platform name ('whatsapp')
         """
-        return 'whatsapp'
+        return "whatsapp"
 
     def _get_token_identifier(self) -> str:
         """
@@ -214,8 +235,9 @@ class WhatsAppAuthManager(BaseAuthManager):
             return self.phone_number_id
         return "default"
 
-    def _save_credentials_to_storage(self, access_token: str, phone_number_id: str,
-                                     business_account_id: Optional[str] = None):
+    def _save_credentials_to_storage(
+        self, access_token: str, phone_number_id: str, business_account_id: Optional[str] = None
+    ):
         """
         Save WhatsApp credentials to secure storage.
 
@@ -228,9 +250,9 @@ class WhatsAppAuthManager(BaseAuthManager):
         identifier = phone_number_id
 
         token_data = {
-            'access_token': access_token,
-            'phone_number_id': phone_number_id,
-            'business_account_id': business_account_id
+            "access_token": access_token,
+            "phone_number_id": phone_number_id,
+            "business_account_id": business_account_id,
         }
 
         self.token_storage.save_token(platform_name, identifier, token_data)
@@ -259,9 +281,9 @@ class WhatsAppAuthManager(BaseAuthManager):
                 token_data = self.token_storage.load_token(platform_name, identifier)
 
         if token_data:
-            self.access_token = token_data.get('access_token')
-            self.phone_number_id = token_data.get('phone_number_id')
-            self.business_account_id = token_data.get('business_account_id')
+            self.access_token = token_data.get("access_token")
+            self.phone_number_id = token_data.get("phone_number_id")
+            self.business_account_id = token_data.get("business_account_id")
             return bool(self.access_token and self.phone_number_id)
 
         return False

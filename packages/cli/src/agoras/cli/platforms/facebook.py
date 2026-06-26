@@ -26,8 +26,8 @@ from argparse import ArgumentParser, Namespace, _SubParsersAction
 from agoras.platforms.facebook.wrapper import main as facebook_main
 
 from ..base import add_common_content_options
-from ..media_help import video_url_help
 from ..converter import ParameterConverter
+from ..media_help import video_url_help
 from ..validator import ActionValidator
 
 
@@ -42,35 +42,28 @@ def create_facebook_parser(subparsers: _SubParsersAction) -> ArgumentParser:
         ArgumentParser for Facebook commands
     """
     parser = subparsers.add_parser(
-        'facebook',
-        help='Facebook operations. Run "agoras facebook authorize" before any actions.'
+        "facebook", help='Facebook operations. Run "agoras facebook authorize" before any actions.'
     )
 
-    actions = parser.add_subparsers(
-        dest='action',
-        title='Facebook Actions',
-        required=True
-    )
+    actions = parser.add_subparsers(dest="action", title="Facebook Actions", required=True)
 
     # Authorize action
     authorize = actions.add_parser(
-        'authorize',
-        help='Authorize Facebook account (OAuth 2.0). Run this first before any other actions.'
+        "authorize", help="Authorize Facebook account (OAuth 2.0). Run this first before any other actions."
     )
     _add_facebook_authorize_options(authorize)
 
     # Post action
     post = actions.add_parser(
-        'post',
-        help='Create a text/image post on Facebook. Requires prior authorization via "agoras facebook authorize".'
+        "post",
+        help='Create a text/image post on Facebook. Requires prior authorization via "agoras facebook authorize".',
     )
     _add_facebook_action_options(post, object_id_required=False)
     add_common_content_options(post, images=4)
 
     # Video action
     video = actions.add_parser(
-        'video',
-        help='Upload a video to Facebook. Requires prior authorization via "agoras facebook authorize".'
+        "video", help='Upload a video to Facebook. Requires prior authorization via "agoras facebook authorize".'
     )
     _add_facebook_action_options(video, object_id_required=False)
     _add_video_options(video)
@@ -78,16 +71,14 @@ def create_facebook_parser(subparsers: _SubParsersAction) -> ArgumentParser:
 
     # Like action
     like = actions.add_parser(
-        'like',
-        help='Like a Facebook post. Requires prior authorization via "agoras facebook authorize".'
+        "like", help='Like a Facebook post. Requires prior authorization via "agoras facebook authorize".'
     )
     _add_facebook_action_options(like, object_id_required=False)
     _add_post_id_option(like)
 
     # Share action
     share = actions.add_parser(
-        'share',
-        help='Share a Facebook post. Requires prior authorization via "agoras facebook authorize".'
+        "share", help='Share a Facebook post. Requires prior authorization via "agoras facebook authorize".'
     )
     _add_facebook_action_options(share, object_id_required=False)
     _add_post_id_option(share)
@@ -95,8 +86,7 @@ def create_facebook_parser(subparsers: _SubParsersAction) -> ArgumentParser:
 
     # Delete action
     delete = actions.add_parser(
-        'delete',
-        help='Delete a Facebook post. Requires prior authorization via "agoras facebook authorize".'
+        "delete", help='Delete a Facebook post. Requires prior authorization via "agoras facebook authorize".'
     )
     _add_facebook_action_options(delete, object_id_required=False)
     _add_post_id_option(delete)
@@ -115,33 +105,12 @@ def _add_facebook_authorize_options(parser: ArgumentParser):
         parser: ArgumentParser to add options to
     """
     auth = parser.add_argument_group(
-        'Facebook OAuth Credentials',
-        'Get these from https://developers.facebook.com/apps'
+        "Facebook OAuth Credentials", "Get these from https://developers.facebook.com/apps"
     )
-    auth.add_argument(
-        '--client-id',
-        required=True,
-        metavar='<id>',
-        help='Facebook App client ID'
-    )
-    auth.add_argument(
-        '--client-secret',
-        required=True,
-        metavar='<secret>',
-        help='Facebook App client secret'
-    )
-    auth.add_argument(
-        '--app-id',
-        required=True,
-        metavar='<id>',
-        help='Facebook App ID'
-    )
-    auth.add_argument(
-        '--object-id',
-        required=True,
-        metavar='<id>',
-        help='Facebook user ID for authentication'
-    )
+    auth.add_argument("--client-id", required=True, metavar="<id>", help="Facebook App client ID")
+    auth.add_argument("--client-secret", required=True, metavar="<secret>", help="Facebook App client secret")
+    auth.add_argument("--app-id", required=True, metavar="<id>", help="Facebook App ID")
+    auth.add_argument("--object-id", required=True, metavar="<id>", help="Facebook user ID for authentication")
 
 
 def _add_facebook_action_options(parser: ArgumentParser, object_id_required: bool = True):
@@ -154,10 +123,10 @@ def _add_facebook_action_options(parser: ArgumentParser, object_id_required: boo
     """
     if object_id_required:
         parser.add_argument(
-            '--object-id',
+            "--object-id",
             required=True,
-            metavar='<id>',
-            help='Facebook page or profile ID where post will be published'
+            metavar="<id>",
+            help="Facebook page or profile ID where post will be published",
         )
 
 
@@ -168,28 +137,11 @@ def _add_video_options(parser: ArgumentParser):
     Args:
         parser: ArgumentParser to add options to
     """
-    video = parser.add_argument_group('Video Options')
-    video.add_argument(
-        '--video-url',
-        required=True,
-        metavar='<url>',
-        help=video_url_help('facebook')
-    )
-    video.add_argument(
-        '--video-title',
-        metavar='<title>',
-        help='Video title'
-    )
-    video.add_argument(
-        '--video-description',
-        metavar='<description>',
-        help='Video description'
-    )
-    video.add_argument(
-        '--video-type',
-        metavar='<type>',
-        help='Video type'
-    )
+    video = parser.add_argument_group("Video Options")
+    video.add_argument("--video-url", required=True, metavar="<url>", help=video_url_help("facebook"))
+    video.add_argument("--video-title", metavar="<title>", help="Video title")
+    video.add_argument("--video-description", metavar="<description>", help="Video description")
+    video.add_argument("--video-type", metavar="<type>", help="Video type")
 
 
 def _add_post_id_option(parser: ArgumentParser):
@@ -199,12 +151,7 @@ def _add_post_id_option(parser: ArgumentParser):
     Args:
         parser: ArgumentParser to add options to
     """
-    parser.add_argument(
-        '--post-id',
-        required=True,
-        metavar='<id>',
-        help='Facebook post ID to interact with'
-    )
+    parser.add_argument("--post-id", required=True, metavar="<id>", help="Facebook post ID to interact with")
 
 
 def _add_profile_id_option(parser: ArgumentParser):
@@ -214,11 +161,7 @@ def _add_profile_id_option(parser: ArgumentParser):
     Args:
         parser: ArgumentParser to add options to
     """
-    parser.add_argument(
-        '--profile-id',
-        metavar='<id>',
-        help='Facebook profile ID where post will be shared'
-    )
+    parser.add_argument("--profile-id", metavar="<id>", help="Facebook profile ID where post will be shared")
 
 
 def _handle_facebook_command(args: Namespace):
@@ -232,10 +175,10 @@ def _handle_facebook_command(args: Namespace):
         Exit status from core execution
     """
     # Validate action
-    ActionValidator.validate('facebook', args.action)
+    ActionValidator.validate("facebook", args.action)
 
     # Convert new args to legacy format
-    converter = ParameterConverter('facebook')
+    converter = ParameterConverter("facebook")
     legacy_args = converter.convert_to_legacy(args)
 
     # Call core Facebook module

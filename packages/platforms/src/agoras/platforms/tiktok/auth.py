@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.tiktok.auth module."""
 
 import asyncio
 import hashlib
@@ -23,33 +24,38 @@ import sys
 import webbrowser
 from typing import Optional
 
+from authlib.integrations.requests_client import OAuth2Session
+
 from agoras.core.auth import BaseAuthManager
 from agoras.core.auth.callback_server import OAuthCallbackServer
-from authlib.integrations.requests_client import OAuth2Session
 
 from .client import TikTokAPIClient
 
 
 def tiktok_compliance_fix(session):
     """
-    TikTok compliance fix for non-standard OAuth2 implementation.
+    Apply TikTok compliance fix for non-standard OAuth2 implementation.
+
     TikTok uses 'client_key' instead of 'client_id' in token requests.
     """
+
     def _fix_token_request(url, headers, body):
         # Convert client_id to client_key for TikTok API
-        if 'client_id=' in body:
-            body = body.replace('client_id=', 'client_key=')
+        if "client_id=" in body:
+            body = body.replace("client_id=", "client_key=")
         return url, headers, body
 
-    session.register_compliance_hook('refresh_token_request', _fix_token_request)
+    session.register_compliance_hook("refresh_token_request", _fix_token_request)
     return session
 
 
 class TikTokAuthManager(BaseAuthManager):
     """TikTok authentication manager using Authlib OAuth2Session with PKCE and compliance fixes."""
 
-    def __init__(self, username: str, client_key: str, client_secret: str,
-                 refresh_token: Optional[str] = None):
+    client: Optional[TikTokAPIClient] = None
+    user_info: Optional[dict] = None
+
+    def __init__(self, username: str, client_key: str, client_secret: str, refresh_token: Optional[str] = None):
         """Initialize TikTok authentication manager."""
         super().__init__()
         self.username = username
@@ -64,7 +70,7 @@ class TikTokAuthManager(BaseAuthManager):
             client_secret=self.client_secret,
             scope=["user.info.basic"],  # Only basic scope available in Sandbox mode
             redirect_uri="https://localhost:3456/callback",
-            code_challenge_method='S256'
+            code_challenge_method="S256",
         )
 
         # Apply TikTok-specific compliance fixes
@@ -86,21 +92,22 @@ class TikTokAuthManager(BaseAuthManager):
 
         try:
             # If we have a refresh token (not the fake access_only one), try to refresh
-            if self.refresh_token and not self.refresh_token.startswith('access_only_'):
+            refresh_token = self.refresh_token
+            if refresh_token and not refresh_token.startswith("access_only_"):
                 # Refresh access token using direct HTTP request
                 token_data = await self._refresh_access_token()
-                self.access_token = token_data['access_token']
+                self.access_token = token_data["access_token"]
 
                 # Update refresh token if new one provided
-                if token_data.get('refresh_token') and token_data['refresh_token'] != self.refresh_token:
-                    self.refresh_token = token_data['refresh_token']
+                if token_data.get("refresh_token") and token_data["refresh_token"] != self.refresh_token:
+                    self.refresh_token = token_data["refresh_token"]
                     # Save all credentials to storage
                     self._save_credentials_to_storage()
             # If we only have an access token (Sandbox mode), use it directly
-            elif self.access_token or (self.refresh_token and self.refresh_token.startswith('access_only_')):
+            elif self.access_token or (refresh_token and refresh_token.startswith("access_only_")):
                 # Extract access token from fake refresh token if needed
-                if self.refresh_token.startswith('access_only_'):
-                    self.access_token = self.refresh_token.replace('access_only_', '', 1)
+                if refresh_token and refresh_token.startswith("access_only_"):
+                    self.access_token = refresh_token.replace("access_only_", "", 1)
                 # Access token is already set, use it
             else:
                 return False
@@ -125,7 +132,7 @@ class TikTokAuthManager(BaseAuthManager):
             str or None: The refresh token if successful, None if failed
         """
         if not self._validate_credentials():
-            raise Exception('TikTok credentials are required for authorization.')
+            raise Exception("TikTok credentials are required for authorization.")
 
         # Interactive mode with callback server
         return await self._authorize_interactive()
@@ -144,15 +151,14 @@ class TikTokAuthManager(BaseAuthManager):
             code_verifier, code_challenge = self._generate_pkce()
 
             authorization_url, _ = self.oauth_session.create_authorization_url(
-                'https://www.tiktok.com/v2/auth/authorize/',
-                state=state
+                "https://www.tiktok.com/v2/auth/authorize/", state=state
             )
 
             # TikTok uses client_key instead of client_id in authorization URLs
-            authorization_url = authorization_url.replace('client_id=', 'client_key=')
+            authorization_url = authorization_url.replace("client_id=", "client_key=")
 
             # Add PKCE parameters manually since Authlib doesn't generate them in URL
-            authorization_url += f'&code_challenge={code_challenge}&code_challenge_method=S256'
+            authorization_url += f"&code_challenge={code_challenge}&code_challenge_method=S256"
 
             print("Opening browser for TikTok authorization...", file=sys.stderr)
             print(f"If browser doesn't open automatically, visit: {authorization_url}", file=sys.stderr)
@@ -162,20 +168,21 @@ class TikTokAuthManager(BaseAuthManager):
 
             def _sync_exchange():
                 import requests
+
                 data = {
-                    'client_key': self.client_key,
-                    'client_secret': self.client_secret,
-                    'code': auth_code,
-                    'grant_type': 'authorization_code',
-                    'redirect_uri': redirect_uri,
-                    'code_verifier': code_verifier
+                    "client_key": self.client_key,
+                    "client_secret": self.client_secret,
+                    "code": auth_code,
+                    "grant_type": "authorization_code",
+                    "redirect_uri": redirect_uri,
+                    "code_verifier": code_verifier,
                 }
 
-                response = requests.post('https://open.tiktokapis.com/v2/oauth/token/', data=data, timeout=30)
+                response = requests.post("https://open.tiktokapis.com/v2/oauth/token/", data=data, timeout=30)
                 if response.status_code == 200:
                     token = response.json()
-                    refresh_token = token.get('refresh_token')
-                    access_token = token.get('access_token')
+                    refresh_token = token.get("refresh_token")
+                    access_token = token.get("access_token")
 
                     if refresh_token:
                         self.refresh_token = refresh_token
@@ -192,7 +199,7 @@ class TikTokAuthManager(BaseAuthManager):
                         self._save_credentials_to_storage()
                         return self.refresh_token
                     else:
-                        raise Exception('No tokens in TikTok response')
+                        raise Exception("No tokens in TikTok response")
                 else:
                     raise Exception(f"Token exchange failed: {response.status_code} {response.text}")
 
@@ -215,15 +222,17 @@ class TikTokAuthManager(BaseAuthManager):
         """
         Refresh TikTok access token using direct HTTP request.
         """
+
         def _sync_refresh():
             import requests
+
             data = {
-                'client_key': self.client_key,
-                'client_secret': self.client_secret,
-                'grant_type': 'refresh_token',
-                'refresh_token': self.refresh_token
+                "client_key": self.client_key,
+                "client_secret": self.client_secret,
+                "grant_type": "refresh_token",
+                "refresh_token": self.refresh_token,
             }
-            response = requests.post('https://open.tiktokapis.com/v2/oauth/token/', data=data, timeout=30)
+            response = requests.post("https://open.tiktokapis.com/v2/oauth/token/", data=data, timeout=30)
             if response.status_code == 200:
                 return response.json()
             else:
@@ -238,18 +247,18 @@ class TikTokAuthManager(BaseAuthManager):
     async def _get_user_info(self) -> dict:
         """Get creator information from TikTok API."""
         if not self.client:
-            raise Exception('No client available')
+            raise Exception("No client available")
 
         def _sync_get_info():
             if not self.client:
-                raise Exception('No client available')
+                raise Exception("No client available")
 
             user_data = self.client.get_user_info()
 
             # Verify username matches
-            username = user_data.get('creator_username')
+            username = user_data.get("creator_username")
             if username != self.username:
-                raise Exception(f'Username mismatch: {username} != {self.username}')
+                raise Exception(f"Username mismatch: {username} != {self.username}")
 
             return user_data
 
@@ -261,11 +270,11 @@ class TikTokAuthManager(BaseAuthManager):
 
     def _get_platform_name(self) -> str:
         """Get the platform name for this auth manager."""
-        return 'tiktok'
+        return "tiktok"
 
     def _get_token_identifier(self) -> str:
         """Get unique identifier for token storage."""
-        return self.username
+        return self.username or "default"
 
     def _save_credentials_to_storage(self):
         """Save all TikTok credentials to secure storage."""
@@ -273,10 +282,10 @@ class TikTokAuthManager(BaseAuthManager):
         identifier = self._get_token_identifier()
 
         token_data = {
-            'username': self.username,
-            'client_key': self.client_key,
-            'client_secret': self.client_secret,
-            'refresh_token': self.refresh_token
+            "username": self.username,
+            "client_key": self.client_key,
+            "client_secret": self.client_secret,
+            "refresh_token": self.refresh_token,
         }
 
         self.token_storage.save_token(platform_name, identifier, token_data)
@@ -301,10 +310,10 @@ class TikTokAuthManager(BaseAuthManager):
 
         if token_data:
             # Load all credentials from the token data
-            self.username = token_data.get('username')
-            self.client_key = token_data.get('client_key')
-            self.client_secret = token_data.get('client_secret')
-            self.refresh_token = token_data.get('refresh_token')
+            self.username = token_data.get("username")
+            self.client_key = token_data.get("client_key")
+            self.client_secret = token_data.get("client_secret")
+            self.refresh_token = token_data.get("refresh_token")
 
             return bool(all([self.username, self.client_key, self.client_secret, self.refresh_token]))
 

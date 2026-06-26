@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.linkedin.wrapper module."""
 
 import asyncio
 import sys
@@ -62,24 +63,24 @@ class LinkedIn(SocialNetwork):
         Tries to load credentials from CLI params, environment variables, or storage.
         """
         # Try params/environment first
-        self.linkedin_access_token = self._get_config_value('linkedin_access_token', 'LINKEDIN_ACCESS_TOKEN')
-        self.linkedin_client_id = self._get_config_value('linkedin_client_id', 'LINKEDIN_CLIENT_ID')
-        self.linkedin_client_secret = self._get_config_value('linkedin_client_secret', 'LINKEDIN_CLIENT_SECRET')
-        self.linkedin_refresh_token = self._get_config_value('linkedin_refresh_token', 'LINKEDIN_REFRESH_TOKEN')
-        self.linkedin_object_id = self._get_config_value('linkedin_object_id', 'LINKEDIN_OBJECT_ID')
-        self.linkedin_post_id = self._get_config_value('linkedin_post_id', 'LINKEDIN_POST_ID')
+        self.linkedin_access_token = self._get_config_value("linkedin_access_token", "LINKEDIN_ACCESS_TOKEN")
+        self.linkedin_client_id = self._get_config_value("linkedin_client_id", "LINKEDIN_CLIENT_ID")
+        self.linkedin_client_secret = self._get_config_value("linkedin_client_secret", "LINKEDIN_CLIENT_SECRET")
+        self.linkedin_refresh_token = self._get_config_value("linkedin_refresh_token", "LINKEDIN_REFRESH_TOKEN")
+        self.linkedin_object_id = self._get_config_value("linkedin_object_id", "LINKEDIN_OBJECT_ID")
+        self.linkedin_post_id = self._get_config_value("linkedin_post_id", "LINKEDIN_POST_ID")
 
         # If credentials not provided, try loading from storage
         # LinkedIn needs user_id (object_id), client_id, client_secret, and refresh_token to authenticate
-        if not all([self.linkedin_object_id,
-                    self.linkedin_client_id,
-                    self.linkedin_client_secret,
-                    self.linkedin_refresh_token]):
+        if not all(
+            [self.linkedin_object_id, self.linkedin_client_id, self.linkedin_client_secret, self.linkedin_refresh_token]
+        ):
             from .auth import LinkedInAuthManager
+
             auth_manager = LinkedInAuthManager(
-                user_id=self.linkedin_object_id or '',
-                client_id=self.linkedin_client_id or '',
-                client_secret=self.linkedin_client_secret or ''
+                user_id=self.linkedin_object_id or "",
+                client_id=self.linkedin_client_id or "",
+                client_secret=self.linkedin_client_secret or "",
             )
 
             if auth_manager._load_credentials_from_storage():
@@ -94,31 +95,33 @@ class LinkedIn(SocialNetwork):
                     self.linkedin_refresh_token = auth_manager.refresh_token
 
         # If we have the required auth credentials, authenticate to get access token
-        if (self.linkedin_client_id and
-                self.linkedin_client_secret and
-                self.linkedin_refresh_token):
+        if self.linkedin_client_id and self.linkedin_client_secret and self.linkedin_refresh_token:
             from .auth import LinkedInAuthManager
+
             auth_manager = LinkedInAuthManager(
-                user_id=self.linkedin_object_id,
+                user_id=self.linkedin_object_id or "",
                 client_id=self.linkedin_client_id,
                 client_secret=self.linkedin_client_secret,
-                refresh_token=self.linkedin_refresh_token
+                refresh_token=self.linkedin_refresh_token,
             )
             authenticated = await auth_manager.authenticate()
             if authenticated:
                 self.linkedin_access_token = auth_manager.access_token
 
         # Validate all credentials are now available
-        if not all([self.linkedin_access_token, self.linkedin_client_id,
-                    self.linkedin_client_secret, self.linkedin_refresh_token]):
+        if not all(
+            [
+                self.linkedin_access_token,
+                self.linkedin_client_id,
+                self.linkedin_client_secret,
+                self.linkedin_refresh_token,
+            ]
+        ):
             raise Exception("Not authenticated. Please run 'agoras linkedin authorize' first.")
 
         # Initialize LinkedIn API
         self.api = LinkedInAPI(
-            self.linkedin_object_id,
-            self.linkedin_client_id,
-            self.linkedin_client_secret,
-            self.linkedin_refresh_token
+            self.linkedin_object_id, self.linkedin_client_id, self.linkedin_client_secret, self.linkedin_refresh_token
         )
 
         # Authenticate with provided credentials
@@ -131,9 +134,15 @@ class LinkedIn(SocialNetwork):
         if self.api:
             await self.api.disconnect()
 
-    async def post(self, status_text, status_link,
-                   status_image_url_1=None, status_image_url_2=None,
-                   status_image_url_3=None, status_image_url_4=None):
+    async def post(
+        self,
+        status_text,
+        status_link,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+    ):
         """
         Create a post on LinkedIn.
 
@@ -149,26 +158,25 @@ class LinkedIn(SocialNetwork):
             str: Post ID
         """
         if not self.api:
-            raise Exception('LinkedIn API not initialized')
+            raise Exception("LinkedIn API not initialized")
 
-        status_link_title = ''
-        status_link_description = ''
-        status_link_image = ''
+        status_link_title = ""
+        status_link_description = ""
+        status_link_image = ""
         media_ids = []
-        source_media = list(filter(None, [
-            status_image_url_1, status_image_url_2,
-            status_image_url_3, status_image_url_4
-        ]))
+        source_media = list(
+            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        )
 
         if not source_media and not status_text and not status_link:
-            raise Exception('No status text, link, or images provided.')
+            raise Exception("No status text, link, or images provided.")
 
         # Parse link metadata if link is provided
         if status_link:
             scraped_data = parse_metatags(status_link)
-            status_link_title = scraped_data.get('title', '')
-            status_link_description = scraped_data.get('description', '')
-            status_link_image = scraped_data.get('image', '')
+            status_link_title = scraped_data.get("title", "")
+            status_link_description = scraped_data.get("description", "")
+            status_link_image = scraped_data.get("image", "")
 
             if status_link_image and not source_media:
                 source_media = [status_link_image]
@@ -195,7 +203,7 @@ class LinkedIn(SocialNetwork):
             link=status_link,
             link_title=status_link_title,
             link_description=status_link_description,
-            image_ids=media_ids
+            image_ids=media_ids,
         )
 
         self._output_status(post_id)
@@ -213,11 +221,11 @@ class LinkedIn(SocialNetwork):
             str: Post ID
         """
         if not self.api:
-            raise Exception('LinkedIn API not initialized')
+            raise Exception("LinkedIn API not initialized")
 
         post_id = linkedin_post_id or self.linkedin_post_id
         if not post_id:
-            raise Exception('LinkedIn post ID is required.')
+            raise Exception("LinkedIn post ID is required.")
 
         result = await self.api.like(post_id)
         self._output_status(result)
@@ -235,11 +243,11 @@ class LinkedIn(SocialNetwork):
             str: Post ID
         """
         if not self.api:
-            raise Exception('LinkedIn API not initialized')
+            raise Exception("LinkedIn API not initialized")
 
         post_id = linkedin_post_id or self.linkedin_post_id
         if not post_id:
-            raise Exception('LinkedIn post ID is required.')
+            raise Exception("LinkedIn post ID is required.")
 
         result = await self.api.delete(post_id)
         self._output_status(result)
@@ -257,11 +265,11 @@ class LinkedIn(SocialNetwork):
             str: New post ID
         """
         if not self.api:
-            raise Exception('LinkedIn API not initialized')
+            raise Exception("LinkedIn API not initialized")
 
         post_id = linkedin_post_id or self.linkedin_post_id
         if not post_id:
-            raise Exception('LinkedIn post ID is required.')
+            raise Exception("LinkedIn post ID is required.")
 
         result = await self.api.share(post_id)
         self._output_status(result)
@@ -280,26 +288,29 @@ class LinkedIn(SocialNetwork):
             str: Post ID
         """
         if not self.api:
-            raise Exception('LinkedIn API not initialized')
+            raise Exception("LinkedIn API not initialized")
 
         if not video_url:
-            raise Exception('LinkedIn video URL is required.')
+            raise Exception("LinkedIn video URL is required.")
 
         video = await self.download_video(video_url)
 
         if not video.content or not video.file_type:
             video.cleanup()
-            raise Exception('Failed to download or validate video')
+            raise Exception("Failed to download or validate video")
 
         from agoras.media.constraints import video_limits
         from agoras.media.errors import MediaValidationError
 
-        allowed = video_limits('linkedin').mime_types
+        allowed = video_limits("linkedin").mime_types
         if video.file_type.mime not in allowed:
             video.cleanup()
             raise MediaValidationError(
-                'linkedin', 'video', 'mime_types',
-                video.file_type.mime, sorted(allowed),
+                "linkedin",
+                "video",
+                "mime_types",
+                video.file_type.mime,
+                sorted(allowed),
             )
 
         try:
@@ -320,33 +331,33 @@ class LinkedIn(SocialNetwork):
     # Override action handlers to use LinkedIn-specific parameter names
     async def _handle_like_action(self):
         """Handle like action with LinkedIn-specific parameter extraction."""
-        linkedin_post_id = self._get_config_value('linkedin_post_id', 'LINKEDIN_POST_ID')
+        linkedin_post_id = self._get_config_value("linkedin_post_id", "LINKEDIN_POST_ID")
         if not linkedin_post_id:
-            raise Exception('LinkedIn post ID is required for like action.')
+            raise Exception("LinkedIn post ID is required for like action.")
         await self.like(linkedin_post_id)
 
     async def _handle_share_action(self):
         """Handle share action with LinkedIn-specific parameter extraction."""
-        linkedin_post_id = self._get_config_value('linkedin_post_id', 'LINKEDIN_POST_ID')
+        linkedin_post_id = self._get_config_value("linkedin_post_id", "LINKEDIN_POST_ID")
         if not linkedin_post_id:
-            raise Exception('LinkedIn post ID is required for share action.')
+            raise Exception("LinkedIn post ID is required for share action.")
         await self.share(linkedin_post_id)
 
     async def _handle_delete_action(self):
         """Handle delete action with LinkedIn-specific parameter extraction."""
-        linkedin_post_id = self._get_config_value('linkedin_post_id', 'LINKEDIN_POST_ID')
+        linkedin_post_id = self._get_config_value("linkedin_post_id", "LINKEDIN_POST_ID")
         if not linkedin_post_id:
-            raise Exception('LinkedIn post ID is required for delete action.')
+            raise Exception("LinkedIn post ID is required for delete action.")
         await self.delete(linkedin_post_id)
 
     async def _handle_video_action(self):
         """Handle video action with LinkedIn-specific parameter extraction."""
-        status_text = self._get_config_value('status_text', 'STATUS_TEXT') or ''
-        video_url = self._get_config_value('linkedin_video_url', 'LINKEDIN_VIDEO_URL')
-        video_title = self._get_config_value('linkedin_video_title', 'LINKEDIN_VIDEO_TITLE') or ''
+        status_text = self._get_config_value("status_text", "STATUS_TEXT") or ""
+        video_url = self._get_config_value("linkedin_video_url", "LINKEDIN_VIDEO_URL")
+        video_title = self._get_config_value("linkedin_video_title", "LINKEDIN_VIDEO_TITLE") or ""
 
         if not video_url:
-            raise Exception('LinkedIn video URL is required for video action.')
+            raise Exception("LinkedIn video URL is required for video action.")
 
         await self.video(status_text, video_url, video_title)
 
@@ -363,15 +374,11 @@ class LinkedIn(SocialNetwork):
         """
         from .auth import LinkedInAuthManager
 
-        object_id = self._get_config_value('linkedin_object_id', 'LINKEDIN_OBJECT_ID')
-        client_id = self._get_config_value('linkedin_client_id', 'LINKEDIN_CLIENT_ID')
-        client_secret = self._get_config_value('linkedin_client_secret', 'LINKEDIN_CLIENT_SECRET')
+        object_id = self._get_config_value("linkedin_object_id", "LINKEDIN_OBJECT_ID")
+        client_id = self._get_config_value("linkedin_client_id", "LINKEDIN_CLIENT_ID")
+        client_secret = self._get_config_value("linkedin_client_secret", "LINKEDIN_CLIENT_SECRET")
 
-        auth_manager = LinkedInAuthManager(
-            user_id=object_id,
-            client_id=client_id,
-            client_secret=client_secret
-        )
+        auth_manager = LinkedInAuthManager(user_id=object_id, client_id=client_id, client_secret=client_secret)
 
         result = await auth_manager.authorize()
         if result:
@@ -387,16 +394,16 @@ async def main_async(kwargs):
     Args:
         kwargs (dict): Configuration arguments
     """
-    action = kwargs.get('action', '')
+    action = kwargs.get("action", "")
 
-    if action == '':
-        raise Exception('Action is a required argument.')
+    if action == "":
+        raise Exception("Action is a required argument.")
 
     # Create LinkedIn instance with configuration
     instance = LinkedIn(**kwargs)
 
     # Handle authorize action separately (doesn't need client initialization)
-    if action == 'authorize':
+    if action == "authorize":
         success = await instance.authorize_credentials()
         return 0 if success else 1
 

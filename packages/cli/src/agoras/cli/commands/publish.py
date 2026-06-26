@@ -15,22 +15,20 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.cli.commands.publish module."""
 
 from ..platform_runner import execute_platform_action
 
 
 def main(**kwargs):
+    """Run the publish command for the requested social network."""
     import sys
     import warnings
 
-    network = kwargs.get('network')
+    network = kwargs.get("network")
 
-    if network == 'twitter':
+    if network == "twitter":
         print("Warning: The 'twitter' network name is deprecated. Use 'x' instead.", file=sys.stderr)
-        warnings.warn(
-            "The 'twitter' network name is deprecated. Use 'x' instead.",
-            DeprecationWarning,
-            stacklevel=2
-        )
+        warnings.warn("The 'twitter' network name is deprecated. Use 'x' instead.", DeprecationWarning, stacklevel=2)
 
     return execute_platform_action(**kwargs)

@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.linkedin.client module."""
 
 import asyncio
 import time
@@ -24,9 +25,7 @@ from typing import Any, Dict, List, Optional
 import requests
 from linkedin_api.clients.restli.client import RestliClient
 from linkedin_api.clients.restli.utils import api as apiutils
-from linkedin_api.clients.restli.utils.query_tunneling import (
-    maybe_apply_query_tunneling_requests_with_body,
-)
+from linkedin_api.clients.restli.utils.query_tunneling import maybe_apply_query_tunneling_requests_with_body
 from linkedin_api.common.constants import RESTLI_METHODS
 
 
@@ -64,14 +63,14 @@ class LinkedInAPIClient:
             return True
 
         if not self.access_token:
-            raise Exception('LinkedIn access token is required')
+            raise Exception("LinkedIn access token is required")
 
         try:
             self.restli_client = RestliClient()
             self._authenticated = True
             return True
         except Exception as e:
-            raise Exception(f'LinkedIn client authentication failed: {str(e)}')
+            raise Exception(f"LinkedIn client authentication failed: {str(e)}")
 
     def disconnect(self):
         """
@@ -93,16 +92,16 @@ class LinkedInAPIClient:
         body; RestliClient.action() cannot parse those responses.
         """
         if not self.restli_client:
-            raise Exception('LinkedIn RestliClient not initialized')
+            raise Exception("LinkedIn RestliClient not initialized")
         if not self.access_token:
-            raise Exception('No access token available')
+            raise Exception("No access token available")
 
         url = apiutils.build_rest_url(
             resource_path=resource_path,
             version_string=self.api_version,
         )
         prepared = maybe_apply_query_tunneling_requests_with_body(
-            encoded_query_param_string=f'action={action_name}',
+            encoded_query_param_string=f"action={action_name}",
             url=url,
             original_restli_method=RESTLI_METHODS.ACTION,
             original_request_body=action_params,
@@ -125,11 +124,12 @@ class LinkedInAPIClient:
         Raises:
             Exception: If image upload fails
         """
+
         def _sync_upload():
             if not self.restli_client:
-                raise Exception('LinkedIn RestliClient not initialized')
+                raise Exception("LinkedIn RestliClient not initialized")
             if not self.access_token:
-                raise Exception('No access token available')
+                raise Exception("No access token available")
 
             # Initialize upload
             request = self.restli_client.action(
@@ -141,25 +141,23 @@ class LinkedInAPIClient:
                     }
                 },
                 version_string=self.api_version,
-                access_token=self.access_token
+                access_token=self.access_token,
             )
 
             response = request.response.json()
-            upload_url = response.get('value', {}).get('uploadUrl', '')
-            media_id = response.get('value', {}).get('image', '')
+            upload_url = response.get("value", {}).get("uploadUrl", "")
+            media_id = response.get("value", {}).get("image", "")
 
             if not upload_url or not media_id:
-                raise Exception('Failed to get upload URL or media ID from LinkedIn')
+                raise Exception("Failed to get upload URL or media ID from LinkedIn")
 
             # Upload the image content
             upload_response = requests.put(
-                upload_url,
-                headers={'Authorization': f'Bearer {self.access_token}'},
-                data=image_content
+                upload_url, headers={"Authorization": f"Bearer {self.access_token}"}, data=image_content, timeout=30
             )
 
             if upload_response.status_code != 201:
-                raise Exception(f'Failed to upload image: {upload_response.status_code}')
+                raise Exception(f"Failed to upload image: {upload_response.status_code}")
 
             return media_id
 
@@ -168,10 +166,10 @@ class LinkedInAPIClient:
     @staticmethod
     def _etag_from_response(response: requests.Response) -> str:
         """Extract ETag header value for multipart video finalize."""
-        etag = response.headers.get('etag') or response.headers.get('ETag') or ''
+        etag = response.headers.get("etag") or response.headers.get("ETag") or ""
         etag = etag.strip().strip('"')
         if not etag:
-            raise Exception('Missing ETag from video upload response')
+            raise Exception("Missing ETag from video upload response")
         return etag
 
     async def upload_video(self, video_content: bytes, owner_urn: str) -> str:
@@ -191,11 +189,12 @@ class LinkedInAPIClient:
         Raises:
             Exception: If any upload step fails
         """
+
         def _sync_upload():
             if not self.restli_client:
-                raise Exception('LinkedIn RestliClient not initialized')
+                raise Exception("LinkedIn RestliClient not initialized")
             if not self.access_token:
-                raise Exception('No access token available')
+                raise Exception("No access token available")
 
             init_request = self.restli_client.action(
                 resource_path="/videos",
@@ -209,36 +208,35 @@ class LinkedInAPIClient:
                     }
                 },
                 version_string=self.api_version,
-                access_token=self.access_token
+                access_token=self.access_token,
             )
 
-            init_value = init_request.response.json().get('value', {})
-            video_urn = init_value.get('video', '')
-            upload_token = init_value.get('uploadToken', '')
-            instructions = init_value.get('uploadInstructions', [])
+            init_value = init_request.response.json().get("value", {})
+            video_urn = init_value.get("video", "")
+            upload_token = init_value.get("uploadToken", "")
+            instructions = init_value.get("uploadInstructions", [])
 
             if not video_urn or not instructions:
-                raise Exception('Failed to initialize video upload with LinkedIn')
+                raise Exception("Failed to initialize video upload with LinkedIn")
 
             uploaded_part_ids = []
             for instruction in instructions:
-                first_byte = instruction.get('firstByte', 0)
-                last_byte = instruction.get('lastByte', len(video_content) - 1)
-                upload_url = instruction.get('uploadUrl', '')
+                first_byte = instruction.get("firstByte", 0)
+                last_byte = instruction.get("lastByte", len(video_content) - 1)
+                upload_url = instruction.get("uploadUrl", "")
                 if not upload_url:
-                    raise Exception('Missing upload URL in LinkedIn video instructions')
+                    raise Exception("Missing upload URL in LinkedIn video instructions")
 
-                chunk = video_content[first_byte:last_byte + 1]
+                chunk = video_content[first_byte : last_byte + 1]
                 upload_response = requests.put(
                     upload_url,
-                    headers={'Content-Type': 'application/octet-stream'},
+                    headers={"Content-Type": "application/octet-stream"},
                     data=chunk,
+                    timeout=30,
                 )
 
                 if upload_response.status_code not in (200, 201):
-                    raise Exception(
-                        f'Failed to upload video part: {upload_response.status_code}'
-                    )
+                    raise Exception(f"Failed to upload video part: {upload_response.status_code}")
 
                 uploaded_part_ids.append(self._etag_from_response(upload_response))
 
@@ -256,10 +254,7 @@ class LinkedInAPIClient:
 
             if finalize_response.status_code not in (200, 201, 204):
                 detail = finalize_response.text.strip() or finalize_response.reason
-                raise Exception(
-                    f'Failed to finalize video upload: '
-                    f'{finalize_response.status_code} ({detail})'
-                )
+                raise Exception(f"Failed to finalize video upload: {finalize_response.status_code} ({detail})")
 
             self._wait_for_video_available(video_urn)
             return video_urn
@@ -269,26 +264,24 @@ class LinkedInAPIClient:
     def _wait_for_video_available(self, video_urn: str, timeout_s: int = 120) -> None:
         """Poll LinkedIn until the uploaded video is AVAILABLE."""
         if not self.restli_client:
-            raise Exception('LinkedIn RestliClient not initialized')
+            raise Exception("LinkedIn RestliClient not initialized")
 
-        encoded_urn = urllib.parse.quote(video_urn, safe='')
+        encoded_urn = urllib.parse.quote(video_urn, safe="")
         deadline = time.monotonic() + timeout_s
 
         while time.monotonic() < deadline:
             request = self.restli_client.get(
-                resource_path=f'/videos/{encoded_urn}',
-                version_string=self.api_version,
-                access_token=self.access_token
+                resource_path=f"/videos/{encoded_urn}", version_string=self.api_version, access_token=self.access_token
             )
-            status = request.response.json().get('status', '')
-            if status == 'AVAILABLE':
+            status = request.response.json().get("status", "")
+            if status == "AVAILABLE":
                 return
-            if status == 'PROCESSING_FAILED':
-                raise Exception('LinkedIn video processing failed')
+            if status == "PROCESSING_FAILED":
+                raise Exception("LinkedIn video processing failed")
 
             time.sleep(2)
 
-        raise Exception('Timed out waiting for LinkedIn video to become available')
+        raise Exception("Timed out waiting for LinkedIn video to become available")
 
     @staticmethod
     def _build_post_content(
@@ -323,23 +316,21 @@ class LinkedInAPIClient:
         if not link and image_ids:
             if len(image_ids) == 1:
                 return {"media": {"id": image_ids[0]}}
-            return {
-                "multiImage": {
-                    "images": [{"id": image_id} for image_id in image_ids]
-                }
-            }
+            return {"multiImage": {"images": [{"id": image_id} for image_id in image_ids]}}
 
         return None
 
-    async def create_post(self,
-                          author_urn: str,
-                          text: str,
-                          link: Optional[str] = None,
-                          link_title: Optional[str] = None,
-                          link_description: Optional[str] = None,
-                          image_ids: Optional[List[str]] = None,
-                          video_id: Optional[str] = None,
-                          video_title: Optional[str] = None) -> str:
+    async def create_post(
+        self,
+        author_urn: str,
+        text: str,
+        link: Optional[str] = None,
+        link_title: Optional[str] = None,
+        link_description: Optional[str] = None,
+        image_ids: Optional[List[str]] = None,
+        video_id: Optional[str] = None,
+        video_title: Optional[str] = None,
+    ) -> str:
         """
         Create a LinkedIn post.
 
@@ -359,11 +350,12 @@ class LinkedInAPIClient:
         Raises:
             Exception: If post creation fails
         """
+
         def _sync_create_post():
             if not self.restli_client:
-                raise Exception('LinkedIn RestliClient not initialized')
+                raise Exception("LinkedIn RestliClient not initialized")
             if not self.access_token:
-                raise Exception('No access token available')
+                raise Exception("No access token available")
 
             entity = {
                 "author": author_urn,
@@ -372,30 +364,32 @@ class LinkedInAPIClient:
                 "distribution": {
                     "feedDistribution": "MAIN_FEED",
                     "targetEntities": [],
-                    "thirdPartyDistributionChannels": []
+                    "thirdPartyDistributionChannels": [],
                 },
                 "lifecycleState": "PUBLISHED",
-                "isReshareDisabledByAuthor": False
+                "isReshareDisabledByAuthor": False,
             }
 
             content = self._build_post_content(
-                link, text, link_title, link_description,
-                image_ids, video_id, video_title,
+                link,
+                text,
+                link_title,
+                link_description,
+                image_ids,
+                video_id,
+                video_title,
             )
             if content:
                 entity["content"] = content
 
             request = self.restli_client.create(
-                resource_path='/posts',
-                entity=entity,
-                version_string=self.api_version,
-                access_token=self.access_token
+                resource_path="/posts", entity=entity, version_string=self.api_version, access_token=self.access_token
             )
 
-            if hasattr(request, 'entity_id') and request.entity_id:
+            if hasattr(request, "entity_id") and request.entity_id:
                 return str(request.entity_id)
             else:
-                raise Exception('Invalid response from LinkedIn API')
+                raise Exception("Invalid response from LinkedIn API")
 
         return await asyncio.to_thread(_sync_create_post)
 
@@ -413,11 +407,12 @@ class LinkedInAPIClient:
         Raises:
             Exception: If like operation fails
         """
+
         def _sync_like():
             if not self.restli_client:
-                raise Exception('LinkedIn RestliClient not initialized')
+                raise Exception("LinkedIn RestliClient not initialized")
             if not self.access_token:
-                raise Exception('No access token available')
+                raise Exception("No access token available")
 
             entity = {
                 "actor": actor_urn,
@@ -428,30 +423,33 @@ class LinkedInAPIClient:
             # According to LinkedIn API docs: POST /v2/socialActions/{postUrn}/likes
             # URL-encode the post_id for the path
             import urllib.parse
-            encoded_post_id = urllib.parse.quote(post_id, safe='')
+
+            encoded_post_id = urllib.parse.quote(post_id, safe="")
 
             request = self.restli_client.create(
-                resource_path=f'/socialActions/{encoded_post_id}/likes',
+                resource_path=f"/socialActions/{encoded_post_id}/likes",
                 entity=entity,
                 version_string=self.api_version,
-                access_token=self.access_token
+                access_token=self.access_token,
             )
 
             if request.status_code != 201:
                 try:
                     response_data = request.response.json()
-                    if response_data.get('code') == 'ACCESS_DENIED':
+                    if response_data.get("code") == "ACCESS_DENIED":
                         raise Exception(
                             'LinkedIn like permission denied. Your LinkedIn app needs "Community Management API" '
-                            'product enabled and w_member_social scope approved. Visit '
-                            'https://developers.linkedin.com/ to configure your app permissions.')
+                            "product enabled and w_member_social scope approved. Visit "
+                            "https://developers.linkedin.com/ to configure your app permissions."
+                        )
                     else:
                         raise Exception(
-                            f'Unable to like post {post_id}: {response_data.get("message", "Unknown error")}')
+                            f"Unable to like post {post_id}: {response_data.get('message', 'Unknown error')}"
+                        )
                 except Exception as e:
-                    if 'permission denied' in str(e).lower():
+                    if "permission denied" in str(e).lower():
                         raise e
-                    raise Exception(f'Unable to like post {post_id} - Status: {request.status_code}')
+                    raise Exception(f"Unable to like post {post_id} - Status: {request.status_code}")
             return post_id
 
         return await asyncio.to_thread(_sync_like)
@@ -471,11 +469,12 @@ class LinkedInAPIClient:
         Raises:
             Exception: If share operation fails
         """
+
         def _sync_share():
             if not self.restli_client:
-                raise Exception('LinkedIn RestliClient not initialized')
+                raise Exception("LinkedIn RestliClient not initialized")
             if not self.access_token:
-                raise Exception('No access token available')
+                raise Exception("No access token available")
 
             entity = {
                 "author": author_urn,
@@ -484,29 +483,24 @@ class LinkedInAPIClient:
                 "distribution": {
                     "feedDistribution": "MAIN_FEED",
                     "targetEntities": [],
-                    "thirdPartyDistributionChannels": []
+                    "thirdPartyDistributionChannels": [],
                 },
                 "lifecycleState": "PUBLISHED",
                 "isReshareDisabledByAuthor": False,
-                "reshareContext": {
-                    "parent": post_id
-                }
+                "reshareContext": {"parent": post_id},
             }
 
             request = self.restli_client.create(
-                resource_path='/posts',
-                entity=entity,
-                version_string=self.api_version,
-                access_token=self.access_token
+                resource_path="/posts", entity=entity, version_string=self.api_version, access_token=self.access_token
             )
 
             if request.status_code != 201:
-                raise Exception(f'Unable to share post {post_id}')
+                raise Exception(f"Unable to share post {post_id}")
 
-            if hasattr(request, 'entity_id') and request.entity_id:
+            if hasattr(request, "entity_id") and request.entity_id:
                 return str(request.entity_id)
             else:
-                raise Exception('Invalid response from LinkedIn API')
+                raise Exception("Invalid response from LinkedIn API")
 
         return await asyncio.to_thread(_sync_share)
 
@@ -523,21 +517,22 @@ class LinkedInAPIClient:
         Raises:
             Exception: If deletion fails
         """
+
         def _sync_delete():
             if not self.restli_client:
-                raise Exception('LinkedIn RestliClient not initialized')
+                raise Exception("LinkedIn RestliClient not initialized")
             if not self.access_token:
-                raise Exception('No access token available')
+                raise Exception("No access token available")
 
             request = self.restli_client.delete(
-                resource_path='/posts/{id}',
+                resource_path="/posts/{id}",
                 path_keys={"id": post_id},
                 version_string=self.api_version,
-                access_token=self.access_token
+                access_token=self.access_token,
             )
 
             if request.status_code != 204:
-                raise Exception(f'Unable to delete post {post_id}')
+                raise Exception(f"Unable to delete post {post_id}")
             return post_id
 
         return await asyncio.to_thread(_sync_delete)
@@ -552,18 +547,19 @@ class LinkedInAPIClient:
         Raises:
             Exception: If request fails
         """
+
         def _sync_get_user_info():
             if not self.restli_client:
-                raise Exception('LinkedIn RestliClient not initialized')
+                raise Exception("LinkedIn RestliClient not initialized")
             if not self.access_token:
-                raise Exception('No access token available')
+                raise Exception("No access token available")
 
-            me = self.restli_client.get(resource_path='/userinfo', access_token=self.access_token)
+            me = self.restli_client.get(resource_path="/userinfo", access_token=self.access_token)
             result = me.response.json()
 
             # Handle potential token expiration
-            if result.get('code', '') == 'EXPIRED_ACCESS_TOKEN':
-                raise Exception('LinkedIn access token has expired')
+            if result.get("code", "") == "EXPIRED_ACCESS_TOKEN":
+                raise Exception("LinkedIn access token has expired")
 
             return result
 

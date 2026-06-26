@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.threads.client module."""
 
 import time
 from typing import Any, Dict, List, Optional
@@ -53,25 +54,26 @@ class ThreadsAPIClient:
             Exception: If API call fails or not authenticated
         """
         if not self.access_token:
-            raise Exception('No access token available')
+            raise Exception("No access token available")
 
         if not self.user_id:
-            raise Exception('No user ID available')
+            raise Exception("No user ID available")
 
         try:
             # Return basic info we have (no API call needed for profile)
-            profile_data = {
-                'user_id': self.user_id,
-                'access_token_valid': bool(self.access_token)
-            }
+            profile_data = {"user_id": self.user_id, "access_token_valid": bool(self.access_token)}
 
             return profile_data
         except Exception as e:
             raise Exception(f"Failed to get profile: {str(e)}")
 
-    def create_post(self, post_text: str, files: Optional[List[str]] = None,
-                    file_captions: Optional[List[str]] = None,
-                    who_can_reply: str = "everyone") -> Dict[str, Any]:
+    def create_post(
+        self,
+        post_text: str,
+        files: Optional[List[str]] = None,
+        file_captions: Optional[List[str]] = None,
+        who_can_reply: str = "everyone",
+    ) -> Dict[str, Any]:
         """
         Create a post on Threads using Meta's Graph API.
 
@@ -88,80 +90,63 @@ class ThreadsAPIClient:
             Exception: If post creation fails or not authenticated
         """
         if not self.access_token:
-            raise Exception('No access token available')
+            raise Exception("No access token available")
 
         if not self.user_id:
-            raise Exception('No user ID available')
+            raise Exception("No user ID available")
 
         files = files or []
         file_captions = file_captions or []
 
         try:
             # Determine post type and build container creation data
-            container_data = {
-                'access_token': self.access_token,
-                'text': post_text,
-                'reply_control': who_can_reply
-            }
+            container_data = {"access_token": self.access_token, "text": post_text, "reply_control": who_can_reply}
 
             if len(files) == 0:
                 # Text-only post
-                container_data['media_type'] = 'TEXT'
+                container_data["media_type"] = "TEXT"
             elif len(files) == 1:
                 # Single image post
-                container_data['media_type'] = 'IMAGE'
-                container_data['image_url'] = files[0]
+                container_data["media_type"] = "IMAGE"
+                container_data["image_url"] = files[0]
                 if file_captions and file_captions[0]:
-                    container_data['alt_text'] = file_captions[0]
+                    container_data["alt_text"] = file_captions[0]
             else:
                 # Carousel post (2-4 images)
                 # First create individual carousel item containers
                 item_ids = []
                 for image_url in files:
                     item_data = {
-                        'access_token': self.access_token,
-                        'media_type': 'IMAGE',
-                        'image_url': image_url,
-                        'is_carousel_item': True
+                        "access_token": self.access_token,
+                        "media_type": "IMAGE",
+                        "image_url": image_url,
+                        "is_carousel_item": True,
                     }
-                    resp = requests.post(
-                        f"{self.base_url}/me/threads",
-                        data=item_data,
-                        timeout=30
-                    )
+                    resp = requests.post(f"{self.base_url}/me/threads", data=item_data, timeout=30)
                     self._check_response(resp)
-                    item_ids.append(resp.json()['id'])
+                    item_ids.append(resp.json()["id"])
 
                 # Now create the carousel container
-                container_data['media_type'] = 'CAROUSEL'
-                container_data['children'] = ','.join(item_ids)
+                container_data["media_type"] = "CAROUSEL"
+                container_data["children"] = ",".join(item_ids)
 
             # Create the container
-            resp = requests.post(
-                f"{self.base_url}/me/threads",
-                data=container_data,
-                timeout=30
-            )
+            resp = requests.post(f"{self.base_url}/me/threads", data=container_data, timeout=30)
             self._check_response(resp)
-            creation_id = resp.json()['id']
+            creation_id = resp.json()["id"]
 
             # Wait a bit for container to be ready (Meta recommends this)
             time.sleep(2)
 
             # Publish the container
-            publish_data = {
-                'access_token': self.access_token,
-                'creation_id': creation_id
-            }
+            publish_data = {"access_token": self.access_token, "creation_id": creation_id}
 
             publish_resp = requests.post(
-                f"{self.base_url}/{self.user_id}/threads_publish",
-                data=publish_data,
-                timeout=30
+                f"{self.base_url}/{self.user_id}/threads_publish", data=publish_data, timeout=30
             )
             self._check_response(publish_resp)
 
-            return {'id': publish_resp.json()['id']}
+            return {"id": publish_resp.json()["id"]}
 
         except Exception as e:
             raise Exception(f"Failed to create post: {str(e)}")
@@ -171,14 +156,13 @@ class ThreadsAPIClient:
         if response.status_code != 200:
             try:
                 error_data = response.json()
-                if 'error' in error_data:
+                if "error" in error_data:
                     raise Exception(f"API error: {error_data['error'].get('message', str(error_data))}")
             except ValueError:
                 pass
             raise Exception(f"HTTP {response.status_code}: {response.text}")
 
-    def create_video_post(self, post_text: str, video_url: str,
-                          who_can_reply: str = "everyone") -> Dict[str, Any]:
+    def create_video_post(self, post_text: str, video_url: str, who_can_reply: str = "everyone") -> Dict[str, Any]:
         """
         Create a video post on Threads using Meta's Graph API.
 
@@ -194,58 +178,49 @@ class ThreadsAPIClient:
             Exception: If video post creation fails or not authenticated
         """
         if not self.access_token:
-            raise Exception('No access token available')
+            raise Exception("No access token available")
 
         if not self.user_id:
-            raise Exception('No user ID available')
+            raise Exception("No user ID available")
 
         if not video_url:
-            raise Exception('Video URL is required')
+            raise Exception("Video URL is required")
 
         try:
             container_data = {
-                'access_token': self.access_token,
-                'text': post_text,
-                'reply_control': who_can_reply,
-                'media_type': 'VIDEO',
-                'video_url': video_url,
+                "access_token": self.access_token,
+                "text": post_text,
+                "reply_control": who_can_reply,
+                "media_type": "VIDEO",
+                "video_url": video_url,
             }
 
-            resp = requests.post(
-                f"{self.base_url}/me/threads",
-                data=container_data,
-                timeout=30
-            )
+            resp = requests.post(f"{self.base_url}/me/threads", data=container_data, timeout=30)
             self._check_response(resp)
-            creation_id = resp.json()['id']
+            creation_id = resp.json()["id"]
 
             # Video processing is asynchronous; poll until ready
-            status = 'IN_PROGRESS'
-            while status not in ('FINISHED', 'PUBLISHED'):
+            status = "IN_PROGRESS"
+            while status not in ("FINISHED", "PUBLISHED"):
                 time.sleep(5)
                 status_resp = requests.get(
                     f"{self.base_url}/{creation_id}",
-                    params={'fields': 'status', 'access_token': self.access_token},
-                    timeout=30
+                    params={"fields": "status", "access_token": self.access_token},
+                    timeout=30,
                 )
                 self._check_response(status_resp)
-                status = status_resp.json().get('status', '')
-                if status == 'ERROR':
-                    raise Exception('Threads video processing failed')
+                status = status_resp.json().get("status", "")
+                if status == "ERROR":
+                    raise Exception("Threads video processing failed")
 
-            publish_data = {
-                'access_token': self.access_token,
-                'creation_id': creation_id
-            }
+            publish_data = {"access_token": self.access_token, "creation_id": creation_id}
 
             publish_resp = requests.post(
-                f"{self.base_url}/{self.user_id}/threads_publish",
-                data=publish_data,
-                timeout=30
+                f"{self.base_url}/{self.user_id}/threads_publish", data=publish_data, timeout=30
             )
             self._check_response(publish_resp)
 
-            return {'id': publish_resp.json()['id']}
+            return {"id": publish_resp.json()["id"]}
 
         except Exception as e:
             raise Exception(f"Failed to create video post: {str(e)}")
@@ -264,22 +239,18 @@ class ThreadsAPIClient:
             Exception: If repost fails or not authenticated
         """
         if not self.access_token:
-            raise Exception('No access token available')
+            raise Exception("No access token available")
 
         if not self.user_id:
-            raise Exception('No user ID available')
+            raise Exception("No user ID available")
 
         try:
-            data = {'access_token': self.access_token}
+            data = {"access_token": self.access_token}
 
-            response = requests.post(
-                f"{self.base_url}/{post_id}/repost",
-                data=data,
-                timeout=30
-            )
+            response = requests.post(f"{self.base_url}/{post_id}/repost", data=data, timeout=30)
             self._check_response(response)
 
-            return {'id': response.json()['id']}
+            return {"id": response.json()["id"]}
         except Exception as e:
             raise Exception(f"Failed to repost: {str(e)}")
 
@@ -297,20 +268,18 @@ class ThreadsAPIClient:
             Exception: If deletion fails or not authenticated
         """
         if not self.access_token:
-            raise Exception('No access token available')
+            raise Exception("No access token available")
 
         if not post_id:
-            raise Exception('Post ID is required')
+            raise Exception("Post ID is required")
 
         try:
             response = requests.delete(
-                f"{self.base_url}/{post_id}",
-                params={'access_token': self.access_token},
-                timeout=30
+                f"{self.base_url}/{post_id}", params={"access_token": self.access_token}, timeout=30
             )
             if response.status_code not in (200, 204):
                 self._check_response(response)
 
-            return {'id': post_id}
+            return {"id": post_id}
         except Exception as e:
             raise Exception(f"Failed to delete post: {str(e)}")

@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.telegram.client module."""
 
 import os
 from typing import Any, Dict, List, Optional
@@ -34,9 +35,7 @@ TELEGRAM_MEDIA_WRITE_TIMEOUT = 300.0
 
 def build_telegram_request() -> HTTPXRequest:
     """Build an HTTPX request client with timeouts suited to media uploads."""
-    media_write_timeout = float(
-        os.environ.get('TELEGRAM_MEDIA_WRITE_TIMEOUT', TELEGRAM_MEDIA_WRITE_TIMEOUT)
-    )
+    media_write_timeout = float(os.environ.get("TELEGRAM_MEDIA_WRITE_TIMEOUT", TELEGRAM_MEDIA_WRITE_TIMEOUT))
     return HTTPXRequest(
         connect_timeout=TELEGRAM_CONNECT_TIMEOUT,
         read_timeout=TELEGRAM_READ_TIMEOUT,
@@ -75,27 +74,27 @@ class TelegramAPIClient:
             Exception: If API call fails or not authenticated
         """
         if not self.bot_token:
-            raise Exception('No bot token available')
+            raise Exception("No bot token available")
 
         try:
             bot_info = await self.bot.get_me()
             return {
-                'id': bot_info.id,
-                'username': bot_info.username,
-                'first_name': bot_info.first_name,
-                'is_bot': bot_info.is_bot,
-                'can_join_groups': getattr(bot_info, 'can_join_groups', None),
-                'can_read_all_group_messages': getattr(bot_info, 'can_read_all_group_messages', None),
-                'supports_inline_queries': getattr(bot_info, 'supports_inline_queries', None)
+                "id": bot_info.id,
+                "username": bot_info.username,
+                "first_name": bot_info.first_name,
+                "is_bot": bot_info.is_bot,
+                "can_join_groups": getattr(bot_info, "can_join_groups", None),
+                "can_read_all_group_messages": getattr(bot_info, "can_read_all_group_messages", None),
+                "supports_inline_queries": getattr(bot_info, "supports_inline_queries", None),
             }
         except TelegramError as e:
             raise Exception(f"Failed to get bot info: {e}") from e
         except Exception as e:
             raise Exception(f"Unexpected error getting bot info: {e}") from e
 
-    async def send_message(self, chat_id: str, text: str,
-                           parse_mode: Optional[str] = None,
-                           reply_markup=None) -> Dict[str, Any]:
+    async def send_message(
+        self, chat_id: str, text: str, parse_mode: Optional[str] = None, reply_markup=None
+    ) -> Dict[str, Any]:
         """
         Send text message with optional formatting and keyboards.
 
@@ -112,14 +111,11 @@ class TelegramAPIClient:
             Exception: If message sending fails
         """
         if not self.bot_token:
-            raise Exception('No bot token available')
+            raise Exception("No bot token available")
 
         try:
             message = await self.bot.send_message(
-                chat_id=chat_id,
-                text=text,
-                parse_mode=parse_mode or self.default_parse_mode,
-                reply_markup=reply_markup
+                chat_id=chat_id, text=text, parse_mode=parse_mode or self.default_parse_mode, reply_markup=reply_markup
             )
             return message.to_dict()
         except TelegramError as e:
@@ -127,8 +123,9 @@ class TelegramAPIClient:
         except Exception as e:
             raise Exception(f"Unexpected error sending message: {e}") from e
 
-    async def send_photo(self, chat_id: str, photo, caption: Optional[str] = None,
-                         parse_mode: Optional[str] = None) -> Dict[str, Any]:
+    async def send_photo(
+        self, chat_id: str, photo, caption: Optional[str] = None, parse_mode: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Send photo with optional caption.
 
@@ -145,33 +142,35 @@ class TelegramAPIClient:
             Exception: If photo sending fails
         """
         if not self.bot_token:
-            raise Exception('No bot token available')
+            raise Exception("No bot token available")
 
         try:
             message = await self.bot.send_photo(
-                chat_id=chat_id,
-                photo=photo,
-                caption=caption,
-                parse_mode=parse_mode or self.default_parse_mode
+                chat_id=chat_id, photo=photo, caption=caption, parse_mode=parse_mode or self.default_parse_mode
             )
             return message.to_dict()
         except TelegramError as e:
             error_text = str(e)
-            if 'Chat not found' in error_text:
+            if "Chat not found" in error_text:
                 raise Exception(
-                    'Failed to send photo: chat not found. '
-                    'Check TELEGRAM_CHAT_ID, send /start to the bot for private chats, '
-                    'and ensure the bot is a member/admin of groups or channels.'
+                    "Failed to send photo: chat not found. "
+                    "Check TELEGRAM_CHAT_ID, send /start to the bot for private chats, "
+                    "and ensure the bot is a member/admin of groups or channels."
                 ) from e
             raise Exception(f"Failed to send photo: {e}") from e
         except Exception as e:
             raise Exception(f"Unexpected error sending photo: {e}") from e
 
-    async def send_video(self, chat_id: str, video, caption: Optional[str] = None,
-                         parse_mode: Optional[str] = None,
-                         duration: Optional[int] = None,
-                         width: Optional[int] = None,
-                         height: Optional[int] = None) -> Dict[str, Any]:
+    async def send_video(
+        self,
+        chat_id: str,
+        video,
+        caption: Optional[str] = None,
+        parse_mode: Optional[str] = None,
+        duration: Optional[int] = None,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+    ) -> Dict[str, Any]:
         """
         Send video with optional caption.
 
@@ -191,7 +190,7 @@ class TelegramAPIClient:
             Exception: If video sending fails
         """
         if not self.bot_token:
-            raise Exception('No bot token available')
+            raise Exception("No bot token available")
 
         try:
             message = await self.bot.send_video(
@@ -201,22 +200,22 @@ class TelegramAPIClient:
                 parse_mode=parse_mode or self.default_parse_mode,
                 duration=duration,
                 width=width,
-                height=height
+                height=height,
             )
             return message.to_dict()
         except TimedOut as e:
             raise Exception(
-                'Failed to send video: upload timed out. '
-                'Large videos may need a slower connection or a higher '
-                'TELEGRAM_MEDIA_WRITE_TIMEOUT (seconds).'
+                "Failed to send video: upload timed out. "
+                "Large videos may need a slower connection or a higher "
+                "TELEGRAM_MEDIA_WRITE_TIMEOUT (seconds)."
             ) from e
         except TelegramError as e:
             error_text = str(e)
-            if 'Chat not found' in error_text:
+            if "Chat not found" in error_text:
                 raise Exception(
-                    'Failed to send video: chat not found. '
-                    'Check TELEGRAM_CHAT_ID, send /start to the bot for private chats, '
-                    'and ensure the bot is a member/admin of groups or channels.'
+                    "Failed to send video: chat not found. "
+                    "Check TELEGRAM_CHAT_ID, send /start to the bot for private chats, "
+                    "and ensure the bot is a member/admin of groups or channels."
                 ) from e
             raise Exception(f"Failed to send video: {e}") from e
         except Exception as e:
@@ -237,7 +236,7 @@ class TelegramAPIClient:
             Exception: If message deletion fails
         """
         if not self.bot_token:
-            raise Exception('No bot token available')
+            raise Exception("No bot token available")
 
         try:
             return await self.bot.delete_message(chat_id=chat_id, message_id=message_id)
@@ -265,7 +264,7 @@ class TelegramAPIClient:
             Exception: If media group sending fails
         """
         if not self.bot_token:
-            raise Exception('No bot token available')
+            raise Exception("No bot token available")
 
         from telegram import InputMediaPhoto, InputMediaVideo
 
@@ -273,22 +272,22 @@ class TelegramAPIClient:
             # Convert media dicts to InputMedia objects
             input_media = []
             for item in media:
-                media_type = item.get('type', 'photo')
-                media_content = item.get('media')
-                caption = item.get('caption')
+                media_type = item.get("type", "photo")
+                media_content = item.get("media")
+                caption = item.get("caption")
 
-                if media_type == 'photo':
+                if media_content is None:
+                    raise Exception("Media content is required for media group items")
+
+                if media_type == "photo":
                     input_media.append(InputMediaPhoto(media=media_content, caption=caption))
-                elif media_type == 'video':
+                elif media_type == "video":
                     input_media.append(InputMediaVideo(media=media_content, caption=caption))
                 else:
-                    raise Exception(f'Unsupported media type: {media_type}')
+                    raise Exception(f"Unsupported media type: {media_type}")
 
             # Send media group (all items must be same type: all photos or all videos)
-            messages = await self.bot.send_media_group(
-                chat_id=chat_id,
-                media=input_media
-            )
+            messages = await self.bot.send_media_group(chat_id=chat_id, media=input_media)
 
             # Return list of message dicts
             return [msg.to_dict() for msg in messages]

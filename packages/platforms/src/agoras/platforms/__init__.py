@@ -16,8 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-agoras.platforms
-================
+agoras.platforms.
 
 Platform-specific implementations for social networks.
 
@@ -37,14 +36,14 @@ from .x import X
 from .youtube import YouTube
 
 __all__ = [
-    'Discord',
-    'Facebook',
-    'Instagram',
-    'LinkedIn',
-    'Telegram',
-    'Threads',
-    'TikTok',
-    'WhatsApp',
-    'X',
-    'YouTube',
+    "Discord",
+    "Facebook",
+    "Instagram",
+    "LinkedIn",
+    "Telegram",
+    "Threads",
+    "TikTok",
+    "WhatsApp",
+    "X",
+    "YouTube",
 ]

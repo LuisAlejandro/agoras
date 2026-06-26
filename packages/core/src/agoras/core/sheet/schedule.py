@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.core.sheet.schedule module."""
 
 import datetime
 
@@ -58,15 +59,29 @@ class ScheduleSheet(Sheet):
                 updated_rows.append(row_data.to_list())
                 continue
 
-            status_text, status_link, status_image_url_1, status_image_url_2, \
-                status_image_url_3, status_image_url_4, \
-                date, hour, state = row_data.data[:9]
+            (
+                status_text,
+                status_link,
+                status_image_url_1,
+                status_image_url_2,
+                status_image_url_3,
+                status_image_url_4,
+                date,
+                hour,
+                state,
+            ) = row_data.data[:9]
 
             # Add row to updated list
             updated_row = [
-                status_text, status_link, status_image_url_1, status_image_url_2,
-                status_image_url_3, status_image_url_4,
-                date, hour, state
+                status_text,
+                status_link,
+                status_image_url_1,
+                status_image_url_2,
+                status_image_url_3,
+                status_image_url_4,
+                date,
+                hour,
+                state,
             ]
 
             # Check if we've reached the limit
@@ -75,15 +90,15 @@ class ScheduleSheet(Sheet):
                 continue
 
             # Skip already published posts
-            if state == 'published':
+            if state == "published":
                 updated_rows.append(updated_row)
                 continue
 
             try:
                 # Parse the scheduled date
                 row_date = parser.parse(date)
-                normalized_current = parser.parse(current_time.strftime('%d-%m-%Y'))
-                normalized_row = parser.parse(row_date.strftime('%d-%m-%Y'))
+                normalized_current = parser.parse(current_time.strftime("%d-%m-%Y"))
+                normalized_row = parser.parse(row_date.strftime("%d-%m-%Y"))
 
                 # Skip future dates
                 if normalized_row < normalized_current:
@@ -91,23 +106,25 @@ class ScheduleSheet(Sheet):
                     continue
 
                 # For today's posts, check the hour
-                if (current_time.strftime('%d-%m-%Y') == row_date.strftime('%d-%m-%Y') and
-                        current_time.strftime('%H') != hour):
+                if (
+                    current_time.strftime("%d-%m-%Y") == row_date.strftime("%d-%m-%Y")
+                    and current_time.strftime("%H") != hour
+                ):
                     updated_rows.append(updated_row)
                     continue
 
                 # This post should be published
                 post_data = {
-                    'status_text': status_text,
-                    'status_link': status_link,
-                    'status_image_url_1': status_image_url_1,
-                    'status_image_url_2': status_image_url_2,
-                    'status_image_url_3': status_image_url_3,
-                    'status_image_url_4': status_image_url_4
+                    "status_text": status_text,
+                    "status_link": status_link,
+                    "status_image_url_1": status_image_url_1,
+                    "status_image_url_2": status_image_url_2,
+                    "status_image_url_3": status_image_url_3,
+                    "status_image_url_4": status_image_url_4,
                 }
 
                 posts_to_publish.append(post_data)
-                updated_row[-1] = 'published'  # Mark as published
+                updated_row[-1] = "published"  # Mark as published
                 count += 1
 
             except Exception:

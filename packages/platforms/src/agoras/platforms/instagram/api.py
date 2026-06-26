@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.instagram.api module."""
 
 from typing import List, Optional
 
@@ -41,19 +42,11 @@ class InstagramAPI(BaseAPI):
             client_secret (str): Facebook client secret for token refresh
             refresh_token (str, optional): Instagram refresh token
         """
-        super().__init__(
-            user_id=user_id,
-            client_id=client_id,
-            client_secret=client_secret,
-            refresh_token=refresh_token
-        )
+        super().__init__(user_id=user_id, client_id=client_id, client_secret=client_secret, refresh_token=refresh_token)
 
         # Initialize the authentication manager
         self.auth_manager = InstagramAuthManager(
-            user_id=user_id,
-            client_id=client_id,
-            client_secret=client_secret,
-            refresh_token=refresh_token
+            user_id=user_id, client_id=client_id, client_secret=client_secret, refresh_token=refresh_token
         )
 
     @property
@@ -81,7 +74,7 @@ class InstagramAPI(BaseAPI):
 
         success = await self.auth_manager.authenticate()
         if not success:
-            raise Exception('Instagram authentication failed')
+            raise Exception("Instagram authentication failed")
 
         # Set the client from auth manager for BaseAPI compatibility
         self.client = self.auth_manager.client
@@ -104,10 +97,15 @@ class InstagramAPI(BaseAPI):
         self.client = None
         self._authenticated = False
 
-    async def post(self, object_id: str, image_url: Optional[str] = None,
-                   caption: Optional[str] = None, video_url: Optional[str] = None) -> str:
+    async def post(
+        self,
+        object_id: str,
+        image_url: Optional[str] = None,
+        caption: Optional[str] = None,
+        video_url: Optional[str] = None,
+    ) -> str:
         """
-        Create an Instagram post (media).
+        Publish media to Instagram.
 
         Args:
             object_id (str): Instagram object ID
@@ -124,25 +122,28 @@ class InstagramAPI(BaseAPI):
         self.auth_manager.ensure_authenticated()
 
         if not self.client:
-            raise Exception('Instagram API not authenticated')
+            raise Exception("Instagram API not authenticated")
 
-        await self._rate_limit_check('post', 1.0)
+        await self._rate_limit_check("post", 1.0)
 
         try:
             # Use client's create_post method which creates and publishes in one step
             return await self.client.create_post(
-                object_id=object_id,
-                image_url=image_url,
-                video_url=video_url,
-                caption=caption
+                object_id=object_id, image_url=image_url, video_url=video_url, caption=caption
             )
         except Exception as e:
-            self._handle_api_error(e, 'Instagram post creation')
+            self._handle_api_error(e, "Instagram post creation")
             raise
 
-    async def create_media(self, object_id: str, image_url: Optional[str] = None,
-                           video_url: Optional[str] = None, caption: Optional[str] = None,
-                           is_carousel_item: bool = False, media_type: Optional[str] = None) -> str:
+    async def create_media(
+        self,
+        object_id: str,
+        image_url: Optional[str] = None,
+        video_url: Optional[str] = None,
+        caption: Optional[str] = None,
+        is_carousel_item: bool = False,
+        media_type: Optional[str] = None,
+    ) -> str:
         """
         Create media for Instagram post.
 
@@ -163,9 +164,9 @@ class InstagramAPI(BaseAPI):
         self.auth_manager.ensure_authenticated()
 
         if not self.client:
-            raise Exception('Instagram API not authenticated')
+            raise Exception("Instagram API not authenticated")
 
-        await self._rate_limit_check('create_media', 1.0)
+        await self._rate_limit_check("create_media", 1.0)
 
         try:
             return await self.client.create_media(
@@ -174,14 +175,13 @@ class InstagramAPI(BaseAPI):
                 video_url=video_url,
                 caption=caption,
                 is_carousel_item=is_carousel_item,
-                media_type=media_type
+                media_type=media_type,
             )
         except Exception as e:
-            self._handle_api_error(e, 'Instagram media creation')
+            self._handle_api_error(e, "Instagram media creation")
             raise
 
-    async def create_carousel(self, object_id: str, media_ids: List[str],
-                              caption: Optional[str] = None) -> str:
+    async def create_carousel(self, object_id: str, media_ids: List[str], caption: Optional[str] = None) -> str:
         """
         Create carousel media for Instagram.
 
@@ -197,18 +197,14 @@ class InstagramAPI(BaseAPI):
             Exception: If carousel creation fails
         """
         if not self.client:
-            raise Exception('Instagram API not authenticated')
+            raise Exception("Instagram API not authenticated")
 
-        await self._rate_limit_check('create_carousel', 1.0)
+        await self._rate_limit_check("create_carousel", 1.0)
 
         try:
-            return await self.client.create_carousel(
-                object_id=object_id,
-                media_ids=media_ids,
-                caption=caption
-            )
+            return await self.client.create_carousel(object_id=object_id, media_ids=media_ids, caption=caption)
         except Exception as e:
-            self._handle_api_error(e, 'Instagram carousel creation')
+            self._handle_api_error(e, "Instagram carousel creation")
             raise
 
     async def publish_media(self, object_id: str, creation_id: str) -> str:
@@ -226,17 +222,14 @@ class InstagramAPI(BaseAPI):
             Exception: If media publishing fails
         """
         if not self.client:
-            raise Exception('Instagram API not authenticated')
+            raise Exception("Instagram API not authenticated")
 
-        await self._rate_limit_check('publish_media', 1.0)
+        await self._rate_limit_check("publish_media", 1.0)
 
         try:
-            return await self.client.publish_media(
-                object_id=object_id,
-                creation_id=creation_id
-            )
+            return await self.client.publish_media(object_id=object_id, creation_id=creation_id)
         except Exception as e:
-            self._handle_api_error(e, 'Instagram media publishing')
+            self._handle_api_error(e, "Instagram media publishing")
             raise
 
     async def like(self, post_id: str) -> str:
@@ -249,7 +242,7 @@ class InstagramAPI(BaseAPI):
         Raises:
             Exception: Like not supported for Instagram
         """
-        raise Exception('Like not supported for Instagram')
+        raise Exception("Like not supported for Instagram")
 
     async def delete(self, post_id: str) -> str:
         """
@@ -261,7 +254,7 @@ class InstagramAPI(BaseAPI):
         Raises:
             Exception: Delete not supported for Instagram
         """
-        raise Exception('Delete not supported for Instagram')
+        raise Exception("Delete not supported for Instagram")
 
     async def share(self, post_id: str) -> str:
         """
@@ -273,4 +266,4 @@ class InstagramAPI(BaseAPI):
         Raises:
             Exception: Share not supported for Instagram
         """
-        raise Exception('Share not supported for Instagram')
+        raise Exception("Share not supported for Instagram")

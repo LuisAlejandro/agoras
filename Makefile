@@ -29,9 +29,9 @@ help:
 	@echo "clean-build - remove build artifacts"
 	@echo "clean-pyc - remove Python file artifacts"
 	@echo "clean-test - remove test and coverage artifacts"
-	@echo "lint - check style with flake8"
-	@echo "format - format Python code with autopep8"
-	@echo "lint-and-format - lint and format all Python files"
+	@echo "lint - check style with tox -e lint (Ruff, pydocstyle, bandit, Pyright)"
+	@echo "format - format Python code with tox -e format (Ruff)"
+	@echo "lint-and-format - format then lint all production source"
 	@echo "test - run coverage tests with tox"
 	@echo "test-all - run tests on every Python version with tox"
 	@echo "coverage - check code coverage quickly with the default Python"
@@ -67,12 +67,10 @@ lint: start
 	@$(exec_on_docker) tox -e lint
 
 format: start
-	@$(exec_on_docker) autoflake --in-place --recursive --remove-all-unused-imports --remove-unused-variables --ignore-init-module-imports packages/*/src/agoras
-	@$(exec_on_docker) autopep8 --in-place --recursive --aggressive --aggressive packages/*/src/agoras
+	@$(exec_on_docker) tox -e format
 
 lint-and-format: start
-	@$(exec_on_docker) autoflake --in-place --recursive --remove-all-unused-imports --remove-unused-variables --ignore-init-module-imports packages/*/src/agoras
-	@$(exec_on_docker) autopep8 --in-place --recursive --aggressive --aggressive packages/*/src/agoras
+	@$(exec_on_docker) tox -e format
 	@$(exec_on_docker) tox -e lint
 
 test: start

@@ -29,4 +29,4 @@ from .feed import Feed
 from .item import FeedItem
 from .manager import FeedManager
 
-__all__ = ['FeedItem', 'Feed', 'FeedManager']
+__all__ = ["FeedItem", "Feed", "FeedManager"]

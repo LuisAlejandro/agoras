@@ -24,6 +24,7 @@ from argparse import ArgumentParser, Namespace, _SubParsersAction
 from agoras.media.constraints import (
     IMAGE,
     VIDEO,
+    MediaKind,
     constraints_summary,
     format_bytes,
     resolve_platform,
@@ -33,41 +34,41 @@ from agoras.media.constraints import (
 def create_media_limits_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     """Register ``agoras utils media-limits``."""
     parser = subparsers.add_parser(
-        'media-limits',
-        help='Show per-platform media MIME, size, and transfer limits',
+        "media-limits",
+        help="Show per-platform media MIME, size, and transfer limits",
     )
     parser.add_argument(
-        '--platform',
-        metavar='<name>',
-        help='Filter to one platform (aliases such as x → twitter)',
+        "--platform",
+        metavar="<name>",
+        help="Filter to one platform (aliases such as x → twitter)",
     )
     parser.add_argument(
-        '--kind',
-        choices=['image', 'video'],
-        help='Show only image or video limits',
+        "--kind",
+        choices=["image", "video"],
+        help="Show only image or video limits",
     )
     parser.add_argument(
-        '--json',
-        action='store_true',
-        help='Emit machine-readable JSON',
+        "--json",
+        action="store_true",
+        help="Emit machine-readable JSON",
     )
     parser.set_defaults(command=_handle_media_limits)
     return parser
 
 
-def _row(platform: str, kind: str) -> dict:
+def _row(platform: str, kind: MediaKind) -> dict:
     limits, mode = constraints_summary(platform, kind)
     return {
-        'platform': platform,
-        'kind': kind,
-        'mime_types': limits.mime_type_list,
-        'max_bytes': limits.max_bytes,
-        'max_bytes_human': format_bytes(limits.max_bytes),
-        'min_duration_s': limits.min_duration_s,
-        'max_duration_s': limits.max_duration_s,
-        'max_width': limits.max_width,
-        'max_height': limits.max_height,
-        'transfer': mode,
+        "platform": platform,
+        "kind": kind,
+        "mime_types": limits.mime_type_list,
+        "max_bytes": limits.max_bytes,
+        "max_bytes_human": format_bytes(limits.max_bytes),
+        "min_duration_s": limits.min_duration_s,
+        "max_duration_s": limits.max_duration_s,
+        "max_width": limits.max_width,
+        "max_height": limits.max_height,
+        "transfer": mode,
     }
 
 
@@ -78,10 +79,10 @@ def _iter_rows(platform_filter=None, kind_filter=None):
         platforms = sorted(set(IMAGE) | set(VIDEO))
 
     for platform in platforms:
-        if kind_filter in (None, 'image') and platform in IMAGE:
-            yield _row(platform, 'image')
-        if kind_filter in (None, 'video') and platform in VIDEO:
-            yield _row(platform, 'video')
+        if kind_filter in (None, "image") and platform in IMAGE:
+            yield _row(platform, "image")
+        if kind_filter in (None, "video") and platform in VIDEO:
+            yield _row(platform, "video")
 
 
 def _handle_media_limits(args: Namespace) -> None:
@@ -101,10 +102,10 @@ def _handle_media_limits(args: Namespace) -> None:
 
 def main(argv=None) -> int:
     """Optional standalone entry point for media-limits output."""
-    parser = ArgumentParser(description='Show Agoras media limits')
-    parser.add_argument('--platform')
-    parser.add_argument('--kind', choices=['image', 'video'])
-    parser.add_argument('--json', action='store_true')
+    parser = ArgumentParser(description="Show Agoras media limits")
+    parser.add_argument("--platform")
+    parser.add_argument("--kind", choices=["image", "video"])
+    parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     try:
         _handle_media_limits(args)

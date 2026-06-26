@@ -36,31 +36,31 @@ def execute_platform_action(**kwargs):
     Deprecation warnings for the twitter network alias belong in publish_main
     (legacy publish only); this function maps twitter to x silently.
     """
-    network = kwargs.get('network')
+    network = kwargs.get("network")
 
-    if network == 'x':
+    if network == "x":
         return x(kwargs)
-    if network == 'twitter':
-        kwargs['network'] = 'x'
+    if network == "twitter":
+        kwargs["network"] = "x"
         return x(kwargs)
-    if network == 'facebook':
+    if network == "facebook":
         return facebook(kwargs)
-    if network == 'instagram':
+    if network == "instagram":
         return instagram(kwargs)
-    if network == 'linkedin':
+    if network == "linkedin":
         return linkedin(kwargs)
-    if network == 'discord':
+    if network == "discord":
         return discord(kwargs)
-    if network == 'youtube':
+    if network == "youtube":
         return youtube(kwargs)
-    if network == 'tiktok':
+    if network == "tiktok":
         return tiktok(kwargs)
-    if network == 'threads':
+    if network == "threads":
         return threads(kwargs)
-    if network == 'telegram':
+    if network == "telegram":
         return telegram(kwargs)
-    if network == 'whatsapp':
+    if network == "whatsapp":
         return whatsapp(kwargs)
     if not network:
-        raise Exception('--network is a required argument.')
+        raise Exception("--network is a required argument.")
     raise Exception(f'"{network}" network not supported.')

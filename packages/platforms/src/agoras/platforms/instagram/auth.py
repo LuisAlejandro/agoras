@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.instagram.auth module."""
 
 import asyncio
 import secrets
@@ -22,48 +23,51 @@ import sys
 import webbrowser
 from typing import Optional
 
+from authlib.integrations.requests_client import OAuth2Session
+
 from agoras.core.auth import BaseAuthManager
 from agoras.core.auth.callback_server import OAuthCallbackServer
-from authlib.integrations.requests_client import OAuth2Session
 
 from .client import InstagramAPIClient
 
 
 def facebook_compliance_fix(session):
     """
-    Facebook compliance fix for non-standard OAuth2 implementation.
+    Apply Facebook compliance fix for non-standard OAuth2 implementation.
+
     Instagram uses Facebook's OAuth system, which uses 'fb_exchange_token'
     instead of standard 'refresh_token' grant type.
     """
+
     def _fix_refresh_request(url, headers, body):
         # Convert standard refresh_token request to Facebook's fb_exchange_token format
-        if 'grant_type=refresh_token' in body:
+        if "grant_type=refresh_token" in body:
             # Extract refresh_token from body
             import urllib.parse
+
             params = urllib.parse.parse_qs(body)
-            refresh_token = params.get('refresh_token', [None])[0]
+            refresh_token = params.get("refresh_token", [None])[0]
 
             if refresh_token:
                 # Replace with Facebook's custom grant type
                 new_params = {
-                    'grant_type': 'fb_exchange_token',
-                    'client_id': session.client_id,
-                    'client_secret': session.client_secret,
-                    'fb_exchange_token': refresh_token,
+                    "grant_type": "fb_exchange_token",
+                    "client_id": session.client_id,
+                    "client_secret": session.client_secret,
+                    "fb_exchange_token": refresh_token,
                 }
                 body = urllib.parse.urlencode(new_params)
 
         return url, headers, body
 
-    session.register_compliance_hook('refresh_token_request', _fix_refresh_request)
+    session.register_compliance_hook("refresh_token_request", _fix_refresh_request)
     return session
 
 
 class InstagramAuthManager(BaseAuthManager):
     """Instagram authentication manager using Authlib OAuth2Session with Facebook compliance fixes."""
 
-    def __init__(self, user_id: str, client_id: str, client_secret: str,
-                 refresh_token: Optional[str] = None):
+    def __init__(self, user_id: str, client_id: str, client_secret: str, refresh_token: Optional[str] = None):
         """Initialize Instagram authentication manager."""
         super().__init__()
 
@@ -77,7 +81,7 @@ class InstagramAuthManager(BaseAuthManager):
             client_id=self.client_id,
             client_secret=self.client_secret,
             scope="instagram_basic,instagram_content_publish,pages_read_engagement,pages_show_list",
-            redirect_uri="https://localhost:3456/callback"
+            redirect_uri="https://localhost:3456/callback",
         )
 
         # Apply Facebook-specific compliance fixes for Instagram
@@ -98,13 +102,13 @@ class InstagramAuthManager(BaseAuthManager):
             return False
 
         # Ensure OAuth session has correct credentials
-        if not hasattr(self, 'oauth_session') or self.oauth_session.client_id != self.client_id:
+        if not hasattr(self, "oauth_session") or self.oauth_session.client_id != self.client_id:
             print("Recreating OAuth session with updated credentials.", file=sys.stderr)
             self.oauth_session = OAuth2Session(
                 client_id=self.client_id,
                 client_secret=self.client_secret,
                 scope="instagram_basic,instagram_content_publish,pages_read_engagement,pages_show_list",
-                redirect_uri="https://localhost:3456/callback"
+                redirect_uri="https://localhost:3456/callback",
             )
             # Apply Facebook-specific compliance fixes for Instagram
             self.oauth_session = facebook_compliance_fix(self.oauth_session)
@@ -112,11 +116,11 @@ class InstagramAuthManager(BaseAuthManager):
         try:
             # Refresh access token using direct HTTP method
             token_data = await self._refresh_access_token()
-            self.access_token = token_data['access_token']
+            self.access_token = token_data["access_token"]
 
             # Update refresh token if new one provided
-            if token_data.get('refresh_token') and token_data['refresh_token'] != self.refresh_token:
-                self.refresh_token = token_data['refresh_token']
+            if token_data.get("refresh_token") and token_data["refresh_token"] != self.refresh_token:
+                self.refresh_token = token_data["refresh_token"]
                 self._save_credentials_to_storage()
 
             # Create client and get user info
@@ -139,7 +143,7 @@ class InstagramAuthManager(BaseAuthManager):
             str or None: The refresh token if successful, None if failed
         """
         if not self._validate_credentials():
-            raise Exception('Instagram credentials are required for authorization.')
+            raise Exception("Instagram credentials are required for authorization.")
 
         # Interactive mode with callback server
         return await self._authorize_interactive()
@@ -154,8 +158,7 @@ class InstagramAuthManager(BaseAuthManager):
             self.oauth_session.redirect_uri = redirect_uri
 
             authorization_url, _ = self.oauth_session.create_authorization_url(
-                'https://www.facebook.com/v21.0/dialog/oauth',
-                state=state
+                "https://www.facebook.com/v21.0/dialog/oauth", state=state
             )
 
             print("Opening browser for Instagram authorization...", file=sys.stderr)
@@ -166,12 +169,10 @@ class InstagramAuthManager(BaseAuthManager):
 
             def _sync_exchange():
                 token = self.oauth_session.fetch_token(
-                    'https://graph.facebook.com/v21.0/oauth/access_token',
-                    code=auth_code,
-                    redirect_uri=redirect_uri
+                    "https://graph.facebook.com/v21.0/oauth/access_token", code=auth_code, redirect_uri=redirect_uri
                 )
 
-                long_lived_token = self._exchange_for_long_lived_token(token['access_token'])
+                long_lived_token = self._exchange_for_long_lived_token(token["access_token"])
                 self.refresh_token = long_lived_token
                 self._save_credentials_to_storage()
                 return long_lived_token
@@ -186,32 +187,34 @@ class InstagramAuthManager(BaseAuthManager):
         try:
             # Use authlib's fetch_token with custom grant type and parameters
             token_data = self.oauth_session.fetch_token(
-                url='https://graph.facebook.com/v21.0/oauth/access_token',
-                grant_type='fb_exchange_token',
-                fb_exchange_token=short_lived_token
+                url="https://graph.facebook.com/v21.0/oauth/access_token",
+                grant_type="fb_exchange_token",
+                fb_exchange_token=short_lived_token,
             )
 
-            return token_data.get('access_token')
+            return token_data.get("access_token")
         except Exception as e:
             raise Exception(f"Long-lived token exchange failed: {str(e)}")
 
     async def _refresh_access_token(self) -> dict:
         """
         Refresh Instagram access token using authlib's built-in method.
+
         The compliance hook will convert this to Facebook's fb_exchange_token format.
         """
+
         def _sync_refresh():
             # Make direct HTTP request for token refresh
             import requests
 
             data = {
-                'grant_type': 'fb_exchange_token',
-                'client_id': self.client_id,
-                'client_secret': self.client_secret,
-                'fb_exchange_token': self.refresh_token
+                "grant_type": "fb_exchange_token",
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
+                "fb_exchange_token": self.refresh_token,
             }
 
-            response = requests.post('https://graph.facebook.com/v21.0/oauth/access_token', data=data)
+            response = requests.post("https://graph.facebook.com/v21.0/oauth/access_token", data=data, timeout=30)
             response.raise_for_status()
             return response.json()
 
@@ -224,24 +227,24 @@ class InstagramAuthManager(BaseAuthManager):
     async def _get_user_info(self) -> dict:
         """Get user information from Instagram API."""
         if not self.client:
-            raise Exception('No client available')
+            raise Exception("No client available")
 
         # Authenticate the client first
         await self.client.authenticate()
 
         def _sync_get_info():
             if not self.client:
-                raise Exception('No client available')
+                raise Exception("No client available")
 
             # Get basic Facebook user data - 'me' returns Facebook user info
-            user_data = self.client.get_object(object_id='me', fields='id,name')
+            user_data = self.client.get_object(object_id="me", fields="id,name")
 
             # For Instagram authentication, just return basic user info
             # The stored user_id is already the Instagram Business Account ID
             return {
-                'id': self.user_id,  # Instagram Business Account ID
-                'name': user_data.get('name', 'Instagram Account'),
-                'facebook_user_id': user_data.get('id')  # Facebook user ID
+                "id": self.user_id,  # Instagram Business Account ID
+                "name": user_data.get("name", "Instagram Account"),
+                "facebook_user_id": user_data.get("id"),  # Facebook user ID
             }
 
         return await asyncio.to_thread(_sync_get_info)
@@ -254,11 +257,11 @@ class InstagramAuthManager(BaseAuthManager):
 
     def _get_platform_name(self) -> str:
         """Get the platform name for this auth manager."""
-        return 'instagram'
+        return "instagram"
 
     def _get_token_identifier(self) -> str:
         """Get unique identifier for token storage."""
-        return self.user_id
+        return self.user_id or "default"
 
     def _save_credentials_to_storage(self):
         """Save all Instagram credentials to secure storage."""
@@ -266,10 +269,10 @@ class InstagramAuthManager(BaseAuthManager):
         identifier = self._get_token_identifier()
 
         token_data = {
-            'user_id': self.user_id,
-            'client_id': self.client_id,
-            'client_secret': self.client_secret,
-            'refresh_token': self.refresh_token
+            "user_id": self.user_id,
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "refresh_token": self.refresh_token,
         }
 
         self.token_storage.save_token(platform_name, identifier, token_data)
@@ -294,13 +297,13 @@ class InstagramAuthManager(BaseAuthManager):
         if token_data:
             # Only update if not already set (allow override from constructor)
             if not self.user_id:
-                self.user_id = token_data.get('user_id')
+                self.user_id = token_data.get("user_id")
             if not self.client_id:
-                self.client_id = token_data.get('client_id')
+                self.client_id = token_data.get("client_id")
             if not self.client_secret:
-                self.client_secret = token_data.get('client_secret')
+                self.client_secret = token_data.get("client_secret")
             if not self.refresh_token:
-                self.refresh_token = token_data.get('refresh_token')
+                self.refresh_token = token_data.get("refresh_token")
 
             return bool(all([self.user_id, self.client_id, self.client_secret, self.refresh_token]))
 
