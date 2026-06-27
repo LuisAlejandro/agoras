@@ -40,46 +40,30 @@ def create_discord_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     Returns:
         ArgumentParser for Discord commands
     """
-    parser = subparsers.add_parser(
-        'discord',
-        help='Discord chat platform operations'
-    )
+    parser = subparsers.add_parser("discord", help="Discord chat platform operations")
 
-    actions = parser.add_subparsers(
-        dest='action',
-        title='Discord Actions',
-        required=True
-    )
+    actions = parser.add_subparsers(dest="action", title="Discord Actions", required=True)
 
     # Authorize action
-    authorize = actions.add_parser(
-        'authorize',
-        help='Set up Discord bot token'
-    )
+    authorize = actions.add_parser("authorize", help="Set up Discord bot token")
     _add_discord_auth_options(authorize)
 
     # Post action
     post = actions.add_parser(
-        'post',
-        help='Send a message to Discord channel. Requires prior authorization via "agoras discord authorize".'
+        "post", help='Send a message to Discord channel. Requires prior authorization via "agoras discord authorize".'
     )
-    _add_discord_auth_options(post, required=False)
     add_common_content_options(post, images=4)
 
     # Video action
     video = actions.add_parser(
-        'video',
-        help='Send a video to Discord channel. Requires prior authorization via "agoras discord authorize".'
+        "video", help='Send a video to Discord channel. Requires prior authorization via "agoras discord authorize".'
     )
-    _add_discord_auth_options(video, required=False)
     _add_video_options(video)
 
     # Delete action
     delete = actions.add_parser(
-        'delete',
-        help='Delete a Discord message. Requires prior authorization via "agoras discord authorize".'
+        "delete", help='Delete a Discord message. Requires prior authorization via "agoras discord authorize".'
     )
-    _add_discord_auth_options(delete, required=False)
     _add_post_id_option(delete)
 
     # Set handler
@@ -88,41 +72,22 @@ def create_discord_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     return parser
 
 
-def _add_discord_auth_options(parser: ArgumentParser, required: bool = True):
+def _add_discord_auth_options(parser: ArgumentParser):
     """
-    Add Discord authentication options.
+    Add Discord authentication options for the authorize action.
 
     Args:
         parser: ArgumentParser to add options to
-        required: Whether credentials are required (True for authorize, False for other actions)
     """
-    auth = parser.add_argument_group(
-        'Discord Authentication',
-        'Discord bot credentials from discord.com/developers'
-    )
-    auth.add_argument(
-        '--bot-token',
-        required=required,
-        metavar='<token>',
-        help='Discord bot token' + (' (optional if already authorized)' if not required else '')
-    )
-    auth.add_argument(
-        '--server-name',
-        required=required,
-        metavar='<name>',
-        help='Discord server (guild) name' + (' (optional if already authorized)' if not required else '')
-    )
-    auth.add_argument(
-        '--channel-name',
-        required=required,
-        metavar='<name>',
-        help='Discord channel name' + (' (optional if already authorized)' if not required else '')
-    )
+    auth = parser.add_argument_group("Discord Authentication", "Discord bot credentials from discord.com/developers")
+    auth.add_argument("--bot-token", required=True, metavar="<token>", help="Discord bot token")
+    auth.add_argument("--server-name", required=True, metavar="<name>", help="Discord server (guild) name")
+    auth.add_argument("--channel-name", required=True, metavar="<name>", help="Discord channel name")
 
 
 def _add_video_options(parser: ArgumentParser):
     """Add video-specific options for Discord."""
-    add_video_options(parser, platform='discord')
+    add_video_options(parser, platform="discord")
 
 
 def _add_post_id_option(parser: ArgumentParser):
@@ -132,12 +97,7 @@ def _add_post_id_option(parser: ArgumentParser):
     Args:
         parser: ArgumentParser to add options to
     """
-    parser.add_argument(
-        '--post-id',
-        required=True,
-        metavar='<id>',
-        help='Discord message ID to delete'
-    )
+    parser.add_argument("--post-id", required=True, metavar="<id>", help="Discord message ID to delete")
 
 
 def _handle_discord_command(args: Namespace):
@@ -151,10 +111,10 @@ def _handle_discord_command(args: Namespace):
         Exit status from core execution
     """
     # Validate action
-    ActionValidator.validate('discord', args.action)
+    ActionValidator.validate("discord", args.action)
 
     # Convert new args to legacy format
-    converter = ParameterConverter('discord')
+    converter = ParameterConverter("discord")
     legacy_args = converter.convert_to_legacy(args)
 
     # Call core Discord module

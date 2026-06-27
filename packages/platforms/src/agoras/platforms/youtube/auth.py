@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.youtube.auth module."""
 
 import asyncio
 import secrets
@@ -22,9 +23,10 @@ import sys
 import webbrowser
 from typing import Optional
 
+from authlib.integrations.requests_client import OAuth2Session
+
 from agoras.core.auth import BaseAuthManager
 from agoras.core.auth.callback_server import OAuthCallbackServer
-from authlib.integrations.requests_client import OAuth2Session
 
 from .client import YouTubeAPIClient
 
@@ -32,8 +34,7 @@ from .client import YouTubeAPIClient
 class YouTubeAuthManager(BaseAuthManager):
     """YouTube authentication manager using Authlib OAuth2Session with Google OAuth2."""
 
-    def __init__(self, client_id: str, client_secret: str,
-                 refresh_token: Optional[str] = None):
+    def __init__(self, client_id: str, client_secret: str, refresh_token: Optional[str] = None):
         """Initialize YouTube authentication manager."""
         super().__init__()
         self.client_id = client_id
@@ -47,7 +48,9 @@ class YouTubeAuthManager(BaseAuthManager):
             scope=[
                 "https://www.googleapis.com/auth/youtube.upload",
                 "https://www.googleapis.com/auth/youtube.readonly",
-                "https://www.googleapis.com/auth/youtube.force-ssl"])
+                "https://www.googleapis.com/auth/youtube.force-ssl",
+            ],
+        )
 
     async def authenticate(self) -> bool:
         """
@@ -66,11 +69,11 @@ class YouTubeAuthManager(BaseAuthManager):
         try:
             # Refresh access token using authlib's built-in method
             token_data = await self._refresh_access_token_with_authlib()
-            self.access_token = token_data['access_token']
+            self.access_token = token_data["access_token"]
 
             # Update refresh token if new one provided
-            if token_data.get('refresh_token') and token_data['refresh_token'] != self.refresh_token:
-                self.refresh_token = token_data['refresh_token']
+            if token_data.get("refresh_token") and token_data["refresh_token"] != self.refresh_token:
+                self.refresh_token = token_data["refresh_token"]
                 # Save all credentials to storage
                 self._save_credentials_to_storage()
 
@@ -104,7 +107,7 @@ class YouTubeAuthManager(BaseAuthManager):
             str or None: The refresh token if successful, None if failed
         """
         if not self._validate_credentials():
-            raise Exception('YouTube credentials are required for authorization.')
+            raise Exception("YouTube credentials are required for authorization.")
 
         # Interactive mode with callback server
         return await self._authorize_interactive()
@@ -119,10 +122,7 @@ class YouTubeAuthManager(BaseAuthManager):
             self.oauth_session.redirect_uri = redirect_uri
 
             authorization_url, _ = self.oauth_session.create_authorization_url(
-                'https://accounts.google.com/o/oauth2/auth',
-                access_type='offline',
-                prompt='consent',
-                state=state
+                "https://accounts.google.com/o/oauth2/auth", access_type="offline", prompt="consent", state=state
             )
 
             print("Opening browser for YouTube authorization...", file=sys.stderr)
@@ -133,20 +133,19 @@ class YouTubeAuthManager(BaseAuthManager):
 
             def _sync_exchange():
                 token = self.oauth_session.fetch_token(
-                    'https://oauth2.googleapis.com/token',
-                    code=auth_code,
-                    redirect_uri=redirect_uri
+                    "https://oauth2.googleapis.com/token", code=auth_code, redirect_uri=redirect_uri
                 )
 
-                refresh_token = token.get('refresh_token')
+                refresh_token = token.get("refresh_token")
                 if refresh_token:
                     self.refresh_token = refresh_token
                     # Save all credentials to storage
                     self._save_credentials_to_storage()
                     return refresh_token
                 else:
-                    raise Exception('No refresh token in YouTube/Google response. '
-                                    'Try revoking access and re-authorizing.')
+                    raise Exception(
+                        "No refresh token in YouTube/Google response. Try revoking access and re-authorizing."
+                    )
 
             return await asyncio.to_thread(_sync_exchange)
         except Exception as e:
@@ -156,17 +155,20 @@ class YouTubeAuthManager(BaseAuthManager):
     async def _refresh_access_token_with_authlib(self) -> dict:
         """
         Refresh YouTube access token using direct HTTP request.
+
         Google uses standard OAuth2 refresh token flow.
         """
+
         def _sync_refresh():
             import requests
+
             data = {
-                'grant_type': 'refresh_token',
-                'refresh_token': self.refresh_token,
-                'client_id': self.client_id,
-                'client_secret': self.client_secret
+                "grant_type": "refresh_token",
+                "refresh_token": self.refresh_token,
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
             }
-            resp = requests.post('https://oauth2.googleapis.com/token', data=data, timeout=30)
+            resp = requests.post("https://oauth2.googleapis.com/token", data=data, timeout=30)
             if resp.status_code == 200:
                 return resp.json()
             else:
@@ -181,7 +183,7 @@ class YouTubeAuthManager(BaseAuthManager):
     async def _get_user_info(self) -> dict:
         """Get user information from YouTube API."""
         if not self.client:
-            raise Exception('No client available')
+            raise Exception("No client available")
 
         # Authenticate the client first
         await self.client.authenticate()
@@ -190,7 +192,7 @@ class YouTubeAuthManager(BaseAuthManager):
             # Get channel info using YouTube API client
             return await self.client.get_channel_info()
         except Exception as e:
-            raise Exception(f'Failed to get YouTube channel info: {str(e)}')
+            raise Exception(f"Failed to get YouTube channel info: {str(e)}")
 
     def _validate_credentials(self) -> bool:
         """Validate that all required credentials are present."""
@@ -198,11 +200,11 @@ class YouTubeAuthManager(BaseAuthManager):
 
     def _get_platform_name(self) -> str:
         """Get the platform name for this auth manager."""
-        return 'youtube'
+        return "youtube"
 
     def _get_token_identifier(self) -> str:
         """Get unique identifier for token storage."""
-        return self.client_id
+        return self.client_id or "default"
 
     def _save_credentials_to_storage(self):
         """Save all YouTube credentials to secure storage."""
@@ -210,9 +212,9 @@ class YouTubeAuthManager(BaseAuthManager):
         identifier = self._get_token_identifier()
 
         token_data = {
-            'client_id': self.client_id,
-            'client_secret': self.client_secret,
-            'refresh_token': self.refresh_token
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "refresh_token": self.refresh_token,
         }
 
         self.token_storage.save_token(platform_name, identifier, token_data)
@@ -237,11 +239,11 @@ class YouTubeAuthManager(BaseAuthManager):
         if token_data:
             # Only update if not already set (allow override from constructor)
             if not self.client_id:
-                self.client_id = token_data.get('client_id')
+                self.client_id = token_data.get("client_id")
             if not self.client_secret:
-                self.client_secret = token_data.get('client_secret')
+                self.client_secret = token_data.get("client_secret")
             if not self.refresh_token:
-                self.refresh_token = token_data.get('refresh_token')
+                self.refresh_token = token_data.get("refresh_token")
 
             return bool(all([self.client_id, self.client_secret, self.refresh_token]))
 

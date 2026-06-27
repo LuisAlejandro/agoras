@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.whatsapp.api module."""
 
 import asyncio
 from typing import Any, Dict, List, Optional
@@ -34,8 +35,7 @@ class WhatsAppAPI(BaseAPI):
     and business profile management.
     """
 
-    def __init__(self, access_token: str, phone_number_id: str,
-                 business_account_id: Optional[str] = None):
+    def __init__(self, access_token: str, phone_number_id: str, business_account_id: Optional[str] = None):
         """
         Initialize WhatsApp API instance.
 
@@ -45,16 +45,12 @@ class WhatsAppAPI(BaseAPI):
             business_account_id (str, optional): WhatsApp Business Account ID
         """
         super().__init__(
-            access_token=access_token,
-            phone_number_id=phone_number_id,
-            business_account_id=business_account_id
+            access_token=access_token, phone_number_id=phone_number_id, business_account_id=business_account_id
         )
 
         # Initialize the authentication manager
         self.auth_manager = WhatsAppAuthManager(
-            access_token=access_token,
-            phone_number_id=phone_number_id,
-            business_account_id=business_account_id
+            access_token=access_token, phone_number_id=phone_number_id, business_account_id=business_account_id
         )
 
     async def authenticate(self):
@@ -72,7 +68,7 @@ class WhatsAppAPI(BaseAPI):
 
         success = await self.auth_manager.authenticate()
         if not success:
-            raise Exception('WhatsApp authentication failed')
+            raise Exception("WhatsApp authentication failed")
 
         # Set the client from auth manager for BaseAPI compatibility
         self.client = self.auth_manager.client
@@ -95,9 +91,9 @@ class WhatsAppAPI(BaseAPI):
         self.client = None
         self._authenticated = False
 
-    async def post(self, to: str, text: Optional[str] = None,
-                   image_url: Optional[str] = None,
-                   video_url: Optional[str] = None) -> str:
+    async def post(
+        self, to: str, text: Optional[str] = None, image_url: Optional[str] = None, video_url: Optional[str] = None
+    ) -> str:
         """
         Create a WhatsApp message (text, image, or video).
 
@@ -116,15 +112,15 @@ class WhatsAppAPI(BaseAPI):
         self.auth_manager.ensure_authenticated()
 
         if not self.client:
-            raise Exception('WhatsApp API not authenticated')
+            raise Exception("WhatsApp API not authenticated")
 
-        await self._rate_limit_check('post', 1.0)
+        await self._rate_limit_check("post", 1.0)
 
         try:
             # Handle video message
             if video_url:
                 # Download and validate video using Media system
-                video = MediaFactory.create_video(video_url, platform='whatsapp')
+                video = MediaFactory.create_video(video_url, platform="whatsapp")
                 try:
                     await video.download()
                     if video.content and video.file_type:
@@ -134,7 +130,7 @@ class WhatsAppAPI(BaseAPI):
                         message_id = await self.send_video(to, validated_url, text)
                         return message_id
                     else:
-                        raise Exception(f'Failed to validate video: {video.url}')
+                        raise Exception(f"Failed to validate video: {video.url}")
                 finally:
                     video.cleanup()
 
@@ -142,7 +138,8 @@ class WhatsAppAPI(BaseAPI):
             elif image_url:
                 # Download and validate image using Media system
                 images = await MediaFactory.download_images(
-                    [image_url], platform='whatsapp',
+                    [image_url],
+                    platform="whatsapp",
                 )
                 try:
                     if images and images[0].content and images[0].file_type:
@@ -152,7 +149,7 @@ class WhatsAppAPI(BaseAPI):
                         message_id = await self.send_image(to, validated_url, text)
                         return message_id
                     else:
-                        raise Exception(f'Failed to validate image: {image_url}')
+                        raise Exception(f"Failed to validate image: {image_url}")
                 finally:
                     for image in images:
                         image.cleanup()
@@ -163,10 +160,10 @@ class WhatsAppAPI(BaseAPI):
                 return message_id
 
             else:
-                raise Exception('No text, image, or video provided for WhatsApp message')
+                raise Exception("No text, image, or video provided for WhatsApp message")
 
         except Exception as e:
-            self._handle_api_error(e, 'WhatsApp post creation')
+            self._handle_api_error(e, "WhatsApp post creation")
             raise
 
     async def send_message(self, to: str, text: str, buttons: Optional[List] = None) -> str:
@@ -187,18 +184,20 @@ class WhatsAppAPI(BaseAPI):
         self.auth_manager.ensure_authenticated()
 
         if not self.client:
-            raise Exception('WhatsApp API not authenticated')
+            raise Exception("WhatsApp API not authenticated")
 
-        await self._rate_limit_check('send_message', 1.0)
+        client = self.client
+        await self._rate_limit_check("send_message", 1.0)
 
         try:
+
             def _sync_send():
-                response = self.client.send_message(to, text, buttons=buttons)
-                return response['message_id']
+                response = client.send_message(to, text, buttons=buttons)
+                return response["message_id"]
 
             return await asyncio.to_thread(_sync_send)
         except Exception as e:
-            self._handle_api_error(e, 'WhatsApp send_message')
+            self._handle_api_error(e, "WhatsApp send_message")
             raise
 
     async def send_image(self, to: str, image_url: str, caption: Optional[str] = None) -> str:
@@ -219,18 +218,20 @@ class WhatsAppAPI(BaseAPI):
         self.auth_manager.ensure_authenticated()
 
         if not self.client:
-            raise Exception('WhatsApp API not authenticated')
+            raise Exception("WhatsApp API not authenticated")
 
-        await self._rate_limit_check('send_image', 1.0)
+        client = self.client
+        await self._rate_limit_check("send_image", 1.0)
 
         try:
+
             def _sync_send():
-                response = self.client.send_image(to, image_url, caption=caption)
-                return response['message_id']
+                response = client.send_image(to, image_url, caption=caption)
+                return response["message_id"]
 
             return await asyncio.to_thread(_sync_send)
         except Exception as e:
-            self._handle_api_error(e, 'WhatsApp send_image')
+            self._handle_api_error(e, "WhatsApp send_image")
             raise
 
     async def send_video(self, to: str, video_url: str, caption: Optional[str] = None) -> str:
@@ -251,18 +252,20 @@ class WhatsAppAPI(BaseAPI):
         self.auth_manager.ensure_authenticated()
 
         if not self.client:
-            raise Exception('WhatsApp API not authenticated')
+            raise Exception("WhatsApp API not authenticated")
 
-        await self._rate_limit_check('send_video', 1.0)
+        client = self.client
+        await self._rate_limit_check("send_video", 1.0)
 
         try:
+
             def _sync_send():
-                response = self.client.send_video(to, video_url, caption=caption)
-                return response['message_id']
+                response = client.send_video(to, video_url, caption=caption)
+                return response["message_id"]
 
             return await asyncio.to_thread(_sync_send)
         except Exception as e:
-            self._handle_api_error(e, 'WhatsApp send_video')
+            self._handle_api_error(e, "WhatsApp send_video")
             raise
 
     async def get_business_profile(self) -> Dict[str, Any]:
@@ -278,14 +281,16 @@ class WhatsAppAPI(BaseAPI):
         self.auth_manager.ensure_authenticated()
 
         if not self.client:
-            raise Exception('WhatsApp API not authenticated')
+            raise Exception("WhatsApp API not authenticated")
 
-        await self._rate_limit_check('get_business_profile', 1.0)
+        client = self.client
+        await self._rate_limit_check("get_business_profile", 1.0)
 
         try:
+
             def _sync_get_profile():
-                endpoint = f"{self.client.phone_number_id}/whatsapp_business_profile"
-                response = self.client.get_object(endpoint)
+                endpoint = f"{client.phone_number_id}/whatsapp_business_profile"
+                response = client.get_object(endpoint)
                 if response and response.get("data"):
                     return response["data"][0]
                 else:
@@ -293,7 +298,7 @@ class WhatsAppAPI(BaseAPI):
 
             return await asyncio.to_thread(_sync_get_profile)
         except Exception as e:
-            self._handle_api_error(e, 'WhatsApp get_business_profile')
+            self._handle_api_error(e, "WhatsApp get_business_profile")
             raise
 
     async def like(self, message_id: str) -> str:
@@ -306,7 +311,7 @@ class WhatsAppAPI(BaseAPI):
         Raises:
             Exception: Like not supported for WhatsApp
         """
-        raise Exception('Like not supported for WhatsApp')
+        raise Exception("Like not supported for WhatsApp")
 
     async def delete(self, message_id: str) -> str:
         """
@@ -318,7 +323,7 @@ class WhatsAppAPI(BaseAPI):
         Raises:
             Exception: Delete not supported for WhatsApp
         """
-        raise Exception('Delete not supported for WhatsApp')
+        raise Exception("Delete not supported for WhatsApp")
 
     async def share(self, message_id: str) -> str:
         """
@@ -330,10 +335,11 @@ class WhatsAppAPI(BaseAPI):
         Raises:
             Exception: Share not supported for WhatsApp
         """
-        raise Exception('Share not supported for WhatsApp')
+        raise Exception("Share not supported for WhatsApp")
 
-    async def send_template(self, to: str, template_name: str, language_code: str = "en",
-                            components: Optional[List[Dict]] = None) -> str:
+    async def send_template(
+        self, to: str, template_name: str, language_code: str = "en", components: Optional[List[Dict]] = None
+    ) -> str:
         """
         Send a template message via WhatsApp.
 
@@ -352,20 +358,21 @@ class WhatsAppAPI(BaseAPI):
         self.auth_manager.ensure_authenticated()
 
         if not self.client:
-            raise Exception('WhatsApp API not authenticated')
+            raise Exception("WhatsApp API not authenticated")
 
+        client = self.client
         if not template_name:
-            raise Exception('Template name is required.')
+            raise Exception("Template name is required.")
 
-        await self._rate_limit_check('send_template', 1.0)
+        await self._rate_limit_check("send_template", 1.0)
 
         try:
+
             def _sync_send():
-                response = self.client.send_template(
-                    to, template_name, language_code=language_code, components=components)
-                return response['message_id']
+                response = client.send_template(to, template_name, language_code=language_code, components=components)
+                return response["message_id"]
 
             return await asyncio.to_thread(_sync_send)
         except Exception as e:
-            self._handle_api_error(e, 'WhatsApp send_template')
+            self._handle_api_error(e, "WhatsApp send_template")
             raise

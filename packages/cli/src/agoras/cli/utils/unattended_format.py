@@ -49,7 +49,7 @@ def _field(name: str) -> TokenGetter:
 
 
 def _facebook_app_id(token_data: dict) -> Optional[str]:
-    client_id = token_data.get('client_id')
+    client_id = token_data.get("client_id")
     if client_id is None:
         return None
     return str(client_id)
@@ -61,99 +61,99 @@ def _empty(_token_data: dict) -> Optional[str]:
 
 PLATFORM_SECTIONS: tuple[PlatformSection, ...] = (
     PlatformSection(
-        platform='x',
-        header='# X (Twitter) - OAuth 1.0a',
+        platform="x",
+        header="# X (Twitter) - OAuth 1.0a",
         env_vars=(
-            ('TWITTER_CONSUMER_KEY', _field('consumer_key')),
-            ('TWITTER_CONSUMER_SECRET', _field('consumer_secret')),
-            ('TWITTER_OAUTH_TOKEN', _field('oauth_token')),
-            ('TWITTER_OAUTH_SECRET', _field('oauth_secret')),
+            ("TWITTER_CONSUMER_KEY", _field("consumer_key")),
+            ("TWITTER_CONSUMER_SECRET", _field("consumer_secret")),
+            ("TWITTER_OAUTH_TOKEN", _field("oauth_token")),
+            ("TWITTER_OAUTH_SECRET", _field("oauth_secret")),
         ),
     ),
     PlatformSection(
-        platform='facebook',
-        header='# Facebook - OAuth 2.0',
+        platform="facebook",
+        header="# Facebook - OAuth 2.0",
         env_vars=(
-            ('FACEBOOK_APP_ID', _facebook_app_id),
-            ('FACEBOOK_OBJECT_ID', _field('user_id')),
-            ('FACEBOOK_CLIENT_ID', _field('client_id')),
-            ('FACEBOOK_CLIENT_SECRET', _field('client_secret')),
-            ('FACEBOOK_REFRESH_TOKEN', _field('refresh_token')),
+            ("FACEBOOK_APP_ID", _facebook_app_id),
+            ("FACEBOOK_OBJECT_ID", _field("user_id")),
+            ("FACEBOOK_CLIENT_ID", _field("client_id")),
+            ("FACEBOOK_CLIENT_SECRET", _field("client_secret")),
+            ("FACEBOOK_REFRESH_TOKEN", _field("refresh_token")),
         ),
     ),
     PlatformSection(
-        platform='instagram',
-        header='# Instagram - OAuth 2.0',
+        platform="instagram",
+        header="# Instagram - OAuth 2.0",
         env_vars=(
-            ('INSTAGRAM_CLIENT_ID', _field('client_id')),
-            ('INSTAGRAM_CLIENT_SECRET', _field('client_secret')),
-            ('INSTAGRAM_OBJECT_ID', _field('user_id')),
-            ('INSTAGRAM_REFRESH_TOKEN', _field('refresh_token')),
+            ("INSTAGRAM_CLIENT_ID", _field("client_id")),
+            ("INSTAGRAM_CLIENT_SECRET", _field("client_secret")),
+            ("INSTAGRAM_OBJECT_ID", _field("user_id")),
+            ("INSTAGRAM_REFRESH_TOKEN", _field("refresh_token")),
         ),
     ),
     PlatformSection(
-        platform='linkedin',
-        header='# LinkedIn - OAuth 2.0',
+        platform="linkedin",
+        header="# LinkedIn - OAuth 2.0",
         env_vars=(
-            ('LINKEDIN_CLIENT_ID', _field('client_id')),
-            ('LINKEDIN_CLIENT_SECRET', _field('client_secret')),
-            ('LINKEDIN_OBJECT_ID', _field('user_id')),
-            ('LINKEDIN_REFRESH_TOKEN', _field('refresh_token')),
+            ("LINKEDIN_CLIENT_ID", _field("client_id")),
+            ("LINKEDIN_CLIENT_SECRET", _field("client_secret")),
+            ("LINKEDIN_OBJECT_ID", _field("user_id")),
+            ("LINKEDIN_REFRESH_TOKEN", _field("refresh_token")),
         ),
     ),
     PlatformSection(
-        platform='youtube',
-        header='# YouTube - OAuth 2.0',
+        platform="youtube",
+        header="# YouTube - OAuth 2.0",
         env_vars=(
-            ('YOUTUBE_CLIENT_ID', _field('client_id')),
-            ('YOUTUBE_CLIENT_SECRET', _field('client_secret')),
-            ('YOUTUBE_REFRESH_TOKEN', _field('refresh_token')),
+            ("YOUTUBE_CLIENT_ID", _field("client_id")),
+            ("YOUTUBE_CLIENT_SECRET", _field("client_secret")),
+            ("YOUTUBE_REFRESH_TOKEN", _field("refresh_token")),
         ),
     ),
     PlatformSection(
-        platform='tiktok',
-        header='# TikTok - OAuth 2.0',
+        platform="tiktok",
+        header="# TikTok - OAuth 2.0",
         env_vars=(
-            ('TIKTOK_USERNAME', _field('username')),
-            ('TIKTOK_CLIENT_KEY', _field('client_key')),
-            ('TIKTOK_CLIENT_SECRET', _field('client_secret')),
-            ('TIKTOK_REFRESH_TOKEN', _field('refresh_token')),
+            ("TIKTOK_USERNAME", _field("username")),
+            ("TIKTOK_CLIENT_KEY", _field("client_key")),
+            ("TIKTOK_CLIENT_SECRET", _field("client_secret")),
+            ("TIKTOK_REFRESH_TOKEN", _field("refresh_token")),
         ),
     ),
     PlatformSection(
-        platform='threads',
-        header='# Threads - OAuth 2.0',
+        platform="threads",
+        header="# Threads - OAuth 2.0",
         env_vars=(
-            ('THREADS_APP_ID', _field('app_id')),
-            ('THREADS_APP_SECRET', _field('app_secret')),
-            ('THREADS_REFRESH_TOKEN', _field('refresh_token')),
-            ('THREADS_USER_ID', _field('user_id')),
+            ("THREADS_APP_ID", _field("app_id")),
+            ("THREADS_APP_SECRET", _field("app_secret")),
+            ("THREADS_REFRESH_TOKEN", _field("refresh_token")),
+            ("THREADS_USER_ID", _field("user_id")),
         ),
     ),
     PlatformSection(
-        platform='discord',
-        header='# Discord - Bot Token',
+        platform="discord",
+        header="# Discord - Bot Token",
         env_vars=(
-            ('DISCORD_BOT_TOKEN', _field('bot_token')),
-            ('DISCORD_SERVER_NAME', _field('server_name')),
-            ('DISCORD_CHANNEL_NAME', _field('channel_name')),
+            ("DISCORD_BOT_TOKEN", _field("bot_token")),
+            ("DISCORD_SERVER_NAME", _field("server_name")),
+            ("DISCORD_CHANNEL_NAME", _field("channel_name")),
         ),
     ),
     PlatformSection(
-        platform='telegram',
-        header='# Telegram - Bot Token',
+        platform="telegram",
+        header="# Telegram - Bot Token",
         env_vars=(
-            ('TELEGRAM_BOT_TOKEN', _field('bot_token')),
-            ('TELEGRAM_CHAT_ID', _field('chat_id')),
+            ("TELEGRAM_BOT_TOKEN", _field("bot_token")),
+            ("TELEGRAM_CHAT_ID", _field("chat_id")),
         ),
     ),
     PlatformSection(
-        platform='whatsapp',
-        header='# WhatsApp - API Token',
+        platform="whatsapp",
+        header="# WhatsApp - API Token",
         env_vars=(
-            ('WHATSAPP_ACCESS_TOKEN', _field('access_token')),
-            ('WHATSAPP_PHONE_NUMBER_ID', _field('phone_number_id')),
-            ('WHATSAPP_RECIPIENT', _empty),
+            ("WHATSAPP_ACCESS_TOKEN", _field("access_token")),
+            ("WHATSAPP_PHONE_NUMBER_ID", _field("phone_number_id")),
+            ("WHATSAPP_RECIPIENT", _empty),
         ),
     ),
 )
@@ -167,7 +167,7 @@ def load_platform_token(storage: SecureTokenStorage, platform: str) -> Optional[
 
     Tries the ``default`` identifier first, then the first listed token.
     """
-    token_data = storage.load_token(platform, 'default')
+    token_data = storage.load_token(platform, "default")
     if token_data:
         return token_data
 
@@ -180,10 +180,10 @@ def load_platform_token(storage: SecureTokenStorage, platform: str) -> Optional[
 
 def _shell_env_line(name: str, value: Optional[str]) -> str:
     if not value:
-        return f'{name}='
-    if value.isalnum() or all(c in '._-:@/' for c in value):
-        return f'{name}={value}'
-    return f'{name}={shlex.quote(value)}'
+        return f"{name}="
+    if value.isalnum() or all(c in "._-:@/" for c in value):
+        return f"{name}={value}"
+    return f"{name}={shlex.quote(value)}"
 
 
 def build_section_lines(section: PlatformSection, token_data: dict) -> list[str]:
@@ -196,18 +196,18 @@ def build_section_lines(section: PlatformSection, token_data: dict) -> list[str]
 
 def _file_header() -> list[str]:
     lines = [
-        '# Unattended Execution Environment Variables',
-        '# ==========================================',
-        '#',
-        '# Workflow:',
-        '#   1. Fill in credentials below',
-        '#   2. Run test-unattended.sh to run tests using stored credentials',
-        '',
+        "# Unattended Execution Environment Variables",
+        "# ==========================================",
+        "#",
+        "# Workflow:",
+        "#   1. Fill in credentials below",
+        "#   2. Run test-unattended.sh to run tests using stored credentials",
+        "",
     ]
-    storage_dir = os.environ.get('AGORAS_STORAGE_DIR')
+    storage_dir = os.environ.get("AGORAS_STORAGE_DIR")
     if storage_dir:
-        lines.append(f'# AGORAS_STORAGE_DIR={storage_dir}')
-        lines.append('')
+        lines.append(f"# AGORAS_STORAGE_DIR={storage_dir}")
+        lines.append("")
     return lines
 
 
@@ -238,11 +238,11 @@ def format_unattended_env(
             continue
 
         if included_any:
-            output_lines.append('')
+            output_lines.append("")
         output_lines.extend(build_section_lines(section, token_data))
         included_any = True
 
     if not included_any:
         return None
 
-    return '\n'.join(output_lines) + '\n'
+    return "\n".join(output_lines) + "\n"

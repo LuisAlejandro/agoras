@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.instagram.client module."""
 
 import asyncio
 import time
@@ -58,14 +59,14 @@ class InstagramAPIClient:
             return True
 
         if not self.access_token:
-            raise Exception('Instagram access token is required')
+            raise Exception("Instagram access token is required")
 
         try:
             self.graph_api = GraphAPI(access_token=self.access_token, version=self.api_version)
             self._authenticated = True
             return True
         except Exception as e:
-            raise Exception(f'Instagram client authentication failed: {str(e)}')
+            raise Exception(f"Instagram client authentication failed: {str(e)}")
 
     def disconnect(self):
         """
@@ -90,16 +91,12 @@ class InstagramAPIClient:
             Exception: If post fails
         """
         if not self.graph_api:
-            raise Exception('Instagram GraphAPI not initialized')
+            raise Exception("Instagram GraphAPI not initialized")
 
         try:
-            return self.graph_api.post_object(
-                object_id=object_id,
-                connection=connection,
-                data=data or {}
-            )
+            return self.graph_api.post_object(object_id=object_id, connection=connection, data=data or {})
         except Exception as e:
-            raise Exception(f'Instagram post_object failed: {str(e)}')
+            raise Exception(f"Instagram post_object failed: {str(e)}")
 
     def get_object(self, object_id: str, fields: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -116,7 +113,7 @@ class InstagramAPIClient:
             Exception: If get fails
         """
         if not self.graph_api:
-            raise Exception('Instagram GraphAPI not initialized')
+            raise Exception("Instagram GraphAPI not initialized")
 
         try:
             if fields:
@@ -124,11 +121,11 @@ class InstagramAPIClient:
             else:
                 return self.graph_api.get_object(object_id=object_id)
         except Exception as e:
-            raise Exception(f'Instagram get_object failed: {str(e)}')
+            raise Exception(f"Instagram get_object failed: {str(e)}")
 
-    async def wait_for_media_container(self, container_id: str,
-                                       max_wait_time: int = 300,
-                                       poll_interval: float = 3.0) -> None:
+    async def wait_for_media_container(
+        self, container_id: str, max_wait_time: int = 300, poll_interval: float = 3.0
+    ) -> None:
         """
         Wait until an Instagram media container is ready to publish.
 
@@ -140,36 +137,35 @@ class InstagramAPIClient:
         Raises:
             Exception: If container fails, expires, or times out
         """
+
         def _sync_wait():
             start = time.time()
             while True:
                 if time.time() - start > max_wait_time:
-                    raise Exception(
-                        f'Instagram media container {container_id} not ready after '
-                        f'{max_wait_time} seconds'
-                    )
+                    raise Exception(f"Instagram media container {container_id} not ready after {max_wait_time} seconds")
 
-                response = self.get_object(
-                    object_id=container_id,
-                    fields='status_code,status'
-                )
-                status_code = response.get('status_code')
+                response = self.get_object(object_id=container_id, fields="status_code,status")
+                status_code = response.get("status_code")
 
-                if status_code in ('FINISHED', 'PUBLISHED'):
+                if status_code in ("FINISHED", "PUBLISHED"):
                     return
-                if status_code in ('ERROR', 'EXPIRED'):
-                    detail = response.get('status', status_code)
-                    raise Exception(
-                        f'Instagram media container {container_id} failed: {detail}'
-                    )
+                if status_code in ("ERROR", "EXPIRED"):
+                    detail = response.get("status", status_code)
+                    raise Exception(f"Instagram media container {container_id} failed: {detail}")
 
                 time.sleep(poll_interval)
 
         await asyncio.to_thread(_sync_wait)
 
-    async def create_media(self, object_id: str, image_url: Optional[str] = None,
-                           video_url: Optional[str] = None, caption: Optional[str] = None,
-                           is_carousel_item: bool = False, media_type: Optional[str] = None) -> str:
+    async def create_media(
+        self,
+        object_id: str,
+        image_url: Optional[str] = None,
+        video_url: Optional[str] = None,
+        caption: Optional[str] = None,
+        is_carousel_item: bool = False,
+        media_type: Optional[str] = None,
+    ) -> str:
         """
         Create media for Instagram post.
 
@@ -187,36 +183,32 @@ class InstagramAPIClient:
         Raises:
             Exception: If media creation fails
         """
+
         def _sync_create_media():
             data: Dict[str, Any] = {
-                'is_carousel_item': is_carousel_item,
+                "is_carousel_item": is_carousel_item,
             }
 
             if video_url:
-                data['video_url'] = video_url
+                data["video_url"] = video_url
                 if media_type:
-                    data['media_type'] = media_type
+                    data["media_type"] = media_type
                 elif not is_carousel_item:
-                    data['media_type'] = 'REELS'
+                    data["media_type"] = "REELS"
             elif image_url:
-                data['image_url'] = image_url
+                data["image_url"] = image_url
 
             if caption and not is_carousel_item:
-                data['caption'] = caption
+                data["caption"] = caption
 
-            response = self.post_object(
-                object_id=object_id,
-                connection='media',
-                data=data
-            )
-            return response['id']
+            response = self.post_object(object_id=object_id, connection="media", data=data)
+            return response["id"]
 
         media_id = await asyncio.to_thread(_sync_create_media)
         await self.wait_for_media_container(media_id)
         return media_id
 
-    async def create_carousel(self, object_id: str, media_ids: List[str],
-                              caption: Optional[str] = None) -> str:
+    async def create_carousel(self, object_id: str, media_ids: List[str], caption: Optional[str] = None) -> str:
         """
         Create carousel media for Instagram.
 
@@ -231,21 +223,18 @@ class InstagramAPIClient:
         Raises:
             Exception: If carousel creation fails
         """
+
         def _sync_create_carousel():
             data = {
-                'media_type': 'CAROUSEL',
-                'children': ','.join(media_ids),
+                "media_type": "CAROUSEL",
+                "children": ",".join(media_ids),
             }
 
             if caption:
-                data['caption'] = caption
+                data["caption"] = caption
 
-            response = self.post_object(
-                object_id=object_id,
-                connection='media',
-                data=data
-            )
-            return response['id']
+            response = self.post_object(object_id=object_id, connection="media", data=data)
+            return response["id"]
 
         carousel_id = await asyncio.to_thread(_sync_create_carousel)
         await self.wait_for_media_container(carousel_id)
@@ -269,21 +258,22 @@ class InstagramAPIClient:
 
         def _sync_publish_media():
             data = {
-                'creation_id': creation_id,
+                "creation_id": creation_id,
             }
 
-            response = self.post_object(
-                object_id=object_id,
-                connection='media_publish',
-                data=data
-            )
-            return response['id']
+            response = self.post_object(object_id=object_id, connection="media_publish", data=data)
+            return response["id"]
 
         return await asyncio.to_thread(_sync_publish_media)
 
-    async def create_post(self, object_id: str, image_url: Optional[str] = None,
-                          video_url: Optional[str] = None, caption: Optional[str] = None,
-                          media_type: Optional[str] = None) -> str:
+    async def create_post(
+        self,
+        object_id: str,
+        image_url: Optional[str] = None,
+        video_url: Optional[str] = None,
+        caption: Optional[str] = None,
+        media_type: Optional[str] = None,
+    ) -> str:
         """
         Create and publish an Instagram post in one operation.
 
@@ -302,18 +292,15 @@ class InstagramAPIClient:
         """
         # Create media first
         media_id = await self.create_media(
-            object_id=object_id,
-            image_url=image_url,
-            video_url=video_url,
-            caption=caption,
-            media_type=media_type
+            object_id=object_id, image_url=image_url, video_url=video_url, caption=caption, media_type=media_type
         )
 
         # Then publish it
         return await self.publish_media(object_id=object_id, creation_id=media_id)
 
-    async def create_carousel_post(self, object_id: str, media_items: List[Dict[str, Any]],
-                                   caption: Optional[str] = None) -> str:
+    async def create_carousel_post(
+        self, object_id: str, media_items: List[Dict[str, Any]], caption: Optional[str] = None
+    ) -> str:
         """
         Create and publish a carousel post with multiple media items.
 
@@ -333,24 +320,19 @@ class InstagramAPIClient:
         for item in media_items:
             media_id = await self.create_media(
                 object_id=object_id,
-                image_url=item.get('image_url'),
-                video_url=item.get('video_url'),
-                is_carousel_item=True
+                image_url=item.get("image_url"),
+                video_url=item.get("video_url"),
+                is_carousel_item=True,
             )
             media_ids.append(media_id)
 
         # Create carousel
-        carousel_id = await self.create_carousel(
-            object_id=object_id,
-            media_ids=media_ids,
-            caption=caption
-        )
+        carousel_id = await self.create_carousel(object_id=object_id, media_ids=media_ids, caption=caption)
 
         # Publish carousel
         return await self.publish_media(object_id=object_id, creation_id=carousel_id)
 
-    async def get_user_media(self, object_id: str, fields: Optional[str] = None,
-                             limit: int = 25) -> Dict[str, Any]:
+    async def get_user_media(self, object_id: str, fields: Optional[str] = None, limit: int = 25) -> Dict[str, Any]:
         """
         Get user's Instagram media.
 
@@ -365,14 +347,12 @@ class InstagramAPIClient:
         Raises:
             Exception: If get fails
         """
+
         def _sync_get_user_media():
             default_fields = "id,caption,media_type,media_url,permalink,timestamp"
             query_fields = fields or default_fields
 
-            return self.get_object(
-                object_id=f"{object_id}/media",
-                fields=f"{query_fields}&limit={limit}"
-            )
+            return self.get_object(object_id=f"{object_id}/media", fields=f"{query_fields}&limit={limit}")
 
         return await asyncio.to_thread(_sync_get_user_media)
 
@@ -390,10 +370,8 @@ class InstagramAPIClient:
         Raises:
             Exception: If insights retrieval fails
         """
+
         def _sync_get_media_insights():
-            return self.get_object(
-                object_id=f"{media_id}/insights",
-                fields=f"metric={','.join(metrics)}"
-            )
+            return self.get_object(object_id=f"{media_id}/insights", fields=f"metric={','.join(metrics)}")
 
         return await asyncio.to_thread(_sync_get_media_insights)

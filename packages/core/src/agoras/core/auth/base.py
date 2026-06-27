@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.core.auth.base module."""
 
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
@@ -72,9 +73,7 @@ class BaseAuthManager(ABC):
                     return
 
             platform_name = self._get_platform_name()
-            raise AuthenticationError(
-                f"Not authenticated. Please run 'agoras {platform_name} authorize' first."
-            )
+            raise AuthenticationError(f"Not authenticated. Please run 'agoras {platform_name} authorize' first.")
 
     def _load_and_refresh_from_storage(self) -> bool:
         """
@@ -90,12 +89,13 @@ class BaseAuthManager(ABC):
                 return False
 
             # Set the refresh token so authenticate() can use it
-            if hasattr(self, 'refresh_token'):
+            if hasattr(self, "refresh_token"):
                 self.refresh_token = refresh_token
 
             # Call authenticate to refresh and get access token
             # This is async, but we need to handle it synchronously here
             import asyncio
+
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 # If we're already in an async context, this is tricky
@@ -120,7 +120,7 @@ class BaseAuthManager(ABC):
         token_data = self.token_storage.load_token(platform_name, identifier)
 
         if token_data:
-            return token_data.get('refresh_token')
+            return token_data.get("refresh_token")
 
         return None
 

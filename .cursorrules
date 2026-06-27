@@ -18,7 +18,9 @@ is `3456` (the transient local OAuth callback server, started on demand during `
 
 ## Lint / test / run
 
-- Lint (flake8, all packages): `./virtualenv/bin/tox -e lint`
+- Lint (Ruff format check, Ruff lint, pydocstyle, bandit, Pyright; all packages):
+  `./virtualenv/bin/tox -e lint`
+- Format (Ruff write mode + unused import cleanup): `./virtualenv/bin/tox -e format`
 - Tests + coverage (all packages): `./virtualenv/bin/tox -e coverage`
 - Run the CLI: `./virtualenv/bin/agoras --help` (entry point `agoras=agoras.cli.main:main`).
 

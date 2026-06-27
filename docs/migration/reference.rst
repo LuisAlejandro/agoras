@@ -1,6 +1,9 @@
 Complete Parameter Reference
 ==============================
 
+.. note::
+   In the **New (Platform)** column, credential parameters refer to ``agoras <platform> authorize`` only since 2.1.0. Platform action commands use content parameters; utils commands use prefixed columns in **New (Utils)**.
+
 X (formerly Twitter) Parameters
 --------------------------------
 
@@ -29,6 +32,8 @@ X (formerly Twitter) Parameters
 .. note::
    For utils commands, use ``--x-*`` parameters. The ``--twitter-*`` parameters are deprecated but still work with deprecation warnings.
 
+   Since 2.1.0, ``--consumer-key``, ``--consumer-secret``, ``--oauth-token``, and ``--oauth-secret`` in the **New (Platform)** column apply to ``agoras x authorize`` only, not to action commands.
+
 Facebook Parameters
 -------------------
 
@@ -50,6 +55,57 @@ Facebook Parameters
    * - ``--facebook-app-id``
      - ``--app-id``
      - ``--facebook-app-id``
+
+Discord Parameters
+------------------
+
+.. list-table::
+   :header-rows: 1
+
+   * - Legacy
+     - New (Platform, authorize only since 2.1.0)
+     - New (Utils)
+   * - ``--discord-bot-token``
+     - ``--bot-token``
+     - (use platform ``authorize`` or env vars)
+   * - ``--discord-server-name``
+     - ``--server-name``
+     - (use platform ``authorize`` or env vars)
+   * - ``--discord-channel-name``
+     - ``--channel-name``
+     - (use platform ``authorize`` or env vars)
+
+Telegram Parameters
+-------------------
+
+.. list-table::
+   :header-rows: 1
+
+   * - Legacy
+     - New (Platform, authorize only since 2.1.0)
+     - New (Utils)
+   * - ``--telegram-bot-token``
+     - ``--bot-token``
+     - (use platform ``authorize`` or env vars)
+   * - ``--telegram-chat-id``
+     - ``--chat-id``
+     - (use platform ``authorize`` or env vars)
+
+WhatsApp Parameters
+-------------------
+
+.. list-table::
+   :header-rows: 1
+
+   * - Legacy
+     - New (Platform, authorize only since 2.1.0)
+     - New (Utils)
+   * - ``--whatsapp-access-token``
+     - ``--access-token``
+     - (use platform ``authorize`` or env vars)
+   * - ``--whatsapp-phone-number-id``
+     - ``--phone-number-id``
+     - (use platform ``authorize`` or env vars)
 
 Content Parameters (All Platforms)
 -----------------------------------

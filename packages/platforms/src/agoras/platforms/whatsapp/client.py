@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.whatsapp.client module."""
 
 from typing import Any, Dict, List, Optional
 
@@ -58,14 +59,14 @@ class WhatsAppAPIClient:
             return True
 
         if not self.access_token:
-            raise Exception('WhatsApp access token is required')
+            raise Exception("WhatsApp access token is required")
 
         try:
             self.graph_api = GraphAPI(access_token=self.access_token, version=self.api_version)
             self._authenticated = True
             return True
         except Exception as e:
-            raise Exception(f'WhatsApp client authentication failed: {str(e)}')
+            raise Exception(f"WhatsApp client authentication failed: {str(e)}")
 
     def disconnect(self):
         """
@@ -89,7 +90,7 @@ class WhatsAppAPIClient:
             Exception: If get fails
         """
         if not self.graph_api:
-            raise Exception('WhatsApp GraphAPI not initialized')
+            raise Exception("WhatsApp GraphAPI not initialized")
 
         try:
             if fields:
@@ -97,7 +98,7 @@ class WhatsAppAPIClient:
             else:
                 return self.graph_api.get_object(object_id=object_id)
         except Exception as e:
-            raise Exception(f'WhatsApp get_object failed: {str(e)}')
+            raise Exception(f"WhatsApp get_object failed: {str(e)}")
 
     def post_object(self, object_id: str, connection: str, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
@@ -115,7 +116,7 @@ class WhatsAppAPIClient:
             Exception: If post fails
         """
         if not self.access_token:
-            raise Exception('WhatsApp access token not available')
+            raise Exception("WhatsApp access token not available")
 
         import requests
 
@@ -123,24 +124,21 @@ class WhatsAppAPIClient:
         if connection:
             url += f"/{connection}"
 
-        headers = {
-            "Authorization": f"Bearer {self.access_token}",
-            "Content-Type": "application/json"
-        }
+        headers = {"Authorization": f"Bearer {self.access_token}", "Content-Type": "application/json"}
 
         try:
-            response = requests.post(url, json=data or {}, headers=headers)
+            response = requests.post(url, json=data or {}, headers=headers, timeout=30)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.HTTPError as e:
             # Include response body in error for debugging
             try:
                 error_data = response.json()
-                raise Exception(f'WhatsApp post_object failed: {response.status_code} {response.reason} - {error_data}')
+                raise Exception(f"WhatsApp post_object failed: {response.status_code} {response.reason} - {error_data}")
             except BaseException:
-                raise Exception(f'WhatsApp post_object failed: {str(e)}')
+                raise Exception(f"WhatsApp post_object failed: {str(e)}")
         except requests.exceptions.RequestException as e:
-            raise Exception(f'WhatsApp post_object failed: {str(e)}')
+            raise Exception(f"WhatsApp post_object failed: {str(e)}")
 
     def send_message(self, to: str, text: str, buttons: Optional[List] = None) -> Dict[str, Any]:
         """
@@ -158,37 +156,24 @@ class WhatsAppAPIClient:
             Exception: If message sending fails
         """
         if not self.graph_api:
-            raise Exception('WhatsApp GraphAPI not initialized')
+            raise Exception("WhatsApp GraphAPI not initialized")
 
-        payload = {
-            "messaging_product": "whatsapp",
-            "to": to,
-            "type": "text",
-            "text": {"body": text}
-        }
+        payload = {"messaging_product": "whatsapp", "to": to, "type": "text", "text": {"body": text}}
 
         # Note: Interactive buttons support will be added in future phases
         if buttons:
             payload["type"] = "interactive"
-            payload["interactive"] = {
-                "type": "button",
-                "body": {"text": text},
-                "action": {"buttons": buttons}
-            }
+            payload["interactive"] = {"type": "button", "body": {"text": text}, "action": {"buttons": buttons}}
 
         try:
-            response = self.post_object(
-                object_id=self.phone_number_id,
-                connection="messages",
-                data=payload
-            )
+            response = self.post_object(object_id=self.phone_number_id, connection="messages", data=payload)
 
             if response and response.get("messages"):
                 return {"message_id": response["messages"][0]["id"], "status": "sent"}
             else:
                 raise Exception(f"WhatsApp API error: {response}")
         except Exception as e:
-            raise Exception(f'WhatsApp send_message failed: {str(e)}')
+            raise Exception(f"WhatsApp send_message failed: {str(e)}")
 
     def send_image(self, to: str, image_url: str, caption: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -206,31 +191,22 @@ class WhatsAppAPIClient:
             Exception: If image sending fails
         """
         if not self.graph_api:
-            raise Exception('WhatsApp GraphAPI not initialized')
+            raise Exception("WhatsApp GraphAPI not initialized")
 
-        payload = {
-            "messaging_product": "whatsapp",
-            "to": to,
-            "type": "image",
-            "image": {"link": image_url}
-        }
+        payload = {"messaging_product": "whatsapp", "to": to, "type": "image", "image": {"link": image_url}}
 
         if caption:
             payload["image"]["caption"] = caption
 
         try:
-            response = self.post_object(
-                object_id=self.phone_number_id,
-                connection="messages",
-                data=payload
-            )
+            response = self.post_object(object_id=self.phone_number_id, connection="messages", data=payload)
 
             if response and response.get("messages"):
                 return {"message_id": response["messages"][0]["id"], "status": "sent"}
             else:
                 raise Exception(f"WhatsApp API error: {response}")
         except Exception as e:
-            raise Exception(f'WhatsApp send_image failed: {str(e)}')
+            raise Exception(f"WhatsApp send_image failed: {str(e)}")
 
     def send_video(self, to: str, video_url: str, caption: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -248,34 +224,26 @@ class WhatsAppAPIClient:
             Exception: If video sending fails
         """
         if not self.graph_api:
-            raise Exception('WhatsApp GraphAPI not initialized')
+            raise Exception("WhatsApp GraphAPI not initialized")
 
-        payload = {
-            "messaging_product": "whatsapp",
-            "to": to,
-            "type": "video",
-            "video": {"link": video_url}
-        }
+        payload = {"messaging_product": "whatsapp", "to": to, "type": "video", "video": {"link": video_url}}
 
         if caption:
             payload["video"]["caption"] = caption
 
         try:
-            response = self.post_object(
-                object_id=self.phone_number_id,
-                connection="messages",
-                data=payload
-            )
+            response = self.post_object(object_id=self.phone_number_id, connection="messages", data=payload)
 
             if response and response.get("messages"):
                 return {"message_id": response["messages"][0]["id"], "status": "sent"}
             else:
                 raise Exception(f"WhatsApp API error: {response}")
         except Exception as e:
-            raise Exception(f'WhatsApp send_video failed: {str(e)}')
+            raise Exception(f"WhatsApp send_video failed: {str(e)}")
 
-    def send_template(self, to: str, template_name: str, language_code: str = "en",
-                      components: Optional[List[Dict]] = None) -> Dict[str, Any]:
+    def send_template(
+        self, to: str, template_name: str, language_code: str = "en", components: Optional[List[Dict]] = None
+    ) -> Dict[str, Any]:
         """
         Send template message via Graph API.
 
@@ -292,31 +260,24 @@ class WhatsAppAPIClient:
             Exception: If template sending fails
         """
         if not self.graph_api:
-            raise Exception('WhatsApp GraphAPI not initialized')
+            raise Exception("WhatsApp GraphAPI not initialized")
 
         payload = {
             "messaging_product": "whatsapp",
             "to": to,
             "type": "template",
-            "template": {
-                "name": template_name,
-                "language": {"code": language_code}
-            }
+            "template": {"name": template_name, "language": {"code": language_code}},
         }
 
         if components:
             payload["template"]["components"] = components
 
         try:
-            response = self.post_object(
-                object_id=self.phone_number_id,
-                connection="messages",
-                data=payload
-            )
+            response = self.post_object(object_id=self.phone_number_id, connection="messages", data=payload)
 
             if response and response.get("messages"):
                 return {"message_id": response["messages"][0]["id"], "status": "sent"}
             else:
                 raise Exception(f"WhatsApp API error: {response}")
         except Exception as e:
-            raise Exception(f'WhatsApp send_template failed: {str(e)}')
+            raise Exception(f"WhatsApp send_template failed: {str(e)}")

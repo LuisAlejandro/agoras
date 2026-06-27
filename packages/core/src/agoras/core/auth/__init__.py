@@ -16,8 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-agoras.core.auth
-================
+agoras.core.auth.
 
 OAuth2 authentication infrastructure for Agoras.
 
@@ -31,9 +30,9 @@ from .exceptions import AuthenticationError
 from .storage import SecureTokenStorage
 
 __all__ = [
-    'BaseAuthManager',
-    'SecureTokenStorage',
-    'OAuthCallbackServer',
-    'OAuthCallbackHandler',
-    'AuthenticationError',
+    "BaseAuthManager",
+    "SecureTokenStorage",
+    "OAuthCallbackServer",
+    "OAuthCallbackHandler",
+    "AuthenticationError",
 ]

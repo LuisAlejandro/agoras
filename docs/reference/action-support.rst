@@ -145,7 +145,7 @@ Feed and Schedule Support
 Feed automation and schedule commands work with all 10 platforms:
 
 * ``agoras utils feed-publish --network <platform>`` — all platforms (``twitter`` accepted as deprecated alias for ``x``)
-* ``agoras utils schedule-run`` — all platforms
+* ``agoras utils schedule-run --network <platform>`` — all platforms (one platform per run; required since 2.1.0)
 
 These are orchestration commands that delegate to each platform's supported actions.
 

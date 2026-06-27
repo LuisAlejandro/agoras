@@ -23,6 +23,7 @@ CLI utilities shared across platform commands.
 """
 
 from argparse import ArgumentParser
+from typing import Optional
 
 
 def add_common_content_options(parser: ArgumentParser, images: int = 0):
@@ -33,20 +34,17 @@ def add_common_content_options(parser: ArgumentParser, images: int = 0):
         parser: ArgumentParser to add options to
         images: Number of image options to add (0-4)
     """
-    content = parser.add_argument_group('Content Options')
+    content = parser.add_argument_group("Content Options")
 
-    content.add_argument('--text',
-                         help='Text content of the post')
-    content.add_argument('--link',
-                         help='URL to include in post')
+    content.add_argument("--text", help="Text content of the post")
+    content.add_argument("--link", help="URL to include in post")
 
     if images > 0:
         for i in range(1, images + 1):
-            content.add_argument(f'--image-{i}',
-                                 help=f'Image URL #{i}')
+            content.add_argument(f"--image-{i}", help=f"Image URL #{i}")
 
 
-def add_video_options(parser: ArgumentParser, platform: str = None):
+def add_video_options(parser: ArgumentParser, platform: Optional[str] = None):
     """
     Add video-specific options.
 
@@ -56,16 +54,16 @@ def add_video_options(parser: ArgumentParser, platform: str = None):
     """
     from .media_help import video_url_help
 
-    help_text = video_url_help(platform) if platform else 'URL of video file to upload'
-    video = parser.add_argument_group('Video Options')
+    help_text = video_url_help(platform) if platform else "URL of video file to upload"
+    video = parser.add_argument_group("Video Options")
     video.add_argument(
-        '--video-url',
+        "--video-url",
         required=True,
-        metavar='<url>',
+        metavar="<url>",
         help=help_text,
     )
     video.add_argument(
-        '--video-title',
-        metavar='<title>',
-        help='Video title/description',
+        "--video-title",
+        metavar="<title>",
+        help="Video title/description",
     )

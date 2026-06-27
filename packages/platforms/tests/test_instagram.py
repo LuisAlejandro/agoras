@@ -19,15 +19,11 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from agoras.platforms.instagram import Instagram
 from agoras.platforms.instagram.api import InstagramAPI
+from agoras.platforms.instagram.wrapper import _instagram_video_media_type
 
-from .wrapper_test_helpers import (
-    INSTAGRAM_KWARGS,
-    SAMPLE_IMAGE_URL,
-    configure_instagram_auth_mock,
-)
+from .wrapper_test_helpers import INSTAGRAM_KWARGS, SAMPLE_IMAGE_URL, configure_instagram_auth_mock
 
 # Instagram Wrapper Tests
 
@@ -305,8 +301,6 @@ async def test_instagram_post_no_api(mock_api_class):
         await instagram.post('text', 'link')
 
 
-
-
 @pytest.mark.asyncio
 @patch('agoras.platforms.instagram.wrapper.InstagramAPI')
 @patch('agoras.platforms.instagram.auth.InstagramAuthManager')
@@ -377,8 +371,6 @@ async def test_instagram_video_no_api(mock_api_class):
         await instagram.video('text', 'url', 'title')
 
 
-
-
 @pytest.mark.asyncio
 @patch('agoras.platforms.instagram.wrapper.InstagramAPI')
 @patch('agoras.platforms.instagram.auth.InstagramAuthManager')
@@ -424,6 +416,26 @@ async def test_instagram_video_invalid_mime(mock_auth_manager_class, mock_api_cl
 
         with pytest.raises(MediaValidationError, match='instagram'):
             await instagram.video('text', 'url', 'title')
+
+
+@pytest.mark.parametrize(
+    'video_type, expected',
+    [
+        ('STORIES', 'STORIES'),
+        ('stories', 'STORIES'),
+        ('story', 'STORIES'),
+        ('STORY', 'STORIES'),
+        ('REELS', 'REELS'),
+        ('reels', 'REELS'),
+        ('reel', 'REELS'),
+        ('', 'REELS'),
+        (None, 'REELS'),
+        ('unknown', 'REELS'),
+    ],
+)
+def test_instagram_video_media_type_mapping(video_type, expected):
+    """Test Instagram video type normalization for Graph API media_type."""
+    assert _instagram_video_media_type(video_type) == expected
 
 
 @pytest.mark.asyncio
@@ -488,6 +500,43 @@ async def test_instagram_video_story(mock_auth_manager_class, mock_api_class):
             result = await instagram.video('Video text', 'http://video.mp4', 'Video Title')
 
     assert result == 'post123'
+    mock_api.create_media.assert_called_once()
+    assert mock_api.create_media.call_args.kwargs['media_type'] == 'STORIES'
+
+
+@pytest.mark.parametrize('video_type', ['STORIES', 'stories', 'story'])
+@pytest.mark.asyncio
+@patch('agoras.platforms.instagram.wrapper.InstagramAPI')
+@patch('agoras.platforms.instagram.auth.InstagramAuthManager')
+async def test_instagram_video_story_type_aliases(
+    mock_auth_manager_class, mock_api_class, video_type,
+):
+    """Test Instagram video story aliases map to STORIES media_type."""
+    configure_instagram_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    instagram = Instagram(**{**INSTAGRAM_KWARGS, 'instagram_video_type': video_type})
+
+    await instagram._initialize_client()
+
+    with patch.object(instagram, 'download_video', new_callable=AsyncMock) as mock_download:
+        mock_video = MagicMock()
+        mock_video.content = b'video_content'
+        mock_file_type = MagicMock()
+        mock_file_type.mime = 'video/mp4'
+        mock_video.file_type = mock_file_type
+        mock_video.cleanup = MagicMock()
+        mock_download.return_value = mock_video
+
+        mock_api.create_media = AsyncMock(return_value='container123')
+        mock_api.publish_media = AsyncMock(return_value='post123')
+
+        with patch.object(instagram, '_output_status'):
+            await instagram.video('Video text', 'http://video.mp4', 'Video Title')
+
+    assert mock_api.create_media.call_args.kwargs['media_type'] == 'STORIES'
 
 
 @pytest.mark.asyncio
@@ -520,6 +569,7 @@ async def test_instagram_video_default_reels(mock_auth_manager_class, mock_api_c
             result = await instagram.video('Video text', 'http://video.mp4', 'Video Title')
 
     assert result == 'post123'
+    assert mock_api.create_media.call_args.kwargs['media_type'] == 'REELS'
 
 
 @pytest.mark.asyncio

@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.discord.wrapper module."""
 
 import asyncio
 
@@ -43,12 +44,12 @@ class Discord(SocialNetwork):
                 - discord_channel_name: Discord channel name
         """
         # Map platform-specific keys to generic keys for core interface compatibility
-        if 'discord_post_id' in kwargs:
-            kwargs['post_id'] = kwargs['discord_post_id']
-        if 'discord_video_url' in kwargs:
-            kwargs['video_url'] = kwargs['discord_video_url']
-        if 'discord_video_title' in kwargs:
-            kwargs['video_title'] = kwargs['discord_video_title']
+        if "discord_post_id" in kwargs:
+            kwargs["post_id"] = kwargs["discord_post_id"]
+        if "discord_video_url" in kwargs:
+            kwargs["video_url"] = kwargs["discord_video_url"]
+        if "discord_video_title" in kwargs:
+            kwargs["video_title"] = kwargs["discord_video_title"]
 
         super().__init__(**kwargs)
         self.discord_bot_token = None
@@ -63,17 +64,18 @@ class Discord(SocialNetwork):
         This method sets up the Discord API client with configuration.
         Tries to load credentials from storage if not provided via parameters.
         """
-        self.discord_bot_token = self._get_config_value('discord_bot_token', 'DISCORD_BOT_TOKEN')
-        self.discord_server_name = self._get_config_value('discord_server_name', 'DISCORD_SERVER_NAME')
-        self.discord_channel_name = self._get_config_value('discord_channel_name', 'DISCORD_CHANNEL_NAME')
+        self.discord_bot_token = self._get_config_value("discord_bot_token", "DISCORD_BOT_TOKEN")
+        self.discord_server_name = self._get_config_value("discord_server_name", "DISCORD_SERVER_NAME")
+        self.discord_channel_name = self._get_config_value("discord_channel_name", "DISCORD_CHANNEL_NAME")
 
         # If credentials not provided, try loading from storage
         if not all([self.discord_bot_token, self.discord_server_name, self.discord_channel_name]):
             from .auth import DiscordAuthManager
+
             auth_manager = DiscordAuthManager(
                 bot_token=self.discord_bot_token,
                 server_name=self.discord_server_name,
-                channel_name=self.discord_channel_name
+                channel_name=self.discord_channel_name,
             )
 
             if auth_manager._load_credentials_from_storage():
@@ -90,11 +92,7 @@ class Discord(SocialNetwork):
             raise Exception("Not authenticated. Please run 'agoras discord authorize' first.")
 
         # Initialize Discord API
-        self.api = DiscordAPI(
-            self.discord_bot_token,
-            self.discord_server_name,
-            self.discord_channel_name
-        )
+        self.api = DiscordAPI(self.discord_bot_token, self.discord_server_name, self.discord_channel_name)
 
         # Authenticate with provided credentials
         await self.api.authenticate()
@@ -108,15 +106,11 @@ class Discord(SocialNetwork):
         """
         from .auth import DiscordAuthManager
 
-        bot_token = self._get_config_value('discord_bot_token', 'DISCORD_BOT_TOKEN')
-        server_name = self._get_config_value('discord_server_name', 'DISCORD_SERVER_NAME')
-        channel_name = self._get_config_value('discord_channel_name', 'DISCORD_CHANNEL_NAME')
+        bot_token = self._get_config_value("discord_bot_token", "DISCORD_BOT_TOKEN")
+        server_name = self._get_config_value("discord_server_name", "DISCORD_SERVER_NAME")
+        channel_name = self._get_config_value("discord_channel_name", "DISCORD_CHANNEL_NAME")
 
-        auth_manager = DiscordAuthManager(
-            bot_token=bot_token,
-            server_name=server_name,
-            channel_name=channel_name
-        )
+        auth_manager = DiscordAuthManager(bot_token=bot_token, server_name=server_name, channel_name=channel_name)
 
         result = await auth_manager.authorize()
         if result:
@@ -131,9 +125,15 @@ class Discord(SocialNetwork):
         if self.api:
             await self.api.disconnect()
 
-    async def post(self, status_text, status_link,
-                   status_image_url_1=None, status_image_url_2=None,
-                   status_image_url_3=None, status_image_url_4=None):
+    async def post(
+        self,
+        status_text,
+        status_link,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+    ):
         """
         Create a post on Discord.
 
@@ -149,33 +149,32 @@ class Discord(SocialNetwork):
             str: Post ID
         """
         if not self.api:
-            raise Exception('Discord API not initialized')
+            raise Exception("Discord API not initialized")
 
         embeds = []
-        status_link_title = ''
-        status_link_description = ''
-        status_link_image = ''
-        source_media = list(filter(None, [
-            status_image_url_1, status_image_url_2,
-            status_image_url_3, status_image_url_4
-        ]))
+        status_link_title = ""
+        status_link_description = ""
+        status_link_image = ""
+        source_media = list(
+            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        )
 
         if not source_media and not status_text and not status_link:
-            raise Exception('No status text, link, or images provided.')
+            raise Exception("No status text, link, or images provided.")
 
         # Parse link metadata
         if status_link:
             scraped_data = parse_metatags(status_link)
-            status_link_title = scraped_data.get('title', '')
-            status_link_description = scraped_data.get('description', '')
-            status_link_image = scraped_data.get('image', '')
+            status_link_title = scraped_data.get("title", "")
+            status_link_description = scraped_data.get("description", "")
+            status_link_image = scraped_data.get("image", "")
 
             # Create link embed
             link_embed = self.api.create_embed(
                 title=status_link_title,
                 description=status_link_description,
                 url=status_link,
-                image_url=status_link_image
+                image_url=status_link_image,
             )
             embeds.append(link_embed)
 
@@ -191,10 +190,7 @@ class Discord(SocialNetwork):
                     image.cleanup()
 
         # Post message using Discord API
-        message_id = await self.api.post(
-            content=status_text or None,
-            embeds=embeds if embeds else None
-        )
+        message_id = await self.api.post(content=status_text or None, embeds=embeds if embeds else None)
 
         self._output_status(message_id)
         return message_id
@@ -210,12 +206,12 @@ class Discord(SocialNetwork):
             str: Post ID
         """
         if not self.api:
-            raise Exception('Discord API not initialized')
+            raise Exception("Discord API not initialized")
 
         if not discord_post_id:
-            raise Exception('Discord post ID is required.')
+            raise Exception("Discord post ID is required.")
 
-        result = await self.api.like(discord_post_id, '❤️')
+        result = await self.api.like(discord_post_id, "❤️")
         self._output_status(result)
         return result
 
@@ -230,10 +226,10 @@ class Discord(SocialNetwork):
             str: Post ID
         """
         if not self.api:
-            raise Exception('Discord API not initialized')
+            raise Exception("Discord API not initialized")
 
         if not discord_post_id:
-            raise Exception('Discord post ID is required.')
+            raise Exception("Discord post ID is required.")
 
         result = await self.api.delete(discord_post_id)
         self._output_status(result)
@@ -249,7 +245,7 @@ class Discord(SocialNetwork):
         Raises:
             Exception: Share not supported for Discord
         """
-        raise Exception('Share not supported for Discord')
+        raise Exception("Share not supported for Discord")
 
     async def video(self, status_text, video_url, video_title):
         """
@@ -264,26 +260,23 @@ class Discord(SocialNetwork):
             str: Post ID
         """
         if not self.api:
-            raise Exception('Discord API not initialized')
+            raise Exception("Discord API not initialized")
 
         if not video_url:
-            raise Exception('No Discord video URL provided.')
+            raise Exception("No Discord video URL provided.")
 
         # Download and validate video using the Media system
         video = await self.download_video(video_url)
 
         if not video.content or not video.file_type:
             video.cleanup()
-            raise Exception('Failed to download or validate video')
+            raise Exception("Failed to download or validate video")
 
         try:
             # Create embed for video title and description
             embeds = []
             if video_title or status_text:
-                embed = self.api.create_embed(
-                    title=video_title or "Video",
-                    description=status_text
-                )
+                embed = self.api.create_embed(title=video_title or "Video", description=status_text)
                 embeds.append(embed)
 
             # Get file-like object directly from video content in memory
@@ -292,10 +285,7 @@ class Discord(SocialNetwork):
 
             # Upload file using Discord API
             message_id = await self.api.upload_file(
-                video_file,
-                filename,
-                content=None,
-                embeds=embeds if embeds else None
+                video_file, filename, content=None, embeds=embeds if embeds else None
             )
 
         finally:
@@ -313,16 +303,16 @@ async def main_async(kwargs):
     Args:
         kwargs (dict): Configuration arguments
     """
-    action = kwargs.get('action', '')
+    action = kwargs.get("action", "")
 
-    if action == '':
-        raise Exception('Action is a required argument.')
+    if action == "":
+        raise Exception("Action is a required argument.")
 
     # Create Discord instance with configuration
     instance = Discord(**kwargs)
 
     # Handle authorize action separately (doesn't need client initialization)
-    if action == 'authorize':
+    if action == "authorize":
         success = await instance.authorize_credentials()
         return 0 if success else 1
 

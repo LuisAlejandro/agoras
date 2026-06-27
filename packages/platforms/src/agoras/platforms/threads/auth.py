@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.threads.auth module."""
 
 import asyncio
 import os
@@ -24,6 +25,7 @@ import webbrowser
 from typing import Any, Dict, Optional
 
 import requests
+
 from agoras.core.auth import BaseAuthManager
 from agoras.core.auth.callback_server import OAuthCallbackServer
 
@@ -33,8 +35,7 @@ from .client import ThreadsAPIClient
 class ThreadsAuthManager(BaseAuthManager):
     """Threads authentication manager using OAuth 2.0 flow."""
 
-    def __init__(self, app_id: str, app_secret: str,
-                 refresh_token: Optional[str] = None):
+    def __init__(self, app_id: str, app_secret: str, refresh_token: Optional[str] = None):
         """Initialize Threads authentication manager."""
         super().__init__()
         self.app_id = app_id
@@ -63,11 +64,11 @@ class ThreadsAuthManager(BaseAuthManager):
 
         try:
             token_data = await self._refresh_or_get_token()
-            self.access_token = token_data['access_token']
-            self.user_id = token_data.get('user_id')
+            self.access_token = token_data["access_token"]
+            self.user_id = token_data.get("user_id")
 
-            if token_data.get('access_token') != self.refresh_token:
-                self.refresh_token = token_data['access_token']
+            if token_data.get("access_token") != self.refresh_token:
+                self.refresh_token = token_data["access_token"]
                 if self.user_id:
                     self._save_credentials_to_storage(self.refresh_token, self.user_id)
 
@@ -89,7 +90,7 @@ class ThreadsAuthManager(BaseAuthManager):
             str or None: The refresh token if successful, None if failed
         """
         if not self._validate_credentials():
-            raise Exception('Threads app ID, app secret, and redirect URI are required for authorization.')
+            raise Exception("Threads app ID, app secret, and redirect URI are required for authorization.")
 
         # Interactive mode with callback server
         return await self._authorize_interactive()
@@ -126,11 +127,11 @@ class ThreadsAuthManager(BaseAuthManager):
                 try:
                     token_url = "https://graph.threads.net/oauth/access_token"
                     token_data = {
-                        'client_id': self.app_id,
-                        'client_secret': self.app_secret,
-                        'grant_type': 'authorization_code',
-                        'redirect_uri': redirect_uri,
-                        'code': auth_code
+                        "client_id": self.app_id,
+                        "client_secret": self.app_secret,
+                        "grant_type": "authorization_code",
+                        "redirect_uri": redirect_uri,
+                        "code": auth_code,
                     }
 
                     response = requests.post(token_url, data=token_data, timeout=30)
@@ -143,11 +144,11 @@ class ThreadsAuthManager(BaseAuthManager):
                     if not isinstance(tokens, dict):
                         raise Exception(f"Invalid token response format: {type(tokens)}")
 
-                    short_lived_token = tokens.get('access_token')
-                    user_id = tokens.get('user_id')
+                    short_lived_token = tokens.get("access_token")
+                    user_id = tokens.get("user_id")
 
                     if not short_lived_token or not user_id:
-                        raise Exception('Invalid token response: missing access_token or user_id')
+                        raise Exception("Invalid token response: missing access_token or user_id")
 
                     long_lived_token = self._exchange_for_long_lived_token(short_lived_token)
 
@@ -167,53 +168,50 @@ class ThreadsAuthManager(BaseAuthManager):
     def _exchange_for_long_lived_token(self, short_lived_token: str) -> str:
         """Exchange a short-lived Threads token for a 60-day long-lived token."""
         response = requests.get(
-            'https://graph.threads.net/access_token',
+            "https://graph.threads.net/access_token",
             params={
-                'grant_type': 'th_exchange_token',
-                'client_secret': self.app_secret,
-                'access_token': short_lived_token,
+                "grant_type": "th_exchange_token",
+                "client_secret": self.app_secret,
+                "access_token": short_lived_token,
             },
             timeout=30,
         )
         if response.status_code != 200:
-            raise Exception(
-                f'Long-lived token exchange failed: HTTP {response.status_code} - {response.text}'
-            )
+            raise Exception(f"Long-lived token exchange failed: HTTP {response.status_code} - {response.text}")
 
         data = response.json()
-        access_token = data.get('access_token')
+        access_token = data.get("access_token")
         if not access_token:
-            raise Exception('Long-lived token exchange failed: missing access_token')
+            raise Exception("Long-lived token exchange failed: missing access_token")
 
         return access_token
 
     async def _refresh_access_token(self) -> Dict[str, Any]:
         """Refresh an unexpired long-lived Threads token for another 60 days."""
+
         def _sync_refresh():
             if not self.refresh_token:
-                raise Exception('No refresh token available')
+                raise Exception("No refresh token available")
 
             response = requests.get(
-                'https://graph.threads.net/refresh_access_token',
+                "https://graph.threads.net/refresh_access_token",
                 params={
-                    'grant_type': 'th_refresh_token',
-                    'access_token': self.refresh_token,
+                    "grant_type": "th_refresh_token",
+                    "access_token": self.refresh_token,
                 },
                 timeout=30,
             )
             if response.status_code != 200:
-                raise Exception(
-                    f'Token refresh failed: HTTP {response.status_code} - {response.text}'
-                )
+                raise Exception(f"Token refresh failed: HTTP {response.status_code} - {response.text}")
 
             data = response.json()
-            access_token = data.get('access_token')
+            access_token = data.get("access_token")
             if not access_token:
-                raise Exception('Token refresh failed: missing access_token')
+                raise Exception("Token refresh failed: missing access_token")
 
             return {
-                'access_token': access_token,
-                'expires_in': data.get('expires_in'),
+                "access_token": access_token,
+                "expires_in": data.get("expires_in"),
             }
 
         return await asyncio.to_thread(_sync_refresh)
@@ -226,22 +224,22 @@ class ThreadsAuthManager(BaseAuthManager):
             dict: Token data containing 'access_token' and 'user_id'
         """
         if not self.refresh_token:
-            raise Exception('No refresh token available')
+            raise Exception("No refresh token available")
 
         user_id = self._load_user_id_from_env() or self._load_user_id_from_storage() or self.user_id
         if not user_id:
-            raise Exception('No user ID found in environment or storage')
+            raise Exception("No user ID found in environment or storage")
 
         try:
             refreshed = await self._refresh_access_token()
             return {
-                'access_token': refreshed['access_token'],
-                'user_id': user_id,
+                "access_token": refreshed["access_token"],
+                "user_id": user_id,
             }
         except Exception:
             return {
-                'access_token': self.refresh_token,
-                'user_id': user_id,
+                "access_token": self.refresh_token,
+                "user_id": user_id,
             }
 
     def _create_client(self, access_token: str, user_id: str) -> ThreadsAPIClient:
@@ -256,11 +254,11 @@ class ThreadsAuthManager(BaseAuthManager):
             dict: User information from the Threads API
         """
         if not self.client:
-            raise Exception('No client available')
+            raise Exception("No client available")
 
         def _sync_get_info():
             if not self.client:
-                raise Exception('No client available')
+                raise Exception("No client available")
 
             user_data = self.client.get_profile()
             return user_data
@@ -273,21 +271,24 @@ class ThreadsAuthManager(BaseAuthManager):
 
     def _get_platform_name(self) -> str:
         """Get the platform name for this auth manager."""
-        return 'threads'
+        return "threads"
 
     def _get_token_identifier(self) -> str:
         """Get unique identifier for token storage."""
-        return self.app_id
+        return self.app_id or "default"
 
     def _load_user_id_from_env(self) -> Optional[str]:
         """Load user ID from environment variable for CI/CD."""
-        return os.environ.get('THREADS_USER_ID')
+        return os.environ.get("THREADS_USER_ID")
 
     def _load_user_id_from_storage(self) -> Optional[str]:
         """Load user ID from secure storage."""
-        token_data = self.token_storage.load_token('threads', self.app_id)
+        app_id = self.app_id
+        if not app_id:
+            return None
+        token_data = self.token_storage.load_token("threads", app_id)
         if token_data:
-            return token_data.get('user_id')
+            return token_data.get("user_id")
         return None
 
     def _save_credentials_to_storage(self, refresh_token: str, user_id: str):
@@ -296,10 +297,10 @@ class ThreadsAuthManager(BaseAuthManager):
         identifier = self._get_token_identifier()
 
         token_data = {
-            'app_id': self.app_id,
-            'app_secret': self.app_secret,
-            'refresh_token': refresh_token,
-            'user_id': user_id
+            "app_id": self.app_id,
+            "app_secret": self.app_secret,
+            "refresh_token": refresh_token,
+            "user_id": user_id,
         }
 
         self.token_storage.save_token(platform_name, identifier, token_data)
@@ -324,13 +325,13 @@ class ThreadsAuthManager(BaseAuthManager):
         if token_data:
             # Only update if not already set (allow override from constructor)
             if not self.app_id:
-                self.app_id = token_data.get('app_id')
+                self.app_id = token_data.get("app_id")
             if not self.app_secret:
-                self.app_secret = token_data.get('app_secret')
+                self.app_secret = token_data.get("app_secret")
             if not self.refresh_token:
-                self.refresh_token = token_data.get('refresh_token')
+                self.refresh_token = token_data.get("refresh_token")
             if not self.user_id:
-                self.user_id = token_data.get('user_id')
+                self.user_id = token_data.get("user_id")
 
             return bool(all([self.app_id, self.app_secret, self.refresh_token]))
 

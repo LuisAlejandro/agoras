@@ -150,7 +150,6 @@ Please read about how the RSS feed should be structured in the :doc:`RSS feed se
       agoras utils feed-publish \
             --network "facebook" \
             --mode "last" \
-            --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
             --feed-url "${FEED_URL}" \
             --max-count "${MAX_COUNT}" \
             --post-lookback "${POST_LOOKBACK}"
@@ -171,7 +170,6 @@ Please read about how the RSS feed should be structured in the :doc:`RSS feed se
       agoras utils feed-publish \
             --network "facebook" \
             --mode "random" \
-            --facebook-object-id "${FACEBOOK_OBJECT_ID}" \
             --feed-url "${FEED_URL}" \
             --max-post-age "${MAX_POST_AGE}"
 
@@ -194,8 +192,7 @@ Process scheduled messages from a Google Sheet:
       --sheets-id "${GOOGLE_SHEETS_ID}" \
       --sheets-name "Facebook" \
       --sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-      --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" \
-      --facebook-object-id "${FACEBOOK_OBJECT_ID}"
+      --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
 
 .. note::
    You must run ``agoras facebook authorize`` first before using this command.
@@ -226,7 +223,7 @@ Scheduling Logic
 - Posts are created at the scheduled date and hour
 - Sheet state is updated to ``published`` after successful posting
 - If posting fails, state is updated to ``error``
-- Use ``--network facebook`` to process only Facebook posts, or omit to process all networks
+- Use ``--network facebook`` to process Facebook posts from the sheet (required since 2.1.0; one platform per run)
 
 
 .. _how-to-get-facebook-account-id:

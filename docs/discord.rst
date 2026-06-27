@@ -193,7 +193,7 @@ Scheduling Logic
 - Posts are created at the scheduled date and hour
 - Sheet state is updated to ``published`` after successful posting
 - If posting fails, state is updated to ``error``
-- Use ``--network discord`` to process only Discord posts, or omit to process all networks
+- Use ``--network discord`` to process Discord posts from the sheet (required since 2.1.0; one platform per run)
 
 Discord Features and Limitations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

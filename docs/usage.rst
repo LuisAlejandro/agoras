@@ -14,33 +14,41 @@ Agoras provides three types of commands:
 2. **Utils Commands**: Cross-platform automation tools
 3. **Legacy Command**: Deprecated ``publish`` command (maintained for backward compatibility)
 
-OAuth 2.0 Authentication Workflow
-----------------------------------
+Authorization Workflow
+----------------------
 
 .. versionadded:: 2.0
 
-For OAuth 2.0 platforms (Facebook, Instagram, LinkedIn, YouTube, TikTok, Threads), you must authorize Agoras before performing any actions:
+All platforms require ``agoras <platform> authorize`` (or equivalent environment variables) before running action commands. Credential CLI flags belong on ``authorize`` only since 2.1.0; actions accept content parameters and load auth from stored tokens or env vars.
 
-1. **Authorize once**: Run ``agoras <platform> authorize`` with your app credentials
+**OAuth 2.0 platforms** (Facebook, Instagram, LinkedIn, YouTube, TikTok, Threads) use an interactive browser flow. **X, Discord, Telegram, and WhatsApp** use CLI credentials on ``authorize`` (no browser OAuth); tokens are stored the same way.
+
+1. **Authorize once**: Run ``agoras <platform> authorize`` with your credentials
 2. **Credentials stored**: Encrypted tokens are saved in ``~/.agoras/tokens/``
-3. **Use actions**: Run actions without providing tokens - credentials refresh automatically
+3. **Use actions**: Run actions without credential flags — OAuth platforms refresh tokens automatically
 
-**Example workflow**::
+**Example — OAuth platform (Facebook)**::
 
-    # Step 1: Authorize (one-time setup)
     agoras facebook authorize \
       --client-id "$CLIENT_ID" \
       --client-secret "$CLIENT_SECRET" \
       --app-id "$APP_ID" \
       --object-id "$OBJECT_ID"
 
-    # Step 2: Use actions (no tokens needed)
     agoras facebook post --text "Hello World"
     agoras facebook video --video-url "video.mp4"
 
+**Example — API key / bot platform (X)**::
+
+    agoras x authorize \
+      --consumer-key "$TWITTER_CONSUMER_KEY" \
+      --consumer-secret "$TWITTER_CONSUMER_SECRET"
+
+    agoras x post --text "Hello World"
+
 **Benefits**:
-- No manual token handling
-- Automatic token refresh
+- No manual token handling on action commands
+- Automatic token refresh (OAuth 2.0 platforms)
 - Secure encrypted storage
 - CI/CD support via environment variables
 
@@ -53,10 +61,10 @@ Error Handling
 
 Agoras v2.0 provides clearer error messages and validation:
 
-**Example - Missing required parameter**::
+**Example - Missing credentials at runtime (after 2.1.0, action commands no longer accept credential flags)**::
 
     $ agoras x post --text "Hello"
-    Error: Missing required parameter: --consumer-key
+    # Fails at execution if authorize has not been run and TWITTER_* env vars are unset
 
 **Example - Invalid action**::
 
@@ -102,8 +110,8 @@ Post directly to social networks with intuitive, platform-first commands::
 
 **Example**::
 
-    # Post to X (formerly Twitter)
-    agoras x post --consumer-key "$KEY" --text "Hello World!"
+    # Post to X (after authorize, or with env vars set)
+    agoras x post --text "Hello World!"
 
     # Upload to YouTube
     agoras youtube video --video-url "video.mp4"
@@ -125,22 +133,19 @@ Utils Commands
 Automate posting from RSS/Atom feeds or Google Sheets schedules::
 
     agoras utils feed-publish --network <platform> --mode <last|random> [options]
-    agoras utils schedule-run [options]
+    agoras utils schedule-run --network <platform> [options]
 
-**Example**::
+**Example** (authorize once, or set ``TWITTER_*`` env vars for CI)::
 
-    # Publish last entry from RSS feed to X
+    agoras x authorize  # one-time, interactive
+
     agoras utils feed-publish \
       --network x \
       --mode last \
-      --feed-url "https://example.com/feed.xml" \
-      --x-consumer-key "$TWITTER_CONSUMER_KEY" \
-      --x-consumer-secret "$TWITTER_CONSUMER_SECRET" \
-      --x-oauth-token "$TWITTER_OAUTH_TOKEN" \
-      --x-oauth-secret "$TWITTER_OAUTH_SECRET"
+      --feed-url "https://example.com/feed.xml"
 
 .. note::
-   The ``--network twitter`` and ``--twitter-*`` parameters are deprecated. Use ``--network x`` and ``--x-*`` parameters instead.
+   The ``--network twitter`` alias is deprecated. Use ``--network x`` instead.
 
 See utils commands::
 
@@ -170,23 +175,15 @@ Quick Start Examples
 X (formerly Twitter)
 ~~~~~~~~~~~~~~~~~~~~
 
-Post a tweet with an image::
+Post a tweet with an image (run ``agoras x authorize`` first, or set ``TWITTER_*`` env vars)::
 
     agoras x post \
-      --consumer-key "$TWITTER_CONSUMER_KEY" \
-      --consumer-secret "$TWITTER_CONSUMER_SECRET" \
-      --oauth-token "$TWITTER_OAUTH_TOKEN" \
-      --oauth-secret "$TWITTER_OAUTH_SECRET" \
       --text "Hello from Agoras!" \
       --image-1 "https://example.com/image.jpg"
 
 Like a tweet::
 
     agoras x like \
-      --consumer-key "$TWITTER_CONSUMER_KEY" \
-      --consumer-secret "$TWITTER_CONSUMER_SECRET" \
-      --oauth-token "$TWITTER_OAUTH_TOKEN" \
-      --oauth-secret "$TWITTER_OAUTH_SECRET" \
       --post-id "1234567890"
 
 .. deprecated:: 2.0
@@ -236,12 +233,16 @@ Then upload a video::
 Discord
 ~~~~~~~
 
-Send a message to a Discord channel::
+First, authorize Agoras to access your Discord server::
 
-    agoras discord post \
+    agoras discord authorize \
       --bot-token "$DISCORD_BOT_TOKEN" \
       --server-name "My Server" \
-      --channel-name "general" \
+      --channel-name "general"
+
+Then send a message::
+
+    agoras discord post \
       --text "Hello from Agoras!"
 
 Instagram
@@ -329,54 +330,54 @@ Share a post::
 Telegram
 ~~~~~~~~
 
-Send a message to a Telegram channel::
+First, authorize Agoras to access your Telegram chat::
+
+    agoras telegram authorize \
+      --bot-token "$TELEGRAM_BOT_TOKEN" \
+      --chat-id "$TELEGRAM_CHAT_ID"
+
+Then send a message::
 
     agoras telegram post \
-      --bot-token "$TELEGRAM_BOT_TOKEN" \
-      --chat-id "$TELEGRAM_CHAT_ID" \
       --text "Hello from Agoras!"
 
 WhatsApp
 ~~~~~~~~
 
-Send a message via WhatsApp Business API::
+First, authorize Agoras to access your WhatsApp Business API::
+
+    agoras whatsapp authorize \
+      --access-token "$WHATSAPP_ACCESS_TOKEN" \
+      --phone-number-id "$WHATSAPP_PHONE_NUMBER_ID"
+
+Then send a message (``--recipient`` is required per message)::
 
     agoras whatsapp post \
-      --access-token "$WHATSAPP_ACCESS_TOKEN" \
-      --phone-number-id "$WHATSAPP_PHONE_NUMBER_ID" \
       --recipient "$RECIPIENT_PHONE_NUMBER" \
       --text "Hello from Agoras!"
 
 Feed Automation
 ~~~~~~~~~~~~~~~
 
-Publish the latest entry from an RSS feed::
+Publish the latest entry from an RSS feed (run ``agoras x authorize`` first, or set ``TWITTER_*`` env vars)::
 
     agoras utils feed-publish \
       --network x \
       --mode last \
       --feed-url "https://blog.example.com/feed.xml" \
-      --max-count 1 \
-      --x-consumer-key "$TWITTER_CONSUMER_KEY" \
-      --x-consumer-secret "$TWITTER_CONSUMER_SECRET" \
-      --x-oauth-token "$TWITTER_OAUTH_TOKEN" \
-      --x-oauth-secret "$TWITTER_OAUTH_SECRET"
+      --max-count 1
 
 Schedule Automation
 ~~~~~~~~~~~~~~~~~~~
 
-Run scheduled posts from Google Sheets::
+Run scheduled posts from Google Sheets (``--network`` required; one platform per run)::
 
     agoras utils schedule-run \
       --network x \
       --sheets-id "$GOOGLE_SHEETS_ID" \
       --sheets-name "Schedule" \
       --sheets-client-email "$GOOGLE_SERVICE_ACCOUNT_EMAIL" \
-      --sheets-private-key "$GOOGLE_PRIVATE_KEY" \
-      --x-consumer-key "$TWITTER_CONSUMER_KEY" \
-      --x-consumer-secret "$TWITTER_CONSUMER_SECRET" \
-      --x-oauth-token "$TWITTER_OAUTH_TOKEN" \
-      --x-oauth-secret "$TWITTER_OAUTH_SECRET"
+      --sheets-private-key "$GOOGLE_PRIVATE_KEY"
 
 Detailed Platform Guides
 -------------------------

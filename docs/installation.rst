@@ -193,7 +193,7 @@ For running tests and development tools:
 
     $ pip install -r requirements-dev.txt
 
-This installs pytest, coverage, flake8, and other development tools.
+This installs pytest, coverage, Ruff, Pyright, pydocstyle, bandit, tox, and other development tools.
 
 Upgrading
 ---------

@@ -16,7 +16,28 @@ Agoras supports multiple social media platforms, each with different authenticat
 
 All platforms support an ``authorize`` action that securely stores credentials for future use. After running ``agoras <platform> authorize`` with the required credentials, those credentials are stored securely and automatically loaded for subsequent actions. Supported actions vary by platform (post, video, like, share, delete, template, etc.) — see :doc:`action-support` for the full matrix.
 
-You can still override stored credentials by providing them via CLI arguments or environment variables if needed. This provides flexibility for using multiple accounts or temporary credential overrides.
+You can override stored credentials with environment variables on action and utils commands. Credential CLI flags are accepted only on ``authorize`` (and on legacy ``agoras publish`` until version 3.0). Google Sheets credentials for ``schedule-run`` remain on the utils CLI.
+
+.. note::
+
+   **Utils commands** (``agoras utils feed-publish``, ``agoras utils schedule-run``) use the same auth model as platform actions: run ``agoras <platform> authorize`` or set platform environment variables. ``schedule-run`` requires ``--network`` (one platform per run). Google Sheets parameters use ``--sheets-*`` CLI flags; legacy ``agoras publish`` also accepts ``GOOGLE_SHEETS_ID``, ``GOOGLE_SHEETS_NAME``, ``GOOGLE_SHEETS_CLIENT_EMAIL``, and ``GOOGLE_SHEETS_PRIVATE_KEY`` from the environment. Prefer env vars over inline keys in CI so values are not expanded into process argv or logs.
+
+Google Sheets (schedule-run)
+----------------------------
+
++-------------------------------+----------------------------------+
+| Variable                      | Purpose                          |
++===============================+==================================+
+| ``GOOGLE_SHEETS_ID``          | Spreadsheet document ID          |
++-------------------------------+----------------------------------+
+| ``GOOGLE_SHEETS_NAME``        | Worksheet name                   |
++-------------------------------+----------------------------------+
+| ``GOOGLE_SHEETS_CLIENT_EMAIL``| Service account email            |
++-------------------------------+----------------------------------+
+| ``GOOGLE_SHEETS_PRIVATE_KEY`` | Service account private key      |
++-------------------------------+----------------------------------+
+
+``agoras utils schedule-run`` currently requires ``--sheets-*`` flags even when these env vars are set. Legacy ``agoras publish --action schedule`` reads the env vars when CLI flags are omitted.
 
 Unattended Execution
 --------------------
@@ -30,7 +51,7 @@ For OAuth 2.0 platforms (Facebook, Instagram, LinkedIn, YouTube, TikTok, Threads
 
 For unattended execution, you need to provide all required credentials (refresh token plus platform-specific credentials) via environment variables or CLI arguments. See the table below for the complete list of required credentials for each platform.
 
-For non-OAuth platforms (X, Discord, Telegram, WhatsApp), unattended execution requires providing all required credentials via CLI arguments or environment variables. Alternatively, you can run ``agoras <platform> authorize`` once to store credentials securely, and subsequent actions will use the stored credentials automatically.
+For non-OAuth platforms (X, Discord, Telegram, WhatsApp), run ``agoras <platform> authorize`` once to store credentials, or set the platform environment variables listed below. Platform action commands do not accept credential CLI flags; use stored tokens or environment variables instead.
 
 Quick Reference: Unattended Execution
 ---------------------------------------
@@ -99,12 +120,12 @@ Authorize Action
 - ``--consumer-key`` (CLI) / ``TWITTER_CONSUMER_KEY`` (ENVVAR) - X API consumer key
 - ``--consumer-secret`` (CLI) / ``TWITTER_CONSUMER_SECRET`` (ENVVAR) - X API consumer secret
 
-**Optional Arguments**:
+**Environment variables for unattended execution** (not accepted as CLI flags on ``authorize``):
 
-- ``--oauth-token`` (CLI) / ``TWITTER_OAUTH_TOKEN`` (ENVVAR) - X OAuth token (obtained automatically during interactive authorization)
-- ``--oauth-secret`` (CLI) / ``TWITTER_OAUTH_SECRET`` (ENVVAR) - X OAuth secret (obtained automatically during interactive authorization)
+- ``TWITTER_OAUTH_TOKEN`` - X OAuth token (obtained automatically during interactive authorization)
+- ``TWITTER_OAUTH_SECRET`` - X OAuth secret (obtained automatically during interactive authorization)
 
-**Note**: The OAuth token and secret are automatically obtained during the interactive authorization process. You only need to provide your API key and secret. After running ``authorize``, all credentials are stored securely. Subsequent actions (post, video, like, share, delete) will automatically use the stored credentials and do not require credential parameters.
+**Note**: The OAuth token and secret are automatically obtained during the interactive authorization process when you provide only your API key and secret. After running ``authorize``, all credentials are stored securely. Subsequent actions (post, video, like, share, delete) will automatically use the stored credentials and do not require credential parameters.
 
 Post Action
 -----------
@@ -113,10 +134,6 @@ Post Action
 
 **Optional Arguments**:
 
-- ``--consumer-key`` (CLI) / ``TWITTER_CONSUMER_KEY`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--consumer-secret`` (CLI) / ``TWITTER_CONSUMER_SECRET`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--oauth-token`` (CLI) / ``TWITTER_OAUTH_TOKEN`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--oauth-secret`` (CLI) / ``TWITTER_OAUTH_SECRET`` (ENVVAR) - Not needed if ``authorize`` has been run
 - ``--text`` (CLI) / ``STATUS_TEXT`` (ENVVAR) - Text content
 - ``--link`` (CLI) / ``STATUS_LINK`` (ENVVAR) - URL to include
 - ``--image-1`` (CLI) / ``STATUS_IMAGE_URL_1`` (ENVVAR) - First image URL
@@ -124,7 +141,7 @@ Post Action
 - ``--image-3`` (CLI) / ``STATUS_IMAGE_URL_3`` (ENVVAR) - Third image URL
 - ``--image-4`` (CLI) / ``STATUS_IMAGE_URL_4`` (ENVVAR) - Fourth image URL
 
-**Unattended Execution**: Run ``authorize`` once to store credentials, or provide all four credential arguments (consumer-key, consumer-secret, oauth-token, oauth-secret) via CLI or environment variables.
+**Unattended Execution**: Run ``authorize`` once to store credentials, or set ``TWITTER_CONSUMER_KEY``, ``TWITTER_CONSUMER_SECRET``, ``TWITTER_OAUTH_TOKEN``, and ``TWITTER_OAUTH_SECRET`` environment variables.
 
 Video Action
 ------------
@@ -135,14 +152,10 @@ Video Action
 
 **Optional Arguments**:
 
-- ``--consumer-key`` (CLI) / ``TWITTER_CONSUMER_KEY`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--consumer-secret`` (CLI) / ``TWITTER_CONSUMER_SECRET`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--oauth-token`` (CLI) / ``TWITTER_OAUTH_TOKEN`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--oauth-secret`` (CLI) / ``TWITTER_OAUTH_SECRET`` (ENVVAR) - Not needed if ``authorize`` has been run
 - ``--video-title`` (CLI) / ``TWITTER_VIDEO_TITLE`` (ENVVAR) - Video title/description
 - ``--text`` (CLI) / ``STATUS_TEXT`` (ENVVAR) - Text content
 
-**Unattended Execution**: Run ``authorize`` once to store credentials, or provide all four credential arguments via CLI or environment variables.
+**Unattended Execution**: Run ``authorize`` once to store credentials, or set ``TWITTER_CONSUMER_KEY``, ``TWITTER_CONSUMER_SECRET``, ``TWITTER_OAUTH_TOKEN``, and ``TWITTER_OAUTH_SECRET`` environment variables.
 
 Like Action
 -----------
@@ -153,12 +166,7 @@ Like Action
 
 **Optional Arguments**:
 
-- ``--consumer-key`` (CLI) / ``TWITTER_CONSUMER_KEY`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--consumer-secret`` (CLI) / ``TWITTER_CONSUMER_SECRET`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--oauth-token`` (CLI) / ``TWITTER_OAUTH_TOKEN`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--oauth-secret`` (CLI) / ``TWITTER_OAUTH_SECRET`` (ENVVAR) - Not needed if ``authorize`` has been run
-
-**Unattended Execution**: Run ``authorize`` once to store credentials, or provide all four credential arguments via CLI or environment variables.
+**Unattended Execution**: Run ``authorize`` once to store credentials, or set ``TWITTER_CONSUMER_KEY``, ``TWITTER_CONSUMER_SECRET``, ``TWITTER_OAUTH_TOKEN``, and ``TWITTER_OAUTH_SECRET`` environment variables.
 
 Share Action
 ------------
@@ -169,12 +177,7 @@ Share Action
 
 **Optional Arguments**:
 
-- ``--consumer-key`` (CLI) / ``TWITTER_CONSUMER_KEY`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--consumer-secret`` (CLI) / ``TWITTER_CONSUMER_SECRET`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--oauth-token`` (CLI) / ``TWITTER_OAUTH_TOKEN`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--oauth-secret`` (CLI) / ``TWITTER_OAUTH_SECRET`` (ENVVAR) - Not needed if ``authorize`` has been run
-
-**Unattended Execution**: Run ``authorize`` once to store credentials, or provide all four credential arguments via CLI or environment variables.
+**Unattended Execution**: Run ``authorize`` once to store credentials, or set ``TWITTER_CONSUMER_KEY``, ``TWITTER_CONSUMER_SECRET``, ``TWITTER_OAUTH_TOKEN``, and ``TWITTER_OAUTH_SECRET`` environment variables.
 
 Delete Action
 -------------
@@ -185,12 +188,7 @@ Delete Action
 
 **Optional Arguments**:
 
-- ``--consumer-key`` (CLI) / ``TWITTER_CONSUMER_KEY`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--consumer-secret`` (CLI) / ``TWITTER_CONSUMER_SECRET`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--oauth-token`` (CLI) / ``TWITTER_OAUTH_TOKEN`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--oauth-secret`` (CLI) / ``TWITTER_OAUTH_SECRET`` (ENVVAR) - Not needed if ``authorize`` has been run
-
-**Unattended Execution**: Run ``authorize`` once to store credentials, or provide all four credential arguments via CLI or environment variables.
+**Unattended Execution**: Run ``authorize`` once to store credentials, or set ``TWITTER_CONSUMER_KEY``, ``TWITTER_CONSUMER_SECRET``, ``TWITTER_OAUTH_TOKEN``, and ``TWITTER_OAUTH_SECRET`` environment variables.
 
 Facebook
 ========
@@ -412,9 +410,6 @@ Post Action
 
 **Optional Arguments**:
 
-- ``--bot-token`` (CLI) / ``DISCORD_BOT_TOKEN`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--server-name`` (CLI) / ``DISCORD_SERVER_NAME`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--channel-name`` (CLI) / ``DISCORD_CHANNEL_NAME`` (ENVVAR) - Not needed if ``authorize`` has been run
 - ``--text`` (CLI) / ``STATUS_TEXT`` (ENVVAR) - Text content
 - ``--link`` (CLI) / ``STATUS_LINK`` (ENVVAR) - URL to include
 - ``--image-1`` (CLI) / ``STATUS_IMAGE_URL_1`` (ENVVAR) - First image URL
@@ -422,7 +417,7 @@ Post Action
 - ``--image-3`` (CLI) / ``STATUS_IMAGE_URL_3`` (ENVVAR) - Third image URL
 - ``--image-4`` (CLI) / ``STATUS_IMAGE_URL_4`` (ENVVAR) - Fourth image URL
 
-**Unattended Execution**: Run ``authorize`` once to store credentials, or provide ``DISCORD_BOT_TOKEN``, ``DISCORD_SERVER_NAME``, and ``DISCORD_CHANNEL_NAME`` via CLI or environment variables.
+**Unattended Execution**: Run ``authorize`` once to store credentials, or set ``DISCORD_BOT_TOKEN``, ``DISCORD_SERVER_NAME``, and ``DISCORD_CHANNEL_NAME`` environment variables.
 
 Video Action
 ------------
@@ -433,12 +428,9 @@ Video Action
 
 **Optional Arguments**:
 
-- ``--bot-token`` (CLI) / ``DISCORD_BOT_TOKEN`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--server-name`` (CLI) / ``DISCORD_SERVER_NAME`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--channel-name`` (CLI) / ``DISCORD_CHANNEL_NAME`` (ENVVAR) - Not needed if ``authorize`` has been run
 - ``--video-title`` (CLI) / ``DISCORD_VIDEO_TITLE`` (ENVVAR) - Video title/description
 
-**Unattended Execution**: Run ``authorize`` once to store credentials, or provide ``DISCORD_BOT_TOKEN``, ``DISCORD_SERVER_NAME``, and ``DISCORD_CHANNEL_NAME`` via CLI or environment variables.
+**Unattended Execution**: Run ``authorize`` once to store credentials, or set ``DISCORD_BOT_TOKEN``, ``DISCORD_SERVER_NAME``, and ``DISCORD_CHANNEL_NAME`` environment variables.
 
 Delete Action
 -------------
@@ -449,11 +441,7 @@ Delete Action
 
 **Optional Arguments**:
 
-- ``--bot-token`` (CLI) / ``DISCORD_BOT_TOKEN`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--server-name`` (CLI) / ``DISCORD_SERVER_NAME`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--channel-name`` (CLI) / ``DISCORD_CHANNEL_NAME`` (ENVVAR) - Not needed if ``authorize`` has been run
-
-**Unattended Execution**: Run ``authorize`` once to store credentials, or provide ``DISCORD_BOT_TOKEN``, ``DISCORD_SERVER_NAME``, and ``DISCORD_CHANNEL_NAME`` via CLI or environment variables.
+**Unattended Execution**: Run ``authorize`` once to store credentials, or set ``DISCORD_BOT_TOKEN``, ``DISCORD_SERVER_NAME``, and ``DISCORD_CHANNEL_NAME`` environment variables.
 
 YouTube
 =======
@@ -635,8 +623,6 @@ Post Action
 
 **Optional Arguments**:
 
-- ``--bot-token`` (CLI) / ``TELEGRAM_BOT_TOKEN`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--chat-id`` (CLI) / ``TELEGRAM_CHAT_ID`` (ENVVAR) - Not needed if ``authorize`` has been run
 - ``--parse-mode`` (CLI) / ``TELEGRAM_PARSE_MODE`` (ENVVAR) - Message parse mode: ``HTML``, ``Markdown``, ``MarkdownV2``, or ``None`` (default: ``HTML``)
 - ``--text`` (CLI) / ``STATUS_TEXT`` (ENVVAR) - Text content
 - ``--link`` (CLI) / ``STATUS_LINK`` (ENVVAR) - URL to include
@@ -645,7 +631,7 @@ Post Action
 - ``--image-3`` (CLI) / ``STATUS_IMAGE_URL_3`` (ENVVAR) - Third image URL
 - ``--image-4`` (CLI) / ``STATUS_IMAGE_URL_4`` (ENVVAR) - Fourth image URL
 
-**Unattended Execution**: Run ``authorize`` once to store credentials, or provide ``TELEGRAM_BOT_TOKEN`` and ``TELEGRAM_CHAT_ID`` via CLI or environment variables.
+**Unattended Execution**: Run ``authorize`` once to store credentials, or set ``TELEGRAM_BOT_TOKEN`` and ``TELEGRAM_CHAT_ID`` environment variables.
 
 Video Action
 ------------
@@ -656,11 +642,9 @@ Video Action
 
 **Optional Arguments**:
 
-- ``--bot-token`` (CLI) / ``TELEGRAM_BOT_TOKEN`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--chat-id`` (CLI) / ``TELEGRAM_CHAT_ID`` (ENVVAR) - Not needed if ``authorize`` has been run
 - ``--video-title`` (CLI) / ``VIDEO_TITLE`` (ENVVAR) - Video title/description
 
-**Unattended Execution**: Run ``authorize`` once to store credentials, or provide ``TELEGRAM_BOT_TOKEN`` and ``TELEGRAM_CHAT_ID`` via CLI or environment variables.
+**Unattended Execution**: Run ``authorize`` once to store credentials, or set ``TELEGRAM_BOT_TOKEN`` and ``TELEGRAM_CHAT_ID`` environment variables.
 
 Delete Action
 -------------
@@ -671,10 +655,7 @@ Delete Action
 
 **Optional Arguments**:
 
-- ``--bot-token`` (CLI) / ``TELEGRAM_BOT_TOKEN`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--chat-id`` (CLI) / ``TELEGRAM_CHAT_ID`` (ENVVAR) - Not needed if ``authorize`` has been run
-
-**Unattended Execution**: Run ``authorize`` once to store credentials, or provide ``TELEGRAM_BOT_TOKEN`` and ``TELEGRAM_CHAT_ID`` via CLI or environment variables.
+**Unattended Execution**: Run ``authorize`` once to store credentials, or set ``TELEGRAM_BOT_TOKEN`` and ``TELEGRAM_CHAT_ID`` environment variables.
 
 WhatsApp
 ========
@@ -706,9 +687,6 @@ Post Action
 
 **Optional Arguments**:
 
-- ``--access-token`` (CLI) / ``WHATSAPP_ACCESS_TOKEN`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--phone-number-id`` (CLI) / ``WHATSAPP_PHONE_NUMBER_ID`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--business-account-id`` (CLI) / ``WHATSAPP_BUSINESS_ACCOUNT_ID`` (ENVVAR) - Not needed if ``authorize`` has been run
 - ``--text`` (CLI) / ``STATUS_TEXT`` (ENVVAR) - Text content
 - ``--link`` (CLI) / ``STATUS_LINK`` (ENVVAR) - URL to include
 - ``--image-1`` (CLI) / ``STATUS_IMAGE_URL_1`` (ENVVAR) - First image URL
@@ -716,7 +694,7 @@ Post Action
 - ``--image-3`` (CLI) / ``STATUS_IMAGE_URL_3`` (ENVVAR) - Third image URL
 - ``--image-4`` (CLI) / ``STATUS_IMAGE_URL_4`` (ENVVAR) - Fourth image URL
 
-**Unattended Execution**: Run ``authorize`` once to store credentials, or provide ``WHATSAPP_ACCESS_TOKEN``, ``WHATSAPP_PHONE_NUMBER_ID``, and ``WHATSAPP_RECIPIENT`` via CLI or environment variables.
+**Unattended Execution**: Run ``authorize`` once to store credentials, or set ``WHATSAPP_ACCESS_TOKEN``, ``WHATSAPP_PHONE_NUMBER_ID``, and ``WHATSAPP_RECIPIENT`` environment variables.
 
 Video Action
 ------------
@@ -728,12 +706,9 @@ Video Action
 
 **Optional Arguments**:
 
-- ``--access-token`` (CLI) / ``WHATSAPP_ACCESS_TOKEN`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--phone-number-id`` (CLI) / ``WHATSAPP_PHONE_NUMBER_ID`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--business-account-id`` (CLI) / ``WHATSAPP_BUSINESS_ACCOUNT_ID`` (ENVVAR) - Not needed if ``authorize`` has been run
 - ``--video-title`` (CLI) / ``VIDEO_TITLE`` (ENVVAR) - Video title/description
 
-**Unattended Execution**: Run ``authorize`` once to store credentials, or provide ``WHATSAPP_ACCESS_TOKEN``, ``WHATSAPP_PHONE_NUMBER_ID``, and ``WHATSAPP_RECIPIENT`` via CLI or environment variables.
+**Unattended Execution**: Run ``authorize`` once to store credentials, or set ``WHATSAPP_ACCESS_TOKEN``, ``WHATSAPP_PHONE_NUMBER_ID``, and ``WHATSAPP_RECIPIENT`` environment variables.
 
 Template Action
 --------------
@@ -745,13 +720,10 @@ Template Action
 
 **Optional Arguments**:
 
-- ``--access-token`` (CLI) / ``WHATSAPP_ACCESS_TOKEN`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--phone-number-id`` (CLI) / ``WHATSAPP_PHONE_NUMBER_ID`` (ENVVAR) - Not needed if ``authorize`` has been run
-- ``--business-account-id`` (CLI) / ``WHATSAPP_BUSINESS_ACCOUNT_ID`` (ENVVAR) - Not needed if ``authorize`` has been run
 - ``--language-code`` (CLI) / ``WHATSAPP_TEMPLATE_LANGUAGE`` (ENVVAR) - Language code (ISO 639-1 format, default: en)
 - ``--template-components`` (CLI) / ``WHATSAPP_TEMPLATE_COMPONENTS`` (ENVVAR) - Template components as JSON string
 
-**Unattended Execution**: Run ``authorize`` once to store credentials, or provide all required arguments via CLI or environment variables.
+**Unattended Execution**: Run ``authorize`` once to store credentials, or set ``WHATSAPP_ACCESS_TOKEN``, ``WHATSAPP_PHONE_NUMBER_ID``, and ``WHATSAPP_RECIPIENT`` environment variables.
 
 Environment Variable Naming Patterns
 ====================================

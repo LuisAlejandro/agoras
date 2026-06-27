@@ -16,8 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-agoras.common
-=============
+agoras.common.
 
 Common utilities, logging, and shared constants for Agoras.
 
@@ -33,13 +32,13 @@ from .utils import add_url_timestamp, parse_metatags
 from .version import __author__, __description__, __email__, __url__, __version__
 
 __all__ = [
-    '__version__',
-    '__author__',
-    '__email__',
-    '__url__',
-    '__description__',
-    'logger',
-    'ControlableLogger',
-    'add_url_timestamp',
-    'parse_metatags',
+    "__version__",
+    "__author__",
+    "__email__",
+    "__url__",
+    "__description__",
+    "logger",
+    "ControlableLogger",
+    "add_url_timestamp",
+    "parse_metatags",
 ]

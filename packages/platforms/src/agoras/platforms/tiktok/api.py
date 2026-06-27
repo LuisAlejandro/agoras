@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.tiktok.api module."""
 
 import asyncio
 import sys
@@ -49,18 +50,12 @@ class TikTokAPI(BaseAPI):
             refresh_token (str, optional): TikTok refresh token
         """
         super().__init__(
-            username=username,
-            client_key=client_key,
-            client_secret=client_secret,
-            refresh_token=refresh_token
+            username=username, client_key=client_key, client_secret=client_secret, refresh_token=refresh_token
         )
 
         # Initialize the authentication manager
         self.auth_manager = TikTokAuthManager(
-            username=username,
-            client_key=client_key,
-            client_secret=client_secret,
-            refresh_token=refresh_token
+            username=username, client_key=client_key, client_secret=client_secret, refresh_token=refresh_token
         )
 
     @property
@@ -88,7 +83,7 @@ class TikTokAPI(BaseAPI):
 
         success = await self.auth_manager.authenticate()
         if not success:
-            raise Exception('TikTok authentication failed')
+            raise Exception("TikTok authentication failed")
 
         self.client = self.auth_manager.client
         self._authenticated = True
@@ -119,7 +114,7 @@ class TikTokAPI(BaseAPI):
             Exception: If API call fails
         """
         if not self.access_token:
-            raise Exception('TikTok API not authenticated')
+            raise Exception("TikTok API not authenticated")
 
         def _sync_get_creator_info():
             return self.creator_info
@@ -127,16 +122,23 @@ class TikTokAPI(BaseAPI):
         try:
             creator_info = await asyncio.to_thread(_sync_get_creator_info)
             if not creator_info:
-                raise Exception('Failed to get creator info')
+                raise Exception("Failed to get creator info")
             return creator_info
         except Exception as e:
-            self._handle_api_error(e, 'TikTok get creator info')
+            self._handle_api_error(e, "TikTok get creator info")
             raise
 
-    async def upload_video(self, video_url: str, title: str, privacy_status: str,
-                           allow_comments: bool = True, allow_duet: bool = True,
-                           allow_stitch: bool = True, is_brand_organic: bool = False,
-                           is_brand_content: bool = False) -> Dict[str, Any]:
+    async def upload_video(
+        self,
+        video_url: str,
+        title: str,
+        privacy_status: str,
+        allow_comments: bool = True,
+        allow_duet: bool = True,
+        allow_stitch: bool = True,
+        is_brand_organic: bool = False,
+        is_brand_content: bool = False,
+    ) -> Dict[str, Any]:
         """
         Upload a video to TikTok.
 
@@ -159,16 +161,16 @@ class TikTokAPI(BaseAPI):
         self.auth_manager.ensure_authenticated()
 
         if not self.access_token:
-            raise Exception('TikTok API not authenticated')
+            raise Exception("TikTok API not authenticated")
 
         if not self.client:
-            raise Exception('TikTok client not available')
+            raise Exception("TikTok client not available")
 
-        await self._rate_limit_check('upload_video', 2.0)
+        await self._rate_limit_check("upload_video", 2.0)
 
         def _sync_upload():
             if not self.client:
-                raise Exception('TikTok client not available')
+                raise Exception("TikTok client not available")
             return self.client.upload_video(
                 video_url=video_url,
                 title=title,
@@ -177,26 +179,33 @@ class TikTokAPI(BaseAPI):
                 allow_duet=allow_duet,
                 allow_stitch=allow_stitch,
                 is_brand_organic=is_brand_organic,
-                is_brand_content=is_brand_content
+                is_brand_content=is_brand_content,
             )
 
         try:
             response = await asyncio.to_thread(_sync_upload)
 
-            publish_id = response.get('data', {}).get('publish_id')
+            publish_id = response.get("data", {}).get("publish_id")
 
             # Wait for video processing to complete
             await self._wait_for_publish_completion(publish_id)
 
             return {"publish_id": publish_id}
         except Exception as e:
-            self._handle_api_error(e, 'TikTok video upload')
+            self._handle_api_error(e, "TikTok video upload")
             raise
 
-    async def upload_photo(self, photo_images: List[str], title: str, privacy_status: str,
-                           allow_comments: bool = True, is_brand_organic: bool = False,
-                           is_brand_content: bool = False, auto_add_music: bool = False,
-                           description: str = "") -> Dict[str, Any]:
+    async def upload_photo(
+        self,
+        photo_images: List[str],
+        title: str,
+        privacy_status: str,
+        allow_comments: bool = True,
+        is_brand_organic: bool = False,
+        is_brand_content: bool = False,
+        auto_add_music: bool = False,
+        description: str = "",
+    ) -> Dict[str, Any]:
         """
         Upload photos to TikTok.
 
@@ -219,16 +228,16 @@ class TikTokAPI(BaseAPI):
         self.auth_manager.ensure_authenticated()
 
         if not self.access_token:
-            raise Exception('TikTok API not authenticated')
+            raise Exception("TikTok API not authenticated")
 
         if not self.client:
-            raise Exception('TikTok client not available')
+            raise Exception("TikTok client not available")
 
-        await self._rate_limit_check('upload_photo', 2.0)
+        await self._rate_limit_check("upload_photo", 2.0)
 
         def _sync_upload():
             if not self.client:
-                raise Exception('TikTok client not available')
+                raise Exception("TikTok client not available")
             return self.client.upload_photo(
                 photo_images=photo_images,
                 title=title,
@@ -237,16 +246,16 @@ class TikTokAPI(BaseAPI):
                 is_brand_organic=is_brand_organic,
                 is_brand_content=is_brand_content,
                 auto_add_music=auto_add_music,
-                description=description
+                description=description,
             )
 
         try:
             response = await asyncio.to_thread(_sync_upload)
             # TikTok API returns: {"data": {"publish_id": "..."}, "error": {"code": "ok", ...}}
             # Extract the data object which contains publish_id
-            return response.get('data', {})
+            return response.get("data", {})
         except Exception as e:
-            self._handle_api_error(e, 'TikTok photo upload')
+            self._handle_api_error(e, "TikTok photo upload")
             raise
 
     async def _wait_for_publish_completion(self, publish_id: str, max_wait_time: int = 300) -> None:
@@ -265,24 +274,24 @@ class TikTokAPI(BaseAPI):
         while True:
             # Check if we've exceeded max wait time
             if time.time() - start_time > max_wait_time:
-                raise Exception(f'Publish timeout after {max_wait_time} seconds')
+                raise Exception(f"Publish timeout after {max_wait_time} seconds")
 
             await asyncio.sleep(10)
-            print('Waiting for post status ...', file=sys.stderr)
+            print("Waiting for post status ...", file=sys.stderr)
 
             def _sync_check_status():
                 if not self.client:
-                    raise Exception('TikTok client not available')
+                    raise Exception("TikTok client not available")
                 return self.client.get_publish_status(publish_id)
 
             try:
                 status = await asyncio.to_thread(_sync_check_status)
-                publish_status = status.get('data', {}).get('status')
-                publish_id_list = status.get('data', {}).get('publicaly_available_post_id', [])
+                publish_status = status.get("data", {}).get("status")
+                publish_id_list = status.get("data", {}).get("publicaly_available_post_id", [])
 
-                if len(publish_id_list) > 0 or publish_status == 'PUBLISH_COMPLETE':
+                if len(publish_id_list) > 0 or publish_status == "PUBLISH_COMPLETE":
                     try:
-                        print('Post published!', file=sys.stderr)
+                        print("Post published!", file=sys.stderr)
                     except BrokenPipeError:
                         pass
                     break
@@ -290,7 +299,7 @@ class TikTokAPI(BaseAPI):
             except BrokenPipeError:
                 break
             except Exception as e:
-                self._handle_api_error(e, 'TikTok status check')
+                self._handle_api_error(e, "TikTok status check")
                 raise
 
     async def post(self, *args, **kwargs) -> str:
@@ -300,7 +309,7 @@ class TikTokAPI(BaseAPI):
         Raises:
             Exception: Post not supported for TikTok
         """
-        raise Exception('Regular posts not supported for TikTok - use upload_photo() method instead')
+        raise Exception("Regular posts not supported for TikTok - use upload_photo() method instead")
 
     async def like(self, post_id: str) -> str:
         """
@@ -312,7 +321,7 @@ class TikTokAPI(BaseAPI):
         Raises:
             Exception: Like not supported for TikTok
         """
-        raise Exception('Like not supported for TikTok')
+        raise Exception("Like not supported for TikTok")
 
     async def delete(self, post_id: str) -> str:
         """
@@ -324,7 +333,7 @@ class TikTokAPI(BaseAPI):
         Raises:
             Exception: Delete not supported for TikTok
         """
-        raise Exception('Delete not supported for TikTok')
+        raise Exception("Delete not supported for TikTok")
 
     async def share(self, post_id: str) -> str:
         """
@@ -336,4 +345,4 @@ class TikTokAPI(BaseAPI):
         Raises:
             Exception: Share not supported for TikTok
         """
-        raise Exception('Share not supported for TikTok')
+        raise Exception("Share not supported for TikTok")

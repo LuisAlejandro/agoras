@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.media.preflight module."""
 
 from typing import Optional
 from urllib.request import Request, urlopen
@@ -23,8 +24,7 @@ from .constraints import MediaConstraints, resolve_platform
 from .errors import MediaValidationError
 
 
-def preflight_url(url: str, limits: MediaConstraints, *,
-                  platform: str = 'generic', kind: str = 'image') -> None:
+def preflight_url(url: str, limits: MediaConstraints, *, platform: str = "generic", kind: str = "image") -> None:
     """
     Validate remote media via HEAD before url_pull uploads.
 
@@ -39,31 +39,28 @@ def preflight_url(url: str, limits: MediaConstraints, *,
         Exception: If HEAD request fails
     """
     platform_key = resolve_platform(platform)
-    request = Request(url, method='HEAD', headers={'User-Agent': 'Agoras/preflight'})
+    request = Request(url, method="HEAD", headers={"User-Agent": "Agoras/preflight"})
     with urlopen(request, timeout=30) as response:
-        content_type = response.headers.get('Content-Type', '').split(';')[0].strip().lower()
-        content_length = response.headers.get('Content-Length')
+        content_type = response.headers.get("Content-Type", "").split(";")[0].strip().lower()
+        content_length = response.headers.get("Content-Length")
 
     if content_type and limits.mime_types:
         if content_type not in limits.mime_types:
-            raise MediaValidationError(
-                platform_key, kind, 'content_type', content_type, limits.mime_type_list
-            )
+            raise MediaValidationError(platform_key, kind, "content_type", content_type, limits.mime_type_list)
 
     if content_length and limits.max_bytes is not None:
         size = int(content_length)
         if size > limits.max_bytes:
-            raise MediaValidationError(
-                platform_key, kind, 'content_length', size, limits.max_bytes
-            )
+            raise MediaValidationError(platform_key, kind, "content_length", size, limits.max_bytes)
 
 
-def preflight_url_for_platform(url: str, platform: str, kind: str = 'image',
-                               limits: Optional[MediaConstraints] = None) -> None:
+def preflight_url_for_platform(
+    url: str, platform: str, kind: str = "image", limits: Optional[MediaConstraints] = None
+) -> None:
     """Convenience wrapper using platform image/video limits."""
     from .constraints import image_limits, video_limits
 
     platform_key = resolve_platform(platform)
     if limits is None:
-        limits = image_limits(platform_key) if kind == 'image' else video_limits(platform_key)
+        limits = image_limits(platform_key) if kind == "image" else video_limits(platform_key)
     preflight_url(url, limits, platform=platform_key, kind=kind)

@@ -25,24 +25,23 @@ from agoras.media.constraints import (
 
 
 def _mime_short_names(mime_types):
-    return ', '.join(sorted({m.split('/')[-1] for m in mime_types}))
+    return ", ".join(sorted({m.split("/")[-1] for m in mime_types}))
 
 
 def video_url_help(platform: str) -> str:
     """Build --video-url help for a platform."""
     key = resolve_platform(platform)
-    limits, mode = constraints_summary(key, 'video')
+    limits, mode = constraints_summary(key, "video")
     parts = [
-        f'URL of video file (max {format_bytes(limits.max_bytes)}, '
-        f'{_mime_short_names(limits.mime_types)})',
+        f"URL of video file (max {format_bytes(limits.max_bytes)}, {_mime_short_names(limits.mime_types)})",
     ]
     if limits.max_duration_s is not None:
-        parts.append(f'max {int(limits.max_duration_s)}s')
+        parts.append(f"max {int(limits.max_duration_s)}s")
     if limits.min_duration_s is not None:
-        parts.append(f'min {int(limits.min_duration_s)}s')
+        parts.append(f"min {int(limits.min_duration_s)}s")
     text = parts[0]
     if len(parts) > 1:
-        text = f'{text}; {", ".join(parts[1:])}'
-    if mode == 'url_pull':
-        text = f'{text}; URL pull'
+        text = f"{text}; {', '.join(parts[1:])}"
+    if mode == "url_pull":
+        text = f"{text}; URL pull"
     return text
