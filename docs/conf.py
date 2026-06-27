@@ -31,11 +31,11 @@ project_root = os.path.dirname(cwd)
 # Add each package's src directory to sys.path for namespace package support
 # Order matters: dependencies first (common → media → core → platforms → cli)
 package_src_dirs = [
-    'packages/common/src',
-    'packages/media/src',
-    'packages/core/src',
-    'packages/platforms/src',
-    'packages/cli/src',
+    "packages/common/src",
+    "packages/media/src",
+    "packages/core/src",
+    "packages/platforms/src",
+    "packages/cli/src",
 ]
 
 for package_dir in package_src_dirs:
@@ -60,45 +60,40 @@ except ImportError as e:
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = [
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.autodoc',
-    'sphinx.ext.viewcode',
-    'alabaster'
-]
+extensions = ["sphinx.ext.intersphinx", "sphinx.ext.autodoc", "sphinx.ext.viewcode", "alabaster"]
 
 # Mock imports for dependencies that aren't needed for documentation
 # This speeds up builds and avoids installation issues on ReadTheDocs
 autodoc_mock_imports = [
-    'PIL',
-    'cv2',
-    'tweepy',
-    'google',
-    'googleapiclient',
-    'discord',
-    'telegram',
-    'tiktokapipy',
-    'requests',
-    'feedparser',
-    'gspread',
-    'oauth2client',
+    "PIL",
+    "cv2",
+    "tweepy",
+    "google",
+    "googleapiclient",
+    "discord",
+    "telegram",
+    "tiktokapipy",
+    "requests",
+    "feedparser",
+    "gspread",
+    "oauth2client",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 # The suffix of source filenames.
-source_suffix = '.rst'
+source_suffix = ".rst"
 
 # The encoding of source files.
 # source_encoding = 'utf-8-sig'
 
 # The master toctree document.
-master_doc = 'index'
+master_doc = "index"
 
 # General information about the project.
-project = u'agoras'
-copyright = u'2022-2026, Agoras Developers'
+project = "agoras"
+copyright = "2022-2026, Agoras Developers"
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
@@ -121,7 +116,7 @@ release = __version__
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = ['_build']
+exclude_patterns = ["_build"]
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
@@ -139,7 +134,7 @@ exclude_patterns = ['_build']
 # show_authors = False
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+pygments_style = "sphinx"
 
 # A list of ignored prefixes for module index sorting.
 # modindex_common_prefix = []
@@ -153,32 +148,32 @@ pygments_style = 'sphinx'
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'alabaster'
+html_theme = "alabaster"
 
 # Theme options are theme-specific and customize the look and feel of a
 # theme further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-    'logo': 'logo.svg',
-    'logo_name': False,
-    'logo_text_align': 'center',
-    'description': __description__,
-    'github_user': 'LuisAlejandro',
-    'github_repo': 'agoras',
-    'travis_button': False,
-    'link': '#f2545b',
-    'link_hover': '#db4d58',
-    'show_powered_by': False,
-    'head_font_family': 'Roboto, sans-serif',
-    'font_family': 'Roboto, sans-serif',
+    "logo": "logo.svg",
+    "logo_name": False,
+    "logo_text_align": "center",
+    "description": __description__,
+    "github_user": "LuisAlejandro",
+    "github_repo": "agoras",
+    "travis_button": False,
+    "link": "#f2545b",
+    "link_hover": "#db4d58",
+    "show_powered_by": False,
+    "head_font_family": "Roboto, sans-serif",
+    "font_family": "Roboto, sans-serif",
 }
 
 html_sidebars = {
-    '**': [
-        'about.html',
-        'navigation.html',
-        'searchbox.html',
-        'donate.html',
+    "**": [
+        "about.html",
+        "navigation.html",
+        "searchbox.html",
+        "donate.html",
     ]
 }
 # Add any paths that contain custom themes here, relative to this directory.
@@ -205,10 +200,10 @@ html_theme_path = [alabaster.get_path()]
 # here, relative to this directory. They are copied after the builtin
 # static files, so a file named "default.css" will overwrite the builtin
 # "default.css".
-html_static_path = ['_static']
+html_static_path = ["_static"]
 
 html_css_files = [
-    'custom.css',
+    "custom.css",
 ]
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page
@@ -255,7 +250,7 @@ html_css_files = [
 # html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'agorasdoc'
+htmlhelp_basename = "agorasdoc"
 
 
 # -- Options for LaTeX output ------------------------------------------
@@ -263,10 +258,8 @@ htmlhelp_basename = 'agorasdoc'
 latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
     # 'papersize': 'letterpaper',
-
     # The font size ('10pt', '11pt' or '12pt').
     # 'pointsize': '10pt',
-
     # Additional stuff for the LaTeX preamble.
     # 'preamble': '',
 }
@@ -275,9 +268,7 @@ latex_elements = {
 # (source start file, target name, title, author, documentclass
 # [howto/manual]).
 latex_documents = [
-    ('index', 'agoras.tex',
-     u'Agoras Documentation',
-     u'Luis Alejandro Martínez Faneyth', 'manual'),
+    ("index", "agoras.tex", "Agoras Documentation", "Luis Alejandro Martínez Faneyth", "manual"),
 ]
 
 # The name of an image file (relative to this directory) to place at
@@ -305,11 +296,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [
-    ('index', 'agoras',
-     u'Agoras Documentation',
-     [u'Luis Alejandro Martínez Faneyth'], 1)
-]
+man_pages = [("index", "agoras", "Agoras Documentation", ["Luis Alejandro Martínez Faneyth"], 1)]
 
 # If true, show URL addresses after external links.
 # man_show_urls = False
@@ -321,12 +308,15 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    ('index', 'agoras',
-     u'Agoras Documentation',
-     u'Luis Alejandro Martínez Faneyth',
-     'agoras',
-     __description__,
-     'Miscellaneous'),
+    (
+        "index",
+        "agoras",
+        "Agoras Documentation",
+        "Luis Alejandro Martínez Faneyth",
+        "agoras",
+        __description__,
+        "Miscellaneous",
+    ),
 ]
 
 # Documents to append as an appendix to all manuals.
