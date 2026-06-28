@@ -12,7 +12,6 @@ extraPaths = [
     "packages/platforms/src",
     "packages/cli/src",
 ]
-
 [tool.ruff]
 line-length = 120
 target-version = "py310"

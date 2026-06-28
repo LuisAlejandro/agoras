@@ -128,7 +128,7 @@ virtualenv: start
 	docs servedocs pypi-upload dist install console virtualenv
 
 # >>> rosey-maintainer:ops-docker BEGIN
-# Managed by rosey-maintainer-tools 0.4.3. Do not edit directly.
+# Managed by rosey-maintainer-tools 0.4.4. Do not edit directly.
 
 PROJECT_NAME ?= agoras
 all_ps_hashes = $(shell docker ps -q)
@@ -176,7 +176,7 @@ cataplum:
 # <<< rosey-maintainer:ops-docker END
 
 # >>> rosey-maintainer:ops-release BEGIN
-# Managed by rosey-maintainer-tools 0.4.3. Do not edit directly.
+# Managed by rosey-maintainer-tools 0.4.4. Do not edit directly.
 
 release:
 	@./scripts/release.sh $${VERSION_TYPE}
