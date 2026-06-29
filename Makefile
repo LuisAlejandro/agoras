@@ -36,8 +36,7 @@ help:
 	@echo "test-all - run tests on every Python version with tox"
 	@echo "coverage - check code coverage quickly with the default Python"
 	@echo "docs - generate Sphinx HTML documentation, including API docs"
-	@echo "pypi-upload - package and upload a release"
-	@echo "dist - package"
+	@echo "build - build PyPI sdist/wheel packages for all namespace packages"
 	@echo "install - install the package to the active Python's site-packages"
 
 clean: clean-build clean-pyc clean-test clean-docs
@@ -98,12 +97,15 @@ docs:
 servedocs: docs start
 	@$(exec_on_docker) watchmedo shell-command -p '*.rst' -c 'make -C docs html' -R -D .
 
-pypi-upload: clean start dist
-	@twine upload dist/*
+dependencies:
+	@:
 
-dist: clean start
-	@$(exec_on_docker) python3 -m build
-	@ls -l dist
+build: start
+	@$(exec_on_docker) bash -c '\
+		set -e; \
+		for pkg in common media core platforms cli; do \
+			( cd packages/$$pkg && python3 -m build && twine check dist/* ); \
+		done'
 
 install: clean start
 	@$(exec_on_docker) pip3 install .
@@ -125,10 +127,7 @@ virtualenv: start
 
 .PHONY: clean clean-pyc clean-build clean-test clean-docs \
 	help lint format lint-and-format test test-all functional-test coverage \
-	docs servedocs pypi-upload dist install console virtualenv
-
-# >>> rosey-maintainer:ops-docker BEGIN
-# Managed by rosey-maintainer-tools 0.4.4. Do not edit directly.
+	docs servedocs build dependencies install console virtualenv
 
 PROJECT_NAME ?= agoras
 all_ps_hashes = $(shell docker ps -q)
@@ -173,10 +172,6 @@ cataplum:
 	@docker compose -p $(PROJECT_NAME) -f docker-compose.yml down \
 		--rmi all --remove-orphans --volumes
 	@docker system prune -a -f --volumes
-# <<< rosey-maintainer:ops-docker END
-
-# >>> rosey-maintainer:ops-release BEGIN
-# Managed by rosey-maintainer-tools 0.4.4. Do not edit directly.
 
 release:
 	@./scripts/release.sh $${VERSION_TYPE}
@@ -191,7 +186,10 @@ release-major:
 	@./scripts/release.sh major $${APP_NAME}
 
 
-release-preflight: start
+release-preflight:
+	@make image
+	@make dependencies
+	@make build
 	@make format
 	@make lint
 	@make test
@@ -199,4 +197,3 @@ release-preflight: start
 undo-release:
 	@: "$${VERSION:?Set VERSION=x.y.z before running make undo-release}"
 	@VERSION=$${VERSION} ./scripts/rollback.sh release
-# <<< rosey-maintainer:ops-release END
