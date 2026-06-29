@@ -205,8 +205,8 @@ Run scheduled posts from Google Sheets::
         --network x \
         --sheets-id "${GOOGLE_SHEETS_ID}" \
         --sheets-name "Schedule" \
-        --sheets-client-email "${GOOGLE_SERVICE_ACCOUNT_EMAIL}" \
-        --sheets-private-key "${GOOGLE_PRIVATE_KEY}"
+        --sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
+        --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
 
 
 Examples of usage

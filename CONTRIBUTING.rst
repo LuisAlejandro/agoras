@@ -458,8 +458,10 @@ Before you submit a pull request, check that it meets these guidelines:
 Maintainer Notes
 ----------------
 
-Releases, version bumps, PyPI publishing, and git tags are handled by maintainers.
-Contributors do not need to publish packages or push release tags.
+Releases, version bumps, PyPI publishing, and git tags are handled by maintainers
+(``make release-patch``, ``make release-minor``, ``make release-major``, and
+``make release-preflight``). Use ``make undo-release VERSION=x.y.z`` to roll back a
+botched release. Contributors do not need to publish packages or push release tags.
 
 Tips
 ----
