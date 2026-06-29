@@ -125,10 +125,6 @@ virtualenv: start
 	@./virtualenv/bin/python3 -m pip install -e packages/platforms
 	@./virtualenv/bin/python3 -m pip install -e packages/cli
 
-.PHONY: clean clean-pyc clean-build clean-test clean-docs \
-	help lint format lint-and-format test test-all functional-test coverage \
-	docs servedocs build dependencies install console virtualenv
-
 PROJECT_NAME ?= agoras
 all_ps_hashes = $(shell docker ps -q)
 
@@ -197,3 +193,9 @@ release-preflight:
 undo-release:
 	@: "$${VERSION:?Set VERSION=x.y.z before running make undo-release}"
 	@VERSION=$${VERSION} ./scripts/rollback.sh release
+
+.PHONY: clean clean-pyc clean-build clean-test clean-docs \
+	help lint format lint-and-format test test-all functional-test coverage \
+	docs servedocs build dependencies install console virtualenv \
+	image start stop down destroy cataplum \
+	release release-patch release-minor release-major release-preflight undo-release
