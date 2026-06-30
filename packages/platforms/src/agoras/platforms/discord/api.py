@@ -18,6 +18,7 @@
 """agoras.platforms.discord.api module."""
 
 from agoras.core.api_base import BaseAPI
+from agoras.core.auth import raise_authentication_error_from_manager
 
 from .auth import DiscordAuthManager
 
@@ -80,10 +81,7 @@ class DiscordAPI(BaseAPI):
         # Authenticate with auth manager (this creates and sets up the client)
         auth_success = await self.auth_manager.authenticate()
         if not auth_success:
-            error_msg = "Discord authentication failed"
-            if hasattr(self.auth_manager, "_last_error") and self.auth_manager._last_error:
-                error_msg += f": {self.auth_manager._last_error}"
-            raise Exception(error_msg)
+            raise_authentication_error_from_manager(self.auth_manager)
 
         # Ensure client was created during authentication
         if not self.auth_manager.client:
