@@ -88,8 +88,9 @@ class TelegramAuthManager(BaseAuthManager):
         Returns:
             bool: True if authentication successful, False otherwise
         """
+        self.last_auth_failure = None
         if not self._validate_credentials():
-            return False
+            return self._missing_credentials_failed()
 
         try:
             # Validate bot token by getting bot info
@@ -105,9 +106,14 @@ class TelegramAuthManager(BaseAuthManager):
                 self.user_info = await self._get_user_info()
 
                 return True
-            return False
-        except Exception:
-            return False
+            return self._wrong_token_failed()
+        except Exception as exc:
+            return self._authentication_failed(exc)
+
+    def _has_stored_or_env_credentials(self) -> bool:
+        if getattr(self, "bot_token", None):
+            return True
+        return bool(__import__("os").environ.get("TELEGRAM_BOT_TOKEN"))
 
     async def authorize(self) -> Optional[str]:
         """

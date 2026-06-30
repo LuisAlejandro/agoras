@@ -20,6 +20,7 @@
 from typing import List, Optional
 
 from agoras.core.api_base import BaseAPI
+from agoras.core.auth import raise_authentication_error_from_manager
 
 from .auth import XAuthManager
 
@@ -97,7 +98,7 @@ class XAPI(BaseAPI):
 
         success = await self.auth_manager.authenticate()
         if not success:
-            raise Exception("X authentication failed")
+            raise_authentication_error_from_manager(self.auth_manager)
 
         # Set the client from auth manager for BaseAPI compatibility
         self.client = self.auth_manager.client

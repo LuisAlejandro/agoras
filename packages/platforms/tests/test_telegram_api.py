@@ -20,6 +20,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from agoras.core.auth.exceptions import AuthenticationError
+from agoras.core.auth.failure import AuthFailureCategory, AuthFailureDetails
 from agoras.platforms.telegram.api import TelegramAPI
 
 
@@ -261,12 +263,20 @@ async def test_telegram_api_bot_token_invalid(mock_auth_class):
     """Test TelegramAPI handles invalid bot token."""
     mock_auth = MagicMock()
     mock_auth.authenticate = AsyncMock(return_value=False)
+    mock_auth.last_auth_failure = AuthFailureDetails(
+        platform="telegram",
+        category=AuthFailureCategory.WRONG_TOKEN,
+    )
     mock_auth_class.return_value = mock_auth
 
     api = TelegramAPI('invalid_token', 'chat_id')
 
-    with pytest.raises(Exception, match='Telegram authentication failed'):
+    with pytest.raises(AuthenticationError) as exc_info:
         await api.authenticate()
+
+    assert exc_info.value.details is not None
+    assert exc_info.value.details.category == AuthFailureCategory.WRONG_TOKEN
+    assert "agoras telegram authorize" in str(exc_info.value)
 
 
 # Additional Tests for Coverage

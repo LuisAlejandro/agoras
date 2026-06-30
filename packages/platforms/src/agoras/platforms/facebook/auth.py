@@ -52,12 +52,13 @@ class FacebookAuthManager(BaseAuthManager):
         Returns:
             bool: True if authentication successful, False otherwise
         """
+        self.last_auth_failure = None
         if not self._validate_credentials():
-            return False
+            return self._missing_credentials_failed()
 
         # If we don't have a refresh token, fail fast (don't trigger OAuth)
         if not self.refresh_token:
-            return False
+            return self._missing_credentials_failed()
 
         # Initialize OAuth session with current credentials (only needed for authorization)
         if not self.oauth_session:
@@ -71,11 +72,11 @@ class FacebookAuthManager(BaseAuthManager):
         try:
             # Refresh access token using manual fb_exchange_token request
             token_data = await self._refresh_access_token()
-        except Exception:
-            return False
+        except Exception as exc:
+            return self._authentication_failed(exc)
 
         if "access_token" not in token_data:
-            return False
+            return self._wrong_token_failed()
 
         self.access_token = token_data["access_token"]
 
@@ -89,15 +90,14 @@ class FacebookAuthManager(BaseAuthManager):
             self.client = self._create_client(self.access_token)
             try:
                 await self.client.authenticate()  # Authenticate the client
-            except Exception:
-                return False
+            except Exception as exc:
+                return self._authentication_failed(exc)
             try:
                 self.user_info = await self._get_user_info()
-            except Exception:
-                return False
+            except Exception as exc:
+                return self._authentication_failed(exc)
             return True
-        else:
-            return False
+        return self._wrong_token_failed()
 
     async def authorize(self) -> Optional[str]:
         """
@@ -215,7 +215,8 @@ class FacebookAuthManager(BaseAuthManager):
             }
 
             response = requests.post("https://graph.facebook.com/v21.0/oauth/access_token", data=data, timeout=30)
-            response.raise_for_status()
+            if not response.ok:
+                raise Exception(f"Token refresh failed: {response.status_code} {response.text}")
 
             return response.json()
 

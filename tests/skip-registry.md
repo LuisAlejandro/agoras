@@ -21,4 +21,3 @@ Actions that may SKIP during runs (exit 0 for that case, suite continues).
 | whatsapp | template | `WHATSAPP_TEMPLATE_NAME` unset or template not approved | Set env var + approved template |
 | utils | feed-publish | Network credentials missing for target | Authorize platform or set env vars in `unattended.env` |
 | legacy publish | feed/schedule | Same triggers as utils feed-publish / schedule-run | Authorize or set env vars in `unattended.env` |
-| * | tokens list | Env-only platform (x, discord, telegram, whatsapp) on unattended path | N/A — expected SKIP |

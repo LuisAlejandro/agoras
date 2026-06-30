@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Shared helpers for live E2E integration runners.
 
+_AGORAS_TEST_LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # generic image — see: agoras utils media-limits --platform discord --kind image
 TEST_IMAGE_URL="https://wakatime.com/share/@LuisAlejandro/5a56439c-b3af-44e6-8164-c0b9128872b8.png"
 # TikTok image max 20MB, url_pull — domain must be verified in TikTok developer app
@@ -12,8 +14,8 @@ TEST_DISCORD_VIDEO_URL="${TEST_DISCORD_VIDEO_URL:-https://www.w3schools.com/html
 INTER_PLATFORM_SLEEP="${INTER_PLATFORM_SLEEP:-10}"
 
 assert_ci_not_set() {
-    if [[ "${AGORAS_LIVE_E2E:-}" != "1" ]] && [[ -n "${CI:-}${GITHUB_ACTIONS:-}" ]]; then
-        echo "❌ Live E2E tests cannot run in CI without AGORAS_LIVE_E2E=1" >&2
+    if [[ -n "${CI:-}${GITHUB_ACTIONS:-}" ]]; then
+        echo "❌ Live E2E tests cannot run in CI" >&2
         exit 1
     fi
 }
@@ -83,18 +85,16 @@ clear_credentials() {
     echo ""
 }
 
-platform_uses_storage_tokens() {
-    case "$1" in
-    facebook | instagram | linkedin | youtube | tiktok | threads) return 0 ;;
-    *) return 1 ;;
-    esac
-}
-
 init_agoras_bin() {
     local project_root="$1"
     AGORAS_BIN="${project_root}/virtualenv/bin/agoras"
+    AGORAS_PYTHON="${project_root}/virtualenv/bin/python3"
     if [ ! -x "${AGORAS_BIN}" ]; then
         echo "❌ agoras CLI not found at ${AGORAS_BIN}" >&2
+        exit 1
+    fi
+    if [ ! -x "${AGORAS_PYTHON}" ]; then
+        echo "❌ Python not found at ${AGORAS_PYTHON}" >&2
         exit 1
     fi
     require_cmd jq
@@ -102,6 +102,32 @@ init_agoras_bin() {
 
 run_agoras() {
     PYTHONUNBUFFERED=1 "${AGORAS_BIN}" "$@"
+}
+
+refresh_unattended_tokens() {
+    PYTHONUNBUFFERED=1 "${AGORAS_PYTHON}" "${_AGORAS_TEST_LIB}/refresh-unattended-tokens.py" || true
+}
+
+sync_unattended_refresh_tokens() {
+    local env_file="${1:-${UNATTENDED_ENV_FILE:-}}"
+    if [[ -z "${env_file}" ]]; then
+        return 0
+    fi
+    if [[ ! -f "${env_file}" ]]; then
+        return 0
+    fi
+    PYTHONUNBUFFERED=1 "${AGORAS_PYTHON}" "${_AGORAS_TEST_LIB}/sync-unattended-env.py" --file "${env_file}" || true
+}
+
+finish_unattended_run() {
+    local exit_code=$?
+    local env_file="${1:-${UNATTENDED_ENV_FILE:-}}"
+
+    refresh_unattended_tokens
+    sync_unattended_refresh_tokens "${env_file}"
+    cleanup_test_posts || true
+
+    exit "${exit_code}"
 }
 
 preflight_authorize_tokens() {
@@ -120,16 +146,6 @@ preflight_authorize_tokens_for_platform() {
     facebook-video) preflight_authorize_tokens "facebook" ;;
     *) preflight_authorize_tokens "${platform}" ;;
     esac
-}
-
-run_tokens_list_smoke() {
-    local platform="$1"
-    if platform_uses_storage_tokens "${platform}"; then
-        echo "--- tokens list: ${platform} ---"
-        run_agoras utils tokens list --platform "${platform}"
-    else
-        skip_case "tokens list not applicable for ${platform} (env-only credentials)"
-    fi
 }
 
 try_agoras_or_skip() {

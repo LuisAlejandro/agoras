@@ -66,9 +66,10 @@ class XAuthManager(BaseAuthManager):
         Returns:
             bool: True if authentication successful, False otherwise
         """
+        self.last_auth_failure = None
         # Validate all credentials are present (fail fast if missing)
         if not self._validate_credentials():
-            raise Exception('X OAuth tokens are required for authentication. Please run "agoras x authorize" first.')
+            return self._missing_credentials_failed()
 
         try:
             # For Twitter OAuth 1.0a, we use the oauth_token as the access_token
@@ -80,13 +81,11 @@ class XAuthManager(BaseAuthManager):
                 await self.client.authenticate()
 
             return True
-        except Exception as e:
-            # Log the error for debugging
-            import logging
+        except Exception as exc:
+            return self._authentication_failed(exc)
 
-            logger = logging.getLogger(__name__)
-            logger.debug(f"X authentication failed: {str(e)}", exc_info=True)
-            return False
+    def _has_stored_or_env_credentials(self) -> bool:
+        return self._validate_credentials()
 
     async def authorize(self) -> Optional[str]:
         """
