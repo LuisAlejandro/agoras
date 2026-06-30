@@ -59,12 +59,13 @@ class YouTubeAuthManager(BaseAuthManager):
         Returns:
             bool: True if authentication successful, False otherwise
         """
+        self.last_auth_failure = None
         if not self._validate_credentials():
-            return False
+            return self._missing_credentials_failed()
 
         # If we don't have a refresh token, fail fast (don't trigger OAuth)
         if not self.refresh_token:
-            return False
+            return self._missing_credentials_failed()
 
         try:
             # Refresh access token using authlib's built-in method
@@ -94,8 +95,8 @@ class YouTubeAuthManager(BaseAuthManager):
                         raise
 
             return True
-        except Exception:
-            return False
+        except Exception as exc:
+            return self._authentication_failed(exc)
 
     async def authorize(self) -> Optional[str]:
         """

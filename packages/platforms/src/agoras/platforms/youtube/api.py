@@ -20,6 +20,7 @@
 from typing import Any, Dict, Optional
 
 from agoras.core.api_base import BaseAPI
+from agoras.core.auth import raise_authentication_error_from_manager
 
 from .auth import YouTubeAuthManager
 
@@ -98,7 +99,7 @@ class YouTubeAPI(BaseAPI):
 
         success = await self.auth_manager.authenticate()
         if not success:
-            raise Exception("YouTube authentication failed - please run authorization first")
+            raise_authentication_error_from_manager(self.auth_manager)
 
         # Set the client from auth manager for BaseAPI compatibility
         self.client = self.auth_manager.client

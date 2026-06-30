@@ -59,7 +59,6 @@ class DiscordAuthManager(BaseAuthManager):
         self.bot_token = bot_token
         self.server_name = server_name
         self.channel_name = channel_name
-        self._last_error = None
 
         # Load cached bot token validation if available
         self._load_cached_validation()
@@ -73,8 +72,9 @@ class DiscordAuthManager(BaseAuthManager):
         Returns:
             bool: True if authentication successful, False otherwise
         """
+        self.last_auth_failure = None
         if not self._validate_credentials():
-            return False
+            return self._missing_credentials_failed()
 
         # For Discord, we need to validate the bot token by connecting
         try:
@@ -96,11 +96,14 @@ class DiscordAuthManager(BaseAuthManager):
                 self._save_validation_cache()
 
                 return True
-            return False
+            return self._wrong_token_failed()
         except Exception as e:
-            # Store the error for later retrieval
-            self._last_error = str(e)
-            return False
+            return self._authentication_failed(e)
+
+    def _has_stored_or_env_credentials(self) -> bool:
+        if self.bot_token:
+            return True
+        return bool(__import__("os").environ.get("DISCORD_BOT_TOKEN"))
 
     async def authorize(self) -> Optional[str]:
         """

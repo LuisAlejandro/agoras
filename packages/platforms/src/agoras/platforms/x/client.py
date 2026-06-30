@@ -120,17 +120,8 @@ class XAPIClient:
             self._authenticated = True
             return True
 
-        except Exception as e:
-            error_msg = str(e)
-            # Check if this is the specific "missing_token" error which might indicate
-            # an issue with how Tweepy is handling the tokens internally
-            if "missing_token" in error_msg or "oauth_token is missing" in error_msg:
-                raise Exception(
-                    f"X authentication failed: Invalid or expired access tokens. "
-                    f'Please re-authorize using "agoras x authorize". '
-                    f"Technical error: {error_msg}"
-                )
-            raise Exception(f"X authentication failed: {error_msg}")
+        except Exception:
+            raise
 
     def disconnect(self):
         """

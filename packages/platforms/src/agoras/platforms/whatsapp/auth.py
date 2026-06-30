@@ -66,13 +66,14 @@ class WhatsAppAuthManager(BaseAuthManager):
         Returns:
             bool: True if authentication successful, False otherwise
         """
+        self.last_auth_failure = None
         if not self._validate_credentials():
-            return False
+            return self._missing_credentials_failed()
 
         try:
             # Validate access token and phone number access
             if not await self._validate_access_token():
-                return False
+                return self._wrong_token_failed()
 
             # Create client, authenticate it, and get phone number info
             if self.access_token:
@@ -81,8 +82,13 @@ class WhatsAppAuthManager(BaseAuthManager):
                 self.user_info = await self._get_user_info()
 
             return True
-        except Exception:
-            return False
+        except Exception as exc:
+            return self._authentication_failed(exc)
+
+    def _has_stored_or_env_credentials(self) -> bool:
+        if getattr(self, "access_token", None):
+            return True
+        return bool(__import__("os").environ.get("WHATSAPP_ACCESS_TOKEN"))
 
     async def authorize(self) -> Optional[str]:
         """
@@ -133,8 +139,8 @@ class WhatsAppAuthManager(BaseAuthManager):
             graph_api = GraphAPI(access_token=self._require_access_token(), version="23.0")
             response = graph_api.get_object(self._require_phone_number_id())
             return bool(response and response.get("verified_name"))
-        except Exception:
-            return False
+        except Exception as exc:
+            return self._authentication_failed(exc)
 
     async def get_phone_info(self) -> Dict[str, Any]:
         """
