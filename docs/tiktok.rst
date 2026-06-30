@@ -120,9 +120,7 @@ Please read about how the RSS feed should be structured in the :doc:`RSS feed se
       --mode last \
       --feed-url "${FEED_URL}" \
       --max-count "${MAX_COUNT}" \
-      --post-lookback "${POST_LOOKBACK}" \
-      --tiktok-username "${TIKTOK_USERNAME}" \
-      --tiktok-privacy "${TIKTOK_PRIVACY_STATUS}"
+      --post-lookback "${POST_LOOKBACK}"
 
 Post a random video from an RSS feed into TikTok
 ------------------------------------------------
@@ -137,9 +135,7 @@ Please read about how the RSS feed should be structured in the :doc:`RSS feed se
       --network tiktok \
       --mode random \
       --feed-url "${FEED_URL}" \
-      --max-post-age "${MAX_POST_AGE}" \
-      --tiktok-username "${TIKTOK_USERNAME}" \
-      --tiktok-privacy "${TIKTOK_PRIVACY_STATUS}"
+      --max-post-age "${MAX_POST_AGE}"
 
 Google Sheets Scheduling
 ------------------------
@@ -196,7 +192,7 @@ Scheduling Logic
 - Posts are created at the scheduled date and hour
 - Sheet state is updated to ``published`` after successful posting
 - If posting fails, state is updated to ``error``
-- Use ``--network tiktok`` to process only TikTok posts, or omit to process all networks
+- Use ``--network tiktok`` to process TikTok posts from the sheet (required since 2.1.0; one platform per run)
 
 Brand Content and Promotional Content
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

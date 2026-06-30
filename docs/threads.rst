@@ -188,4 +188,4 @@ Scheduling Logic
 - Posts are created at the scheduled date and hour
 - Sheet state is updated to ``published`` after successful posting
 - If posting fails, state is updated to ``error``
-- Use ``--network threads`` to process only Threads posts, or omit to process all networks
+- Use ``--network threads`` to process Threads posts from the sheet (required since 2.1.0; one platform per run)

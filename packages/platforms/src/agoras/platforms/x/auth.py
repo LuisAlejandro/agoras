@@ -15,17 +15,19 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.x.auth module."""
 
 import asyncio
 import sys
 import webbrowser
 from typing import Optional
 
-from agoras.core.auth import BaseAuthManager
-from agoras.core.auth.callback_server import OAuthCallbackServer
 from authlib.integrations.requests_client import OAuth1Session
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+
+from agoras.core.auth import BaseAuthManager
+from agoras.core.auth.callback_server import OAuthCallbackServer
 
 from .client import XAPIClient
 
@@ -35,8 +37,13 @@ OAUTH_HTTP_TIMEOUT = 30
 class XAuthManager(BaseAuthManager):
     """X authentication manager using Authlib OAuth1Session for OAuth 1.0a."""
 
-    def __init__(self, consumer_key: Optional[str] = None, consumer_secret: Optional[str] = None,
-                 oauth_token: Optional[str] = None, oauth_secret: Optional[str] = None):
+    def __init__(
+        self,
+        consumer_key: Optional[str] = None,
+        consumer_secret: Optional[str] = None,
+        oauth_token: Optional[str] = None,
+        oauth_secret: Optional[str] = None,
+    ):
         """
         Initialize X authentication manager.
 
@@ -59,9 +66,10 @@ class XAuthManager(BaseAuthManager):
         Returns:
             bool: True if authentication successful, False otherwise
         """
+        self.last_auth_failure = None
         # Validate all credentials are present (fail fast if missing)
         if not self._validate_credentials():
-            raise Exception('X OAuth tokens are required for authentication. Please run "agoras x authorize" first.')
+            return self._missing_credentials_failed()
 
         try:
             # For Twitter OAuth 1.0a, we use the oauth_token as the access_token
@@ -73,12 +81,11 @@ class XAuthManager(BaseAuthManager):
                 await self.client.authenticate()
 
             return True
-        except Exception as e:
-            # Log the error for debugging
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.debug(f'X authentication failed: {str(e)}', exc_info=True)
-            return False
+        except Exception as exc:
+            return self._authentication_failed(exc)
+
+    def _has_stored_or_env_credentials(self) -> bool:
+        return self._validate_credentials()
 
     async def authorize(self) -> Optional[str]:
         """
@@ -88,7 +95,7 @@ class XAuthManager(BaseAuthManager):
             str: Success message if authorization successful, None otherwise
         """
         if not self._validate_basic_credentials():
-            raise Exception('X consumer key and secret are required for authorization.')
+            raise Exception("X consumer key and secret are required for authorization.")
 
         # If OAuth tokens are already provided, just save them
         if self.oauth_token and self.oauth_secret:
@@ -102,22 +109,16 @@ class XAuthManager(BaseAuthManager):
         """Authorize using local callback server (interactive mode)."""
         try:
             # Create OAuth session for authorization
-            self.oauth_session = OAuth1Session(
-                client_id=self.consumer_key,
-                client_secret=self.consumer_secret
-            )
+            self.oauth_session = OAuth1Session(client_id=self.consumer_key, client_secret=self.consumer_secret)
             no_retries = HTTPAdapter(max_retries=Retry(total=0, connect=0, read=0))
-            self.oauth_session.mount('https://', no_retries)
-            self.oauth_session.mount('http://', no_retries)
+            self.oauth_session.mount("https://", no_retries)
+            self.oauth_session.mount("http://", no_retries)
 
-            callback_server = OAuthCallbackServer(
-                oauth_version='1.0a',
-                port=3456
-            )
+            callback_server = OAuthCallbackServer(oauth_version="1.0a", port=3456)
             redirect_uri = "https://localhost:3456/callback"
 
             def _sync_oauth_flow():
-                request_token_url = 'https://api.x.com/oauth/request_token'
+                request_token_url = "https://api.x.com/oauth/request_token"
                 self.oauth_session.redirect_uri = redirect_uri
 
                 print(
@@ -130,7 +131,7 @@ class XAuthManager(BaseAuthManager):
                     timeout=OAUTH_HTTP_TIMEOUT,
                 )
 
-                authorization_url = 'https://api.x.com/oauth/authorize'
+                authorization_url = "https://api.x.com/oauth/authorize"
                 auth_url = f"{authorization_url}?oauth_token={request_token['oauth_token']}"
 
                 print("Opening browser for X authorization...", file=sys.stderr, flush=True)
@@ -149,7 +150,7 @@ class XAuthManager(BaseAuthManager):
             # Complete OAuth flow (parse callback and fetch access token)
             def _sync_complete_oauth():
                 self.oauth_session.parse_authorization_response(callback_url)
-                access_token_url = 'https://api.x.com/oauth/access_token'
+                access_token_url = "https://api.x.com/oauth/access_token"
                 print(
                     f"Exchanging OAuth verifier for access token (timeout {OAUTH_HTTP_TIMEOUT}s)...",
                     file=sys.stderr,
@@ -160,8 +161,8 @@ class XAuthManager(BaseAuthManager):
                     timeout=OAUTH_HTTP_TIMEOUT,
                 )
 
-                self.oauth_token = access_token['oauth_token']
-                self.oauth_secret = access_token['oauth_token_secret']
+                self.oauth_token = access_token["oauth_token"]
+                self.oauth_secret = access_token["oauth_token_secret"]
                 self._save_credentials_to_storage()
 
             await asyncio.to_thread(_sync_complete_oauth)
@@ -170,30 +171,35 @@ class XAuthManager(BaseAuthManager):
 
         except Exception as e:
             error = str(e)
-            if 'timed out' in error.lower() or 'timeout' in error.lower():
+            if "timed out" in error.lower() or "timeout" in error.lower():
                 raise Exception(
-                    'X authorization failed: could not reach api.x.com within '
-                    f'{OAUTH_HTTP_TIMEOUT}s. Check network connectivity and '
-                    'whether api.x.com is blocked or unreachable from your network.'
+                    "X authorization failed: could not reach api.x.com within "
+                    f"{OAUTH_HTTP_TIMEOUT}s. Check network connectivity and "
+                    "whether api.x.com is blocked or unreachable from your network."
                 ) from e
-            raise Exception(f'X authorization failed: {error}') from e
+            raise Exception(f"X authorization failed: {error}") from e
 
     def _create_client(self) -> XAPIClient:
         """Create X API client instance."""
         if not self.oauth_token or not self.oauth_secret:
-            raise Exception('OAuth tokens are required to create X client')
+            raise Exception("OAuth tokens are required to create X client")
+
+        consumer_key = self.consumer_key
+        consumer_secret = self.consumer_secret
+        if not consumer_key or not consumer_secret:
+            raise Exception("Consumer key and secret are required to create X client")
 
         return XAPIClient(
-            consumer_key=self.consumer_key,
-            consumer_secret=self.consumer_secret,
+            consumer_key=consumer_key,
+            consumer_secret=consumer_secret,
             oauth_token=self.oauth_token,
-            oauth_secret=self.oauth_secret
+            oauth_secret=self.oauth_secret,
         )
 
     async def _get_user_info(self) -> dict:
         """Get user information from X API."""
         if not self.client:
-            raise Exception('No client available')
+            raise Exception("No client available")
 
         # Authenticate the client first
         await self.client.authenticate()
@@ -215,8 +221,9 @@ class XAuthManager(BaseAuthManager):
     def _get_token_identifier(self) -> str:
         """Get token identifier (use consumer key hash)."""
         import hashlib
+
         if self.consumer_key:
-            return hashlib.md5(self.consumer_key.encode()).hexdigest()[:8]
+            return hashlib.md5(self.consumer_key.encode(), usedforsecurity=False).hexdigest()[:8]
         return "default"
 
     def _save_credentials_to_storage(self):
@@ -225,10 +232,10 @@ class XAuthManager(BaseAuthManager):
         identifier = self._get_token_identifier()
 
         token_data = {
-            'consumer_key': self.consumer_key,
-            'consumer_secret': self.consumer_secret,
-            'oauth_token': self.oauth_token,
-            'oauth_secret': self.oauth_secret
+            "consumer_key": self.consumer_key,
+            "consumer_secret": self.consumer_secret,
+            "oauth_token": self.oauth_token,
+            "oauth_secret": self.oauth_secret,
         }
 
         self.token_storage.save_token(platform_name, identifier, token_data)
@@ -251,11 +258,10 @@ class XAuthManager(BaseAuthManager):
                 token_data = self.token_storage.load_token(platform_name, identifier)
 
         if token_data:
-            self.consumer_key = token_data.get('consumer_key')
-            self.consumer_secret = token_data.get('consumer_secret')
-            self.oauth_token = token_data.get('oauth_token')
-            self.oauth_secret = token_data.get('oauth_secret')
-            return bool(all([self.consumer_key, self.consumer_secret,
-                            self.oauth_token, self.oauth_secret]))
+            self.consumer_key = token_data.get("consumer_key")
+            self.consumer_secret = token_data.get("consumer_secret")
+            self.oauth_token = token_data.get("oauth_token")
+            self.oauth_secret = token_data.get("oauth_secret")
+            return bool(all([self.consumer_key, self.consumer_secret, self.oauth_token, self.oauth_secret]))
 
         return False

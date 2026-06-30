@@ -86,8 +86,8 @@ def test_discord_parser_creation():
     assert parser is not None
 
 
-def test_discord_unique_auth():
-    """Test Discord has unique bot authentication."""
+def test_discord_post_parses_content_only():
+    """Test Discord post parses without bot auth flags."""
     root_parser = ArgumentParser()
     subparsers = root_parser.add_subparsers(dest='platform')
 
@@ -95,14 +95,10 @@ def test_discord_unique_auth():
 
     args = root_parser.parse_args([
         'discord', 'post',
-        '--bot-token', 'BOT_TOKEN',
-        '--server-name', 'MyServer',
-        '--channel-name', 'general'
+        '--text', 'Hello Discord'
     ])
 
-    assert args.bot_token == 'BOT_TOKEN'
-    assert args.server_name == 'MyServer'
-    assert args.channel_name == 'general'
+    assert args.text == 'Hello Discord'
 
 
 def test_youtube_parser_creation():

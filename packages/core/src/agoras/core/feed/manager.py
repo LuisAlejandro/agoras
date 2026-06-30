@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.core.feed.manager module."""
 
 import asyncio
 import datetime
@@ -24,9 +25,7 @@ from .feed import Feed
 
 
 class FeedManager:
-    """
-    Manager class for handling multiple feeds.
-    """
+    """Manager class for handling multiple feeds."""
 
     def __init__(self):
         """Initialize feed manager."""

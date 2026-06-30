@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.core.feed.item module."""
 
 import datetime
 from html import unescape
@@ -50,21 +51,21 @@ class FeedItem:
         """Get cleaned title."""
         if not self._processed:
             self._process_item()
-        return self._title or ''
+        return self._title or ""
 
     @property
     def link(self):
         """Get link URL."""
         if not self._processed:
             self._process_item()
-        return self._link or ''
+        return self._link or ""
 
     @property
     def description(self):
         """Get description."""
         if not self._processed:
             self._process_item()
-        return self._description or ''
+        return self._description or ""
 
     @property
     def pub_date(self):
@@ -78,7 +79,7 @@ class FeedItem:
         """Get image URL from enclosures."""
         if not self._processed:
             self._process_item()
-        return self._image_url or ''
+        return self._image_url or ""
 
     @property
     def timestamp(self):
@@ -97,10 +98,10 @@ class FeedItem:
             self._title = unescape(self.raw_item.title)
 
         # Get link
-        self._link = self.raw_item.link or self.raw_item.guid or ''
+        self._link = self.raw_item.link or self.raw_item.guid or ""
 
         # Get description
-        if hasattr(self.raw_item, 'description'):
+        if hasattr(self.raw_item, "description"):
             self._description = self.raw_item.description
 
         # Get publication date
@@ -108,7 +109,7 @@ class FeedItem:
 
         # Get timestamp
         if self._pub_date:
-            self._timestamp = int(self._pub_date.strftime('%Y%m%d%H%M%S'))
+            self._timestamp = int(self._pub_date.strftime("%Y%m%d%H%M%S"))
 
         # Get image URL from enclosures
         try:
@@ -130,10 +131,10 @@ class FeedItem:
             str: Link with timestamp parameter
         """
         if not self.link:
-            return ''
+            return ""
 
         if timestamp is None:
-            timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+            timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
 
         return add_url_timestamp(self.link, timestamp)
 
@@ -145,10 +146,10 @@ class FeedItem:
             dict: Feed item data
         """
         return {
-            'title': self.title,
-            'link': self.link,
-            'description': self.description,
-            'pub_date': self.pub_date,
-            'image_url': self.image_url,
-            'timestamp': self.timestamp
+            "title": self.title,
+            "link": self.link,
+            "description": self.description,
+            "pub_date": self.pub_date,
+            "image_url": self.image_url,
+            "timestamp": self.timestamp,
         }

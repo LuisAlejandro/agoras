@@ -16,8 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-agoras.common.version
-=====================
+agoras.common.version.
 
 Version and metadata information for Agoras.
 
@@ -25,12 +24,12 @@ This module serves as the single source of truth for version info
 across all Agoras packages.
 """
 
-__author__ = 'Luis Alejandro Martínez Faneyth'
-__email__ = 'luis@luisalejandro.org'
-__version__ = '2.0.1'
-__url__ = 'https://github.com/LuisAlejandro/agoras'
+__author__ = "Luis Alejandro Martínez Faneyth"
+__email__ = "luis@luisalejandro.org"
+__version__ = "2.0.5"
+__url__ = "https://github.com/LuisAlejandro/agoras"
 __description__ = (
-    'A command line python utility to manage your social'
-    ' networks (Twitter, Facebook, Instagram, LinkedIn, Discord, '
-    'YouTube, TikTok, Telegram, Threads, WhatsApp, and X)'
+    "A command line python utility to manage your social"
+    " networks (Twitter, Facebook, Instagram, LinkedIn, Discord, "
+    "YouTube, TikTok, Telegram, Threads, WhatsApp, and X)"
 )

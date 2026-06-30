@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.core.sheet.row module."""
 
 
 class SheetRow:
@@ -39,27 +40,27 @@ class SheetRow:
     def __getitem__(self, key):
         """Get item by index or column name."""
         if isinstance(key, int):
-            return self.data[key] if key < len(self.data) else ''
+            return self.data[key] if key < len(self.data) else ""
         elif isinstance(key, str) and self.headers:
             try:
                 index = self.headers.index(key)
-                return self.data[index] if index < len(self.data) else ''
+                return self.data[index] if index < len(self.data) else ""
             except ValueError:
-                return ''
-        return ''
+                return ""
+        return ""
 
     def __setitem__(self, key, value):
         """Set item by index or column name."""
         if isinstance(key, int):
             # Extend data list if necessary
             while key >= len(self.data):
-                self.data.append('')
+                self.data.append("")
             self.data[key] = value
         elif isinstance(key, str) and self.headers:
             try:
                 index = self.headers.index(key)
                 while index >= len(self.data):
-                    self.data.append('')
+                    self.data.append("")
                 self.data[index] = value
             except ValueError:
                 pass
@@ -69,7 +70,7 @@ class SheetRow:
         """Get row length."""
         return len(self.data)
 
-    def get(self, key, default=''):
+    def get(self, key, default=""):
         """Get value with default."""
         try:
             return self[key]
@@ -82,7 +83,7 @@ class SheetRow:
             if self.headers:
                 self._dict_cache = {}
                 for i, header in enumerate(self.headers):
-                    self._dict_cache[header] = self.data[i] if i < len(self.data) else ''
+                    self._dict_cache[header] = self.data[i] if i < len(self.data) else ""
             else:
                 self._dict_cache = {str(i): value for i, value in enumerate(self.data)}
         return self._dict_cache.copy()

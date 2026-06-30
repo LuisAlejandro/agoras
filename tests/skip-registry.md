@@ -19,6 +19,5 @@ Actions that may SKIP during runs (exit 0 for that case, suite continues).
 | tiktok | post/video | API does not support delete | Slideshow uses `SELF_ONLY`; remove remaining posts manually |
 | whatsapp | post/video/template | API does not support delete | Messages go to recipient; test prints WARN with message ID |
 | whatsapp | template | `WHATSAPP_TEMPLATE_NAME` unset or template not approved | Set env var + approved template |
-| utils | feed-publish | Network credentials missing for target | Add creds to `unattended.env` |
-| legacy publish | feed/schedule | Same triggers as utils feed-publish / schedule-run | Add creds + fixtures to `unattended.env` |
-| * | tokens list | Env-only platform (x, discord, telegram, whatsapp) on unattended path | N/A — expected SKIP |
+| utils | feed-publish | Network credentials missing for target | Authorize platform or set env vars in `unattended.env` |
+| legacy publish | feed/schedule | Same triggers as utils feed-publish / schedule-run | Authorize or set env vars in `unattended.env` |

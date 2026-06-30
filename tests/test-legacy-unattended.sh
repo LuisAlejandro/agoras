@@ -10,68 +10,69 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck source=lib/common.sh
 source "${SCRIPT_DIR}/lib/common.sh"
 
-source "${PROJECT_ROOT}/unattended.env"
+load_authorize_env "${PROJECT_ROOT}/unattended.env"
+UNATTENDED_ENV_FILE="${PROJECT_ROOT}/unattended.env"
 
 verify_env_vars() {
     local platform=$1
     local missing_vars=()
 
     case "$platform" in
-        x)
-            [[ -z "${TWITTER_CONSUMER_KEY:-}" ]] && missing_vars+=("TWITTER_CONSUMER_KEY")
-            [[ -z "${TWITTER_CONSUMER_SECRET:-}" ]] && missing_vars+=("TWITTER_CONSUMER_SECRET")
-            [[ -z "${TWITTER_OAUTH_TOKEN:-}" ]] && missing_vars+=("TWITTER_OAUTH_TOKEN")
-            [[ -z "${TWITTER_OAUTH_SECRET:-}" ]] && missing_vars+=("TWITTER_OAUTH_SECRET")
-            ;;
-        youtube)
-            [[ -z "${YOUTUBE_CLIENT_ID:-}" ]] && missing_vars+=("YOUTUBE_CLIENT_ID")
-            [[ -z "${YOUTUBE_CLIENT_SECRET:-}" ]] && missing_vars+=("YOUTUBE_CLIENT_SECRET")
-            [[ -z "${YOUTUBE_REFRESH_TOKEN:-}" ]] && missing_vars+=("YOUTUBE_REFRESH_TOKEN")
-            ;;
-        facebook|facebook-video)
-            [[ -z "${FACEBOOK_OBJECT_ID:-}" ]] && missing_vars+=("FACEBOOK_OBJECT_ID")
-            [[ -z "${FACEBOOK_CLIENT_ID:-}" ]] && missing_vars+=("FACEBOOK_CLIENT_ID")
-            [[ -z "${FACEBOOK_CLIENT_SECRET:-}" ]] && missing_vars+=("FACEBOOK_CLIENT_SECRET")
-            [[ -z "${FACEBOOK_REFRESH_TOKEN:-}" ]] && missing_vars+=("FACEBOOK_REFRESH_TOKEN")
-            ;;
-        instagram)
-            [[ -z "${INSTAGRAM_OBJECT_ID:-}" ]] && missing_vars+=("INSTAGRAM_OBJECT_ID")
-            [[ -z "${INSTAGRAM_CLIENT_ID:-}" ]] && missing_vars+=("INSTAGRAM_CLIENT_ID")
-            [[ -z "${INSTAGRAM_CLIENT_SECRET:-}" ]] && missing_vars+=("INSTAGRAM_CLIENT_SECRET")
-            [[ -z "${INSTAGRAM_REFRESH_TOKEN:-}" ]] && missing_vars+=("INSTAGRAM_REFRESH_TOKEN")
-            ;;
-        discord)
-            [[ -z "${DISCORD_BOT_TOKEN:-}" ]] && missing_vars+=("DISCORD_BOT_TOKEN")
-            [[ -z "${DISCORD_SERVER_NAME:-}" ]] && missing_vars+=("DISCORD_SERVER_NAME")
-            [[ -z "${DISCORD_CHANNEL_NAME:-}" ]] && missing_vars+=("DISCORD_CHANNEL_NAME")
-            ;;
-        linkedin)
-            [[ -z "${LINKEDIN_OBJECT_ID:-}" ]] && missing_vars+=("LINKEDIN_OBJECT_ID")
-            [[ -z "${LINKEDIN_CLIENT_ID:-}" ]] && missing_vars+=("LINKEDIN_CLIENT_ID")
-            [[ -z "${LINKEDIN_CLIENT_SECRET:-}" ]] && missing_vars+=("LINKEDIN_CLIENT_SECRET")
-            [[ -z "${LINKEDIN_REFRESH_TOKEN:-}" ]] && missing_vars+=("LINKEDIN_REFRESH_TOKEN")
-            ;;
-        tiktok)
-            [[ -z "${TIKTOK_USERNAME:-}" ]] && missing_vars+=("TIKTOK_USERNAME")
-            [[ -z "${TIKTOK_CLIENT_KEY:-}" ]] && missing_vars+=("TIKTOK_CLIENT_KEY")
-            [[ -z "${TIKTOK_CLIENT_SECRET:-}" ]] && missing_vars+=("TIKTOK_CLIENT_SECRET")
-            [[ -z "${TIKTOK_REFRESH_TOKEN:-}" ]] && missing_vars+=("TIKTOK_REFRESH_TOKEN")
-            ;;
-        threads)
-            [[ -z "${THREADS_APP_ID:-}" ]] && missing_vars+=("THREADS_APP_ID")
-            [[ -z "${THREADS_APP_SECRET:-}" ]] && missing_vars+=("THREADS_APP_SECRET")
-            [[ -z "${THREADS_REFRESH_TOKEN:-}" ]] && missing_vars+=("THREADS_REFRESH_TOKEN")
-            [[ -z "${THREADS_USER_ID:-}" ]] && missing_vars+=("THREADS_USER_ID")
-            ;;
-        telegram)
-            [[ -z "${TELEGRAM_BOT_TOKEN:-}" ]] && missing_vars+=("TELEGRAM_BOT_TOKEN")
-            [[ -z "${TELEGRAM_CHAT_ID:-}" ]] && missing_vars+=("TELEGRAM_CHAT_ID")
-            ;;
-        whatsapp)
-            [[ -z "${WHATSAPP_ACCESS_TOKEN:-}" ]] && missing_vars+=("WHATSAPP_ACCESS_TOKEN")
-            [[ -z "${WHATSAPP_PHONE_NUMBER_ID:-}" ]] && missing_vars+=("WHATSAPP_PHONE_NUMBER_ID")
-            [[ -z "${WHATSAPP_RECIPIENT:-}" ]] && missing_vars+=("WHATSAPP_RECIPIENT")
-            ;;
+    x)
+        [[ -z "${TWITTER_CONSUMER_KEY:-}" ]] && missing_vars+=("TWITTER_CONSUMER_KEY")
+        [[ -z "${TWITTER_CONSUMER_SECRET:-}" ]] && missing_vars+=("TWITTER_CONSUMER_SECRET")
+        [[ -z "${TWITTER_OAUTH_TOKEN:-}" ]] && missing_vars+=("TWITTER_OAUTH_TOKEN")
+        [[ -z "${TWITTER_OAUTH_SECRET:-}" ]] && missing_vars+=("TWITTER_OAUTH_SECRET")
+        ;;
+    youtube)
+        [[ -z "${YOUTUBE_CLIENT_ID:-}" ]] && missing_vars+=("YOUTUBE_CLIENT_ID")
+        [[ -z "${YOUTUBE_CLIENT_SECRET:-}" ]] && missing_vars+=("YOUTUBE_CLIENT_SECRET")
+        [[ -z "${YOUTUBE_REFRESH_TOKEN:-}" ]] && missing_vars+=("YOUTUBE_REFRESH_TOKEN")
+        ;;
+    facebook | facebook-video)
+        [[ -z "${FACEBOOK_OBJECT_ID:-}" ]] && missing_vars+=("FACEBOOK_OBJECT_ID")
+        [[ -z "${FACEBOOK_CLIENT_ID:-}" ]] && missing_vars+=("FACEBOOK_CLIENT_ID")
+        [[ -z "${FACEBOOK_CLIENT_SECRET:-}" ]] && missing_vars+=("FACEBOOK_CLIENT_SECRET")
+        [[ -z "${FACEBOOK_REFRESH_TOKEN:-}" ]] && missing_vars+=("FACEBOOK_REFRESH_TOKEN")
+        ;;
+    instagram)
+        [[ -z "${INSTAGRAM_OBJECT_ID:-}" ]] && missing_vars+=("INSTAGRAM_OBJECT_ID")
+        [[ -z "${INSTAGRAM_CLIENT_ID:-}" ]] && missing_vars+=("INSTAGRAM_CLIENT_ID")
+        [[ -z "${INSTAGRAM_CLIENT_SECRET:-}" ]] && missing_vars+=("INSTAGRAM_CLIENT_SECRET")
+        [[ -z "${INSTAGRAM_REFRESH_TOKEN:-}" ]] && missing_vars+=("INSTAGRAM_REFRESH_TOKEN")
+        ;;
+    discord)
+        [[ -z "${DISCORD_BOT_TOKEN:-}" ]] && missing_vars+=("DISCORD_BOT_TOKEN")
+        [[ -z "${DISCORD_SERVER_NAME:-}" ]] && missing_vars+=("DISCORD_SERVER_NAME")
+        [[ -z "${DISCORD_CHANNEL_NAME:-}" ]] && missing_vars+=("DISCORD_CHANNEL_NAME")
+        ;;
+    linkedin)
+        [[ -z "${LINKEDIN_OBJECT_ID:-}" ]] && missing_vars+=("LINKEDIN_OBJECT_ID")
+        [[ -z "${LINKEDIN_CLIENT_ID:-}" ]] && missing_vars+=("LINKEDIN_CLIENT_ID")
+        [[ -z "${LINKEDIN_CLIENT_SECRET:-}" ]] && missing_vars+=("LINKEDIN_CLIENT_SECRET")
+        [[ -z "${LINKEDIN_REFRESH_TOKEN:-}" ]] && missing_vars+=("LINKEDIN_REFRESH_TOKEN")
+        ;;
+    tiktok)
+        [[ -z "${TIKTOK_USERNAME:-}" ]] && missing_vars+=("TIKTOK_USERNAME")
+        [[ -z "${TIKTOK_CLIENT_KEY:-}" ]] && missing_vars+=("TIKTOK_CLIENT_KEY")
+        [[ -z "${TIKTOK_CLIENT_SECRET:-}" ]] && missing_vars+=("TIKTOK_CLIENT_SECRET")
+        [[ -z "${TIKTOK_REFRESH_TOKEN:-}" ]] && missing_vars+=("TIKTOK_REFRESH_TOKEN")
+        ;;
+    threads)
+        [[ -z "${THREADS_APP_ID:-}" ]] && missing_vars+=("THREADS_APP_ID")
+        [[ -z "${THREADS_APP_SECRET:-}" ]] && missing_vars+=("THREADS_APP_SECRET")
+        [[ -z "${THREADS_REFRESH_TOKEN:-}" ]] && missing_vars+=("THREADS_REFRESH_TOKEN")
+        [[ -z "${THREADS_USER_ID:-}" ]] && missing_vars+=("THREADS_USER_ID")
+        ;;
+    telegram)
+        [[ -z "${TELEGRAM_BOT_TOKEN:-}" ]] && missing_vars+=("TELEGRAM_BOT_TOKEN")
+        [[ -z "${TELEGRAM_CHAT_ID:-}" ]] && missing_vars+=("TELEGRAM_CHAT_ID")
+        ;;
+    whatsapp)
+        [[ -z "${WHATSAPP_ACCESS_TOKEN:-}" ]] && missing_vars+=("WHATSAPP_ACCESS_TOKEN")
+        [[ -z "${WHATSAPP_PHONE_NUMBER_ID:-}" ]] && missing_vars+=("WHATSAPP_PHONE_NUMBER_ID")
+        [[ -z "${WHATSAPP_RECIPIENT:-}" ]] && missing_vars+=("WHATSAPP_RECIPIENT")
+        ;;
     esac
 
     if [[ "$platform" != "facebook-video" ]]; then
@@ -104,10 +105,10 @@ PLATFORM="all"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        *)
-            PLATFORM="$1"
-            shift
-            ;;
+    *)
+        PLATFORM="$1"
+        shift
+        ;;
     esac
 done
 
@@ -115,7 +116,7 @@ assert_ci_not_set
 init_agoras_bin "${PROJECT_ROOT}"
 verify_agoras_storage_dir
 clear_credentials
-trap cleanup_test_posts EXIT
+trap 'finish_unattended_run "${UNATTENDED_ENV_FILE}"' EXIT
 
 echo "🔍 Verifying environment variables..."
 verify_env_vars "x"

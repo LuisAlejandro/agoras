@@ -13,7 +13,7 @@ Use dedicated test platform accounts. Do not pipe logs to shared systems. Do not
 
 ## Authorize-path run
 
-1. Fill `authorize.env` (include `export AGORAS_STORAGE_DIR=...`)
+1. Fill `authorize.env` with `AGORAS_STORAGE_DIR` and platform OAuth creds for `authorize-platforms.sh`, plus any test-time vars (`FACEBOOK_OBJECT_ID` for facebook share tests, `WHATSAPP_RECIPIENT` for whatsapp tests).
 2. Authorize platforms:
 
 ```bash
@@ -21,14 +21,14 @@ tests/authorize-platforms.sh          # all platforms
 tests/authorize-platforms.sh facebook   # one platform
 ```
 
-3. Run:
+1. Run:
 
 ```bash
 tests/test-authorize.sh all
 # or: tests/test-authorize.sh facebook
 ```
 
-Preflight fails fast if stored tokens are missing.
+Preflight fails fast if stored tokens are missing (`utils tokens list` per platform, before post tests). Post tests use stored credentials; OAuth app secrets are not re-checked here.
 
 ## Unattended-path run
 
@@ -42,6 +42,8 @@ tests/test-unattended.sh all
 ```
 
 Clears storage at start, seeds from env vars, runs utils (feed last/random, schedule-run) at end.
+
+On exit, refresh-capable OAuth credentials are refreshed noninteractively, then rotated `*_REFRESH_TOKEN` values in `unattended.env` are patched from tokens saved during the run. Manual re-export still required if env was stale before any successful auth: `agoras utils tokens unattended-format`.
 
 ## Legacy publish-path run
 
@@ -57,23 +59,23 @@ tests/test-legacy-unattended.sh all
 # or: tests/test-legacy-unattended.sh twitter   # alias for x
 ```
 
-Clears storage at start, runs per-platform post/video cases via `agoras publish`, then legacy feed (`last-from-feed`, `random-from-feed`) and schedule actions. Does not run tokens-list smoke.
+Clears storage at start, runs per-platform post/video cases via `agoras publish`, then legacy feed (`last-from-feed`, `random-from-feed`) and schedule actions. Does not run tokens-list smoke. Patches `*_REFRESH_TOKEN` lines in `unattended.env` on exit (same as unattended suite).
 
 ## CI guard
 
-Scripts exit when `CI` or `GITHUB_ACTIONS` is set unless `AGORAS_LIVE_E2E=1`.
+Scripts exit when `CI` or `GITHUB_ACTIONS` is set.
 
 ## MVP checklist highlights
 
 | Area | Authorize | Unattended |
-|------|-----------|------------|
+| ------ | ----------- | ------------ |
 | x post/like/share/delete | yes | yes |
 | threads share | yes | yes |
 | discord video | yes | yes |
 | tiktok post (slideshow) | skip if unavailable | skip if unavailable |
 | utils feed/schedule | no | yes |
 | legacy publish feed/schedule | no | yes (legacy suite only) |
-| utils tokens list | yes | storage platforms only |
+| utils tokens list (preflight) | yes | no (env vars only; storage cleared at start) |
 
 ## Skip policy
 
@@ -83,13 +85,12 @@ Unsupported or blocked actions print `SKIP: <reason>` and return success for tha
 
 - **x**, **threads**, **instagram**, **linkedin**, **telegram**, **whatsapp** video
 - **whatsapp template** (requires `WHATSAPP_TEMPLATE_NAME` in env; optional `WHATSAPP_TEMPLATE_LANGUAGE`, default `en`)
-- **feed-publish** for multiple networks via `FEED_PUBLISH_NETWORKS` (default: `x facebook linkedin`)
+- **feed-publish** and **schedule-run** on one network (`UTILS_TEST_NETWORK`, default `x`); posts are deleted after each utils run
 
 ## Optional env vars
 
 | Variable | Purpose |
-|----------|---------|
-| `FEED_PUBLISH_NETWORKS` | Space-separated networks for feed-publish utils |
+| ---------- | --------- |
+| `UTILS_TEST_NETWORK` | Network for utils feed/schedule tests (default `x`) |
 | `WHATSAPP_TEMPLATE_NAME` | Pre-approved template for whatsapp template test |
 | `WHATSAPP_TEMPLATE_LANGUAGE` | Template language code (default `en`) |
-| `AGORAS_LIVE_E2E=1` | Override CI guard |

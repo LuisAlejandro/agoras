@@ -15,11 +15,18 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.core.auth.base module."""
 
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
-from .exceptions import AuthenticationError
+from .failure import (
+    AuthFailureCategory,
+    AuthFailureDetails,
+    env_has_refresh_token,
+    raise_authentication_error_from_manager,
+    record_auth_failure,
+)
 from .storage import SecureTokenStorage
 
 
@@ -41,6 +48,7 @@ class BaseAuthManager(ABC):
         self.client = None
         self.user_info = None
         self.token_storage = SecureTokenStorage()
+        self.last_auth_failure: Optional[AuthFailureDetails] = None
 
     @property
     def authenticated(self) -> bool:
@@ -71,10 +79,44 @@ class BaseAuthManager(ABC):
                 if self._load_and_refresh_from_storage():
                     return
 
-            platform_name = self._get_platform_name()
-            raise AuthenticationError(
-                f"Not authenticated. Please run 'agoras {platform_name} authorize' first."
-            )
+            raise_authentication_error_from_manager(self)
+
+    def _has_stored_or_env_credentials(self) -> bool:
+        """
+        Return True when stored or env credentials appear present for this platform.
+
+        OAuth2 platforms override when refresh_token is not the credential key.
+        """
+        if self._load_refresh_token_from_storage():
+            return True
+        return env_has_refresh_token(self._get_platform_name())
+
+    def _authentication_failed(self, exc: Optional[Exception] = None) -> bool:
+        """Record failure details and return False from authenticate()."""
+        if exc is not None:
+            return record_auth_failure(self, exc)
+        platform = self._get_platform_name()
+        self.last_auth_failure = AuthFailureDetails(
+            platform=platform,
+            category=AuthFailureCategory.UNKNOWN,
+        )
+        return False
+
+    def _missing_credentials_failed(self) -> bool:
+        """Record missing-credentials failure and return False from authenticate()."""
+        self.last_auth_failure = AuthFailureDetails(
+            platform=self._get_platform_name(),
+            category=AuthFailureCategory.MISSING,
+        )
+        return False
+
+    def _wrong_token_failed(self) -> bool:
+        """Record invalid-token failure and return False from authenticate()."""
+        self.last_auth_failure = AuthFailureDetails(
+            platform=self._get_platform_name(),
+            category=AuthFailureCategory.WRONG_TOKEN,
+        )
+        return False
 
     def _load_and_refresh_from_storage(self) -> bool:
         """
@@ -90,12 +132,13 @@ class BaseAuthManager(ABC):
                 return False
 
             # Set the refresh token so authenticate() can use it
-            if hasattr(self, 'refresh_token'):
+            if hasattr(self, "refresh_token"):
                 self.refresh_token = refresh_token
 
             # Call authenticate to refresh and get access token
             # This is async, but we need to handle it synchronously here
             import asyncio
+
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 # If we're already in an async context, this is tricky
@@ -104,8 +147,8 @@ class BaseAuthManager(ABC):
             else:
                 result = loop.run_until_complete(self.authenticate())
                 return result
-        except Exception:
-            return False
+        except Exception as exc:
+            return self._authentication_failed(exc)
 
     def _load_refresh_token_from_storage(self) -> Optional[str]:
         """
@@ -120,7 +163,7 @@ class BaseAuthManager(ABC):
         token_data = self.token_storage.load_token(platform_name, identifier)
 
         if token_data:
-            return token_data.get('refresh_token')
+            return token_data.get("refresh_token")
 
         return None
 

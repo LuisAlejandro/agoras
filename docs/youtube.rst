@@ -120,8 +120,6 @@ Please read about how the RSS feed should be structured in the :doc:`RSS feed se
       agoras utils feed-publish \
             --network "youtube" \
             --mode "last" \
-            --youtube-client-id "${YOUTUBE_CLIENT_ID}" \
-            --youtube-client-secret "${YOUTUBE_CLIENT_SECRET}" \
             --feed-url "${FEED_URL}" \
             --max-count "${MAX_COUNT}" \
             --post-lookback "${POST_LOOKBACK}"

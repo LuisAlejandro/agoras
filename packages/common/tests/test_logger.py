@@ -29,6 +29,14 @@ from agoras.common.logger import levelNames, logger
 
 class TestLogger(unittest.TestCase):
 
+    @staticmethod
+    def _agoras_handlers():
+        """Handlers added by ControlableLogger.start(), excluding pytest internals."""
+        return [
+            h for h in logger.handlers
+            if type(h).__name__ in ('StreamHandler', 'FileHandler')
+        ]
+
     def setUp(self):
         # Ensure logger is stopped before each test
         if not logger.disabled:
@@ -52,8 +60,9 @@ class TestLogger(unittest.TestCase):
         self.assertFalse(logger.disabled)
 
         # Should have exactly one handler (StreamHandler)
-        self.assertEqual(len(logger.handlers), 1)
-        self.assertIsInstance(logger.handlers[0], logging.StreamHandler)
+        agoras_handlers = self._agoras_handlers()
+        self.assertEqual(len(agoras_handlers), 1)
+        self.assertIsInstance(agoras_handlers[0], logging.StreamHandler)
 
     def test_start_with_filename(self):
         """Test starting logger with filename parameter."""
@@ -67,10 +76,11 @@ class TestLogger(unittest.TestCase):
             self.assertFalse(logger.disabled)
 
             # Should have two handlers (StreamHandler + FileHandler)
-            self.assertEqual(len(logger.handlers), 2)
+            agoras_handlers = self._agoras_handlers()
+            self.assertEqual(len(agoras_handlers), 2)
 
             # Check handler types
-            handler_types = [type(h).__name__ for h in logger.handlers]
+            handler_types = [type(h).__name__ for h in agoras_handlers]
             self.assertIn('StreamHandler', handler_types)
             self.assertIn('FileHandler', handler_types)
 
@@ -83,13 +93,13 @@ class TestLogger(unittest.TestCase):
     def test_start_when_already_started(self):
         """Test that starting an already started logger doesn't add duplicate handlers."""
         logger.start()
-        initial_handler_count = len(logger.handlers)
+        initial_handler_count = len(self._agoras_handlers())
 
         # Try to start again
         logger.start()
 
         # Handler count should not increase
-        self.assertEqual(len(logger.handlers), initial_handler_count)
+        self.assertEqual(len(self._agoras_handlers()), initial_handler_count)
 
     def test_stop_after_start(self):
         """Test stopping logger after starting."""
@@ -124,7 +134,7 @@ class TestLogger(unittest.TestCase):
 
         try:
             logger.start(filename=temp_filename)
-            self.assertEqual(len(logger.handlers), 2)
+            self.assertEqual(len(self._agoras_handlers()), 2)
 
             logger.stop()
 

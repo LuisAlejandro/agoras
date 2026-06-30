@@ -19,13 +19,13 @@ Legacy::
       --status-text "Hello World!" \
       --status-image-url-1 "https://example.com/image.jpg"
 
-New::
+New (authorize once, then post without credential flags on the action)::
+
+    agoras x authorize \
+      --consumer-key "$TWITTER_CONSUMER_KEY" \
+      --consumer-secret "$TWITTER_CONSUMER_SECRET"
 
     agoras x post \
-      --consumer-key "$TWITTER_CONSUMER_KEY" \
-      --consumer-secret "$TWITTER_CONSUMER_SECRET" \
-      --oauth-token "$TWITTER_OAUTH_TOKEN" \
-      --oauth-secret "$TWITTER_OAUTH_SECRET" \
       --text "Hello World!" \
       --image-1 "https://example.com/image.jpg"
 
@@ -41,13 +41,13 @@ Legacy::
       --twitter-video-url "video.mp4" \
       --twitter-video-title "My Video"
 
-New::
+New (authorize once, then video without credential flags)::
+
+    agoras x authorize \
+      --consumer-key "$KEY" \
+      --consumer-secret "$SECRET"
 
     agoras x video \
-      --consumer-key "$KEY" \
-      --consumer-secret "$SECRET" \
-      --oauth-token "$TOKEN" \
-      --oauth-secret "$OAUTH_SECRET" \
       --video-url "video.mp4" \
       --video-title "My Video"
 
@@ -181,10 +181,12 @@ Legacy::
 
 New::
 
-    agoras discord post \
+    agoras discord authorize \
       --bot-token "$BOT_TOKEN" \
       --server-name "MyServer" \
-      --channel-name "general" \
+      --channel-name "general"
+
+    agoras discord post \
       --text "Hello Discord"
 
 YouTube

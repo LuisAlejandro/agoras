@@ -34,12 +34,8 @@ Usage
        --text "Hello World" \
        --link "https://example.com"
 
-   # Post to X (after authorize, or pass credentials inline)
+   # Post to X (after authorize, or with TWITTER_* env vars set)
    agoras x post \
-       --consumer-key "$KEY" \
-       --consumer-secret "$SECRET" \
-       --oauth-token "$TOKEN" \
-       --oauth-secret "$TOKEN_SECRET" \
        --text "Hello X!"
 
    # See all commands

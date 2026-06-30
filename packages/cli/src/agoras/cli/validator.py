@@ -46,13 +46,8 @@ class ActionValidator:
             )
 
         if not PlatformRegistry.validate_action(platform, action):
-            supported = ', '.join(sorted(
-                PlatformRegistry.get_supported_actions(platform)
-            ))
-            raise ValueError(
-                f"Action '{action}' is not supported by {platform}. "
-                f"Supported actions: {supported}"
-            )
+            supported = ", ".join(sorted(PlatformRegistry.get_supported_actions(platform)))
+            raise ValueError(f"Action '{action}' is not supported by {platform}. Supported actions: {supported}")
 
     @staticmethod
     def get_supported_actions(platform: str) -> set:

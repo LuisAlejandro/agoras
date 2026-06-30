@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.core.sheet.manager module."""
 
 import asyncio
 
@@ -22,9 +23,7 @@ from .sheet import Sheet
 
 
 class SheetManager:
-    """
-    Manager class for handling multiple sheets and batch operations.
-    """
+    """Manager class for handling multiple sheets and batch operations."""
 
     def __init__(self):
         """Initialize sheet manager."""

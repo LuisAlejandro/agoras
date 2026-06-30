@@ -2,6 +2,129 @@ Changelog
 ============
 
 
+2.1.0 (unreleased)
+------------
+
+Breaking Changes
+~~~~~~~~~~~~~~~~
+
+* Platform action commands and utils automation commands (``agoras utils feed-publish``, ``agoras utils schedule-run``) no longer accept credential or identity CLI flags for social networks. Run ``agoras <platform> authorize`` first, or set the platform environment variables documented in :doc:`reference/platform-arguments-envvars`. ``schedule-run`` now requires ``--network`` (one platform per invocation). Legacy ``agoras publish`` still accepts prefixed credential flags until version 3.0. Google Sheets credentials remain on the utils CLI surface.
+
+Other
+~~~~~~~~~~~~
+
+* Migration suggestions for platform actions omit auth parameters so ``agoras publish --show-migration`` no longer recommends invalid credential flags on action commands.
+* Utils automation now dispatches through an internal platform runner instead of the legacy ``publish`` command module (internal refactor only; user-facing breaks are listed above).
+
+
+2.0.5 (2026-06-24)
+------------
+
+Other
+~~~~~~~~~~~~
+
+* Updating readthedocs generation. [Luis Alejandro Martínez Faneyth]
+
+
+2.0.4 (2026-06-24)
+------------
+
+Other
+~~~~~~~~~~~~
+
+* Updating readthedocs generation. [Luis Alejandro Martínez Faneyth]
+
+
+2.0.3 (2026-06-23)
+------------
+
+Other
+~~~~~~~~~~~~
+
+* Chore: export BASH_ENV in Makefile for bash recipe env. [Luis Alejandro Martínez Faneyth]
+
+* Solving bumpversion multiline issue. [Luis Alejandro Martínez Faneyth]
+
+* Chore: sync maintainer ops and inline post_bump_commands parser. [Luis Alejandro Martínez Faneyth]
+
+* Test(common): ignore pytest logging handlers in logger tests. [Cursor Agent]
+
+* Chore: sync maintainer release scripts and CI workflows. [Luis Alejandro Martínez Faneyth]
+
+* Chore(deps-dev): bump pytest-asyncio to 1.4.0 for pytest 9.x compatibility. [Cursor Agent]
+
+* Improving dependency resolution robustness. [Luis Alejandro Martínez Faneyth]
+
+
+2.0.2 (2026-06-23)
+------------
+
+Other
+~~~~~~~~~~~~
+
+* Chore: sync MAINTAINER CI notes and lib.sh manifest to 0.4.3. [Luis Alejandro Martínez Faneyth]
+
+* Chore: maintainer sync toolkit 0.4.3. [Luis Alejandro Martínez Faneyth]
+
+* Chore: maintainer sync toolkit 0.4.2 — PR CI + auto-merge. [Luis Alejandro Martínez Faneyth]
+
+* Fix(core): align google-auth with platforms bump to 2.55.0. [Cursor Agent]
+
+* Chore: remove CI probe v10 marker from MAINTAINER. [Luis Alejandro Martínez Faneyth]
+
+* Fix(ci): safe.directory for Semgrep dispatch git fetch in container. [Luis Alejandro Martínez Faneyth]
+
+* Chore: retrigger PR CI after probe fix. [Cursor Agent]
+
+* Fix(ci): remove intentional probe test failure (v6) [Cursor Agent]
+
+* Fix(ci): repair pr-auto-merge actor gate YAML folding. [Luis Alejandro Martínez Faneyth]
+
+* Simplify PR CI: embed Semgrep in pr.yml, drop code-quality workflow. [Luis Alejandro Martínez Faneyth]
+
+* Test: remove CI auto-merge probe v4 (fix intentional failure) [Cursor Agent]
+
+* Test: CI auto-merge probe v4 (intentional unit test failure) [Luis Alejandro Martínez Faneyth]
+
+* Chore: retrigger PR CI after #657 merge. [Luis Alejandro Martínez Faneyth]
+
+* Fix(ci): mark workspace safe for git in Semgrep container. [Cursor Agent]
+
+* Fix(ci): run PR workflows on feature branch push. [Luis Alejandro Martínez Faneyth]
+
+* Test: remove CI auto-merge probe v3 (fix intentional failure) [Cursor Agent]
+
+* Test: re-break probe v3 for Cursor fix → auto-merge validation. [Luis Alejandro Martínez Faneyth]
+
+* Test: remove CI auto-merge probe v3 (fix intentional failure) [Cursor Agent]
+
+* Test: CI auto-merge probe v3 (intentional unit test failure) [Luis Alejandro Martínez Faneyth]
+
+* Chore: retrigger PR CI after probe fix. [Luis Alejandro Martínez Faneyth]
+
+* Test: remove CI auto-merge probe v2 (fix intentional failure) [Luis Alejandro Martínez Faneyth]
+
+* Test: CI auto-merge probe v2 (cleanup + failing unit test) [Luis Alejandro Martínez Faneyth]
+
+* Add .cursorrules with Cursor Cloud dev environment instructions. [Cursor Agent]
+
+* Test: make lint probe fail flake8 F841. [Luis Alejandro Martínez Faneyth]
+
+* Test: intentional lint failure for CI auto-merge probe. [Luis Alejandro Martínez Faneyth]
+
+* Docs: verify Semgrep fleet migration. [Luis Alejandro Martínez Faneyth]
+
+* Chore: sync PR auto-merge, CodeQL PR gate, and maintainer files from rosey-maintain. [Luis Alejandro Martínez Faneyth]
+
+* Fixing tests. [Luis Alejandro Martínez Faneyth]
+
+* Improving maintainer files. [Luis Alejandro Martínez Faneyth]
+
+* Chore: fleet release parity — gates, dependabot, hotfix removal. [Luis Alejandro Martínez Faneyth]
+
+* Improving release documentation and maintainer scripts. [Luis Alejandro Martínez Faneyth]
+
+
 2.0.1 (2026-06-15)
 ------------
 
@@ -303,4 +426,3 @@ Other
 * Update requirements.txt. [Luis Alejandro]
 
 * Initial commit. [Luis Alejandro Martínez Faneyth]
-

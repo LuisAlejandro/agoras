@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.core.sheet.sheet module."""
 
 import asyncio
 from typing import Optional
@@ -66,12 +67,12 @@ class Sheet:
             return self
 
         def _sync_auth():
-            scope = ['https://spreadsheets.google.com/feeds']
+            scope = ["https://spreadsheets.google.com/feeds"]
             account_info = {
-                'private_key': self.private_key,
-                'client_email': self.client_email,
-                'token_uri': 'https://oauth2.googleapis.com/token',
-                'type': 'service_account'
+                "private_key": self.private_key,
+                "client_email": self.client_email,
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "type": "service_account",
             }
 
             creds = Credentials.from_service_account_info(account_info, scopes=scope)
@@ -102,7 +103,7 @@ class Sheet:
             await self.authenticate()
 
         if not self._spreadsheet:
-            raise Exception('Spreadsheet not available after authentication')
+            raise Exception("Spreadsheet not available after authentication")
 
         def _sync_get_worksheet():
             assert self._spreadsheet is not None  # Help type checker
@@ -130,7 +131,7 @@ class Sheet:
             await self.get_worksheet()
 
         if not self._worksheet:
-            raise Exception('Worksheet not available')
+            raise Exception("Worksheet not available")
 
         def _sync_read():
             assert self._worksheet is not None  # Help type checker
@@ -160,7 +161,7 @@ class Sheet:
             await self.get_worksheet()
 
         if not self._worksheet:
-            raise Exception('Worksheet not available')
+            raise Exception("Worksheet not available")
 
         def _sync_read():
             assert self._worksheet is not None  # Help type checker
@@ -168,7 +169,7 @@ class Sheet:
 
         return await asyncio.to_thread(_sync_read)
 
-    async def write_all(self, data, clear_first=True, table_range='A1'):
+    async def write_all(self, data, clear_first=True, table_range="A1"):
         """
         Write all data to the worksheet.
 
@@ -181,7 +182,7 @@ class Sheet:
             await self.get_worksheet()
 
         if not self._worksheet:
-            raise Exception('Worksheet not available')
+            raise Exception("Worksheet not available")
 
         def _sync_write():
             assert self._worksheet is not None  # Help type checker
@@ -205,7 +206,7 @@ class Sheet:
 
         await asyncio.to_thread(_sync_write)
 
-    async def append_row(self, row_data, table_range='A1'):
+    async def append_row(self, row_data, table_range="A1"):
         """
         Append a single row to the worksheet.
 
@@ -217,7 +218,7 @@ class Sheet:
             await self.get_worksheet()
 
         if not self._worksheet:
-            raise Exception('Worksheet not available')
+            raise Exception("Worksheet not available")
 
         def _sync_append():
             assert self._worksheet is not None  # Help type checker
@@ -245,7 +246,7 @@ class Sheet:
             await self.get_worksheet()
 
         if not self._worksheet:
-            raise Exception('Worksheet not available')
+            raise Exception("Worksheet not available")
 
         def _sync_update():
             assert self._worksheet is not None  # Help type checker
@@ -265,7 +266,7 @@ class Sheet:
             await self.get_worksheet()
 
         if not self._worksheet:
-            raise Exception('Worksheet not available')
+            raise Exception("Worksheet not available")
 
         def _sync_update():
             assert self._worksheet is not None  # Help type checker
@@ -279,7 +280,7 @@ class Sheet:
             await self.get_worksheet()
 
         if not self._worksheet:
-            raise Exception('Worksheet not available')
+            raise Exception("Worksheet not available")
 
         def _sync_clear():
             assert self._worksheet is not None  # Help type checker
@@ -310,6 +311,7 @@ class Sheet:
         Returns:
             list: List of matching SheetRow instances
         """
+
         def condition(row):
             for column, value in filters.items():
                 if row.get(column) != str(value):
@@ -329,7 +331,7 @@ class Sheet:
             await self.get_worksheet()
 
         if not self._worksheet:
-            raise Exception('Worksheet not available')
+            raise Exception("Worksheet not available")
 
         def _sync_count():
             assert self._worksheet is not None  # Help type checker
@@ -348,7 +350,7 @@ class Sheet:
             await self.get_worksheet()
 
         if not self._worksheet:
-            raise Exception('Worksheet not available')
+            raise Exception("Worksheet not available")
 
         def _sync_count():
             assert self._worksheet is not None  # Help type checker
@@ -365,11 +367,11 @@ class Sheet:
             dict: Sheet metadata
         """
         if not self._authenticated:
-            raise Exception('Sheet must be authenticated before getting info')
+            raise Exception("Sheet must be authenticated before getting info")
 
         return {
-            'sheet_id': self.sheet_id,
-            'title': self._spreadsheet.title if self._spreadsheet else None,
-            'worksheet_name': self._worksheet.title if self._worksheet else None,
-            'url': self._spreadsheet.url if self._spreadsheet else None
+            "sheet_id": self.sheet_id,
+            "title": self._spreadsheet.title if self._spreadsheet else None,
+            "worksheet_name": self._worksheet.title if self._worksheet else None,
+            "url": self._spreadsheet.url if self._spreadsheet else None,
         }

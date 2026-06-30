@@ -15,10 +15,12 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.facebook.api module."""
 
 from typing import Any, Dict, List, Optional
 
 from agoras.core.api_base import BaseAPI
+from agoras.core.auth import raise_authentication_error_from_manager
 
 from .auth import FacebookAuthManager
 
@@ -42,21 +44,13 @@ class FacebookAPI(BaseAPI):
             refresh_token (str, optional): Facebook refresh token
             app_id (str, optional): Facebook app ID for video uploads
         """
-        super().__init__(
-            user_id=user_id,
-            client_id=client_id,
-            client_secret=client_secret,
-            refresh_token=refresh_token
-        )
+        super().__init__(user_id=user_id, client_id=client_id, client_secret=client_secret, refresh_token=refresh_token)
 
         self.app_id = app_id
 
         # Initialize the authentication manager
         self.auth_manager = FacebookAuthManager(
-            user_id=user_id,
-            client_id=client_id,
-            client_secret=client_secret,
-            refresh_token=refresh_token
+            user_id=user_id, client_id=client_id, client_secret=client_secret, refresh_token=refresh_token
         )
 
     async def authenticate(self):
@@ -74,7 +68,7 @@ class FacebookAPI(BaseAPI):
 
         success = await self.auth_manager.authenticate()
         if not success:
-            raise Exception('Facebook authentication failed')
+            raise_authentication_error_from_manager(self.auth_manager)
 
         # Set the client from auth manager for BaseAPI compatibility
         self.client = self.auth_manager.client
@@ -94,14 +88,14 @@ class FacebookAPI(BaseAPI):
         self.auth_manager.ensure_authenticated()
 
         if not self.client:
-            raise Exception('Facebook API not authenticated')
+            raise Exception("Facebook API not authenticated")
 
-        await self._rate_limit_check('check_if_page', 0.1)
+        await self._rate_limit_check("check_if_page", 0.1)
 
         try:
             return await self.client.is_page(object_id)
         except Exception as e:
-            self._handle_api_error(e, 'Facebook page check')
+            self._handle_api_error(e, "Facebook page check")
             raise
 
     async def get_page_token(self, object_id: str) -> str:
@@ -117,16 +111,18 @@ class FacebookAPI(BaseAPI):
         self.auth_manager.ensure_authenticated()
 
         if not self.client:
-            raise Exception('Facebook API not authenticated')
+            raise Exception("Facebook API not authenticated")
 
-        await self._rate_limit_check('get_page_token', 0.5)
+        await self._rate_limit_check("get_page_token", 0.5)
 
         try:
             # We need to pass the current user access token to get page token
             user_token = self.auth_manager.access_token
+            if not user_token:
+                raise Exception("Facebook access token not available")
             return await self.client.get_page_access_token(object_id, user_token)
         except Exception as e:
-            self._handle_api_error(e, 'Facebook page token exchange')
+            self._handle_api_error(e, "Facebook page token exchange")
             raise
 
     async def disconnect(self):
@@ -145,8 +141,13 @@ class FacebookAPI(BaseAPI):
         self.client = None
         self._authenticated = False
 
-    async def post(self, object_id: str, message: Optional[str] = None,
-                   link: Optional[str] = None, attached_media: Optional[List[Dict[str, Any]]] = None) -> str:
+    async def post(
+        self,
+        object_id: str,
+        message: Optional[str] = None,
+        link: Optional[str] = None,
+        attached_media: Optional[List[Dict[str, Any]]] = None,
+    ) -> str:
         """
         Create a Facebook post.
 
@@ -165,19 +166,16 @@ class FacebookAPI(BaseAPI):
         self.auth_manager.ensure_authenticated()
 
         if not self.client:
-            raise Exception('Facebook API not authenticated')
+            raise Exception("Facebook API not authenticated")
 
-        await self._rate_limit_check('post', 1.0)
+        await self._rate_limit_check("post", 1.0)
 
         try:
             return await self.client.create_post(
-                object_id=object_id,
-                message=message,
-                link=link,
-                attached_media=attached_media
+                object_id=object_id, message=message, link=link, attached_media=attached_media
             )
         except Exception as e:
-            self._handle_api_error(e, 'Facebook post creation')
+            self._handle_api_error(e, "Facebook post creation")
             raise
 
     async def upload_media(self, object_id: str, media_url: str, published: bool = False) -> Dict[str, Any]:
@@ -198,14 +196,14 @@ class FacebookAPI(BaseAPI):
         self.auth_manager.ensure_authenticated()
 
         if not self.client:
-            raise Exception('Facebook API not authenticated')
+            raise Exception("Facebook API not authenticated")
 
-        await self._rate_limit_check('upload_media', 1.0)
+        await self._rate_limit_check("upload_media", 1.0)
 
         try:
             return await self.client.upload_media(object_id, media_url, published)
         except Exception as e:
-            self._handle_api_error(e, 'Facebook media upload')
+            self._handle_api_error(e, "Facebook media upload")
             raise
 
     async def like(self, object_id: str, post_id: str) -> str:
@@ -225,14 +223,14 @@ class FacebookAPI(BaseAPI):
         self.auth_manager.ensure_authenticated()
 
         if not self.client:
-            raise Exception('Facebook API not authenticated')
+            raise Exception("Facebook API not authenticated")
 
-        await self._rate_limit_check('like', 0.5)
+        await self._rate_limit_check("like", 0.5)
 
         try:
             return await self.client.like_post(object_id, post_id)
         except Exception as e:
-            self._handle_api_error(e, 'Facebook like')
+            self._handle_api_error(e, "Facebook like")
             raise
 
     async def delete(self, object_id: str, post_id: str) -> str:
@@ -252,14 +250,14 @@ class FacebookAPI(BaseAPI):
         self.auth_manager.ensure_authenticated()
 
         if not self.client:
-            raise Exception('Facebook API not authenticated')
+            raise Exception("Facebook API not authenticated")
 
-        await self._rate_limit_check('delete', 0.5)
+        await self._rate_limit_check("delete", 0.5)
 
         try:
             return await self.client.delete_post(object_id, post_id)
         except Exception as e:
-            self._handle_api_error(e, 'Facebook delete')
+            self._handle_api_error(e, "Facebook delete")
             raise
 
     async def share(self, profile_id: str, object_id: str, post_id: str) -> str:
@@ -280,14 +278,14 @@ class FacebookAPI(BaseAPI):
         self.auth_manager.ensure_authenticated()
 
         if not self.client:
-            raise Exception('Facebook API not authenticated')
+            raise Exception("Facebook API not authenticated")
 
-        await self._rate_limit_check('share', 1.0)
+        await self._rate_limit_check("share", 1.0)
 
         try:
             return await self.client.share_post(profile_id, object_id, post_id)
         except Exception as e:
-            self._handle_api_error(e, 'Facebook share')
+            self._handle_api_error(e, "Facebook share")
             raise
 
     async def upload_reel_or_story(self, object_id: str, video_type: str, status_text: str, video_url: str) -> str:
@@ -309,25 +307,26 @@ class FacebookAPI(BaseAPI):
         self.auth_manager.ensure_authenticated()
 
         if not self.client:
-            raise Exception('Facebook API not authenticated')
+            raise Exception("Facebook API not authenticated")
 
-        await self._rate_limit_check('upload_reel_or_story', 1.0)
+        await self._rate_limit_check("upload_reel_or_story", 1.0)
 
         try:
             return await self.client.upload_reel_or_story(object_id, video_type, status_text, video_url)
         except Exception as e:
-            self._handle_api_error(e, 'Facebook reel or story upload')
+            self._handle_api_error(e, "Facebook reel or story upload")
             raise
 
     async def upload_regular_video(
-            self,
-            object_id: str,
-            video_content: bytes,
-            video_file_type: str,
-            video_file_size: int,
-            video_filename: str,
-            status_text: str,
-            video_title: str) -> str:
+        self,
+        object_id: str,
+        video_content: bytes,
+        video_file_type: str,
+        video_file_size: int,
+        video_filename: str,
+        status_text: str,
+        video_title: str,
+    ) -> str:
         """
         Upload a regular video to Facebook.
 
@@ -349,18 +348,24 @@ class FacebookAPI(BaseAPI):
         self.auth_manager.ensure_authenticated()
 
         if not self.client:
-            raise Exception('Facebook API not authenticated')
+            raise Exception("Facebook API not authenticated")
 
-        await self._rate_limit_check('upload_regular_video', 1.0)
+        await self._rate_limit_check("upload_regular_video", 1.0)
 
         if not self.app_id:
-            raise Exception('Facebook app ID is required for regular video uploads')
+            raise Exception("Facebook app ID is required for regular video uploads")
 
         try:
             return await self.client.upload_regular_video(
-                object_id, self.app_id, video_content, video_file_type,
-                video_file_size, video_filename, status_text, video_title
+                object_id,
+                self.app_id,
+                video_content,
+                video_file_type,
+                video_file_size,
+                video_filename,
+                status_text,
+                video_title,
             )
         except Exception as e:
-            self._handle_api_error(e, 'Facebook regular video upload')
+            self._handle_api_error(e, "Facebook regular video upload")
             raise

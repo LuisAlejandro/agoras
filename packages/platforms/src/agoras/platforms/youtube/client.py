@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.youtube.client module."""
 
 import asyncio
 import http.client as httplib
@@ -37,10 +38,15 @@ class YouTubeAPIClient:
     # Constants for retry logic
     MAX_RETRIES = 10
     RETRIABLE_EXCEPTIONS = (
-        httplib2.HttpLib2Error, IOError, httplib.NotConnected,
-        httplib.IncompleteRead, httplib.ImproperConnectionState,
-        httplib.CannotSendRequest, httplib.CannotSendHeader,
-        httplib.ResponseNotReady, httplib.BadStatusLine
+        httplib2.HttpLib2Error,
+        IOError,
+        httplib.NotConnected,
+        httplib.IncompleteRead,
+        httplib.ImproperConnectionState,
+        httplib.CannotSendRequest,
+        httplib.CannotSendHeader,
+        httplib.ResponseNotReady,
+        httplib.BadStatusLine,
     )
     RETRIABLE_STATUS_CODES = [500, 502, 503, 504]
 
@@ -72,9 +78,10 @@ class YouTubeAPIClient:
             return True
 
         if not self.access_token:
-            raise Exception('YouTube access token is required')
+            raise Exception("YouTube access token is required")
 
         try:
+
             def _sync_create():
                 # Create a custom HTTP object that includes the Bearer token
                 http_instance = httplib2.Http()
@@ -85,11 +92,11 @@ class YouTubeAPIClient:
                         self.http = http_obj
                         self.access_token = access_token
 
-                    def request(self, uri, method='GET', body=None, headers=None, **kwargs):
+                    def request(self, uri, method="GET", body=None, headers=None, **kwargs):
                         if headers is None:
                             headers = {}
                         # Add authorization header
-                        headers['Authorization'] = f'Bearer {self.access_token}'
+                        headers["Authorization"] = f"Bearer {self.access_token}"
                         return self.http.request(uri, method, body, headers, **kwargs)
 
                     def __getattr__(self, name):
@@ -105,7 +112,7 @@ class YouTubeAPIClient:
             self._authenticated = True
             return True
         except Exception as e:
-            raise Exception(f'YouTube client authentication failed: {str(e)}')
+            raise Exception(f"YouTube client authentication failed: {str(e)}")
 
     def disconnect(self):
         """
@@ -119,7 +126,7 @@ class YouTubeAPIClient:
         try:
             _, response = request.next_chunk()
             if response is not None:
-                if 'id' in response:
+                if "id" in response:
                     return response, None, retry
                 else:
                     raise Exception(f"Upload failed with unexpected response: {response}")
@@ -141,13 +148,20 @@ class YouTubeAPIClient:
         if retry > self.MAX_RETRIES:
             raise Exception("No longer attempting to retry.")
 
-        max_sleep = 2 ** retry
+        max_sleep = 2**retry
         sleep_seconds = random.random() * max_sleep
         time.sleep(sleep_seconds)
         return retry
 
-    async def upload_video(self, video_file_path: str, title: str, description: str,
-                           category_id: str, privacy_status: str, keywords: Optional[str] = None) -> Dict[str, Any]:
+    async def upload_video(
+        self,
+        video_file_path: str,
+        title: str,
+        description: str,
+        category_id: str,
+        privacy_status: str,
+        keywords: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Upload a video to YouTube.
 
@@ -165,9 +179,10 @@ class YouTubeAPIClient:
         Raises:
             Exception: If upload fails
         """
+
         def _sync_upload():
             if not self.youtube_client:
-                raise Exception('YouTube client not initialized')
+                raise Exception("YouTube client not initialized")
 
             retry = 0
             response = None
@@ -178,22 +193,15 @@ class YouTubeAPIClient:
                 tags = keywords.split(",")
 
             body = {
-                'snippet': {
-                    'title': title,
-                    'description': description,
-                    'tags': tags,
-                    'categoryId': category_id
-                },
-                'status': {
-                    'privacyStatus': privacy_status
-                }
+                "snippet": {"title": title, "description": description, "tags": tags, "categoryId": category_id},
+                "status": {"privacyStatus": privacy_status},
             }
 
             # Call the API's videos.insert method to create and upload the video
             request = self.youtube_client.videos().insert(
                 part=",".join(body.keys()),
                 body=body,
-                media_body=http.MediaFileUpload(video_file_path, chunksize=-1, resumable=True)
+                media_body=http.MediaFileUpload(video_file_path, chunksize=-1, resumable=True),
             )
 
             while response is None:
@@ -220,14 +228,12 @@ class YouTubeAPIClient:
         Raises:
             Exception: If like operation fails
         """
+
         def _sync_like():
             if not self.youtube_client:
-                raise Exception('YouTube client not initialized')
+                raise Exception("YouTube client not initialized")
 
-            request = self.youtube_client.videos().rate(
-                id=video_id,
-                rating="like"
-            )
+            request = self.youtube_client.videos().rate(id=video_id, rating="like")
             request.execute()
 
         return await asyncio.to_thread(_sync_like)
@@ -242,9 +248,10 @@ class YouTubeAPIClient:
         Raises:
             Exception: If delete operation fails
         """
+
         def _sync_delete():
             if not self.youtube_client:
-                raise Exception('YouTube client not initialized')
+                raise Exception("YouTube client not initialized")
 
             request = self.youtube_client.videos().delete(id=video_id)
             request.execute()
@@ -261,28 +268,26 @@ class YouTubeAPIClient:
         Raises:
             Exception: If request fails
         """
+
         def _sync_get_channel_info():
             if not self.youtube_client:
-                raise Exception('YouTube client not initialized')
+                raise Exception("YouTube client not initialized")
 
             # Get channel information for the authenticated user
-            request = self.youtube_client.channels().list(
-                part='snippet,statistics',
-                mine=True
-            )
+            request = self.youtube_client.channels().list(part="snippet,statistics", mine=True)
             response = request.execute()
 
-            if not response.get('items'):
-                raise Exception('No YouTube channel found for authenticated user')
+            if not response.get("items"):
+                raise Exception("No YouTube channel found for authenticated user")
 
-            channel = response['items'][0]
+            channel = response["items"][0]
             return {
-                'channel_id': channel['id'],
-                'channel_title': channel['snippet']['title'],
-                'description': channel['snippet'].get('description', ''),
-                'subscriber_count': channel['statistics'].get('subscriberCount', 0),
-                'video_count': channel['statistics'].get('videoCount', 0),
-                'view_count': channel['statistics'].get('viewCount', 0)
+                "channel_id": channel["id"],
+                "channel_title": channel["snippet"]["title"],
+                "description": channel["snippet"].get("description", ""),
+                "subscriber_count": channel["statistics"].get("subscriberCount", 0),
+                "video_count": channel["statistics"].get("videoCount", 0),
+                "view_count": channel["statistics"].get("viewCount", 0),
             }
 
         return await asyncio.to_thread(_sync_get_channel_info)
@@ -300,30 +305,28 @@ class YouTubeAPIClient:
         Raises:
             Exception: If request fails
         """
+
         def _sync_get_video_info():
             if not self.youtube_client:
-                raise Exception('YouTube client not initialized')
+                raise Exception("YouTube client not initialized")
 
-            request = self.youtube_client.videos().list(
-                part='snippet,statistics,status',
-                id=video_id
-            )
+            request = self.youtube_client.videos().list(part="snippet,statistics,status", id=video_id)
             response = request.execute()
 
-            if not response.get('items'):
-                raise Exception(f'Video {video_id} not found')
+            if not response.get("items"):
+                raise Exception(f"Video {video_id} not found")
 
-            video = response['items'][0]
+            video = response["items"][0]
             return {
-                'video_id': video['id'],
-                'title': video['snippet']['title'],
-                'description': video['snippet']['description'],
-                'channel_id': video['snippet']['channelId'],
-                'channel_title': video['snippet']['channelTitle'],
-                'privacy_status': video['status']['privacyStatus'],
-                'view_count': video['statistics'].get('viewCount', 0),
-                'like_count': video['statistics'].get('likeCount', 0),
-                'comment_count': video['statistics'].get('commentCount', 0)
+                "video_id": video["id"],
+                "title": video["snippet"]["title"],
+                "description": video["snippet"]["description"],
+                "channel_id": video["snippet"]["channelId"],
+                "channel_title": video["snippet"]["channelTitle"],
+                "privacy_status": video["status"]["privacyStatus"],
+                "view_count": video["statistics"].get("viewCount", 0),
+                "like_count": video["statistics"].get("likeCount", 0),
+                "comment_count": video["statistics"].get("commentCount", 0),
             }
 
         return await asyncio.to_thread(_sync_get_video_info)
@@ -342,16 +345,12 @@ class YouTubeAPIClient:
         Raises:
             Exception: If search fails
         """
+
         def _sync_search():
             if not self.youtube_client:
-                raise Exception('YouTube client not initialized')
+                raise Exception("YouTube client not initialized")
 
-            request = self.youtube_client.search().list(
-                part='snippet',
-                type='video',
-                q=query,
-                maxResults=max_results
-            )
+            request = self.youtube_client.search().list(part="snippet", type="video", q=query, maxResults=max_results)
             return request.execute()
 
         return await asyncio.to_thread(_sync_search)

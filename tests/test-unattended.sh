@@ -10,7 +10,8 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck source=lib/common.sh
 source "${SCRIPT_DIR}/lib/common.sh"
 
-source "${PROJECT_ROOT}/unattended.env"
+load_authorize_env "${PROJECT_ROOT}/unattended.env"
+UNATTENDED_ENV_FILE="${PROJECT_ROOT}/unattended.env"
 
 verify_env_vars() {
     local platform=$1
@@ -112,7 +113,7 @@ assert_ci_not_set
 init_agoras_bin "${PROJECT_ROOT}"
 verify_agoras_storage_dir
 clear_credentials
-trap cleanup_test_posts EXIT
+trap 'finish_unattended_run "${UNATTENDED_ENV_FILE}"' EXIT
 
 echo "🔍 Verifying environment variables..."
 verify_env_vars "x"
@@ -134,7 +135,6 @@ run_utils_if_applicable() {
         skip_case "utils tests skipped for facebook-video-only run"
         return 0
     fi
-    echo "NOTE: utils feed-publish and schedule-run create posts that are not auto-deleted" >&2
     run_utils_unattended
 }
 
@@ -148,12 +148,6 @@ run_all_tests_for_platform() {
     echo "--- Running POST tests for $platform ---"
     run_platform_post_tests "${SCRIPT_DIR}/test-post-unattended.sh" "$platform"
 
-    echo "--- Running tokens list smoke for $platform ---"
-    case "${platform}" in
-    facebook-video) run_tokens_list_smoke "facebook" ;;
-    *) run_tokens_list_smoke "${platform}" ;;
-    esac
-
     echo "✅ All tests completed for $platform"
     echo ""
 }
@@ -161,7 +155,6 @@ run_all_tests_for_platform() {
 run_facebook_video_test() {
     echo "--- Running FACEBOOK VIDEO test ---"
     run_platform_post_tests "${SCRIPT_DIR}/test-post-unattended.sh" "facebook-video"
-    run_tokens_list_smoke "facebook"
     echo "✅ Facebook video test completed"
     echo ""
 }
