@@ -66,12 +66,13 @@ class LinkedInAuthManager(BaseAuthManager):
         Returns:
             bool: True if authentication successful, False otherwise
         """
+        self.last_auth_failure = None
         if not self._validate_credentials():
-            return False
+            return self._missing_credentials_failed()
 
         # If we don't have a refresh token, fail fast (don't trigger OAuth)
         if not self.refresh_token:
-            return False
+            return self._missing_credentials_failed()
 
         try:
             # Refresh access token using authlib's built-in method
@@ -90,8 +91,8 @@ class LinkedInAuthManager(BaseAuthManager):
                 self.user_info = await self._get_user_info()
 
             return True
-        except Exception:
-            return False
+        except Exception as exc:
+            return self._authentication_failed(exc)
 
     async def authorize(self) -> Optional[str]:
         """
@@ -138,14 +139,11 @@ class LinkedInAuthManager(BaseAuthManager):
                 access_token = token.get("access_token")
                 if access_token:
                     refresh_token = token.get("refresh_token")
-                    if refresh_token:
-                        self.refresh_token = refresh_token
-                    else:
-                        # Use access token as refresh token if no refresh token provided
-                        self.refresh_token = access_token
-
+                    if not refresh_token:
+                        raise Exception("No refresh token in LinkedIn response")
+                    self.refresh_token = refresh_token
                     return access_token
-                    raise Exception("No refresh token or access token in LinkedIn response")
+                raise Exception("No access token in LinkedIn response")
 
             access_token = await asyncio.to_thread(_sync_exchange)
             if access_token:
@@ -180,10 +178,8 @@ class LinkedInAuthManager(BaseAuthManager):
                     token_url="https://www.linkedin.com/oauth/v2/accessToken", refresh_token=self.refresh_token
                 )
                 return token_data
-            except Exception:
-                # If refresh fails, the stored token might be an access token
-                # In this case, return it as-is (LinkedIn tokens can be long-lived)
-                return {"access_token": self.refresh_token, "token_type": "bearer"}
+            except Exception as exc:
+                raise Exception(f"Token refresh failed: 401 {exc}") from exc
 
         return await asyncio.to_thread(_sync_refresh)
 

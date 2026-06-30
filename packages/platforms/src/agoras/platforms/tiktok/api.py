@@ -23,6 +23,7 @@ import time
 from typing import Any, Dict, List
 
 from agoras.core.api_base import BaseAPI
+from agoras.core.auth import raise_authentication_error_from_manager
 
 from .auth import TikTokAuthManager
 
@@ -83,7 +84,7 @@ class TikTokAPI(BaseAPI):
 
         success = await self.auth_manager.authenticate()
         if not success:
-            raise Exception("TikTok authentication failed")
+            raise_authentication_error_from_manager(self.auth_manager)
 
         self.client = self.auth_manager.client
         self._authenticated = True

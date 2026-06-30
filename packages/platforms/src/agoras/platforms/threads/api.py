@@ -21,6 +21,7 @@ import asyncio
 from typing import Any, Dict, List, Optional, Tuple
 
 from agoras.core.api_base import BaseAPI
+from agoras.core.auth import raise_authentication_error_from_manager
 from agoras.media import MediaFactory
 from agoras.media.errors import MediaValidationError
 
@@ -79,7 +80,7 @@ class ThreadsAPI(BaseAPI):
 
         success = await self.auth_manager.authenticate()
         if not success:
-            raise Exception("Threads authentication failed")
+            raise_authentication_error_from_manager(self.auth_manager)
 
         self.client = self.auth_manager.client
         self._authenticated = True

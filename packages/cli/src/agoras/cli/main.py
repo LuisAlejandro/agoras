@@ -28,6 +28,7 @@ from argparse import ArgumentParser
 
 from agoras.common.logger import logger
 from agoras.common.version import __description__, __version__
+from agoras.core.auth import AuthenticationError
 
 from .legacy import create_legacy_publish_parser
 from .platforms.discord import create_discord_parser
@@ -134,6 +135,9 @@ def main(argv=None):
         status = args.command(args)
     except KeyboardInterrupt:
         logger.critical("Execution interrupted by user!")
+        status = 1
+    except AuthenticationError as exc:
+        print(str(exc), file=sys.stderr)
         status = 1
     except Exception as e:
         logger.exception(e)

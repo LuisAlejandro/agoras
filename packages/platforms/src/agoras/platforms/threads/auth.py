@@ -51,16 +51,17 @@ class ThreadsAuthManager(BaseAuthManager):
         Returns:
             bool: True if authentication successful, False otherwise
         """
+        self.last_auth_failure = None
         # If already authenticated, return True
         if self.authenticated:
             return True
 
         if not self._validate_credentials():
-            return False
+            return self._missing_credentials_failed()
 
         # If we don't have a refresh token, fail fast (don't trigger OAuth)
         if not self.refresh_token:
-            return False
+            return self._missing_credentials_failed()
 
         try:
             token_data = await self._refresh_or_get_token()
@@ -77,8 +78,8 @@ class ThreadsAuthManager(BaseAuthManager):
                 self.user_info = await self._get_user_info()
 
             return True
-        except Exception:
-            return False
+        except Exception as exc:
+            return self._authentication_failed(exc)
 
     async def authorize(self) -> Optional[str]:
         """
@@ -202,7 +203,7 @@ class ThreadsAuthManager(BaseAuthManager):
                 timeout=30,
             )
             if response.status_code != 200:
-                raise Exception(f"Token refresh failed: HTTP {response.status_code} - {response.text}")
+                raise Exception(f"Token refresh failed: {response.status_code} {response.text}")
 
             data = response.json()
             access_token = data.get("access_token")
