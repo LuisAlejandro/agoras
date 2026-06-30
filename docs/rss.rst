@@ -2,8 +2,9 @@ RSS Feed Automation
 ===================
 
 .. note::
-   **New in version 2.0**: Feed automation now uses ``agoras utils feed-publish`` command.
-   See the :doc:`migration guide <migration>` for upgrading from ``agoras publish --action last-from-feed``.
+
+   Feed automation uses ``agoras utils feed-publish``.
+   See the :doc:`migration guide <migration/index>` for upgrading from ``agoras publish --action last-from-feed``.
 
 Agoras can automatically publish content from RSS/Atom feeds to any supported social network. This is useful for automatically sharing blog posts, news articles, or other syndicated content.
 
@@ -33,21 +34,17 @@ Using Feed Automation
 Publish Last Entry
 ~~~~~~~~~~~~~~~~~~
 
-Publish the most recent entry from an RSS feed::
+Publish the most recent entry from an RSS feed (run ``agoras x authorize`` first, or set ``TWITTER_*`` env vars)::
 
     agoras utils feed-publish \
       --network x \
       --mode last \
       --feed-url "https://blog.example.com/feed.xml" \
       --max-count 1 \
-      --post-lookback 3600 \
-      --x-consumer-key "${TWITTER_CONSUMER_KEY}" \
-      --x-consumer-secret "${TWITTER_CONSUMER_SECRET}" \
-      --x-oauth-token "${TWITTER_OAUTH_TOKEN}" \
-      --x-oauth-secret "${TWITTER_OAUTH_SECRET}"
+      --post-lookback 3600
 
 .. note::
-   The ``--network twitter`` and ``--twitter-*`` parameters are deprecated. Use ``--network x`` and ``--x-*`` parameters instead.
+   The ``--network twitter`` alias is deprecated. Use ``--network x`` instead.
 
 Publish Random Entry
 ~~~~~~~~~~~~~~~~~~~~
@@ -57,9 +54,7 @@ Publish a random entry from an RSS feed::
     agoras utils feed-publish \
       --network facebook \
       --mode random \
-      --feed-url "https://blog.example.com/feed.xml" \
-      --facebook-access-token "${FACEBOOK_ACCESS_TOKEN}" \
-      --facebook-object-id "${FACEBOOK_PAGE_ID}"
+      --feed-url "https://blog.example.com/feed.xml"
 
 Feed Options
 ------------
@@ -74,84 +69,12 @@ Feed Options
 Examples for All Platforms
 ---------------------------
 
-X (formerly Twitter)::
+Run ``agoras <platform> authorize`` once (or set platform env vars), then::
 
-    agoras utils feed-publish --network x --mode last \
-      --feed-url "https://example.com/feed.xml" \
-      --x-consumer-key "$KEY" \
-      --x-consumer-secret "$SECRET" \
-      --x-oauth-token "$TOKEN" \
-      --x-oauth-secret "$OAUTH_SECRET"
+    agoras utils feed-publish --network <platform> --mode last \
+      --feed-url "https://example.com/feed.xml"
 
-.. deprecated:: 2.0
-   The ``--network twitter`` and ``--twitter-*`` parameters are deprecated. Use ``--network x`` and ``--x-*`` parameters instead.
-
-Facebook::
-
-    agoras utils feed-publish --network facebook --mode last \
-      --feed-url "https://example.com/feed.xml" \
-      --facebook-access-token "$TOKEN" \
-      --facebook-object-id "$PAGE_ID"
-
-Instagram::
-
-    agoras utils feed-publish --network instagram --mode random \
-      --feed-url "https://example.com/feed.xml" \
-      --instagram-access-token "$TOKEN" \
-      --instagram-object-id "$ACCOUNT_ID"
-
-LinkedIn::
-
-    agoras utils feed-publish --network linkedin --mode last \
-      --feed-url "https://example.com/feed.xml" \
-      --linkedin-client-id "$CLIENT_ID" \
-      --linkedin-client-secret "$CLIENT_SECRET"
-
-Discord::
-
-    agoras utils feed-publish --network discord --mode last \
-      --feed-url "https://example.com/feed.xml" \
-      --discord-bot-token "$BOT_TOKEN" \
-      --discord-server-name "MyServer" \
-      --discord-channel-name "announcements"
-
-Telegram::
-
-    agoras utils feed-publish --network telegram --mode last \
-      --feed-url "https://example.com/feed.xml" \
-      --telegram-bot-token "$TOKEN" \
-      --telegram-chat-id "$CHAT_ID"
-
-WhatsApp::
-
-    agoras utils feed-publish --network whatsapp --mode last \
-      --feed-url "https://example.com/feed.xml" \
-      --whatsapp-access-token "$TOKEN" \
-      --whatsapp-phone-number-id "$PHONE_NUMBER_ID" \
-      --whatsapp-recipient "+1234567890"
-
-YouTube::
-
-    agoras utils feed-publish --network youtube --mode last \
-      --feed-url "https://example.com/feed.xml" \
-      --youtube-client-id "$CLIENT_ID" \
-      --youtube-client-secret "$CLIENT_SECRET"
-
-TikTok::
-
-    agoras utils feed-publish --network tiktok --mode last \
-      --feed-url "https://example.com/feed.xml" \
-      --tiktok-client-key "$KEY" \
-      --tiktok-client-secret "$SECRET" \
-      --tiktok-access-token "$TOKEN"
-
-Threads::
-
-    agoras utils feed-publish --network threads --mode last \
-      --feed-url "https://example.com/feed.xml" \
-      --threads-app-id "$APP_ID" \
-      --threads-app-secret "$APP_SECRET" \
-      --threads-refresh-token "$TOKEN"
+Replace ``<platform>`` with ``x``, ``facebook``, ``instagram``, ``linkedin``, ``discord``, ``telegram``, ``whatsapp``, ``youtube``, ``tiktok``, or ``threads``.
 
 Legacy Format (Deprecated)
 ---------------------------
@@ -169,4 +92,4 @@ Legacy format::
 .. note::
    The ``--network twitter`` parameter is deprecated. Use ``--network x`` instead.
 
-See the :doc:`migration guide <migration>` for more details.
+See the :doc:`migration guide <migration/index>` for more details.

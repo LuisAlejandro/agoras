@@ -43,4 +43,5 @@ Usage
 Dependencies
 ------------
 
-None (pure Python utilities)
+- requests
+- beautifulsoup4

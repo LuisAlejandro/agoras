@@ -35,7 +35,7 @@ Implement Features
 Look through the GitHub issues for features. Anything tagged with "feature"
 is open to whoever wants to implement it.
 
-Write Documentation
+Improve Documentation
 ~~~~~~~~~~~~~~~~~~~
 
 agoras could always use more documentation, whether as part of the
@@ -47,43 +47,44 @@ Submit Feedback
 
 The best way to send feedback is to file an issue at https://github.com/LuisAlejandro/agoras/issues.
 
+Suggest Features
+~~~~~~~~~~~~~~~~
+
+The best way to suggest a feature is to file an issue at https://github.com/LuisAlejandro/agoras/issues.
+
 If you are proposing a feature:
 
-* Explain in detail how it would work.
+* Explain the problem you are trying to solve.
+* Describe the behavior you want and any alternatives you considered.
 * Keep the scope as narrow as possible, to make it easier to implement.
-* Remember that this is a volunteer-driven project, and that contributions
-  are welcome :)
 
-Get Started!
-------------
+Local Development
+-----------------
 
-Ready to contribute? Here's how to set up `agoras` for local development.
+Ready to contribute? Set up ``agoras`` for local development.
 
-1. Fork the `agoras` repo on GitHub.
+1. Fork the ``agoras`` repo on GitHub.
 2. Clone your fork locally::
 
     $ git clone git@github.com:your_name_here/agoras.git
+    $ cd agoras
+    $ git checkout develop
 
-3. Install your local copy into a virtualenv. Assuming you have virtualenvwrapper installed, this is how you set up your fork for local development::
+3. Copy environment placeholders when you need credentials for integration tests::
 
-    $ mkvirtualenv agoras
-    $ cd agoras/
-    $ pip install -e packages/common -e packages/media -e packages/core -e packages/platforms -e packages/cli
+    $ cp .env.example .env
 
-4. Create a branch for local development::
+4. Start the Docker development environment::
+
+    $ make image
+    $ make start
+    $ make console    # optional interactive shell
+
+   Alternatively, create a host virtualenv with ``make virtualenv`` and activate ``./virtualenv/bin/activate``.
+
+5. Create a branch for local development::
 
     $ git checkout -b name-of-your-bugfix-or-feature
-
-   Now you can make your changes locally.
-
-5. When you're done making changes, check that your changes pass flake8 and the tests, including testing other Python versions with tox::
-
-    $ pip install -r requirements-dev.txt  # Install development dependencies
-    $ tox -e lint
-    $ tox -e all
-
-   Development dependencies are managed in ``requirements-dev.txt`` and include:
-   pytest, coverage, flake8, pydocstyle, tox, and build tools.
 
 6. Commit your changes and push your branch to GitHub::
 
@@ -92,6 +93,32 @@ Ready to contribute? Here's how to set up `agoras` for local development.
     $ git push origin name-of-your-bugfix-or-feature
 
 7. Submit a pull request through the GitHub website.
+
+Quality Checks
+--------------
+
+Prefer Docker-backed ``make`` targets when developing with containers::
+
+    $ make lint
+    $ make format
+    $ make test
+
+Or run tox directly on the host::
+
+    $ pip install -r requirements-dev.txt
+    $ tox -e lint
+    $ tox -e format
+    $ tox -e coverage
+    $ tox -e all
+
+Development dependencies are managed in ``requirements-dev.txt`` and include
+pytest, coverage, Ruff, Pyright, pydocstyle, bandit, tox, and build tools.
+
+If you develop with Docker and ``requirements-dev.txt`` changes after a pull,
+rebuild the image so the container picks up new tools (``make start`` alone does
+not rebuild an existing image)::
+
+    $ make image
 
 Monorepo Development (v2.0)
 ----------------------------
@@ -104,7 +131,7 @@ Development Setup
 
 Prerequisites:
 
-* Python 3.9 or higher
+* Python 3.10 or higher
 * Git
 * pip
 
@@ -207,15 +234,13 @@ Test a single package::
 
 Test a specific package with tox::
 
-    $ tox -e py39-common    # Test common package on Python 3.9
     $ tox -e py310-media     # Test media package on Python 3.10
     $ tox -e py311-core      # Test core package on Python 3.11
     $ tox -e py312-platforms # Test platforms package on Python 3.12
-    $ tox -e py39-cli        # Test CLI package on Python 3.9
 
 Test all packages with tox::
 
-    $ tox                    # Tests all packages on all Python versions (3.9, 3.10, 3.11, 3.12)
+    $ tox                    # Tests all packages on all Python versions (3.10, 3.11, 3.12, 3.13, 3.14)
 
 Test all packages together (integration)::
 
@@ -245,7 +270,7 @@ Testing Best Practices
 2. **Test dependencies**: If you change a lower-level package, test all dependent packages
 3. **Integration tests**: Run integration tests when making cross-package changes
 4. **Coverage**: Aim to maintain or improve test coverage
-5. **Python versions**: Ensure tests pass on all supported Python versions (3.9-3.12)
+5. **Python versions**: Ensure tests pass on all supported Python versions (3.10-3.14)
 
 Building Packages
 ~~~~~~~~~~~~~~~~~
@@ -262,103 +287,6 @@ Build all packages::
           python -m build
           cd ../..
       done
-
-Release Process (v2.0)
-~~~~~~~~~~~~~~~~~~~~~~~
-
-Agoras v2.0 uses a multi-package release process. All 5 packages must be released in dependency order.
-
-Prerequisites
--------------
-
-* Clean git working directory
-* All tests passing
-* All packages built successfully
-* GitHub release created (triggers automated publishing)
-
-Release Steps
--------------
-
-1. **Version Bumping**: All packages are versioned together (e.g., 2.0.0)
-
-   The version is managed in ``packages/common/src/agoras/common/version.py``
-   and all packages reference this version.
-
-2. **Create Release**: Use the release script::
-
-    $ ./scripts/release.sh [major|minor|patch] [Release Name]
-
-   This script:
-   * Bumps version in all packages
-   * Creates a git tag
-   * Creates a GitHub release
-   * Triggers GitHub Actions workflow
-
-3. **Automated Publishing**: GitHub Actions automatically:
-
-   * Builds all 5 packages in parallel
-   * Publishes to PyPI in dependency order:
-     1. agoras-common
-     2. agoras-media (waits for common)
-     3. agoras-core (waits for media)
-     4. agoras-platforms (waits for core)
-     5. agoras (CLI) (waits for platforms)
-   * Uploads build artifacts to GitHub release
-
-4. **Verification**: After release, verify packages are available::
-
-    $ pip install agoras-common==2.0.0
-    $ pip install agoras-media==2.0.0
-    $ pip install agoras-core==2.0.0
-    $ pip install agoras-platforms==2.0.0
-    $ pip install agoras==2.0.0
-
-Release Workflow
-----------------
-
-The release process follows this workflow:
-
-1. Developer runs ``./scripts/release.sh patch "Bug Fix Release"``
-2. Script bumps versions, creates tag, creates GitHub release
-3. GitHub Actions workflow triggers on release creation
-4. Workflow builds all packages in parallel
-5. Workflow publishes packages to PyPI sequentially (with waits between)
-6. Packages become available on PyPI
-
-Hotfix Process
---------------
-
-For urgent fixes, use the hotfix script::
-
-    $ ./scripts/hotfix.sh [major|minor|patch] [Hotfix Name]
-
-This follows the same process but creates a hotfix branch and merges to both develop and master.
-
-Manual Release (Not Recommended)
----------------------------------
-
-If you need to release manually (not recommended):
-
-1. Update version in ``packages/common/src/agoras/common/version.py``
-2. Build all packages::
-
-    $ for pkg in common media core platforms cli; do
-          cd packages/$pkg
-          python -m build
-          cd ../..
-      done
-
-3. Publish to PyPI in order::
-
-    $ twine upload packages/common/dist/*
-    # Wait 30 seconds
-    $ twine upload packages/media/dist/*
-    # Wait 30 seconds
-    $ twine upload packages/core/dist/*
-    # Wait 30 seconds
-    $ twine upload packages/platforms/dist/*
-    # Wait 30 seconds
-    $ twine upload packages/cli/dist/*
 
 Testing Package Installation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -383,17 +311,13 @@ Test that packages install correctly::
 Code Style
 ~~~~~~~~~~
 
-Run linting::
+Lint and format production source under ``packages/*/src/agoras`` with tox
+(Ruff format check, Ruff lint, pydocstyle, bandit, and Pyright)::
 
-    $ flake8 packages/common/src/agoras
-    $ flake8 packages/media/src/agoras
-    $ flake8 packages/core/src/agoras
-    $ flake8 packages/platforms/src/agoras
-    $ flake8 packages/cli/src/agoras
+    $ tox -e lint
+    $ tox -e format
 
-Format code::
-
-    $ autopep8 --in-place --recursive packages/*/src/agoras
+Docker users can run the same checks via ``make lint`` and ``make format``.
 
 Common Development Workflows
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -415,7 +339,7 @@ Making Changes to a Single Package
 
 5. Run linting::
 
-    $ flake8 src/agoras
+    $ tox -e lint
 
 6. Commit changes::
 
@@ -514,9 +438,9 @@ When submitting pull requests:
 
 * All 5 packages must pass their individual test suites
 * Integration tests must pass (CLI with all packages)
-* Linting must pass for all packages (flake8, pydocstyle)
+* Linting must pass for all packages (``tox -e lint``: Ruff, pydocstyle, bandit, Pyright)
 * Coverage reports are aggregated across packages
-* GitHub Actions will run tests on Python 3.9, 3.10, 3.11, 3.12
+* GitHub Actions will run tests on Python 3.10, 3.11, 3.12, 3.13, 3.14
 
 Pull Request Guidelines
 -----------------------
@@ -529,6 +453,15 @@ Before you submit a pull request, check that it meets these guidelines:
    feature to the list in README.rst.
 3. Check https://github.com/LuisAlejandro/agoras/actions
    and make sure that the tests pass for all supported Python versions.
+4. Keep scope focused and link related issues when applicable.
+
+Maintainer Notes
+----------------
+
+Releases, version bumps, PyPI publishing, and git tags are handled by maintainers
+(``make release-patch``, ``make release-minor``, ``make release-major``, and
+``make release-preflight``). Use ``make undo-release VERSION=x.y.z`` to roll back a
+botched release. Contributors do not need to publish packages or push release tags.
 
 Tips
 ----

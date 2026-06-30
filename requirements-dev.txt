@@ -2,31 +2,31 @@
 # Used during development and testing of the monorepo
 
 # Testing
-pytest==8.4.2
-pytest-asyncio==1.2.0
-pytest-cov==6.0.0
+pytest==9.1.1
+pytest-asyncio==1.4.0
+pytest-cov==7.1.0
 coverage==7.13.1
 
 # Code Quality
-flake8==7.3.0
+ruff==0.11.12
+pyright==1.1.400
 pydocstyle==6.3.0
-autopep8==2.3.2
-autoflake==2.3.1
+bandit==1.9.4
 
 # Build Tools
 build==1.4.0
-setuptools==80.9.0
-wheel==0.45.1
+setuptools==82.0.1
+wheel==0.47.0
 
 # Testing Orchestration
-tox==4.27.0
+tox==4.55.1
 
 # Documentation
 sphinx==7.4.7
-mako==1.3.11
+mako==1.3.12
 
 # Publishing
-twine==6.1.0
+twine==6.2.0
 
 # Version Management
 bumpversion==0.6.0

@@ -15,11 +15,13 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.tiktok.client module."""
 
 import json
 from typing import Any, Dict, List, Optional
 
 import requests
+
 from agoras.common import __version__
 
 
@@ -33,7 +35,8 @@ class TikTokAPIClient:
 
     # TikTok API URLs
     CREATOR_INFO_URL = "https://open.tiktokapis.com/v2/post/publish/creator_info/query/"
-    DIRECT_POST_URL = "https://open.tiktokapis.com/v2/post/publish/video/init/"
+    VIDEO_POST_URL = "https://open.tiktokapis.com/v2/post/publish/video/init/"
+    CONTENT_POST_URL = "https://open.tiktokapis.com/v2/post/publish/content/init/"
     GET_VIDEO_STATUS_URL = "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
 
     def __init__(self, access_token: Optional[str] = None):
@@ -56,36 +59,44 @@ class TikTokAPIClient:
             Exception: If API call fails or not authenticated
         """
         if not self.access_token:
-            raise Exception('No access token available')
+            raise Exception("No access token available")
 
         response = requests.post(
             self.CREATOR_INFO_URL,
             headers={
                 "Authorization": f"Bearer {self.access_token}",
                 "Content-Type": "application/json; charset=UTF-8",
-                'User-Agent': f'Agoras/{__version__}',
-            }
+                "User-Agent": f"Agoras/{__version__}",
+            },
+            timeout=30,
         )
         result = response.json()
 
-        if 'error' in result:
-            error_data = result.get('error', {})
+        if "error" in result:
+            error_data = result.get("error", {})
             # TikTok API returns 'error' key even on success with code 'ok'
-            if isinstance(error_data, dict) and error_data.get('code') == 'ok':
+            if isinstance(error_data, dict) and error_data.get("code") == "ok":
                 pass  # Not an error
             else:
                 raise Exception(f"Failed to get creator info: {result.get('message', 'Unknown error')}")
 
-        creator_data = result.get('data')
+        creator_data = result.get("data")
         if not creator_data:
-            raise Exception('No creator data in response')
+            raise Exception("No creator data in response")
 
         return creator_data
 
-    def upload_video(self, video_url: str, title: str, privacy_status: str,
-                     allow_comments: bool = True, allow_duet: bool = True,
-                     allow_stitch: bool = True, is_brand_organic: bool = False,
-                     is_brand_content: bool = False) -> Dict[str, Any]:
+    def upload_video(
+        self,
+        video_url: str,
+        title: str,
+        privacy_status: str,
+        allow_comments: bool = True,
+        allow_duet: bool = True,
+        allow_stitch: bool = True,
+        is_brand_organic: bool = False,
+        is_brand_content: bool = False,
+    ) -> Dict[str, Any]:
         """
         Upload a video to TikTok.
 
@@ -106,7 +117,7 @@ class TikTokAPIClient:
             Exception: If upload fails or not authenticated
         """
         if not self.access_token:
-            raise Exception('No access token available')
+            raise Exception("No access token available")
 
         data = {
             "post_info": {
@@ -126,59 +137,69 @@ class TikTokAPIClient:
         }
 
         response = requests.post(
-            self.DIRECT_POST_URL,
+            self.VIDEO_POST_URL,
             headers={
                 "Authorization": f"Bearer {self.access_token}",
                 "Content-Type": "application/json; charset=UTF-8",
-                'User-Agent': f'Agoras/{__version__}',
+                "User-Agent": f"Agoras/{__version__}",
             },
-            data=json.dumps(data)
+            data=json.dumps(data),
+            timeout=30,
         )
 
         result = response.json()
 
-        if 'error' in result:
-            error_data = result.get('error', {})
+        if "error" in result:
+            error_data = result.get("error", {})
             # TikTok API returns 'error' key even on success with code 'ok'
-            if isinstance(error_data, dict) and error_data.get('code') == 'ok':
+            if isinstance(error_data, dict) and error_data.get("code") == "ok":
                 pass  # Not an error
             else:
-                post_error_code = result.get('error', {}).get('code')
-                post_error_message = result.get('error', {}).get('message')
-                raise Exception(f'Error uploading video: [{post_error_code}] {post_error_message}')
+                post_error_code = result.get("error", {}).get("code")
+                post_error_message = result.get("error", {}).get("message")
+                raise Exception(f"Error uploading video: [{post_error_code}] {post_error_message}")
 
         return result
 
-    def upload_photo(self, photo_images: List[str], title: str, privacy_status: str,
-                     allow_comments: bool = True, is_brand_organic: bool = False,
-                     is_brand_content: bool = False, auto_add_music: bool = False) -> Dict[str, Any]:
+    def upload_photo(
+        self,
+        photo_images: List[str],
+        title: str,
+        privacy_status: str,
+        allow_comments: bool = True,
+        is_brand_organic: bool = False,
+        is_brand_content: bool = False,
+        auto_add_music: bool = False,
+        description: str = "",
+    ) -> Dict[str, Any]:
         """
         Upload photos to TikTok.
 
         Args:
-            photo_images (list): List of photo URLs
-            title (str): Post title
+            photo_images (list): List of photo URLs (up to 35 images)
+            title (str): Post title (max 90 UTF-16 runes)
             privacy_status (str): Privacy level
             allow_comments (bool): Whether to allow comments
             is_brand_organic (bool): Whether this is brand organic content
             is_brand_content (bool): Whether this is brand content
             auto_add_music (bool): Whether to auto-add music
+            description (str): Post description (max 4000 UTF-16 runes, optional)
 
         Returns:
-            dict: Upload response
+            dict: Upload response with publish_id in data.publish_id
 
         Raises:
             Exception: If upload fails or not authenticated
         """
         if not self.access_token:
-            raise Exception('No access token available')
+            raise Exception("No access token available")
 
         data = {
             "media_type": "PHOTO",
             "post_mode": "DIRECT_POST",
             "post_info": {
                 "title": title,
-                "description": "",
+                "description": description or "",  # Use provided description or empty string
                 "privacy_level": privacy_status,
                 "disable_comment": not allow_comments,
                 "auto_add_music": auto_add_music,
@@ -193,26 +214,27 @@ class TikTokAPIClient:
         }
 
         response = requests.post(
-            self.DIRECT_POST_URL,
+            self.CONTENT_POST_URL,  # Use content endpoint for photos
             headers={
                 "Authorization": f"Bearer {self.access_token}",
-                "Content-Type": "application/json",
-                'User-Agent': f'Agoras/{__version__}',
+                "Content-Type": "application/json; charset=UTF-8",  # Add charset
+                "User-Agent": f"Agoras/{__version__}",
             },
-            data=json.dumps(data)
+            data=json.dumps(data),
+            timeout=30,
         )
 
         result = response.json()
 
-        if 'error' in result:
-            error_data = result.get('error', {})
+        if "error" in result:
+            error_data = result.get("error", {})
             # TikTok API returns 'error' key even on success with code 'ok'
-            if isinstance(error_data, dict) and error_data.get('code') == 'ok':
+            if isinstance(error_data, dict) and error_data.get("code") == "ok":
                 pass  # Not an error
             else:
-                post_error_code = result.get('error', {}).get('code')
-                post_error_message = result.get('error', {}).get('message')
-                raise Exception(f'Error uploading photo: [{post_error_code}] {post_error_message}')
+                post_error_code = result.get("error", {}).get("code")
+                post_error_message = result.get("error", {}).get("message")
+                raise Exception(f"Error uploading photo: [{post_error_code}] {post_error_message}")
 
         return result
 
@@ -230,15 +252,16 @@ class TikTokAPIClient:
             Exception: If status check fails or not authenticated
         """
         if not self.access_token:
-            raise Exception('No access token available')
+            raise Exception("No access token available")
 
         response = requests.post(
             self.GET_VIDEO_STATUS_URL,
             headers={
                 "Authorization": f"Bearer {self.access_token}",
                 "Content-Type": "application/json; charset=UTF-8",
-                'User-Agent': f'Agoras/{__version__}',
+                "User-Agent": f"Agoras/{__version__}",
             },
             data=json.dumps({"publish_id": publish_id}),
+            timeout=30,
         )
         return response.json()

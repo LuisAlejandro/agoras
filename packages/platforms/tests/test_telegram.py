@@ -22,7 +22,7 @@ import pytest
 
 from agoras.platforms.telegram import Telegram
 from agoras.platforms.telegram.api import TelegramAPI
-from agoras.platforms.telegram.auth import TelegramAuthManager
+from agoras.platforms.telegram.auth import TelegramAuthManager, normalize_chat_id
 from agoras.platforms.telegram.client import TelegramAPIClient
 
 # Telegram Wrapper Tests
@@ -50,6 +50,7 @@ async def test_telegram_initialize_client(mock_api_class):
 
 
 @pytest.mark.asyncio
+@patch.dict('os.environ', {}, clear=True)
 @patch('agoras.platforms.telegram.auth.TelegramAuthManager._load_credentials_from_storage', return_value=False)
 async def test_telegram_initialize_client_missing_token(mock_load_credentials):
     """Test Telegram _initialize_client raises exception without token."""
@@ -60,7 +61,9 @@ async def test_telegram_initialize_client_missing_token(mock_load_credentials):
 
 
 @pytest.mark.asyncio
-async def test_telegram_initialize_client_missing_chat_id():
+@patch.dict('os.environ', {}, clear=True)
+@patch('agoras.platforms.telegram.auth.TelegramAuthManager._load_credentials_from_storage', return_value=False)
+async def test_telegram_initialize_client_missing_chat_id(mock_load_credentials):
     """Test Telegram _initialize_client raises exception without chat ID."""
     telegram = Telegram(telegram_bot_token='token')
 
@@ -122,6 +125,47 @@ def test_telegram_api_instantiation():
 
 
 # Telegram Auth Tests (Abstract - test via concrete usage)
+
+@pytest.mark.parametrize(
+    ('raw', 'expected'),
+    [
+        (None, None),
+        ('  12345  ', '12345'),
+        ('-1001234567890', '-1001234567890'),
+        ('mychannel', '@mychannel'),
+        ('@mychannel', '@mychannel'),
+    ],
+)
+def test_normalize_chat_id(raw, expected):
+    """Test Telegram chat ID normalization."""
+    assert normalize_chat_id(raw) == expected
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.telegram.auth.Bot')
+async def test_telegram_authorize_validates_chat_access(mock_bot_class):
+    """Test authorize validates chat ID with get_chat."""
+    mock_bot = MagicMock()
+    mock_bot.get_me = AsyncMock()
+    mock_bot.get_chat = AsyncMock()
+    mock_bot_class.return_value = mock_bot
+
+    auth_manager = TelegramAuthManager(bot_token='token', chat_id='12345')
+    result = await auth_manager.authorize()
+
+    assert result is not None
+    mock_bot.get_chat.assert_called_once_with('12345')
+
+
+@pytest.mark.asyncio
+@patch.dict('os.environ', {}, clear=True)
+async def test_telegram_authorize_requires_chat_id():
+    """Test authorize fails when chat ID is missing."""
+    auth_manager = TelegramAuthManager(bot_token='token')
+
+    with pytest.raises(Exception, match='Telegram chat ID is required'):
+        await auth_manager.authorize()
+
 
 def test_telegram_auth_class_exists():
     """Test TelegramAuthManager class exists."""

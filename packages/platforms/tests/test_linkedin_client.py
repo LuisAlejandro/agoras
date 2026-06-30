@@ -184,6 +184,100 @@ async def test_linkedin_client_upload_image_upload_failure(mock_to_thread, mock_
         await client.upload_image(b'content', 'urn:li:person:123')
 
 
+# Upload Video Tests
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.linkedin.client.requests.put')
+@patch('agoras.platforms.linkedin.client.asyncio.to_thread')
+async def test_linkedin_client_upload_video(mock_to_thread, mock_requests_put):
+    """Test LinkedInAPIClient upload_video method."""
+    client = LinkedInAPIClient('access_token')
+    mock_restli = MagicMock()
+    client.restli_client = mock_restli
+    client._authenticated = True
+
+    init_request = MagicMock()
+    init_request.response.json.return_value = {
+        'value': {
+            'video': 'urn:li:video:123',
+            'uploadToken': 'token',
+            'uploadInstructions': [{
+                'uploadUrl': 'http://upload.url',
+                'firstByte': 0,
+                'lastByte': 11,
+            }],
+        }
+    }
+    finalize_response = MagicMock()
+    finalize_response.status_code = 200
+    finalize_response.text = ''
+    status_request = MagicMock()
+    status_request.response.json.return_value = {'status': 'AVAILABLE'}
+    mock_restli.action.return_value = init_request
+    mock_restli.get.return_value = status_request
+
+    mock_upload_response = MagicMock()
+    mock_upload_response.status_code = 200
+    mock_upload_response.headers = {'etag': 'part-etag-1'}
+    mock_requests_put.return_value = mock_upload_response
+
+    def execute_sync(func):
+        return func()
+    mock_to_thread.side_effect = execute_sync
+
+    with patch.object(client, '_post_restli_action', return_value=finalize_response):
+        result = await client.upload_video(b'video-bytes!', 'urn:li:person:123')
+
+    assert result == 'urn:li:video:123'
+    mock_restli.action.assert_called_once()
+    mock_requests_put.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.linkedin.client.asyncio.to_thread')
+async def test_linkedin_client_upload_video_finalize_empty_body(mock_to_thread):
+    """finalizeUpload may return 200 with an empty body (not JSON)."""
+    client = LinkedInAPIClient('access_token')
+    mock_restli = MagicMock()
+    mock_session = MagicMock()
+    mock_restli.session = mock_session
+    client.restli_client = mock_restli
+    client._authenticated = True
+
+    empty_response = MagicMock()
+    empty_response.status_code = 200
+    empty_response.text = ''
+    mock_session.send.return_value = empty_response
+
+    prepared = MagicMock()
+    with patch(
+        'agoras.platforms.linkedin.client.maybe_apply_query_tunneling_requests_with_body',
+        return_value=prepared,
+    ):
+        response = client._post_restli_action(
+            '/videos',
+            'finalizeUpload',
+            {'finalizeUploadRequest': {'video': 'urn:li:video:1'}},
+        )
+
+    assert response.status_code == 200
+    mock_session.send.assert_called_once_with(prepared)
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.linkedin.client.asyncio.to_thread')
+async def test_linkedin_client_upload_video_not_initialized(mock_to_thread):
+    """Test LinkedInAPIClient upload_video raises error when not initialized."""
+    client = LinkedInAPIClient('access_token')
+
+    def execute_sync(func):
+        return func()
+    mock_to_thread.side_effect = execute_sync
+
+    with pytest.raises(Exception, match='RestliClient not initialized'):
+        await client.upload_video(b'content', 'urn:li:person:123')
+
+
 # Create Post Tests
 
 @pytest.mark.asyncio
@@ -241,6 +335,35 @@ async def test_linkedin_client_create_post_with_link(mock_to_thread):
     assert call_entity['content']['article']['source'] == 'http://link.com'
     assert call_entity['content']['article']['title'] == 'Link Title'
     assert call_entity['content']['article']['description'] == 'Link Description'
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.linkedin.client.asyncio.to_thread')
+async def test_linkedin_client_create_post_with_video(mock_to_thread):
+    """Test LinkedInAPIClient create_post with video."""
+    client = LinkedInAPIClient('access_token')
+    mock_restli = MagicMock()
+    mock_request = MagicMock()
+    mock_request.entity_id = 'post-123'
+    mock_restli.create.return_value = mock_request
+    client.restli_client = mock_restli
+    client._authenticated = True
+
+    def execute_sync(func):
+        return func()
+    mock_to_thread.side_effect = execute_sync
+
+    result = await client.create_post(
+        'urn:li:person:123',
+        'Test post',
+        video_id='urn:li:video:456',
+        video_title='My Video',
+    )
+
+    assert result == 'post-123'
+    call_entity = mock_restli.create.call_args[1]['entity']
+    assert call_entity['content']['media']['id'] == 'urn:li:video:456'
+    assert call_entity['content']['media']['title'] == 'My Video'
 
 
 @pytest.mark.asyncio

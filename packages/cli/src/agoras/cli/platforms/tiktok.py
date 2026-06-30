@@ -27,6 +27,7 @@ from agoras.platforms.tiktok.wrapper import main as tiktok_main
 
 from ..base import add_common_content_options
 from ..converter import ParameterConverter
+from ..media_help import video_url_help
 from ..validator import ActionValidator
 
 
@@ -41,34 +42,28 @@ def create_tiktok_parser(subparsers: _SubParsersAction) -> ArgumentParser:
         ArgumentParser for TikTok commands
     """
     parser = subparsers.add_parser(
-        'tiktok',
-        help='TikTok operations. Video upload requires Production app approval. Run "agoras tiktok authorize" first.'
+        "tiktok",
+        help='TikTok operations. Video upload requires Production app approval. Run "agoras tiktok authorize" first.',
     )
 
-    actions = parser.add_subparsers(
-        dest='action',
-        title='TikTok Actions',
-        required=True
-    )
+    actions = parser.add_subparsers(dest="action", title="TikTok Actions", required=True)
 
     # Authorize action
     authorize = actions.add_parser(
-        'authorize',
-        help='Authorize TikTok account (OAuth 2.0). Run this first before any other actions.'
+        "authorize", help="Authorize TikTok account (OAuth 2.0). Run this first before any other actions."
     )
     _add_tiktok_authorize_options(authorize)
 
     # Post action (photo slideshow)
     post = actions.add_parser(
-        'post',
-        help='Create a photo slideshow post on TikTok. Requires prior authorization via "agoras tiktok authorize".'
+        "post",
+        help='Create a photo slideshow post on TikTok. Requires prior authorization via "agoras tiktok authorize".',
     )
     _add_post_options(post)
 
     # Video action
     video = actions.add_parser(
-        'video',
-        help='Upload a video to TikTok. Requires Production app approval and prior authorization.'
+        "video", help="Upload a video to TikTok. Requires Production app approval and prior authorization."
     )
     _add_video_options(video)
 
@@ -85,28 +80,10 @@ def _add_tiktok_authorize_options(parser: ArgumentParser):
     Args:
         parser: ArgumentParser to add options to
     """
-    auth = parser.add_argument_group(
-        'TikTok OAuth Credentials',
-        'Get these from https://developers.tiktok.com'
-    )
-    auth.add_argument(
-        '--client-key',
-        required=True,
-        metavar='<key>',
-        help='TikTok App client key'
-    )
-    auth.add_argument(
-        '--client-secret',
-        required=True,
-        metavar='<secret>',
-        help='TikTok App client secret'
-    )
-    auth.add_argument(
-        '--username',
-        required=True,
-        metavar='<username>',
-        help='TikTok username for authentication'
-    )
+    auth = parser.add_argument_group("TikTok OAuth Credentials", "Get these from https://developers.tiktok.com")
+    auth.add_argument("--client-key", required=True, metavar="<key>", help="TikTok App client key")
+    auth.add_argument("--client-secret", required=True, metavar="<secret>", help="TikTok App client secret")
+    auth.add_argument("--username", required=True, metavar="<username>", help="TikTok username for authentication")
 
 
 def _add_post_options(parser: ArgumentParser):
@@ -120,43 +97,38 @@ def _add_post_options(parser: ArgumentParser):
     add_common_content_options(parser, images=4)
 
     # Add TikTok-specific post options
-    post_opts = parser.add_argument_group('TikTok Post Options')
+    post_opts = parser.add_argument_group("TikTok Post Options")
+    post_opts.add_argument("--title", metavar="<title>", help="Post title/caption")
     post_opts.add_argument(
-        '--title',
-        metavar='<title>',
-        help='Post title/caption'
+        "--privacy",
+        metavar="<status>",
+        default="SELF_ONLY",
+        choices=["PUBLIC_TO_EVERYONE", "MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR", "SELF_ONLY"],
+        help="Post privacy status (default: SELF_ONLY)",
     )
     post_opts.add_argument(
-        '--privacy',
-        metavar='<status>',
-        default='SELF_ONLY',
-        choices=['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS',
-                 'FOLLOWER_OF_CREATOR', 'SELF_ONLY'],
-        help='Post privacy status (default: SELF_ONLY)'
+        "--allow-comments", action="store_true", default=None, help="Allow comments on the post (default: true)"
     )
     post_opts.add_argument(
-        '--allow-comments',
-        action='store_true',
+        "--auto-add-music",
+        action="store_true",
         default=None,
-        help='Allow comments on the post (default: true)'
+        help="Automatically add music to the slideshow (default: false)",
     )
     post_opts.add_argument(
-        '--auto-add-music',
-        action='store_true',
+        "--brand-organic",
+        action="store_true",
         default=None,
-        help='Automatically add music to the slideshow (default: false)'
+        help='Mark content as promotional (displays "Promotional content" label)',
     )
     post_opts.add_argument(
-        '--brand-organic',
-        action='store_true',
+        "--brand-content",
+        action="store_true",
         default=None,
-        help='Mark content as promotional (displays "Promotional content" label)'
+        help='Mark content as paid partnership (displays "Paid partnership" label)',
     )
     post_opts.add_argument(
-        '--brand-content',
-        action='store_true',
-        default=None,
-        help='Mark content as paid partnership (displays "Paid partnership" label)'
+        "--description", metavar="<description>", help="Post description/caption (max 4000 UTF-16 runes)"
     )
 
 
@@ -167,55 +139,42 @@ def _add_video_options(parser: ArgumentParser):
     Args:
         parser: ArgumentParser to add options to
     """
-    video = parser.add_argument_group('Video Options')
+    video = parser.add_argument_group("Video Options")
+    video.add_argument("--video-url", required=True, metavar="<url>", help=video_url_help("tiktok"))
+    video.add_argument("--title", metavar="<title>", help="Video title/caption")
     video.add_argument(
-        '--video-url',
-        required=True,
-        metavar='<url>',
-        help='URL of video file to upload'
+        "--privacy",
+        metavar="<status>",
+        default="SELF_ONLY",
+        choices=["PUBLIC_TO_EVERYONE", "MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR", "SELF_ONLY"],
+        help="Video privacy status (default: SELF_ONLY)",
     )
     video.add_argument(
-        '--title',
-        metavar='<title>',
-        help='Video title/caption'
+        "--allow-comments", action="store_true", default=None, help="Allow comments on the video (default: true)"
     )
     video.add_argument(
-        '--privacy',
-        metavar='<status>',
-        default='SELF_ONLY',
-        choices=['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS',
-                 'FOLLOWER_OF_CREATOR', 'SELF_ONLY'],
-        help='Video privacy status (default: SELF_ONLY)'
-    )
-    video.add_argument(
-        '--allow-comments',
-        action='store_true',
+        "--allow-duet",
+        action="store_true",
         default=None,
-        help='Allow comments on the video (default: true)'
+        help="Allow other users to duet with your video (default: true)",
     )
     video.add_argument(
-        '--allow-duet',
-        action='store_true',
+        "--allow-stitch",
+        action="store_true",
         default=None,
-        help='Allow other users to duet with your video (default: true)'
+        help="Allow other users to stitch your video (default: true)",
     )
     video.add_argument(
-        '--allow-stitch',
-        action='store_true',
+        "--brand-organic",
+        action="store_true",
         default=None,
-        help='Allow other users to stitch your video (default: true)'
+        help='Mark content as promotional (displays "Promotional content" label)',
     )
     video.add_argument(
-        '--brand-organic',
-        action='store_true',
+        "--brand-content",
+        action="store_true",
         default=None,
-        help='Mark content as promotional (displays "Promotional content" label)'
-    )
-    video.add_argument(
-        '--brand-content',
-        action='store_true',
-        default=None,
-        help='Mark content as paid partnership (displays "Paid partnership" label)'
+        help='Mark content as paid partnership (displays "Paid partnership" label)',
     )
 
 
@@ -230,10 +189,10 @@ def _handle_tiktok_command(args: Namespace):
         Exit status from core execution
     """
     # Validate action
-    ActionValidator.validate('tiktok', args.action)
+    ActionValidator.validate("tiktok", args.action)
 
     # Convert new args to legacy format
-    converter = ParameterConverter('tiktok')
+    converter = ParameterConverter("tiktok")
     legacy_args = converter.convert_to_legacy(args)
 
     # Call core TikTok module

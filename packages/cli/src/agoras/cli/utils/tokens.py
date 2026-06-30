@@ -28,6 +28,10 @@ from typing import Optional
 
 from agoras.core.auth.storage import SecureTokenStorage
 
+from .unattended_format import format_unattended_env
+
+_SECURITY_WARNING = "WARNING: Output contains cleartext credentials. Do not pipe to logs or shared systems."
+
 
 def create_tokens_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     """
@@ -39,57 +43,46 @@ def create_tokens_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     Returns:
         ArgumentParser for tokens command
     """
-    parser = subparsers.add_parser(
-        'tokens',
-        help='View and manage stored authentication tokens'
-    )
+    parser = subparsers.add_parser("tokens", help="View and manage stored authentication tokens")
 
-    tokens_subparsers = parser.add_subparsers(
-        dest='tokens_command',
-        title='Token Commands',
-        required=True
-    )
+    tokens_subparsers = parser.add_subparsers(dest="tokens_command", title="Token Commands", required=True)
 
     # List command
-    list_parser = tokens_subparsers.add_parser(
-        'list',
-        help='List all stored tokens'
-    )
+    list_parser = tokens_subparsers.add_parser("list", help="List all stored tokens")
     list_parser.add_argument(
-        '--platform',
-        metavar='<platform>',
-        help='Filter by platform name (e.g., facebook, instagram)'
+        "--platform", metavar="<platform>", help="Filter by platform name (e.g., facebook, instagram)"
     )
     list_parser.set_defaults(command=_handle_list)
 
     # Show command
-    show_parser = tokens_subparsers.add_parser(
-        'show',
-        help='Show decrypted token data'
+    show_parser = tokens_subparsers.add_parser("show", help="Show decrypted token data")
+    show_parser.add_argument(
+        "--platform", required=True, metavar="<platform>", help="Platform name (e.g., facebook, instagram)"
     )
     show_parser.add_argument(
-        '--platform',
-        required=True,
-        metavar='<platform>',
-        help='Platform name (e.g., facebook, instagram)'
+        "--identifier",
+        metavar="<identifier>",
+        help="Token identifier (e.g., object_id, client_id). If not provided, shows all tokens for the platform",
     )
     show_parser.add_argument(
-        '--identifier',
-        metavar='<identifier>',
-        help='Token identifier (e.g., object_id, client_id). If not provided, shows all tokens for the platform'
+        "--field", metavar="<field>", help="Show only a specific field (e.g., refresh_token, client_id)"
     )
     show_parser.add_argument(
-        '--field',
-        metavar='<field>',
-        help='Show only a specific field (e.g., refresh_token, client_id)'
-    )
-    show_parser.add_argument(
-        '--format',
-        choices=['json', 'plain'],
-        default='plain',
-        help='Output format (default: plain)'
+        "--format", choices=["json", "plain"], default="plain", help="Output format (default: plain)"
     )
     show_parser.set_defaults(command=_handle_show)
+
+    unattended_parser = tokens_subparsers.add_parser(
+        "unattended-format", help="Export stored credentials as unattended.env variables (cleartext)"
+    )
+    unattended_parser.add_argument(
+        "--platform",
+        action="append",
+        metavar="<platform>",
+        dest="platforms",
+        help="Limit output to platform(s); default: all platforms with stored tokens",
+    )
+    unattended_parser.set_defaults(command=_handle_unattended_format)
 
     return parser
 
@@ -137,8 +130,7 @@ def _handle_show(args: Namespace) -> int:
         token_data = storage.load_token(args.platform, args.identifier)
         if not token_data:
             print(
-                f"Token not found for platform '{args.platform}' with identifier '{args.identifier}'.",
-                file=sys.stderr
+                f"Token not found for platform '{args.platform}' with identifier '{args.identifier}'.", file=sys.stderr
             )
             return 1
 
@@ -167,13 +159,34 @@ def _handle_show(args: Namespace) -> int:
     return 0
 
 
-def _display_token_data(
-    token_data: dict,
-    field: Optional[str],
-    format_type: str,
-    platform: str,
-    identifier: str
-):
+def _handle_unattended_format(args: Namespace) -> int:
+    """
+    Handle tokens unattended-format command.
+
+    Args:
+        args: Parsed command-line arguments
+
+    Returns:
+        Exit status code
+    """
+    print(_SECURITY_WARNING, file=sys.stderr)
+
+    storage = SecureTokenStorage()
+    output = format_unattended_env(storage, platforms_filter=args.platforms)
+
+    if output is None:
+        if args.platforms:
+            platforms = ", ".join(args.platforms)
+            print(f"No stored tokens found for platform(s): {platforms}.", file=sys.stderr)
+        else:
+            print("No stored tokens found.", file=sys.stderr)
+        return 1
+
+    sys.stdout.write(output)
+    return 0
+
+
+def _display_token_data(token_data: dict, field: Optional[str], format_type: str, platform: str, identifier: str):
     """
     Display token data in the requested format.
 
@@ -191,18 +204,14 @@ def _display_token_data(
             print(f"Available fields: {', '.join(token_data.keys())}", file=sys.stderr)
             sys.exit(1)
         value = token_data[field]
-        if format_type == 'json':
+        if format_type == "json":
             print(json.dumps({field: value}, indent=2))
         else:
             print(value)
     else:
         # Show all fields
-        if format_type == 'json':
-            output = {
-                'platform': platform,
-                'identifier': identifier,
-                'data': token_data
-            }
+        if format_type == "json":
+            output = {"platform": platform, "identifier": identifier, "data": token_data}
             print(json.dumps(output, indent=2))
         else:
             print(f"Platform: {platform}")
@@ -210,7 +219,7 @@ def _display_token_data(
             print("Data:")
             for key, value in token_data.items():
                 # Mask sensitive values for plain output
-                if 'token' in key.lower() or 'secret' in key.lower() or 'key' in key.lower():
+                if "token" in key.lower() or "secret" in key.lower() or "key" in key.lower():
                     masked_value = _mask_sensitive_value(value) if value else value
                     print(f"  {key}: {masked_value}")
                 else:

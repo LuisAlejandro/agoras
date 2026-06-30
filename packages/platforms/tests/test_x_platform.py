@@ -602,7 +602,9 @@ async def test_x_video_invalid_mime(mock_api_class):
     await x._initialize_client()
 
     with patch.object(x, 'download_video', return_value=mock_video):
-        with pytest.raises(Exception, match="Invalid video type"):
+        from agoras.media.errors import MediaValidationError
+
+        with pytest.raises(MediaValidationError, match='twitter'):
             await x.video('Test', 'video.avi', 'Title')
 
     mock_video.cleanup.assert_called_once()

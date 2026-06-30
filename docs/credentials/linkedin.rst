@@ -47,6 +47,17 @@ Get App Credentials
 2. Note your **Client ID** (this is your ``--client-id``).
 3. Note your **Client Secret** (this is your ``--client-secret``).
 
+Configure OAuth Redirect URI
+-----------------------------
+
+1. In your LinkedIn App dashboard, go to the **Auth** tab.
+2. Under "Authorized redirect URLs for your app", add the redirect URI: ``https://localhost:3456/callback``
+
+.. note::
+   The redirect URI is fixed to ``https://localhost:3456/callback``.
+
+3. Save changes
+
 Get Object ID (User/Organization ID)
 -------------------------------------
 

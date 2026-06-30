@@ -285,7 +285,7 @@ def test_list_tokens_skips_invalid_files(temp_storage):
 
 def test_seed_from_environment_with_env_var(temp_storage):
     """Test seed_from_environment saves token from env var."""
-    with patch.dict(os.environ, {'AGORAS_FACEBOOK_REFRESH_TOKEN': 'env_refresh_token'}):
+    with patch.dict(os.environ, {'FACEBOOK_REFRESH_TOKEN': 'env_refresh_token'}):
         result = temp_storage.seed_from_environment('facebook', 'user1')
 
         assert result is True
@@ -305,7 +305,7 @@ def test_seed_from_environment_returns_false_when_no_env(temp_storage):
 
 def test_seed_from_environment_uppercase_conversion(temp_storage):
     """Test seed_from_environment converts platform to uppercase for env var."""
-    with patch.dict(os.environ, {'AGORAS_INSTAGRAM_REFRESH_TOKEN': 'ig_token'}):
+    with patch.dict(os.environ, {'INSTAGRAM_REFRESH_TOKEN': 'ig_token'}):
         result = temp_storage.seed_from_environment('instagram', 'user1')
 
         assert result is True
@@ -313,7 +313,7 @@ def test_seed_from_environment_uppercase_conversion(temp_storage):
 
 def test_seed_from_environment_mixed_case_platform(temp_storage):
     """Test seed_from_environment handles mixed case platform names."""
-    with patch.dict(os.environ, {'AGORAS_LINKEDIN_REFRESH_TOKEN': 'li_token'}):
+    with patch.dict(os.environ, {'LINKEDIN_REFRESH_TOKEN': 'li_token'}):
         # Platform name in mixed case should be uppercased
         result = temp_storage.seed_from_environment('LinkedIn', 'user1')
 
@@ -322,7 +322,7 @@ def test_seed_from_environment_mixed_case_platform(temp_storage):
 
 def test_seeded_token_can_be_loaded(temp_storage):
     """Test token seeded from environment can be loaded."""
-    with patch.dict(os.environ, {'AGORAS_TWITTER_REFRESH_TOKEN': 'twitter_refresh'}):
+    with patch.dict(os.environ, {'TWITTER_REFRESH_TOKEN': 'twitter_refresh'}):
         temp_storage.seed_from_environment('twitter', 'user1')
 
         loaded = temp_storage.load_token('twitter', 'user1')

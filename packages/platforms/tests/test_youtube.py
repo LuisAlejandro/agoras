@@ -19,11 +19,12 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from agoras.platforms.youtube import YouTube
 from agoras.platforms.youtube.api import YouTubeAPI
 from agoras.platforms.youtube.auth import YouTubeAuthManager
 from agoras.platforms.youtube.client import YouTubeAPIClient
+
+from .wrapper_test_helpers import YOUTUBE_KWARGS
 
 # YouTube Wrapper Tests
 
@@ -36,10 +37,9 @@ async def test_youtube_initialize_client(mock_api_class):
     mock_api.authenticate = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    youtube = YouTube(
-        youtube_client_id='test_client_id',
-        youtube_client_secret='test_secret'
-    )
+    youtube = YouTube(**{**YOUTUBE_KWARGS,
+                         'youtube_client_id': 'test_client_id',
+                         'youtube_client_secret': 'test_secret'})
 
     await youtube._initialize_client()
 
@@ -49,8 +49,11 @@ async def test_youtube_initialize_client(mock_api_class):
 
 
 @pytest.mark.asyncio
+@patch('agoras.platforms.youtube.wrapper.YouTube._get_config_value', return_value=None)
 @patch('agoras.platforms.youtube.auth.YouTubeAuthManager')
-async def test_youtube_initialize_client_missing_credentials(mock_auth_manager_class):
+async def test_youtube_initialize_client_missing_credentials(
+    mock_auth_manager_class, _mock_get_config,
+):
     """Test YouTube _initialize_client raises exception without credentials."""
     # Mock auth manager to not load from storage
     mock_auth_manager = MagicMock()
@@ -64,9 +67,52 @@ async def test_youtube_initialize_client_missing_credentials(mock_auth_manager_c
 
 
 @pytest.mark.asyncio
+@patch('agoras.platforms.youtube.wrapper.YouTube._get_config_value')
 @patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
 @patch('agoras.platforms.youtube.auth.YouTubeAuthManager')
-async def test_youtube_initialize_client_loads_from_storage(mock_auth_manager_class, mock_api_class):
+async def test_youtube_initialize_client_prefers_storage_refresh_token(
+    mock_auth_manager_class, mock_api_class, mock_get_config,
+):
+    """Stored refresh token wins over stale YOUTUBE_REFRESH_TOKEN in environment."""
+    mock_auth_manager = MagicMock()
+    mock_auth_manager.client_id = 'stored_client_id'
+    mock_auth_manager.client_secret = 'stored_client_secret'
+    mock_auth_manager.refresh_token = 'stored_refresh_token'
+    mock_auth_manager._load_credentials_from_storage = MagicMock(return_value=True)
+    mock_auth_manager_class.return_value = mock_auth_manager
+
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    def config_side_effect(key, env_key=None):
+        values = {
+            'youtube_client_id': 'stored_client_id',
+            'youtube_client_secret': 'stored_client_secret',
+            'youtube_refresh_token': 'stale_env_refresh_token',
+        }
+        return values.get(key)
+
+    mock_get_config.side_effect = config_side_effect
+
+    youtube = YouTube()
+    await youtube._initialize_client()
+
+    assert youtube.youtube_refresh_token == 'stored_refresh_token'
+    mock_api_class.assert_called_once_with(
+        'stored_client_id',
+        'stored_client_secret',
+        'stored_refresh_token',
+    )
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.youtube.wrapper.YouTube._get_config_value', return_value=None)
+@patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
+@patch('agoras.platforms.youtube.auth.YouTubeAuthManager')
+async def test_youtube_initialize_client_loads_from_storage(
+    mock_auth_manager_class, mock_api_class, mock_get_config,
+):
     """Test YouTube _initialize_client loads credentials from storage when not provided."""
     # Mock auth manager that loads from storage
     mock_auth_manager = MagicMock()
@@ -141,10 +187,7 @@ async def test_youtube_video(mock_api_class):
     mock_api.upload_video = AsyncMock(return_value={'id': 'video-456'})
     mock_api_class.return_value = mock_api
 
-    youtube = YouTube(
-        youtube_client_id='client_id',
-        youtube_client_secret='secret'
-    )
+    youtube = YouTube(**YOUTUBE_KWARGS)
 
     await youtube._initialize_client()
 
@@ -177,10 +220,7 @@ async def test_youtube_disconnect(mock_api_class):
     mock_api.disconnect = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    youtube = YouTube(
-        youtube_client_id='client_id',
-        youtube_client_secret='secret'
-    )
+    youtube = YouTube(**YOUTUBE_KWARGS)
 
     await youtube._initialize_client()
     await youtube.disconnect()
@@ -219,10 +259,7 @@ async def test_youtube_post_raises(mock_api_class):
     mock_api.authenticate = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    youtube = YouTube(
-        youtube_client_id='client_id',
-        youtube_client_secret='secret'
-    )
+    youtube = YouTube(**YOUTUBE_KWARGS)
 
     await youtube._initialize_client()
 
@@ -234,10 +271,7 @@ async def test_youtube_post_raises(mock_api_class):
 @patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
 async def test_youtube_like_no_api(mock_api_class):
     """Test YouTube like with no API initialized."""
-    youtube = YouTube(
-        youtube_client_id='client_id',
-        youtube_client_secret='secret'
-    )
+    youtube = YouTube(**YOUTUBE_KWARGS)
 
     with pytest.raises(Exception, match="YouTube API not initialized"):
         await youtube.like('video123')
@@ -251,10 +285,7 @@ async def test_youtube_like_no_video_id(mock_api_class):
     mock_api.authenticate = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    youtube = YouTube(
-        youtube_client_id='client_id',
-        youtube_client_secret='secret'
-    )
+    youtube = YouTube(**YOUTUBE_KWARGS)
 
     await youtube._initialize_client()
 
@@ -271,10 +302,7 @@ async def test_youtube_like_success(mock_api_class):
     mock_api.like = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    youtube = YouTube(
-        youtube_client_id='client_id',
-        youtube_client_secret='secret'
-    )
+    youtube = YouTube(**YOUTUBE_KWARGS)
 
     await youtube._initialize_client()
 
@@ -289,10 +317,7 @@ async def test_youtube_like_success(mock_api_class):
 @patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
 async def test_youtube_delete_no_api(mock_api_class):
     """Test YouTube delete with no API initialized."""
-    youtube = YouTube(
-        youtube_client_id='client_id',
-        youtube_client_secret='secret'
-    )
+    youtube = YouTube(**YOUTUBE_KWARGS)
 
     with pytest.raises(Exception, match="YouTube API not initialized"):
         await youtube.delete('video123')
@@ -306,10 +331,7 @@ async def test_youtube_delete_no_video_id(mock_api_class):
     mock_api.authenticate = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    youtube = YouTube(
-        youtube_client_id='client_id',
-        youtube_client_secret='secret'
-    )
+    youtube = YouTube(**YOUTUBE_KWARGS)
 
     await youtube._initialize_client()
 
@@ -326,10 +348,7 @@ async def test_youtube_delete_success(mock_api_class):
     mock_api.delete = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    youtube = YouTube(
-        youtube_client_id='client_id',
-        youtube_client_secret='secret'
-    )
+    youtube = YouTube(**YOUTUBE_KWARGS)
 
     await youtube._initialize_client()
 
@@ -348,10 +367,7 @@ async def test_youtube_share_raises(mock_api_class):
     mock_api.authenticate = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    youtube = YouTube(
-        youtube_client_id='client_id',
-        youtube_client_secret='secret'
-    )
+    youtube = YouTube(**YOUTUBE_KWARGS)
 
     await youtube._initialize_client()
 
@@ -363,10 +379,7 @@ async def test_youtube_share_raises(mock_api_class):
 @patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
 async def test_youtube_video_no_api(mock_api_class):
     """Test YouTube video with no API initialized."""
-    youtube = YouTube(
-        youtube_client_id='client_id',
-        youtube_client_secret='secret'
-    )
+    youtube = YouTube(**YOUTUBE_KWARGS)
 
     with pytest.raises(Exception, match="YouTube API not initialized"):
         await youtube.video('text', 'url', 'title')
@@ -380,10 +393,7 @@ async def test_youtube_video_no_title_or_url(mock_api_class):
     mock_api.authenticate = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    youtube = YouTube(
-        youtube_client_id='client_id',
-        youtube_client_secret='secret'
-    )
+    youtube = YouTube(**YOUTUBE_KWARGS)
 
     await youtube._initialize_client()
 
@@ -402,10 +412,7 @@ async def test_youtube_video_invalid_mime(mock_api_class):
     mock_api.authenticate = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    youtube = YouTube(
-        youtube_client_id='client_id',
-        youtube_client_secret='secret'
-    )
+    youtube = YouTube(**YOUTUBE_KWARGS)
 
     await youtube._initialize_client()
 
@@ -413,12 +420,14 @@ async def test_youtube_video_invalid_mime(mock_api_class):
         mock_video = MagicMock()
         mock_video.content = b'video_content'
         mock_file_type = MagicMock()
-        mock_file_type.mime = 'video/avi'  # Invalid MIME
+        mock_file_type.mime = 'video/mpeg'  # Outside youtube contract MIME set
         mock_video.file_type = mock_file_type
         mock_video.cleanup = MagicMock()
         mock_download.return_value = mock_video
 
-        with pytest.raises(Exception, match="Invalid video type.*YouTube supports"):
+        from agoras.media.errors import MediaValidationError
+
+        with pytest.raises(MediaValidationError, match='youtube'):
             await youtube.video('text', 'url', 'title')
 
 
@@ -430,16 +439,13 @@ async def test_youtube_last_from_feed(mock_api_class):
     mock_api.authenticate = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    youtube = YouTube(
-        youtube_client_id='client_id',
-        youtube_client_secret='secret'
-    )
+    youtube = YouTube(**YOUTUBE_KWARGS)
 
     await youtube._initialize_client()
 
     # Mock feed operations
     with patch.object(youtube, 'download_feed', new_callable=AsyncMock) as mock_download_feed, \
-         patch.object(youtube, 'video', new_callable=AsyncMock) as mock_video:
+            patch.object(youtube, 'video', new_callable=AsyncMock) as mock_video:
 
         mock_feed = MagicMock()
         mock_item = MagicMock()
@@ -464,16 +470,13 @@ async def test_youtube_random_from_feed(mock_api_class):
     mock_api.authenticate = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    youtube = YouTube(
-        youtube_client_id='client_id',
-        youtube_client_secret='secret'
-    )
+    youtube = YouTube(**YOUTUBE_KWARGS)
 
     await youtube._initialize_client()
 
     # Mock feed operations
     with patch.object(youtube, 'download_feed', new_callable=AsyncMock) as mock_download_feed, \
-         patch.object(youtube, 'video', new_callable=AsyncMock) as mock_video:
+            patch.object(youtube, 'video', new_callable=AsyncMock) as mock_video:
 
         mock_feed = MagicMock()
         mock_item = MagicMock()
@@ -498,16 +501,13 @@ async def test_youtube_schedule(mock_api_class):
     mock_api.authenticate = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    youtube = YouTube(
-        youtube_client_id='client_id',
-        youtube_client_secret='secret'
-    )
+    youtube = YouTube(**YOUTUBE_KWARGS)
 
     await youtube._initialize_client()
 
     # Mock schedule operations
     with patch.object(youtube, 'create_schedule_sheet', new_callable=AsyncMock) as mock_create_sheet, \
-         patch.object(youtube, 'video', new_callable=AsyncMock) as mock_video:
+            patch.object(youtube, 'video', new_callable=AsyncMock) as mock_video:
 
         mock_sheet = MagicMock()
         mock_videos = [{
@@ -536,10 +536,7 @@ async def test_youtube_handle_like_action_missing_id(mock_api_class):
     mock_api.authenticate = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    youtube = YouTube(
-        youtube_client_id='client_id',
-        youtube_client_secret='secret'
-    )
+    youtube = YouTube(**YOUTUBE_KWARGS)
 
     await youtube._initialize_client()
 
@@ -556,10 +553,7 @@ async def test_youtube_handle_delete_action_missing_id(mock_api_class):
     mock_api.authenticate = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    youtube = YouTube(
-        youtube_client_id='client_id',
-        youtube_client_secret='secret'
-    )
+    youtube = YouTube(**YOUTUBE_KWARGS)
 
     await youtube._initialize_client()
 
@@ -576,10 +570,7 @@ async def test_youtube_handle_video_action_missing_url(mock_api_class):
     mock_api.authenticate = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    youtube = YouTube(
-        youtube_client_id='client_id',
-        youtube_client_secret='secret'
-    )
+    youtube = YouTube(**YOUTUBE_KWARGS)
 
     await youtube._initialize_client()
 
@@ -596,10 +587,7 @@ async def test_youtube_handle_video_action_missing_title(mock_api_class):
     mock_api.authenticate = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    youtube = YouTube(
-        youtube_client_id='client_id',
-        youtube_client_secret='secret'
-    )
+    youtube = YouTube(**YOUTUBE_KWARGS)
 
     await youtube._initialize_client()
 
@@ -616,10 +604,7 @@ async def test_youtube_handle_share_action(mock_api_class):
     mock_api.authenticate = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    youtube = YouTube(
-        youtube_client_id='client_id',
-        youtube_client_secret='secret'
-    )
+    youtube = YouTube(**YOUTUBE_KWARGS)
 
     await youtube._initialize_client()
 

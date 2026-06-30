@@ -2,17 +2,54 @@ Usage for Telegram
 ==================
 
 .. note::
-   **New in version 2.0**: Telegram commands now use the intuitive ``agoras telegram`` format.
-   See the :doc:`migration guide <migration>` for upgrading from ``agoras publish``.
+
+   Agoras uses ``agoras telegram`` for Telegram operations.
+   See the :doc:`migration guide <migration/index>` for upgrading from ``agoras publish``.
 
 Telegram is a cloud-based instant messaging and voice-over-IP service. Agoras can publish messages, videos, images, and manage scheduled content on Telegram using the official `python-telegram-bot library <https://python-telegram-bot.org/>`_.
 
 **Important**: Telegram uses bot tokens for authentication. You must create a Telegram bot using @BotFather, obtain a bot token, and find the chat ID (user, group, or channel) before using these features. Like and share functionality are not supported by Agoras for Telegram.
 
+Required Credentials
+--------------------
+
+Before using Agoras with Telegram, you'll need to manually extract the following credentials. These credentials are required for bot authentication and chat access.
+
+- **Bot Token** (``TELEGRAM_BOT_TOKEN``): Your Telegram bot's authentication token, obtained from @BotFather
+- **Chat ID** (``TELEGRAM_CHAT_ID``): The unique identifier for the chat (user, group, or channel) where you want to send messages
+
+See :doc:`credentials/telegram` for detailed instructions on how to create a Telegram bot using @BotFather, obtain the bot token, and find your chat ID.
+
 For CI/CD environments, see :doc:`credentials/telegram` for unattended execution setup.
 
-Actions
-~~~~~~~
+Available Actions
+~~~~~~~~~~~~~~~~~
+
+* ``authorize`` - Set up bot authentication (required first step)
+* ``post`` - Send text messages with links and images (up to 4 images)
+* ``video`` - Upload and send video files
+* ``delete`` - Delete messages
+
+Authorization
+-------------
+
+.. versionadded:: 2.0
+   Bot token "authorize first" workflow
+
+Before performing any actions, you must authorize Agoras to access your Telegram chat::
+
+    agoras telegram authorize \
+      --bot-token "${TELEGRAM_BOT_TOKEN}" \
+      --chat-id "${TELEGRAM_CHAT_ID}"
+
+This will:
+
+1. Validate your bot token and chat access
+2. Store encrypted credentials in ``~/.agoras/tokens/``
+
+After authorization, you can perform actions without providing credentials. Credentials are automatically loaded from storage.
+
+For CI/CD environments, see :doc:`credentials/telegram` for unattended execution setup.
 
 Publish a Telegram message
 ---------------------------
@@ -22,8 +59,6 @@ This command will send a message to a Telegram chat using your bot. The message 
 **New format** (Agoras 2.0+)::
 
     agoras telegram post \
-      --bot-token "${TELEGRAM_BOT_TOKEN}" \
-      --chat-id "${TELEGRAM_CHAT_ID}" \
       --text "${STATUS_TEXT}" \
       --link "${STATUS_LINK}" \
       --image-1 "${STATUS_IMAGE_URL_1}" \
@@ -33,8 +68,6 @@ This command will send a message to a Telegram chat using your bot. The message 
 
 Parameters:
 
-- ``--bot-token``: Your Telegram bot token from @BotFather (required)
-- ``--chat-id``: Target chat ID (user, group, or channel) (required)
 - ``--text``: The text content of your message
 - ``--link``: A URL to include in the message
 - ``--image-X``: URLs pointing to downloadable images (JPEG, PNG, JPG)
@@ -52,8 +85,6 @@ This command will upload and send a video file to a Telegram chat. The video can
 **New format** (Agoras 2.0+)::
 
     agoras telegram video \
-      --bot-token "${TELEGRAM_BOT_TOKEN}" \
-      --chat-id "${TELEGRAM_CHAT_ID}" \
       --video-url "${VIDEO_URL}" \
       --video-title "${VIDEO_TITLE}" \
       --text "${STATUS_TEXT}"
@@ -77,20 +108,18 @@ This command will delete an existing Telegram message. The bot must have permiss
 **New format** (Agoras 2.0+)::
 
     agoras telegram delete \
-      --bot-token "${TELEGRAM_BOT_TOKEN}" \
-      --chat-id "${TELEGRAM_CHAT_ID}" \
-      --message-id "${TELEGRAM_MESSAGE_ID}"
+      --post-id "${TELEGRAM_MESSAGE_ID}"
 
 Parameters:
 
-- ``--message-id``: ID of the message to delete (required)
+- ``--post-id``: ID of the message to delete (required)
 
 **Note**: Like and share functionality are not supported for Telegram.
 
-Post the last content from an RSS feed into Telegram
------------------------------------------------------
+Post the last URL from an RSS feed into Telegram
+-------------------------------------------------
 
-This command will parse an RSS feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The message content will consist of the title and link of the feed entry. If the feed entry has media enclosures, the first image will be included.
+This command will parse an RSS feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry.
 
 Please read about how the RSS feed should be structured in the :doc:`RSS feed section <rss>`. This ensures that the feed is correctly parsed and that the post content is properly formatted.
 
@@ -101,14 +130,12 @@ Please read about how the RSS feed should be structured in the :doc:`RSS feed se
       --mode last \
       --feed-url "${FEED_URL}" \
       --max-count "${MAX_COUNT}" \
-      --post-lookback "${POST_LOOKBACK}" \
-      --telegram-bot-token "${TELEGRAM_BOT_TOKEN}" \
-      --telegram-chat-id "${TELEGRAM_CHAT_ID}"
+      --post-lookback "${POST_LOOKBACK}"
 
-Post a random content from an RSS feed into Telegram
------------------------------------------------------
+Post a random URL from an RSS feed into Telegram
+--------------------------------------------------
 
-This command will parse an RSS feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age`` days. The message content will consist of the title and link of the feed entry. If the feed entry has media enclosures, the first image will be included.
+This command will parse an RSS feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry.
 
 Please read about how the RSS feed should be structured in the :doc:`RSS feed section <rss>`. This ensures that the feed is correctly parsed and that the post content is properly formatted.
 
@@ -118,43 +145,57 @@ Please read about how the RSS feed should be structured in the :doc:`RSS feed se
       --network telegram \
       --mode random \
       --feed-url "${FEED_URL}" \
-      --max-post-age "${MAX_POST_AGE}" \
-      --telegram-bot-token "${TELEGRAM_BOT_TOKEN}" \
-      --telegram-chat-id "${TELEGRAM_CHAT_ID}"
+      --max-post-age "${MAX_POST_AGE}"
 
-Schedule a Telegram post
--------------------------
+Google Sheets Scheduling
+------------------------
 
-This command will scan a sheet ``--sheets-name`` of a Google spreadsheet with id ``--sheets-id``, that's authorized by ``--sheets-client-email`` and ``--sheets-private-key``. Messages will be published to the Telegram chat using your bot.
+Agoras can schedule Telegram messages using Google Sheets. This allows you to plan and automate message sending.
 
-The order of the columns of the spreadsheet is crucial to the correct functioning of the command. Here's how the information should be organized:
+Run Scheduled Messages
+~~~~~~~~~~~~~~~~~~~~~~
 
-+-------------+------------+------------+------------+------------+------------+-------------------------+-------------------+------------------------------+
-| ``--text``  | ``--link`` | ``--image-1`` | ``--image-2`` | ``--image-3`` | ``--image-4`` | date (%d-%m-%Y format)  | time (%H format)  | status (draft or published)  |
-+-------------+------------+------------+------------+------------+------------+-------------------------+-------------------+------------------------------+
+Process scheduled messages from a Google Sheet:
 
-As you can see, the first 6 columns correspond to the parameters of the "post" command, the date and time columns correspond to the specific time that you want to publish this message, and the status column tells the script if this message is ready to be published (draft status) or if it was already published and should be skipped (published status).
-
-Example of a working schedule:
-
-+-------------------------------+-------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+-------------+-----+--------+
-| This is a test Telegram post | https://agoras.readthedocs.io/en/latest/  | https://example.com/image1.jpg                         | https://example.com/image2.jpg                         |                                                         |                                                         | 21-11-2022  | 17  | draft  |
-+-------------------------------+-------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+-------------+-----+--------+
-
-This schedule entry would be published at 17:00h of 21-11-2022 with text "This is a test Telegram post", a link, and 2 images.
-
-For this command to work, it should be executed hourly by a cron script.
-
-**New format** (Agoras 2.0+)::
+::
 
     agoras utils schedule-run \
       --network telegram \
       --sheets-id "${GOOGLE_SHEETS_ID}" \
-      --sheets-name "${GOOGLE_SHEETS_NAME}" \
+      --sheets-name "Telegram" \
       --sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-      --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" \
-      --telegram-bot-token "${TELEGRAM_BOT_TOKEN}" \
-      --telegram-chat-id "${TELEGRAM_CHAT_ID}"
+      --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
+
+.. note::
+   You must run ``agoras telegram authorize`` first before using this command.
+
+Sheet Format
+~~~~~~~~~~~~
+
+Your Google Sheet should have the following columns:
+
+- ``status_text``: Message text content
+- ``status_link``: URL to include in message
+- ``status_image_url_1`` through ``status_image_url_4``: Image URLs (optional)
+- ``date``: Scheduled date (format: DD-MM-YYYY)
+- ``hour``: Scheduled hour (format: HH, 24-hour format)
+- ``state``: Post state (``pending``, ``published``, ``error``)
+
+**Example sheet row**:
+
+::
+
+    status_text,status_link,status_image_url_1,status_image_url_2,status_image_url_3,status_image_url_4,date,hour,state
+    "This is a test Telegram post","https://agoras.luisalejandro.org/en/latest/","https://example.com/image1.jpg","https://example.com/image2.jpg","","","21-11-2022","17","pending"
+
+Scheduling Logic
+~~~~~~~~~~~~~~~~
+
+- Posts with ``state="pending"`` and scheduled time in the past are processed
+- Posts are created at the scheduled date and hour
+- Sheet state is updated to ``published`` after successful posting
+- If posting fails, state is updated to ``error``
+- Use ``--network telegram`` to process Telegram posts from the sheet (required since 2.1.0; one platform per run)
 
 Telegram Features and Limitations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -203,8 +244,6 @@ When you create a Telegram message with Agoras, it will print the message ID (in
 ::
 
       $ agoras telegram post \
-            --bot-token XXXXX \
-            --chat-id YYYYY \
             --text "This is a test post"
       $ {"id":"123456789"}
 
@@ -214,7 +253,7 @@ When you create a Telegram message with Agoras, it will print the message ID (in
 
 1. Forward a message from the chat to @userinfobot or @getidsbot
 2. The bot will reply with the chat ID and message ID
-3. Use the message ID with ``--message-id``
+3. Use the message ID with ``--post-id``
 
 Chat ID Discovery
 ~~~~~~~~~~~~~~~~~~

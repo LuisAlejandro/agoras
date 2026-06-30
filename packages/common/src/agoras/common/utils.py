@@ -17,14 +17,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-
-agoras.common.utils
-===================
+agoras.common.utils.
 
 This module contains common and low level functions to all modules in agoras.
-
 """
-
 
 from urllib.parse import parse_qs, urlencode, urlparse
 
@@ -33,20 +29,21 @@ from bs4 import BeautifulSoup
 
 
 def add_url_timestamp(url, timestamp):
+    """Append a cache-busting timestamp query parameter to a URL."""
     parsed = urlparse(url)
     query = dict(parse_qs(str(parsed.query)))
-    query['t'] = timestamp
+    query["t"] = timestamp
     parsed = parsed._replace(query=urlencode(query))
     return parsed.geturl()
 
 
 def metatag(tag):
-    return tag.name == "meta" \
-        and tag.has_attr("content") \
-        and (tag.has_attr("property") or tag.has_attr("name"))
+    """Return whether a BeautifulSoup tag is a content-bearing meta tag."""
+    return tag.name == "meta" and tag.has_attr("content") and (tag.has_attr("property") or tag.has_attr("name"))
 
 
 def find_metatags(url, search):
+    """Fetch a URL and return matching Open Graph or Twitter meta tag values."""
     found = {}
 
     response = requests.get(url, timeout=20)
@@ -54,7 +51,7 @@ def find_metatags(url, search):
     if response.status_code != 200:
         return found
 
-    soup = BeautifulSoup(response.content, 'html.parser')
+    soup = BeautifulSoup(response.content, "html.parser")
 
     for target in search:
         found_meta_tag = soup.find_all(metatag)
@@ -63,7 +60,6 @@ def find_metatags(url, search):
             continue
 
         for meta_tag in found_meta_tag:
-
             prop = meta_tag.get("property", "")
             name = meta_tag.get("name", "")
 
@@ -74,7 +70,7 @@ def find_metatags(url, search):
 
 
 def parse_metatags(url):
-
+    """Parse common social preview meta tags from a URL."""
     KNOWN_TAGS = [
         "og:title",
         "og:image",

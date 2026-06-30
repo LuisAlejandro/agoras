@@ -19,12 +19,7 @@
 Tests for migration guidance utilities.
 """
 
-from agoras.cli.migration import (
-    convert_legacy_params_to_new_format,
-    format_migration_warning,
-    get_migration_summary,
-    suggest_new_command,
-)
+from agoras.cli.migration import convert_legacy_params_to_new_format, format_migration_warning, suggest_new_command
 
 
 def test_suggest_new_command_x_post():
@@ -39,7 +34,7 @@ def test_suggest_new_command_x_post():
     result = suggest_new_command('x', 'post', args_dict)
 
     assert 'agoras x post' in result
-    assert '--consumer-key' in result
+    assert '--consumer-key' not in result
     assert '--text' in result
 
 
@@ -55,7 +50,7 @@ def test_suggest_new_command_twitter_post():
     result = suggest_new_command('twitter', 'post', args_dict)
 
     assert 'agoras x post' in result or 'agoras twitter post' in result
-    assert '--consumer-key' in result
+    assert '--consumer-key' not in result
     assert '--text' in result
 
 
@@ -71,7 +66,7 @@ def test_suggest_new_command_facebook_video():
     result = suggest_new_command('facebook', 'video', args_dict)
 
     assert 'agoras facebook video' in result
-    assert 'token123' in result
+    assert 'token123' not in result
     assert 'video.mp4' in result
 
 
@@ -129,22 +124,22 @@ def test_convert_legacy_params_filters_defaults():
 
     result = convert_legacy_params_to_new_format('youtube', 'video', args_dict)
 
-    assert 'client123' in result
+    assert 'client123' not in result
     assert 'private' not in result
     assert 'INFO' not in result
 
 
 def test_convert_legacy_params_includes_non_defaults():
-    """Test that non-default values are included."""
+    """Test that non-auth content values are included."""
     args_dict = {
-        'youtube_privacy_status': 'public',  # non-default
+        'youtube_title': 'My Video',
         'youtube_client_id': 'client123',
     }
 
     result = convert_legacy_params_to_new_format('youtube', 'video', args_dict)
 
-    assert 'client123' in result
-    # Note: privacy might still be filtered if it matches defaults
+    assert 'My Video' in result
+    assert 'client123' not in result
 
 
 def test_format_migration_warning():
@@ -160,26 +155,40 @@ def test_format_migration_warning():
     assert 'version 3.0' in warning
 
 
-def test_get_migration_summary_platform_action():
-    """Test brief migration summary for platform actions."""
-    summary = get_migration_summary('twitter', 'post')
-
-    assert 'agoras twitter post' in summary
-
-
-def test_get_migration_summary_feed():
-    """Test brief migration summary for feed actions."""
-    summary = get_migration_summary('facebook', 'last-from-feed')
-
-    assert 'agoras utils feed-publish' in summary
-    assert '--mode last' in summary
+def test_suggest_new_command_discord_post_omits_bot_token():
+    """Discord post migration must not suggest bot-token."""
+    args_dict = {
+        'discord_bot_token': 'token',
+        'status_text': 'Hello',
+    }
+    result = suggest_new_command('discord', 'post', args_dict)
+    assert 'bot-token' not in result
+    assert 'Hello' in result
 
 
-def test_get_migration_summary_schedule():
-    """Test brief migration summary for schedule action."""
-    summary = get_migration_summary('linkedin', 'schedule')
+def test_suggest_new_command_whatsapp_post_keeps_recipient():
+    """WhatsApp post migration keeps recipient but strips access token."""
+    args_dict = {
+        'whatsapp_access_token': 'token',
+        'whatsapp_recipient': '+15551234567',
+        'status_text': 'Hi',
+    }
+    result = suggest_new_command('whatsapp', 'post', args_dict)
+    assert 'access-token' not in result
+    assert 'recipient' in result
 
-    assert 'agoras utils schedule-run' in summary
+
+def test_suggest_new_command_telegram_delete_omits_parse_mode():
+    """Telegram delete migration must not suggest parse-mode."""
+    args_dict = {
+        'telegram_message_id': '123',
+        'telegram_parse_mode': 'Markdown',
+    }
+
+    result = suggest_new_command('telegram', 'delete', args_dict)
+
+    assert 'agoras telegram delete' in result
+    assert 'parse-mode' not in result
 
 
 def test_suggest_new_command_empty_args():
@@ -222,7 +231,7 @@ def test_convert_legacy_params_with_utils_commands_feed():
     result = convert_legacy_params_to_new_format('x', 'last-from-feed', args_dict)
 
     assert 'feed-url' in result or 'feed_url' in result
-    assert 'key' in result
+    assert 'key' not in result
 
 
 def test_convert_legacy_params_with_utils_commands_schedule():
@@ -237,7 +246,24 @@ def test_convert_legacy_params_with_utils_commands_schedule():
     result = convert_legacy_params_to_new_format('facebook', 'schedule', args_dict)
 
     assert 'sheet123' in result
-    assert 'token' in result
+    assert 'token' not in result
+
+
+def test_convert_legacy_params_with_utils_schedule_omits_sheets_secrets():
+    """Test utils schedule suggestions omit Sheets credentials."""
+    args_dict = {
+        'network': 'x',
+        'action': 'schedule',
+        'google_sheets_id': 'sheet123',
+        'google_sheets_private_key': 'secret-key',
+        'google_sheets_client_email': 'svc@example.com',
+    }
+
+    result = convert_legacy_params_to_new_format('x', 'schedule', args_dict)
+
+    assert 'sheet123' in result
+    assert 'secret-key' not in result
+    assert 'svc@example.com' not in result
 
 
 def test_convert_legacy_params_with_platform_commands():
@@ -252,8 +278,8 @@ def test_convert_legacy_params_with_platform_commands():
 
     result = convert_legacy_params_to_new_format('youtube', 'video', args_dict)
 
-    assert 'client123' in result
-    assert 'secret123' in result
+    assert 'client123' not in result
+    assert 'secret123' not in result
 
 
 def test_convert_legacy_params_escapes_quotes():
@@ -295,22 +321,21 @@ def test_convert_legacy_params_filters_default_privacy():
 
     result = convert_legacy_params_to_new_format('youtube', 'video', args_dict)
 
-    assert 'client123' in result
+    assert 'client123' not in result
     # Default privacy should be filtered
 
 
 def test_convert_legacy_params_includes_non_default_privacy():
-    """Test convert_legacy_params_to_new_format includes non-default privacy."""
+    """Test that non-auth content values are included for TikTok."""
     args_dict = {
-        'network': 'tiktok',
-        'action': 'video',
-        'tiktok_privacy_status': 'PUBLIC_TO_EVERYONE',  # non-default
-        'tiktok_client_key': 'key123'
+        'tiktok_title': 'My TikTok',
+        'tiktok_client_key': 'key123',
     }
 
     result = convert_legacy_params_to_new_format('tiktok', 'video', args_dict)
 
-    assert 'key123' in result
+    assert 'My TikTok' in result
+    assert 'key123' not in result
 
 
 def test_format_migration_warning_various_combinations():
@@ -330,26 +355,6 @@ def test_format_migration_warning_various_combinations():
         assert 'DEPRECATION WARNING' in warning
         assert network in warning
         assert action in warning
-
-
-def test_get_migration_summary_all_action_types():
-    """Test get_migration_summary for all action types."""
-    # Platform action
-    summary = get_migration_summary('x', 'post')
-    assert 'agoras x post' in summary
-
-    # Feed action
-    summary = get_migration_summary('facebook', 'last-from-feed')
-    assert 'feed-publish' in summary
-    assert 'last' in summary
-
-    summary = get_migration_summary('instagram', 'random-from-feed')
-    assert 'feed-publish' in summary
-    assert 'random' in summary
-
-    # Schedule action
-    summary = get_migration_summary('linkedin', 'schedule')
-    assert 'schedule-run' in summary
 
 
 def test_convert_legacy_params_skips_special_params():

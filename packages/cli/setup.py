@@ -19,9 +19,11 @@
 
 from setuptools import find_namespace_packages, setup
 
+version = '2.0.5'
+
 setup(
     name='agoras',
-    version='2.0.0',
+    version=version,
     author='Luis Alejandro Martínez Faneyth',
     author_email='luis@luisalejandro.org',
     url='https://github.com/LuisAlejandro/agoras',
@@ -34,8 +36,9 @@ setup(
     package_dir={'': 'src'},
     python_requires='>=3.10',
     install_requires=[
-        'agoras-platforms>=2.0.0',
+        f'agoras-platforms=={version}',
     ],
+
     entry_points={
         'console_scripts': [
             'agoras=agoras.cli.main:main',

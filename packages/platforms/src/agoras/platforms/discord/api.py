@@ -15,8 +15,10 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.discord.api module."""
 
 from agoras.core.api_base import BaseAPI
+from agoras.core.auth import raise_authentication_error_from_manager
 
 from .auth import DiscordAuthManager
 
@@ -38,18 +40,10 @@ class DiscordAPI(BaseAPI):
             server_name (str): Discord server name
             channel_name (str): Discord channel name
         """
-        super().__init__(
-            bot_token=bot_token,
-            server_name=server_name,
-            channel_name=channel_name
-        )
+        super().__init__(bot_token=bot_token, server_name=server_name, channel_name=channel_name)
 
         # Initialize the authentication manager
-        self.auth_manager = DiscordAuthManager(
-            bot_token=bot_token,
-            server_name=server_name,
-            channel_name=channel_name
-        )
+        self.auth_manager = DiscordAuthManager(bot_token=bot_token, server_name=server_name, channel_name=channel_name)
 
     @property
     def bot_token(self):
@@ -87,14 +81,11 @@ class DiscordAPI(BaseAPI):
         # Authenticate with auth manager (this creates and sets up the client)
         auth_success = await self.auth_manager.authenticate()
         if not auth_success:
-            error_msg = 'Discord authentication failed'
-            if hasattr(self.auth_manager, '_last_error') and self.auth_manager._last_error:
-                error_msg += f': {self.auth_manager._last_error}'
-            raise Exception(error_msg)
+            raise_authentication_error_from_manager(self.auth_manager)
 
         # Ensure client was created during authentication
         if not self.auth_manager.client:
-            raise Exception('Discord client not available after authentication')
+            raise Exception("Discord client not available after authentication")
 
         self.client = self.auth_manager.client
         self._authenticated = True
@@ -135,12 +126,12 @@ class DiscordAPI(BaseAPI):
             await self.authenticate()
 
         if not self.client:
-            raise Exception('Discord client not available')
+            raise Exception("Discord client not available")
 
-        await self._rate_limit_check('post', 1.0)
+        await self._rate_limit_check("post", 1.0)
         return await self.client.send_message(content=content, embeds=embeds, file=file)
 
-    async def like(self, message_id, emoji='❤️'):
+    async def like(self, message_id, emoji="❤️"):
         """
         Add a reaction (like) to a Discord message.
 
@@ -158,9 +149,9 @@ class DiscordAPI(BaseAPI):
             await self.authenticate()
 
         if not self.client:
-            raise Exception('Discord client not available')
+            raise Exception("Discord client not available")
 
-        await self._rate_limit_check('like', 0.5)
+        await self._rate_limit_check("like", 0.5)
         return await self.client.add_reaction(message_id, emoji)
 
     async def delete(self, message_id):
@@ -180,9 +171,9 @@ class DiscordAPI(BaseAPI):
             await self.authenticate()
 
         if not self.client:
-            raise Exception('Discord client not available')
+            raise Exception("Discord client not available")
 
-        await self._rate_limit_check('delete', 0.5)
+        await self._rate_limit_check("delete", 0.5)
         return await self.client.delete_message(message_id)
 
     async def upload_file(self, file_content, filename, content=None, embeds=None):
@@ -205,9 +196,9 @@ class DiscordAPI(BaseAPI):
             await self.authenticate()
 
         if not self.client:
-            raise Exception('Discord client not available')
+            raise Exception("Discord client not available")
 
-        await self._rate_limit_check('upload_file', 1.0)
+        await self._rate_limit_check("upload_file", 1.0)
         return await self.client.upload_file(file_content, filename, content, embeds)
 
     async def share(self, message_id):
@@ -220,10 +211,9 @@ class DiscordAPI(BaseAPI):
         Raises:
             Exception: Share not supported for Discord
         """
-        raise Exception('Share not supported for Discord')
+        raise Exception("Share not supported for Discord")
 
-    def create_embed(self, title=None, description=None, url=None,
-                     embed_type='rich', image_url=None):
+    def create_embed(self, title=None, description=None, url=None, embed_type="rich", image_url=None):
         """
         Create a Discord embed object.
 
@@ -238,12 +228,8 @@ class DiscordAPI(BaseAPI):
             discord.Embed: Discord embed object
         """
         if not self.client:
-            raise Exception('Discord client not available')
+            raise Exception("Discord client not available")
 
         return self.client.create_embed(
-            title=title,
-            description=description,
-            url=url,
-            embed_type=embed_type,
-            image_url=image_url
+            title=title, description=description, url=url, embed_type=embed_type, image_url=image_url
         )

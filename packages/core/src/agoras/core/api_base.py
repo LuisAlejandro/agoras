@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.core.api_base module."""
 
 import asyncio
 import time
@@ -69,7 +70,7 @@ class BaseAPI(ABC):
         """
         return self._authenticated
 
-    async def _rate_limit_check(self, operation_type='default', min_interval=1.0):
+    async def _rate_limit_check(self, operation_type="default", min_interval=1.0):
         """
         Perform rate limiting check before API operations.
 
@@ -97,7 +98,7 @@ class BaseAPI(ABC):
         Raises:
             Exception: Formatted exception with context
         """
-        error_msg = f'{operation_name} failed: {str(error)}'
+        error_msg = f"{operation_name} failed: {str(error)}"
         raise Exception(error_msg) from error
 
     @abstractmethod

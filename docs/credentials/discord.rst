@@ -18,7 +18,7 @@ You can create a Discord application at https://discord.com/developers/applicati
 .. image:: images/discord-1.png
 
 Create a Discord application
----------------------------
+----------------------------
 
 1. Go to https://discord.com/developers/applications
 2. Click "New Application"
@@ -29,7 +29,7 @@ Create a Discord application
 .. image:: images/discord-2.png
 
 Create a bot user
-----------------
+-----------------
 
 After creating your application:
 
@@ -41,7 +41,7 @@ After creating your application:
 .. image:: images/discord-3.png
 
 Configure bot settings
----------------------
+----------------------
 
 Configure your bot's basic settings:
 
@@ -58,7 +58,7 @@ Configure your bot's basic settings:
 **Important**: Make sure to enable "Message Content Intent" as it's required for bots to read message content.
 
 Get your bot token
------------------
+------------------
 
 1. In the "Bot" section, find the "Token" area
 2. Click "Reset Token" or "Copy" if the token is already visible
@@ -70,7 +70,7 @@ Get your bot token
 **Security note**: If your token is ever compromised, return to this page and regenerate it immediately.
 
 Set up bot permissions
----------------------
+----------------------
 
 Configure the permissions your bot will need:
 
@@ -84,17 +84,17 @@ Configure the permissions your bot will need:
 - ✅ **Embed Links** - To create rich embeds
 - ✅ **Attach Files** - To upload videos and images
 - ✅ **Read Message History** - To access existing messages
-- ✅ **Add Reactions** - To like messages (for like action)
 - ✅ **Manage Messages** - To delete messages (for delete action)
 
 **Optional but recommended**:
+- ✅ **Add Reactions** - Not used by Agoras (no ``like`` command); optional for manual reactions in Discord
 - ✅ **Use External Emojis** - For custom emoji reactions
 - ✅ **Mention Everyone** - If you need to mention @everyone or @here
 
 .. image:: images/discord-6.png
 
 Invite bot to your server
-------------------------
+-------------------------
 
 1. Copy the generated OAuth2 URL from the URL Generator
 2. Open the URL in your browser
@@ -108,7 +108,7 @@ Invite bot to your server
 **Note**: You must have "Manage Server" permission on the Discord server to invite bots.
 
 Get server and channel information
----------------------------------
+----------------------------------
 
 **Server Name**:
 1. Open Discord and navigate to your server
@@ -127,7 +127,7 @@ For example:
 .. image:: images/discord-8.png
 
 Test your bot
-------------
+-------------
 
 You can test if your bot is properly configured:
 
@@ -153,7 +153,7 @@ You can test if your bot is properly configured:
 Enable Developer Mode (for message IDs)
 ---------------------------------------
 
-To get message IDs for like and delete actions:
+To get message IDs for delete actions:
 
 1. Open Discord user settings (gear icon)
 2. Go to "Advanced" in the left sidebar
