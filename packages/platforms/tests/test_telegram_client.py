@@ -20,7 +20,31 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from agoras.platforms.telegram.client import TelegramAPIClient
+from agoras.platforms.telegram.client import (
+    TELEGRAM_MEDIA_WRITE_TIMEOUT,
+    TelegramAPIClient,
+    build_telegram_request,
+)
+
+
+@patch('agoras.platforms.telegram.client.Bot')
+@patch('agoras.platforms.telegram.client.build_telegram_request')
+def test_telegram_client_uses_media_upload_request(mock_build_request, mock_bot_class):
+    """Test TelegramAPIClient configures extended timeouts for media uploads."""
+    mock_request = MagicMock()
+    mock_build_request.return_value = mock_request
+
+    TelegramAPIClient('bot_token')
+
+    mock_build_request.assert_called_once()
+    mock_bot_class.assert_called_once_with(token='bot_token', request=mock_request)
+
+
+def test_build_telegram_request_default_media_write_timeout():
+    """Test default media write timeout supports Telegram's 50MB cap."""
+    request = build_telegram_request()
+    assert request._media_write_timeout == TELEGRAM_MEDIA_WRITE_TIMEOUT
+    assert request._media_write_timeout >= 300.0
 
 
 def test_telegram_client_init():

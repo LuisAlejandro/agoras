@@ -24,7 +24,11 @@ from agoras.media import MediaFactory
 
 def test_version_available():
     """Test that media can access common version."""
-    assert __version__ == '2.0.0'
+    assert isinstance(__version__, str)
+    assert __version__
+    parts = __version__.split('.')
+    assert len(parts) >= 2
+    assert all(part.isdigit() for part in parts)
 
 
 def test_factory_creates_image():

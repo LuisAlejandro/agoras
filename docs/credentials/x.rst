@@ -5,12 +5,10 @@ Agoras needs the following credentials from X (formerly Twitter) to be able to a
 
 - API key
 - API secret key
-- Access token
-- Access token secret
+
+Access token and access token secret are obtained automatically during the authorization process and do not need to be manually extracted.
 
 For that, we'll need to create an X App (via developer.twitter.com).
-
-**Important**: X now requires a paid subscription for certain parts of the API. The free tier will let you publish and delete X posts, but will not allow likes or retweets.
 
 .. note::
    These credentials work for both ``agoras x`` and ``agoras twitter`` commands. The ``agoras twitter`` command is deprecated, use ``agoras x`` instead.
@@ -105,7 +103,10 @@ Activate user authentication
 
 .. image:: images/twitter-10.png
 
-Go to user authentication settings and click edit, then select "Read and write" in App permissions, "Web app, automated app or bot" in Type of app and put a valid URL in Callback URI/Website URL. Save.
+Go to user authentication settings and click edit, then select "Read and write" in App permissions, "Web app, automated app or bot" in Type of app and put ``https://localhost:3456/callback`` in Callback URI/Website URL. Save.
+
+.. note::
+   The redirect URI is fixed to ``https://localhost:3456/callback``.
 
 .. image:: images/twitter-11.png
 
@@ -119,26 +120,21 @@ Click regenerate on "API Key and Secret" and take note of:
 - API key
 - API secret key
 
-Then click regenerate on Access Token and Secret and take note of:
-
-- Access token
-- Access token secret
+**Note**: You do not need to manually extract the Access Token and Access Token Secret. These will be obtained automatically during the authorization process when you run ``agoras x authorize``.
 
 Test your app
 -------------
 
 You can test if your X app is properly configured:
 
-1. Make sure you have all four credentials (API key, API secret key, Access token, Access token secret)
+1. Make sure you have your API key and API secret key
 2. First, authorize and store your credentials:
 
    ::
 
          agoras x authorize \
                --consumer-key "your_api_key_here" \
-               --consumer-secret "your_api_secret_here" \
-               --oauth-token "your_access_token_here" \
-               --oauth-secret "your_access_token_secret_here"
+               --consumer-secret "your_api_secret_here"
 
 3. Then test posting to X (credentials are now stored):
 
@@ -165,16 +161,20 @@ For CI/CD environments where interactive authorization isn't possible, you can s
       # Then view all stored credentials
       agoras utils tokens show --platform x --identifier {identifier}
 
-3. For CI/CD, set all required environment variables in your CI/CD pipeline::
+3. For CI/CD, you have two options:
+
+   **Option A**: Run ``agoras x authorize`` once in your CI/CD pipeline (if interactive mode is possible) to store credentials, then subsequent actions will use stored credentials.
+
+   **Option B**: If you need to skip authorization entirely, you can extract the OAuth token and secret from a previous authorization (using ``agoras utils tokens show``) and set all environment variables::
 
       export TWITTER_CONSUMER_KEY="your_api_key_here"
       export TWITTER_CONSUMER_SECRET="your_api_secret_here"
       export TWITTER_OAUTH_TOKEN="your_access_token_here"
       export TWITTER_OAUTH_SECRET="your_access_token_secret_here"
 
-4. Run Agoras actions directly without running ``authorize``. All credentials will be loaded from environment variables.
+4. Run Agoras actions directly. If you've run ``authorize``, credentials will be loaded from storage. Otherwise, they'll be loaded from environment variables.
 
-**Note**: For unattended execution, you must provide all required credentials (consumer key, consumer secret, OAuth token, and OAuth secret) as shown in the :doc:`../reference/platform-arguments-envvars` documentation.
+**Note**: For normal usage, you only need to run ``agoras x authorize`` with your API key and secret. The OAuth token and secret are obtained automatically during the authorization process.
 
 **Security Best Practices for CI/CD**:
 - Store credentials in your CI/CD platform's secret management system (GitHub Secrets, GitLab CI/CD Variables, etc.)
@@ -195,35 +195,18 @@ Agoras parameters
 +---------------------+----------------------------+--------------------------------+
 | API secret key      | --consumer-secret          | Required for authorize         |
 +---------------------+----------------------------+--------------------------------+
-| Access token        | --oauth-token              | Required for authorize         |
+| Access token        | --oauth-token              | Optional (obtained during authorize) |
 +---------------------+----------------------------+--------------------------------+
-| Access token secret | --oauth-secret             | Required for authorize         |
+| Access token secret | --oauth-secret             | Optional (obtained during authorize) |
 +---------------------+----------------------------+--------------------------------+
 | Post ID             | --post-id                  | Required for like/delete/share |
 +---------------------+----------------------------+--------------------------------+
 
-**Note**: After running ``agoras x authorize``, all credentials become optional for action commands as they are loaded from secure storage automatically. For convenience, you can also use environment variables:
+**Note**: After running ``agoras x authorize``, action commands do not accept credential CLI flags; credentials load from secure storage automatically. The OAuth token and secret are obtained during authorization and stored securely. For unattended execution, set environment variables:
 
 ::
 
     export TWITTER_CONSUMER_KEY="your_api_key_here"
     export TWITTER_CONSUMER_SECRET="your_api_secret_here"
-    export TWITTER_OAUTH_TOKEN="your_access_token_here"
-    export TWITTER_OAUTH_SECRET="your_access_token_secret_here"
 
-**Utils commands** (``agoras utils``):
-
-+---------------------+----------------------------+
-| X credential        | Agoras parameter           |
-+=====================+============================+
-| API key             | --x-consumer-key           |
-+---------------------+----------------------------+
-| API secret key      | --x-consumer-secret        |
-+---------------------+----------------------------+
-| Access token        | --x-oauth-token            |
-+---------------------+----------------------------+
-| Access token secret | --x-oauth-secret           |
-+---------------------+----------------------------+
-
-.. deprecated:: 2.0
-   The ``--twitter-*`` parameters in utils commands are deprecated. Use ``--x-*`` parameters instead.
+**Utils commands** (``agoras utils``): use the same environment variables as platform actions (``TWITTER_CONSUMER_KEY``, etc.). Run ``agoras x authorize`` once, or export env vars for CI/cron. Credential CLI flags are not accepted on utils commands since 2.1.0.

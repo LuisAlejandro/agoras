@@ -2,7 +2,7 @@
 
 ..
 
-    A command line python utility to manage your social networks (Twitter, Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, and Threads)
+    A command line python utility to manage your social networks (X, Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, Threads, Telegram, and WhatsApp)
 
 .. image:: https://img.shields.io/pypi/v/agoras.svg
    :target: https://pypi.org/project/agoras/
@@ -40,23 +40,16 @@
 |
 
 .. _GitHub actions: https://github.com/LuisAlejandro/agoras-actions
-.. _full documentation: https://agoras.readthedocs.org
+.. _full documentation: https://agoras.luisalejandro.org
+.. _migration guide: https://agoras.luisalejandro.org/en/latest/migration.html
 
-Current version: 2.0.0
+Current version: 2.0.5
 
 .. note::
 
-   **Agoras v2.0 Now Available!**
+   Agoras 2.0 uses a **modular architecture** (five PyPI packages), a **platform-first CLI**, and an **OAuth callback server** for supported networks.
 
-   Version 2.0 introduces major improvements:
-
-   - **Modular Architecture**: Split into 5 separate packages for better maintainability
-   - **New Platforms**: Telegram, WhatsApp, Threads, and X (Twitter rebrand) support
-   - **OAuth2 Infrastructure**: Automatic callback server for easier authentication
-   - **Enhanced CLI**: Platform-specific commands with improved validation
-
-   **Breaking Changes:** Import paths and package structure have changed.
-   See `MIGRATION.rst <MIGRATION.rst>`_ for detailed upgrade instructions.
+   Upgrading from Agoras 1.x? Import paths and CLI syntax changed — see the `migration guide`_.
 
 Agoras is a python utility that helps publish and delete posts on the most
 popular social networks (X (formerly Twitter), Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, Threads, Telegram, and WhatsApp).
@@ -66,28 +59,46 @@ that you can incorporate into your workflows.
 
 For more information, please read the `full documentation`_.
 
-What's New in v2.0
-===================
+Architecture
+============
 
-Agoras v2.0 introduces a **modular architecture** that splits the monolithic package into 5 independent PyPI packages:
+Agoras is split into five coordinated PyPI packages:
 
 - **agoras-common**: Shared utilities, logging, and constants
 - **agoras-media**: Image and video processing
 - **agoras-core**: Abstract interfaces (SocialNetwork), Feed, and Sheet logic
-- **agoras-platforms**: Platform implementations (Facebook, Twitter, etc.)
+- **agoras-platforms**: Platform implementations (X, Facebook, etc.)
 - **agoras**: Command-line interface (depends on all above)
 
-**Key Features:**
+**Key capabilities:**
 
-- **New Platforms**: Telegram, WhatsApp, Threads, and X (Twitter rebrand)
-- **OAuth2 Callback Server**: Automatic local server for easier authentication
-- **Enhanced CLI**: Platform-first commands (``agoras twitter post`` instead of ``agoras publish --network twitter``)
-- **Modular Installation**: Install only what you need, or use ``pip install agoras`` for everything
+- **Platforms**: X, Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, Threads, Telegram, and WhatsApp
+- **OAuth callback server**: Automatic local server for easier authentication on supported networks
+- **Platform-first CLI**: ``agoras x post`` instead of ``agoras publish --network x --action post``
+- **Modular installation**: Install only what you need, or use ``pip install agoras`` for everything
 
-**Breaking Changes:** Import paths and CLI commands have changed. See `MIGRATION.rst <MIGRATION.rst>`_ for upgrade instructions.
+Upgrading from 1.x? Import paths and CLI commands changed. See the `migration guide`_.
 
 Getting started
 ===============
+
+Local development
+-----------------
+
+Clone the repository and use Docker-backed ``make`` targets for linting and tests::
+
+    $ git clone https://github.com/LuisAlejandro/agoras.git
+    $ cd agoras
+    $ git checkout develop
+    $ cp .env.example .env   # optional: platform credentials for integration tests
+    $ make image
+    $ make start
+    $ make console           # interactive shell inside the container
+    $ make lint
+    $ make test
+
+For a host virtualenv without Docker, run ``make virtualenv`` then activate ``./virtualenv/bin/activate``.
+See CONTRIBUTING.rst for monorepo package layout and contributor workflows.
 
 Installation
 ------------
@@ -99,8 +110,8 @@ Therefore, you can use pip to install the stable version::
 
     $ pip install --upgrade agoras
 
-If you want to install the development version (not recomended), you can
-install directlty from GitHub like this::
+If you want to install the development version (not recommended), you can
+install directly from GitHub like this::
 
     $ pip install --upgrade https://github.com/LuisAlejandro/agoras/archive/develop.tar.gz
 
@@ -125,7 +136,7 @@ For selective installation (advanced users only)::
 - ``agoras-common``: Utilities, logging, shared constants
 - ``agoras-media``: Image and video processing
 - ``agoras-core``: Abstract interfaces (SocialNetwork), Feed, Sheet logic
-- ``agoras-platforms``: Platform implementations (Twitter, Facebook, etc.)
+- ``agoras-platforms``: Platform implementations (X, Facebook, etc.)
 - ``agoras``: Command-line interface (depends on all above)
 
 **When to use each package:**
@@ -142,13 +153,13 @@ Using the application
 Quick Start
 ~~~~~~~~~~~
 
-Post to Twitter with the new intuitive CLI::
+Post to X with the platform-first CLI (authorize once, then post with content flags only)::
 
-    $ agoras twitter post \
+    $ agoras x authorize \
         --consumer-key "${TWITTER_CONSUMER_KEY}" \
-        --consumer-secret "${TWITTER_CONSUMER_SECRET}" \
-        --oauth-token "${TWITTER_OAUTH_TOKEN}" \
-        --oauth-secret "${TWITTER_OAUTH_SECRET}" \
+        --consumer-secret "${TWITTER_CONSUMER_SECRET}"
+
+    $ agoras x post \
         --text "Hello from Agoras!" \
         --image-1 "https://example.com/image.jpg"
 
@@ -158,14 +169,14 @@ See all available platforms::
 
 See platform-specific commands::
 
-    $ agoras twitter --help
+    $ agoras x --help
     $ agoras facebook --help
     $ agoras youtube --help
 
 Supported Platforms
 ~~~~~~~~~~~~~~~~~~~
 
-Agoras supports 11 platforms with intuitive platform-first commands:
+Agoras supports 10 social networks with intuitive platform-first commands:
 
 - **X (formerly Twitter)**: ``agoras x <action>`` - Full action set (post, video, like, share, delete)
 - **Facebook**: ``agoras facebook <action>`` - Full action set (post, video, like, share, delete)
@@ -173,10 +184,10 @@ Agoras supports 11 platforms with intuitive platform-first commands:
 - **LinkedIn**: ``agoras linkedin <action>`` - Full action set (post, video, like, share, delete)
 - **Discord**: ``agoras discord <action>`` - Bot-based messaging (post, video, delete)
 - **YouTube**: ``agoras youtube <action>`` - Video platform (video, like, delete)
-- **TikTok**: ``agoras tiktok <action>`` - Video platform (video, delete)
-- **Threads**: ``agoras threads <action>`` - Meta's platform (post, video, share, reply, analytics, moderation)
-- **Telegram**: ``agoras telegram <action>`` - Send messages, photos, and videos
-- **WhatsApp**: ``agoras whatsapp <action>`` - Send messages via WhatsApp Business API
+- **TikTok**: ``agoras tiktok <action>`` - Photo slideshow posts and video uploads
+- **Threads**: ``agoras threads <action>`` - Post, video, share, and delete
+- **Telegram**: ``agoras telegram <action>`` - Post, video, and delete
+- **WhatsApp**: ``agoras whatsapp <action>`` - Post, video, and template messages
 
 Automation Commands
 ~~~~~~~~~~~~~~~~~~~
@@ -184,31 +195,36 @@ Automation Commands
 Publish from RSS/Atom feeds::
 
     $ agoras utils feed-publish \
-        --network twitter \
+        --network x \
         --mode last \
         --feed-url "https://blog.example.com/feed.xml"
 
 Run scheduled posts from Google Sheets::
 
     $ agoras utils schedule-run \
+        --network x \
         --sheets-id "${GOOGLE_SHEETS_ID}" \
-        --sheets-name "Schedule"
+        --sheets-name "Schedule" \
+        --sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
+        --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
 
 
 Examples of usage
 ~~~~~~~~~~~~~~~~~
 
-.. _Using Agoras with Twitter: https://agoras.readthedocs.io/en/latest/twitter.html
-.. _Using Agoras with Facebook: https://agoras.readthedocs.io/en/latest/facebook.html
-.. _Using Agoras with Instagram: https://agoras.readthedocs.io/en/latest/instagram.html
-.. _Using Agoras with LinkedIn: https://agoras.readthedocs.io/en/latest/linkedin.html
-.. _Using Agoras with Discord: https://agoras.readthedocs.io/en/latest/discord.html
-.. _Using Agoras with YouTube: https://agoras.readthedocs.io/en/latest/youtube.html
-.. _Using Agoras with TikTok: https://agoras.readthedocs.io/en/latest/tiktok.html
-.. _Using Agoras with Threads: https://agoras.readthedocs.io/en/latest/threads.html
-.. _Migration Guide: https://agoras.readthedocs.io/en/latest/migration.html
+.. _Using Agoras with X: https://agoras.luisalejandro.org/en/latest/x.html
+.. _Using Agoras with Facebook: https://agoras.luisalejandro.org/en/latest/facebook.html
+.. _Using Agoras with Instagram: https://agoras.luisalejandro.org/en/latest/instagram.html
+.. _Using Agoras with LinkedIn: https://agoras.luisalejandro.org/en/latest/linkedin.html
+.. _Using Agoras with Discord: https://agoras.luisalejandro.org/en/latest/discord.html
+.. _Using Agoras with YouTube: https://agoras.luisalejandro.org/en/latest/youtube.html
+.. _Using Agoras with TikTok: https://agoras.luisalejandro.org/en/latest/tiktok.html
+.. _Using Agoras with Threads: https://agoras.luisalejandro.org/en/latest/threads.html
+.. _Using Agoras with Telegram: https://agoras.luisalejandro.org/en/latest/telegram.html
+.. _Using Agoras with WhatsApp: https://agoras.luisalejandro.org/en/latest/whatsapp.html
+.. _Migration Guide: https://agoras.luisalejandro.org/en/latest/migration.html
 
-- `Using Agoras with Twitter`_
+- `Using Agoras with X`_
 - `Using Agoras with Facebook`_
 - `Using Agoras with Instagram`_
 - `Using Agoras with LinkedIn`_
@@ -216,28 +232,36 @@ Examples of usage
 - `Using Agoras with YouTube`_
 - `Using Agoras with TikTok`_
 - `Using Agoras with Threads`_
-- `Migration Guide`_ (New CLI Format)
+- `Using Agoras with Telegram`_
+- `Using Agoras with WhatsApp`_
+- `Migration Guide`_ (upgrading from 1.x)
 
 
 Credentials
 ~~~~~~~~~~~
 
-.. _How to get credentials for Twitter: https://agoras.readthedocs.io/en/latest/credentials/twitter.html
-.. _How to get credentials for Facebook: https://agoras.readthedocs.io/en/latest/credentials/facebook.html
-.. _How to get credentials for Instagram: https://agoras.readthedocs.io/en/latest/credentials/instagram.html
-.. _How to get credentials for LinkedIn: https://agoras.readthedocs.io/en/latest/credentials/linkedin.html
-.. _How to get credentials for Discord: https://agoras.readthedocs.io/en/latest/credentials/discord.html
-.. _How to get credentials for YouTube: https://agoras.readthedocs.io/en/latest/credentials/youtube.html
-.. _How to get credentials for TikTok: https://agoras.readthedocs.io/en/latest/credentials/tiktok.html
-.. _How to get credentials for Google spreadsheets: https://agoras.readthedocs.io/en/latest/credentials/google.html
+.. _How to get credentials for X: https://agoras.luisalejandro.org/en/latest/credentials/x.html
+.. _How to get credentials for Facebook: https://agoras.luisalejandro.org/en/latest/credentials/facebook.html
+.. _How to get credentials for Instagram: https://agoras.luisalejandro.org/en/latest/credentials/instagram.html
+.. _How to get credentials for LinkedIn: https://agoras.luisalejandro.org/en/latest/credentials/linkedin.html
+.. _How to get credentials for Discord: https://agoras.luisalejandro.org/en/latest/credentials/discord.html
+.. _How to get credentials for YouTube: https://agoras.luisalejandro.org/en/latest/credentials/youtube.html
+.. _How to get credentials for TikTok: https://agoras.luisalejandro.org/en/latest/credentials/tiktok.html
+.. _How to get credentials for Threads: https://agoras.luisalejandro.org/en/latest/credentials/threads.html
+.. _How to get credentials for Telegram: https://agoras.luisalejandro.org/en/latest/credentials/telegram.html
+.. _How to get credentials for WhatsApp: https://agoras.luisalejandro.org/en/latest/credentials/whatsapp.html
+.. _How to get credentials for Google spreadsheets: https://agoras.luisalejandro.org/en/latest/credentials/google.html
 
-- `How to get credentials for Twitter`_
+- `How to get credentials for X`_
 - `How to get credentials for Facebook`_
 - `How to get credentials for Instagram`_
 - `How to get credentials for LinkedIn`_
 - `How to get credentials for Discord`_
 - `How to get credentials for YouTube`_
 - `How to get credentials for TikTok`_
+- `How to get credentials for Threads`_
+- `How to get credentials for Telegram`_
+- `How to get credentials for WhatsApp`_
 - `How to get credentials for Google spreadsheets`_
 
 Getting help
@@ -246,7 +270,7 @@ Getting help
 .. _Discord server: https://discord.gg/GRnq3qQ9SB
 .. _StackOverflow: http://stackoverflow.com/questions/ask
 
-If you have any doubts or problems, suscribe to our `Discord server`_ and ask for help. You can also
+If you have any doubts or problems, subscribe to our `Discord server`_ and ask for help. You can also
 ask your question on StackOverflow_ (tag it ``agoras``) or drop me an email at luis@luisalejandro.org.
 
 Contributing

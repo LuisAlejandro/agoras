@@ -44,6 +44,20 @@ Get App Credentials
 2. Note your **App ID** (this is your ``--client-id``).
 3. Note your **App Secret** (click "Show" to reveal it - this is your ``--client-secret``).
 
+Configure OAuth Settings
+--------------------------
+
+1. In your app dashboard, go to **Settings** > **Basic**.
+2. Add your OAuth redirect URI:
+   - Click "Add Platform" if needed
+   - Select "Website"
+   - Add redirect URI: ``https://localhost:3456/callback``
+
+.. note::
+   The redirect URI is fixed to ``https://localhost:3456/callback``.
+
+3. Save changes
+
 Get Object ID (Facebook User ID)
 --------------------------------
 

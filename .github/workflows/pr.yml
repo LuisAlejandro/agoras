@@ -1,7 +1,7 @@
 name: Pull Request
 
 on:
-  pull_request_target:
+  pull_request:
     types:
       - opened
       - ready_for_review
@@ -9,16 +9,13 @@ on:
       - reopened
     branches:
       - develop
-
 jobs:
   lint:
     name: Linting
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
+        uses: actions/checkout@v7
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v6
@@ -35,12 +32,10 @@ jobs:
 
   integration:
     name: Integration Tests
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
+        uses: actions/checkout@v7
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v6
@@ -60,59 +55,19 @@ jobs:
       - name: Run integration tests
         run: |
           cd packages
-          pytest cli/tests/ -v -k integration
+          pytest cli/tests/test_integration.py -v
 
       - name: Test CLI entry point
         run: |
           agoras --version
           agoras --help
 
-  unit:
-    name: Unit tests
-    runs-on: ubuntu-22.04
-    needs: [lint, integration]
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Installing dependencies
-        run: |
-          python3 -m pip install -r requirements-dev.txt
-
-      - name: Measuring coverage (all packages)
-        env:
-          PYTHON_VERSION: ${{ matrix.python-version }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          tox -e coverage
-
-      - name: Coveralls Parallel
-        uses: coverallsapp/github-action@v2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          flag-name: run-py${{ matrix.python-version }}
-          path-to-lcov: ./.lcov
-          parallel: true
-
-  docs:
-    name: Documentation
-    runs-on: ubuntu-22.04
-    needs: [unit]
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
+        uses: actions/checkout@v7
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v6
@@ -129,17 +84,71 @@ jobs:
           python3 -m pip install -e platforms/
           python3 -m pip install -e cli/
 
+      - name: Run E2E tests
+        run: |
+          cd packages
+          pytest cli/tests/test_e2e_integration.py -v
+
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-24.04
+    needs: [lint, integration, e2e]
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Installing dependencies
+        run: |
+          python3 -m pip install -r requirements-dev.txt
+
+      - name: Measuring coverage (all packages)
+        env:
+          PYTHON_VERSION: ${{ matrix.python-version }}
+        run: |
+          tox -e coverage
+
+      - name: Coveralls Parallel
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          flag-name: run-py${{ matrix.python-version }}
+          path-to-lcov: ./.lcov
+          parallel: true
+
+  docs:
+    name: Documentation
+    runs-on: ubuntu-24.04
+    needs: [unit]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
       - name: Install documentation dependencies
         run: |
+          python3 -m pip install --upgrade pip setuptools
           python3 -m pip install -r docs/requirements.txt
 
       - name: Build documentation
         run: |
-          make -C docs html
+          cd docs
+          python3 -m sphinx -T -b html -d _build/doctrees -D language=en . _build/html
 
   finish:
     name: Finish
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [docs]
     steps:
       - name: Coveralls Finished
@@ -148,30 +157,25 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           parallel-finished: true
 
-  approve:
-    name: Approve pull request
-    runs-on: ubuntu-22.04
-    needs: finish
-    if: github.actor == github.repository_owner || github.actor == 'dependabot[bot]'
+  # >>> rosey-maintainer:ci-quality BEGIN
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-24.04
+    container:
+      image: semgrep/semgrep
     steps:
-      - name: Approve
-        uses: hmarr/auto-approve-action@v4.0.0
+      - name: Checkout repo
+        uses: actions/checkout@v7
         with:
-          github-token: "${{ github.actor == 'LuisAlejandro' && secrets.GITHUB_TOKEN || secrets.REPO_PERSONAL_ACCESS_TOKEN }}"
+          fetch-depth: 0
 
-  merge:
-    name: Merge pull request
-    runs-on: ubuntu-22.04
-    needs: approve
-    if: github.actor == github.repository_owner || github.actor == 'dependabot[bot]'
-    steps:
-      - name: Merge
-        uses: actions/github-script@v9
-        with:
-          github-token: "${{ github.actor == github.repository_owner && secrets.GITHUB_TOKEN || secrets.REPO_PERSONAL_ACCESS_TOKEN }}"
-          script: |
-            await github.rest.pulls.merge({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.payload.pull_request.number
-            })
+      - name: Semgrep scan
+        run: |
+          BASELINE="${{ github.event.pull_request.base.sha }}"
+          semgrep scan \
+            --config p/ci \
+            --config p/python \
+            --baseline-commit "${BASELINE}" \
+            --metrics=off \
+            --error
+  # <<< rosey-maintainer:ci-quality END

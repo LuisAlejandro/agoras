@@ -9,7 +9,7 @@ Agoras v2.0 is split into 5 separate PyPI packages. This guide covers all instal
 Prerequisites
 --------------
 
-- Python 3.9 or higher
+- Python 3.10 or higher
 - pip (Python package installer)
 
 If you don't have `pip`_ installed, this `Python installation guide`_ can guide
@@ -118,7 +118,7 @@ Prerequisites
 ~~~~~~~~~~~~~
 
 - Git
-- Python 3.9+
+- Python 3.10+
 - pip
 
 Clone the Repository
@@ -136,7 +136,7 @@ Install packages in dependency order to ensure all dependencies are available:
 
 .. code-block:: console
 
-    # Install common (no dependencies)
+    # Install common (depends on requests, beautifulsoup4)
     $ cd packages/common
     $ pip install -e .
 
@@ -193,7 +193,7 @@ For running tests and development tools:
 
     $ pip install -r requirements-dev.txt
 
-This installs pytest, coverage, flake8, and other development tools.
+This installs pytest, coverage, Ruff, Pyright, pydocstyle, bandit, tox, and other development tools.
 
 Upgrading
 ---------
@@ -242,7 +242,7 @@ Common Issues
   Ensure you're using editable installs (``-e`` flag) and installed in dependency order.
 
 **Python version:**
-  Agoras requires Python 3.9+. Check your version:
+  Agoras requires Python 3.10+. Check your version:
 
   .. code-block:: console
 
@@ -251,6 +251,6 @@ Common Issues
 Getting Help
 ------------
 
-- **Documentation**: https://agoras.readthedocs.io
+- **Documentation**: https://agoras.luisalejandro.org
 - **Issues**: https://github.com/LuisAlejandro/agoras/issues
 - **Discord**: https://discord.gg/GRnq3qQ9SB

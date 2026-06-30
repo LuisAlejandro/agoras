@@ -5,8 +5,19 @@ TikTok is a short-form video social platform that allows users to create and sha
 
 **Important**: TikTok requires OAuth 2.0 authentication and app approval. You must first create a TikTok for Developers app and get it approved before using these features. Like, share, and delete actions are not supported by the TikTok API.
 
-Actions
-~~~~~~~
+Required Credentials
+--------------------
+
+Before using Agoras with TikTok, you'll need to manually extract the following credentials from your TikTok for Developers app. These credentials are required for OAuth 2.0 authentication and content publishing.
+
+- **Client Key** (``TIKTOK_CLIENT_KEY``): Your TikTok app's client key (App ID), used as the OAuth client identifier
+- **Client Secret** (``TIKTOK_CLIENT_SECRET``): Your TikTok app's client secret, used for OAuth authentication
+- **Username** (``TIKTOK_USERNAME``): Your TikTok username (handle without the @ symbol) for the account you want to post to
+
+See :doc:`credentials/tiktok` for detailed instructions on how to create a TikTok for Developers app, get it approved, and obtain these credentials.
+
+Available Actions
+~~~~~~~~~~~~~~~~~
 
 * ``authorize`` - Set up OAuth 2.0 authentication (required first step)
 * ``video`` - Upload videos to TikTok
@@ -41,7 +52,7 @@ For CI/CD environments, see :doc:`credentials/tiktok` for unattended execution s
 Publish a TikTok video
 ----------------------
 
-This command will upload and publish a video to TikTok. ``--title`` is required and will be the video's caption. ``--video-url`` must point to a downloadable video file in MP4, MOV, or WebM format.
+This command will upload and publish a video to TikTok. ``--video-url`` is required and must point to a downloadable video file in MP4, MOV, or WebM format. ``--title`` is optional and will be used as the video's caption.
 
 .. note::
    You must run ``agoras tiktok authorize`` first before using this command.
@@ -49,10 +60,9 @@ This command will upload and publish a video to TikTok. ``--title`` is required 
 **New format**::
 
     agoras tiktok video \
-      --username "${TIKTOK_USERNAME}" \
       --video-url "${TIKTOK_VIDEO_URL}" \
       --title "${TIKTOK_TITLE}" \
-      --privacy-status "${TIKTOK_PRIVACY_STATUS}"
+      --privacy "${TIKTOK_PRIVACY_STATUS}"
 
 Optional parameters for video posts:
 
@@ -79,18 +89,18 @@ This command will create a photo slideshow post on TikTok. You can include up to
 **New format**::
 
     agoras tiktok post \
-      --username "${TIKTOK_USERNAME}" \
       --title "${TIKTOK_TITLE}" \
       --image-1 "${IMAGE_URL_1}" \
       --image-2 "${IMAGE_URL_2}" \
       --image-3 "${IMAGE_URL_3}" \
       --image-4 "${IMAGE_URL_4}" \
-      --privacy-status "${TIKTOK_PRIVACY_STATUS}"
+      --privacy "${TIKTOK_PRIVACY_STATUS}"
 
 Optional parameters for photo posts:
 
 - ``--allow-comments``: Allow comments on the post (default: true)
 - ``--auto-add-music``: Automatically add music to the slideshow (default: false)
+- ``--description``: Post description/caption (max 4000 UTF-16 runes, optional)
 - ``--brand-organic``: Mark content as promotional
 - ``--brand-content``: Mark content as paid partnership
 
@@ -99,7 +109,7 @@ Optional parameters for photo posts:
 Post the last video from an RSS feed into TikTok
 ------------------------------------------------
 
-This command will parse an RSS feed located at ``--feed-url``, and publish the last ``--max-count`` number of video entries published in the last ``--post-lookback`` number of seconds. The video content will be extracted from feed enclosures and the title will be used as the TikTok caption.
+This command will parse an RSS feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The video content will be extracted from feed enclosures and the title will be used as the TikTok caption.
 
 Please read about how the RSS feed should be structured in the :doc:`RSS feed section <rss>`. This ensures that the feed is correctly parsed and that video content is properly formatted.
 
@@ -110,16 +120,12 @@ Please read about how the RSS feed should be structured in the :doc:`RSS feed se
       --mode last \
       --feed-url "${FEED_URL}" \
       --max-count "${MAX_COUNT}" \
-      --post-lookback "${POST_LOOKBACK}" \
-      --tiktok-username "${TIKTOK_USERNAME}" \
-      --tiktok-client-key "${TIKTOK_CLIENT_KEY}" \
-      --tiktok-client-secret "${TIKTOK_CLIENT_SECRET}" \
-      --tiktok-privacy-status "${TIKTOK_PRIVACY_STATUS}"
+      --post-lookback "${POST_LOOKBACK}"
 
 Post a random video from an RSS feed into TikTok
 ------------------------------------------------
 
-This command will parse an RSS feed at ``--feed-url`` and publish one random video entry that's not older than ``--max-post-age`` days. The video content will be extracted from feed enclosures and the title will be used as the TikTok caption.
+This command will parse an RSS feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The video content will be extracted from feed enclosures and the title will be used as the TikTok caption.
 
 Please read about how the RSS feed should be structured in the :doc:`RSS feed section <rss>`. This ensures that the feed is correctly parsed and that video content is properly formatted.
 
@@ -129,46 +135,64 @@ Please read about how the RSS feed should be structured in the :doc:`RSS feed se
       --network tiktok \
       --mode random \
       --feed-url "${FEED_URL}" \
-      --max-post-age "${MAX_POST_AGE}" \
-      --tiktok-username "${TIKTOK_USERNAME}" \
-      --tiktok-client-key "${TIKTOK_CLIENT_KEY}" \
-      --tiktok-client-secret "${TIKTOK_CLIENT_SECRET}" \
-      --tiktok-privacy-status "${TIKTOK_PRIVACY_STATUS}"
+      --max-post-age "${MAX_POST_AGE}"
 
-Schedule a TikTok post
----------------------
+Google Sheets Scheduling
+------------------------
 
-This command will scan a sheet ``--sheets-name`` of a Google spreadsheet with id ``--sheets-id``, that's authorized by ``--sheets-client-email`` and ``--sheets-private-key``. Videos will be published using the TikTok account authorized by your credentials.
+Agoras can schedule TikTok posts using Google Sheets. This allows you to plan and automate video publishing.
 
-The order of the columns of the spreadsheet is crucial to the correct functioning of the command. Here's how the information should be organized:
+Run Scheduled Messages
+~~~~~~~~~~~~~~~~~~~~~~
 
-+---------------------+-------------------+-----------------------------+---------------------+--------------------+----------------------+---------------------+---------------------+---------------------+-------------------------+-------------------+------------------------------+
-| ``tiktok_video_url``| ``tiktok_title``  | ``tiktok_privacy_status``   | ``allow_comments``  | ``allow_duet``     | ``allow_stitch``     | ``is_brand_organic``| ``is_brand_content``| ``auto_add_music``  | date (%d-%m-%Y format)  | time (%H format)  | status (draft or published)  |
-+---------------------+-------------------+-----------------------------+---------------------+--------------------+----------------------+---------------------+---------------------+---------------------+-------------------------+-------------------+------------------------------+
+Process scheduled messages from a Google Sheet:
 
-The boolean columns (``allow_comments``, ``allow_duet``, ``allow_stitch``, ``is_brand_organic``, ``is_brand_content``, ``auto_add_music``) should contain ``TRUE`` or ``FALSE`` values.
-
-Example of a working schedule:
-
-+-----------------------------------------------+-------------------------+---------------------+------------------+---------------+------------------+------------------+------------------+------------------+-------------+-----+--------+
-| https://example.com/video.mp4                | My awesome TikTok video | PUBLIC_TO_EVERYONE  | TRUE             | TRUE          | TRUE             | FALSE            | FALSE            | FALSE            | 21-11-2022  | 17  | draft  |
-+-----------------------------------------------+-------------------------+---------------------+------------------+---------------+------------------+------------------+------------------+------------------+-------------+-----+--------+
-
-This schedule entry would be published at 17:00h of 21-11-2022 with the specified video and settings.
-
-For this command to work, it should be executed hourly by a cron script.
-
-**New format** (Agoras 2.0+)::
+::
 
     agoras utils schedule-run \
       --network tiktok \
       --sheets-id "${GOOGLE_SHEETS_ID}" \
-      --sheets-name "${GOOGLE_SHEETS_NAME}" \
+      --sheets-name "TikTok" \
       --sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
       --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" \
-      --tiktok-username "${TIKTOK_USERNAME}" \
-      --tiktok-client-key "${TIKTOK_CLIENT_KEY}" \
-      --tiktok-client-secret "${TIKTOK_CLIENT_SECRET}"
+      --tiktok-username "${TIKTOK_USERNAME}"
+
+.. note::
+   You must run ``agoras tiktok authorize`` first before using this command.
+
+Sheet Format
+~~~~~~~~~~~~
+
+Your Google Sheet should have the following columns:
+
+- ``tiktok_video_url``: URL to the video file
+- ``tiktok_title``: Video title/caption
+- ``tiktok_privacy_status``: Privacy status (``PUBLIC_TO_EVERYONE``, ``MUTUAL_FOLLOW_FRIENDS``, ``FOLLOWER_OF_CREATOR``, ``SELF_ONLY``)
+- ``allow_comments``: Allow comments (``TRUE`` or ``FALSE``)
+- ``allow_duet``: Allow duets (``TRUE`` or ``FALSE``)
+- ``allow_stitch``: Allow stitches (``TRUE`` or ``FALSE``)
+- ``is_brand_organic``: Mark as promotional content (``TRUE`` or ``FALSE``)
+- ``is_brand_content``: Mark as paid partnership (``TRUE`` or ``FALSE``)
+- ``auto_add_music``: Automatically add music (``TRUE`` or ``FALSE``)
+- ``date``: Scheduled date (format: DD-MM-YYYY)
+- ``hour``: Scheduled hour (format: HH, 24-hour format)
+- ``state``: Post state (``pending``, ``published``, ``error``)
+
+**Example sheet row**:
+
+::
+
+    tiktok_video_url,tiktok_title,tiktok_privacy_status,allow_comments,allow_duet,allow_stitch,is_brand_organic,is_brand_content,auto_add_music,date,hour,state
+    "https://example.com/video.mp4","My awesome TikTok video","PUBLIC_TO_EVERYONE","TRUE","TRUE","TRUE","FALSE","FALSE","FALSE","21-11-2022","17","pending"
+
+Scheduling Logic
+~~~~~~~~~~~~~~~~
+
+- Posts with ``state="pending"`` and scheduled time in the past are processed
+- Posts are created at the scheduled date and hour
+- Sheet state is updated to ``published`` after successful posting
+- If posting fails, state is updated to ``error``
+- Use ``--network tiktok`` to process TikTok posts from the sheet (required since 2.1.0; one platform per run)
 
 Brand Content and Promotional Content
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -189,7 +213,7 @@ TikTok requires proper labeling of commercial content:
   - Displays "Paid partnership" label
   - Requires agreement to both policies
 
-**Important**: You cannot use ``--brand-content`` with ``--tiktok-privacy-status SELF_ONLY`` (private posts).
+**Important**: You cannot use ``--brand-content`` with ``--privacy SELF_ONLY`` (private posts).
 
 Limitations
 ~~~~~~~~~~~
@@ -208,7 +232,6 @@ When you create a TikTok post with Agoras, it will print the publish ID (in JSON
 ::
 
       $ agoras tiktok video \
-            --username myusername \
             --video-url "https://example.com/video.mp4" \
             --title "My awesome video"
       $ {"id":"NNNNNNNNNNN"}

@@ -28,6 +28,7 @@ from argparse import ArgumentParser
 
 from agoras.common.logger import logger
 from agoras.common.version import __description__, __version__
+from agoras.core.auth import AuthenticationError
 
 from .legacy import create_legacy_publish_parser
 from .platforms.discord import create_discord_parser
@@ -59,23 +60,27 @@ def commandline(argv=None):
     assert isinstance(argv, (list, type(None)))
 
     parser = ArgumentParser(
-        prog='agoras', description=__description__, add_help=False,
-        usage='\t%(prog)s [options]\n\t%(prog)s <command> [options]')
-    gen_options = parser.add_argument_group('General Options')
+        prog="agoras",
+        description=__description__,
+        add_help=False,
+        usage="\t%(prog)s [options]\n\t%(prog)s <command> [options]",
+    )
+    gen_options = parser.add_argument_group("General Options")
     gen_options.add_argument(
-        '-V', '--version', action='version',
-        version='agoras {0}'.format(__version__),
-        help='Print version and exit.')
+        "-V", "--version", action="version", version="agoras {0}".format(__version__), help="Print version and exit."
+    )
+    gen_options.add_argument("-h", "--help", action="help", help="Show this help message and exit.")
     gen_options.add_argument(
-        '-h', '--help', action='help', help='Show this help message and exit.')
-    gen_options.add_argument(
-        '-l', '--loglevel', default='INFO', metavar='<level>',
-        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-        help=('Logger verbosity level (default: INFO). Must be one of: '
-              'DEBUG, INFO, WARNING, ERROR or CRITICAL.'))
+        "-l",
+        "--loglevel",
+        default="INFO",
+        metavar="<level>",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help=("Logger verbosity level (default: INFO). Must be one of: DEBUG, INFO, WARNING, ERROR or CRITICAL."),
+    )
 
     # Create subparsers for commands
-    subparsers = parser.add_subparsers(title='Commands', metavar='')
+    subparsers = parser.add_subparsers(title="Commands", metavar="")
 
     # Register all platform commands
     create_x_parser(subparsers)
@@ -116,32 +121,35 @@ def main(argv=None):
 
     parser, args = commandline(argv)
 
-    if not hasattr(args, 'command'):
+    if not hasattr(args, "command"):
         parser.print_help()
         return 0
 
     logger.start()
     logger.loglevel(args.loglevel)
-    logger.debug('Starting execution.')
+    logger.debug("Starting execution.")
 
     try:
         # Call handler with args Namespace
         # Handlers expect a single args argument, not unpacked kwargs
         status = args.command(args)
     except KeyboardInterrupt:
-        logger.critical('Execution interrupted by user!')
+        logger.critical("Execution interrupted by user!")
+        status = 1
+    except AuthenticationError as exc:
+        print(str(exc), file=sys.stderr)
         status = 1
     except Exception as e:
         logger.exception(e)
-        logger.critical('Shutting down due to fatal error!')
+        logger.critical("Shutting down due to fatal error!")
         status = 1
     else:
-        logger.debug('Ending execution.')
+        logger.debug("Ending execution.")
 
     logger.stop()
     return status
 
 
-if __name__ == '__main__':
-    sys.argv[0] = re.sub(r'(-script\.pyw?|\.exe)?$', '', sys.argv[0])
+if __name__ == "__main__":
+    sys.argv[0] = re.sub(r"(-script\.pyw?|\.exe)?$", "", sys.argv[0])
     sys.exit(main())

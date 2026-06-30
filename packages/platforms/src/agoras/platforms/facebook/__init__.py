@@ -16,12 +16,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-agoras.platforms.facebook
-=========================
+agoras.platforms.facebook.
 
 Facebook platform implementation for Agoras.
 """
 
 from .wrapper import Facebook
 
-__all__ = ['Facebook']
+__all__ = ["Facebook"]

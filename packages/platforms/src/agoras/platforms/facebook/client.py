@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.facebook.client module."""
 
 import asyncio
 import json
@@ -59,14 +60,14 @@ class FacebookAPIClient:
             return True
 
         if not self.access_token:
-            raise Exception('Facebook access token is required')
+            raise Exception("Facebook access token is required")
 
         try:
             self.graph_api = GraphAPI(access_token=self.access_token, version="21.0")
             self._authenticated = True
             return True
         except Exception as e:
-            raise Exception(f'Facebook client authentication failed: {str(e)}')
+            raise Exception(f"Facebook client authentication failed: {str(e)}")
 
     def disconnect(self):
         """
@@ -91,16 +92,12 @@ class FacebookAPIClient:
             Exception: If post fails
         """
         if not self.graph_api:
-            raise Exception('Facebook GraphAPI not initialized')
+            raise Exception("Facebook GraphAPI not initialized")
 
         try:
-            return self.graph_api.post_object(
-                object_id=object_id,
-                connection=connection,
-                data=data or {}
-            )
+            return self.graph_api.post_object(object_id=object_id, connection=connection, data=data or {})
         except Exception as e:
-            raise Exception(f'Facebook post_object failed: {str(e)}')
+            raise Exception(f"Facebook post_object failed: {str(e)}")
 
     def delete_object(self, object_id: str) -> None:
         """
@@ -113,12 +110,12 @@ class FacebookAPIClient:
             Exception: If deletion fails
         """
         if not self.graph_api:
-            raise Exception('Facebook GraphAPI not initialized')
+            raise Exception("Facebook GraphAPI not initialized")
 
         try:
             self.graph_api.delete_object(object_id=object_id)
         except Exception as e:
-            raise Exception(f'Facebook delete_object failed: {str(e)}')
+            raise Exception(f"Facebook delete_object failed: {str(e)}")
 
     def get_object(self, object_id: str, fields: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -135,7 +132,7 @@ class FacebookAPIClient:
             Exception: If get fails
         """
         if not self.graph_api:
-            raise Exception('Facebook GraphAPI not initialized')
+            raise Exception("Facebook GraphAPI not initialized")
 
         try:
             if fields:
@@ -143,7 +140,7 @@ class FacebookAPIClient:
             else:
                 return self.graph_api.get_object(object_id=object_id)
         except Exception as e:
-            raise Exception(f'Facebook get_object failed: {str(e)}')
+            raise Exception(f"Facebook get_object failed: {str(e)}")
 
     async def is_page(self, object_id: str) -> bool:
         """
@@ -159,17 +156,14 @@ class FacebookAPIClient:
             Exception: If API call fails
         """
         if not self.graph_api:
-            raise Exception('Facebook GraphAPI not initialized')
+            raise Exception("Facebook GraphAPI not initialized")
 
         try:
             # Pages have 'category' or 'category_list' fields, profiles don't
-            page_data = self.graph_api.get_object(
-                object_id=object_id,
-                fields='category,category_list,about'
-            )
+            page_data = self.graph_api.get_object(object_id=object_id, fields="category,category_list,about")
 
             # If we got category or category_list fields, it's a page
-            return bool(page_data.get('category') or page_data.get('category_list'))
+            return bool(page_data.get("category") or page_data.get("category_list"))
         except Exception:
             # If we can't access the object, assume it's not a page
             # (could be privacy settings or invalid ID)
@@ -190,38 +184,39 @@ class FacebookAPIClient:
             Exception: If page token cannot be obtained
         """
         if not self.graph_api:
-            raise Exception('Facebook GraphAPI not initialized')
+            raise Exception("Facebook GraphAPI not initialized")
 
         try:
             # Use direct HTTP request to /me/accounts endpoint
             import requests
 
             url = "https://graph.facebook.com/v21.0/me/accounts"
-            params = {
-                'access_token': user_access_token,
-                'fields': 'id,access_token'
-            }
+            params = {"access_token": user_access_token, "fields": "id,access_token"}
 
-            response = requests.get(url, params=params)
+            response = requests.get(url, params=params, timeout=30)
             response.raise_for_status()
 
             accounts_data = response.json()
 
             # Find the page matching our object_id
-            for account in accounts_data.get('data', []):
-                if account.get('id') == object_id:
-                    page_token = account.get('access_token')
+            for account in accounts_data.get("data", []):
+                if account.get("id") == object_id:
+                    page_token = account.get("access_token")
                     if page_token:
                         return page_token
 
-            raise Exception(f'Page {object_id} not found in user accounts or no access token available')
+            raise Exception(f"Page {object_id} not found in user accounts or no access token available")
 
         except Exception as e:
-            raise Exception(f'Facebook page token exchange failed: {str(e)}')
+            raise Exception(f"Facebook page token exchange failed: {str(e)}")
 
-    async def create_post(self, object_id: str, message: Optional[str] = None,
-                          link: Optional[str] = None,
-                          attached_media: Optional[List[Dict[str, Any]]] = None) -> str:
+    async def create_post(
+        self,
+        object_id: str,
+        message: Optional[str] = None,
+        link: Optional[str] = None,
+        attached_media: Optional[List[Dict[str, Any]]] = None,
+    ) -> str:
         """
         Create a Facebook post.
 
@@ -237,22 +232,19 @@ class FacebookAPIClient:
         Raises:
             Exception: If post creation fails
         """
+
         def _sync_create_post():
-            data: Dict[str, Any] = {'published': True}
+            data: Dict[str, Any] = {"published": True}
 
             if link:
-                data['link'] = link
+                data["link"] = link
             if message:
-                data['message'] = message
+                data["message"] = message
             if attached_media:
-                data['attached_media'] = json.dumps(attached_media)
+                data["attached_media"] = json.dumps(attached_media)
 
-            response = self.post_object(
-                object_id=object_id,
-                connection='feed',
-                data=data
-            )
-            return response['id'].split('_')[1]
+            response = self.post_object(object_id=object_id, connection="feed", data=data)
+            return response["id"].split("_")[1]
 
         return await asyncio.to_thread(_sync_create_post)
 
@@ -271,14 +263,10 @@ class FacebookAPIClient:
         Raises:
             Exception: If media upload fails
         """
+
         def _sync_upload_media():
             return self.post_object(
-                object_id=object_id,
-                connection='photos',
-                data={
-                    'url': media_url,
-                    'published': published
-                }
+                object_id=object_id, connection="photos", data={"url": media_url, "published": published}
             )
 
         return await asyncio.to_thread(_sync_upload_media)
@@ -297,11 +285,9 @@ class FacebookAPIClient:
         Raises:
             Exception: If like operation fails
         """
+
         def _sync_like():
-            self.post_object(
-                object_id=f'{object_id}_{post_id}',
-                connection='likes'
-            )
+            self.post_object(object_id=f"{object_id}_{post_id}", connection="likes")
             return post_id
 
         return await asyncio.to_thread(_sync_like)
@@ -320,8 +306,9 @@ class FacebookAPIClient:
         Raises:
             Exception: If deletion fails
         """
+
         def _sync_delete():
-            self.delete_object(object_id=f'{object_id}_{post_id}')
+            self.delete_object(object_id=f"{object_id}_{post_id}")
             return post_id
 
         return await asyncio.to_thread(_sync_delete)
@@ -341,18 +328,12 @@ class FacebookAPIClient:
         Raises:
             Exception: If sharing fails
         """
+
         def _sync_share():
-            host = 'https://www.facebook.com'
-            data = {
-                'link': f'{host}/{object_id}/posts/{post_id}',
-                'published': True
-            }
-            response = self.post_object(
-                object_id=profile_id,
-                connection='feed',
-                data=data
-            )
-            return response['id'].split('_')[1]
+            host = "https://www.facebook.com"
+            data = {"link": f"{host}/{object_id}/posts/{post_id}", "published": True}
+            response = self.post_object(object_id=profile_id, connection="feed", data=data)
+            return response["id"].split("_")[1]
 
         return await asyncio.to_thread(_sync_share)
 
@@ -372,25 +353,26 @@ class FacebookAPIClient:
         Raises:
             Exception: If upload fails
         """
+
         def _sync_upload_reel_or_story():
-            connection = 'video_reels' if video_type == 'reel' else 'video_stories'
+            connection = "video_reels" if video_type == "reel" else "video_stories"
 
             # Start upload
-            response = self.post_object(
-                object_id=object_id,
-                connection=connection,
-                data={"upload_phase": "start"}
-            )
-            video_id = response.get('video_id')
-            upload_url = response.get('upload_url')
+            response = self.post_object(object_id=object_id, connection=connection, data={"upload_phase": "start"})
+            video_id = response.get("video_id")
+            upload_url = response.get("upload_url")
 
             # Upload video
             if upload_url:
-                requests.post(upload_url, headers={
-                    "file_url": video_url,
-                    "Authorization": f"OAuth {self.access_token}",
-                    'User-Agent': f'Agoras/{__version__}',
-                })
+                requests.post(
+                    upload_url,
+                    headers={
+                        "file_url": video_url,
+                        "Authorization": f"OAuth {self.access_token}",
+                        "User-Agent": f"Agoras/{__version__}",
+                    },
+                    timeout=30,
+                )
 
             # Finish upload
             self.post_object(
@@ -401,16 +383,24 @@ class FacebookAPIClient:
                     "video_state": "PUBLISHED",
                     "video_id": video_id,
                     "description": status_text,
-                }
+                },
             )
 
             return str(video_id) if video_id else ""
 
         return await asyncio.to_thread(_sync_upload_reel_or_story)
 
-    async def upload_regular_video(self, object_id: str, app_id: str, video_content: bytes,
-                                   video_file_type: str, video_file_size: int, video_filename: str,
-                                   status_text: str, video_title: str) -> str:
+    async def upload_regular_video(
+        self,
+        object_id: str,
+        app_id: str,
+        video_content: bytes,
+        video_file_type: str,
+        video_file_size: int,
+        video_filename: str,
+        status_text: str,
+        video_title: str,
+    ) -> str:
         """
         Upload a regular video to Facebook using manual HTTP requests.
 
@@ -430,25 +420,27 @@ class FacebookAPIClient:
         Raises:
             Exception: If upload fails
         """
+
         def _sync_upload_regular_video():
             # Create upload session
             upload_response = requests.post(
                 f"https://graph.facebook.com/v21.0/{app_id}/uploads",
                 headers={
                     "Authorization": f"OAuth {self.access_token}",
-                    'User-Agent': f'Agoras/{__version__}',
+                    "User-Agent": f"Agoras/{__version__}",
                 },
                 data={
                     "file_type": video_file_type,
                     "file_length": str(video_file_size),
                     "file_name": video_filename,
-                }
+                },
+                timeout=30,
             )
             upload_response.raise_for_status()
-            upload_session_id = upload_response.json().get('id')
+            upload_session_id = upload_response.json().get("id")
 
             if not upload_session_id:
-                raise Exception('Failed to create upload session')
+                raise Exception("Failed to create upload session")
 
             # Upload video file
             upload_data_response = requests.post(
@@ -457,30 +449,32 @@ class FacebookAPIClient:
                     "Content-Type": video_file_type,
                     "file_offset": "0",
                     "Authorization": f"OAuth {self.access_token}",
-                    'User-Agent': f'Agoras/{__version__}',
+                    "User-Agent": f"Agoras/{__version__}",
                 },
-                data=video_content
+                data=video_content,
+                timeout=30,
             )
             upload_data_response.raise_for_status()
-            file_handle = upload_data_response.json().get('h')
+            file_handle = upload_data_response.json().get("h")
 
             if not file_handle:
-                raise Exception('Failed to upload video data')
+                raise Exception("Failed to upload video data")
 
             # Create video post
             video_response = requests.post(
                 f"https://graph-video.facebook.com/v21.0/{object_id}/videos",
                 headers={
                     "Authorization": f"OAuth {self.access_token}",
-                    'User-Agent': f'Agoras/{__version__}',
+                    "User-Agent": f"Agoras/{__version__}",
                 },
                 data={
-                    'title': video_title,
-                    'description': status_text,
+                    "title": video_title,
+                    "description": status_text,
                     "fbuploader_video_file_chunk": file_handle,
-                }
+                },
+                timeout=30,
             )
             video_response.raise_for_status()
-            return str(video_response.json()['id'])
+            return str(video_response.json()["id"])
 
         return await asyncio.to_thread(_sync_upload_regular_video)

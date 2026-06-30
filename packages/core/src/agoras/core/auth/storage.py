@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.core.auth.storage module."""
 
 import json
 import os
@@ -31,12 +32,24 @@ class SecureTokenStorage:
     This class provides encrypted storage for OAuth tokens and related metadata
     using Fernet symmetric encryption. Tokens are stored in ~/.agoras/tokens/
     with file permissions set to 600 (owner read/write only).
+
+    The storage directory can be customized by setting the AGORAS_STORAGE_DIR
+    environment variable. If set, tokens will be stored in {AGORAS_STORAGE_DIR}/tokens/
+    and the encryption key in {AGORAS_STORAGE_DIR}/.key.
     """
 
     def __init__(self):
         """Initialize secure token storage."""
-        self.token_dir = Path.home() / '.agoras' / 'tokens'
-        self.key_file = Path.home() / '.agoras' / '.key'
+        # Check for custom storage directory from environment variable
+        storage_dir = os.environ.get("AGORAS_STORAGE_DIR")
+        if storage_dir:
+            base_dir = Path(storage_dir).expanduser().resolve()
+            self.token_dir = base_dir / "tokens"
+            self.key_file = base_dir / ".key"
+        else:
+            # Default to ~/.agoras
+            self.token_dir = Path.home() / ".agoras" / "tokens"
+            self.key_file = Path.home() / ".agoras" / ".key"
 
         # Create directories if they don't exist
         self.token_dir.mkdir(parents=True, exist_ok=True)
@@ -54,14 +67,14 @@ class SecureTokenStorage:
         """
         if self.key_file.exists():
             # Load existing key
-            with open(self.key_file, 'rb') as f:
+            with open(self.key_file, "rb") as f:
                 return f.read()
         else:
             # Generate new key
             key = Fernet.generate_key()
 
             # Save key with secure permissions
-            with open(self.key_file, 'wb') as f:
+            with open(self.key_file, "wb") as f:
                 f.write(key)
 
             # Set file permissions to 600 (owner read/write only)
@@ -161,21 +174,22 @@ class SecureTokenStorage:
         """
         # Known platform names for proper parsing
         known_platforms = [
-            'facebook',
-            'instagram',
-            'linkedin',
-            'discord',
-            'telegram',
-            'threads',
-            'twitter',
-            'whatsapp',
-            'x',
-            'youtube',
-            'tiktok']
+            "facebook",
+            "instagram",
+            "linkedin",
+            "discord",
+            "telegram",
+            "threads",
+            "twitter",
+            "whatsapp",
+            "x",
+            "youtube",
+            "tiktok",
+        ]
 
         tokens = []
 
-        for token_file in self.token_dir.glob('*.token'):
+        for token_file in self.token_dir.glob("*.token"):
             stem = token_file.stem
 
             # Try to identify the platform by checking known platform prefixes
@@ -183,9 +197,9 @@ class SecureTokenStorage:
             identifier = None
 
             for known_platform in known_platforms:
-                if stem.startswith(known_platform + '-'):
+                if stem.startswith(known_platform + "-"):
                     file_platform = known_platform
-                    identifier = stem[len(known_platform) + 1:]  # Remove platform prefix and dash
+                    identifier = stem[len(known_platform) + 1 :]  # Remove platform prefix and dash
                     break
 
             if file_platform and identifier:
@@ -198,7 +212,7 @@ class SecureTokenStorage:
         """
         Seed storage from environment variables (CI/CD support).
 
-        Checks for AGORAS_{PLATFORM}_REFRESH_TOKEN environment variable
+        Checks for {PLATFORM}_REFRESH_TOKEN environment variable
         and saves it to storage if found. This enables CI/CD pipelines to
         inject credentials without requiring interactive OAuth flows.
 
@@ -209,11 +223,11 @@ class SecureTokenStorage:
         Returns:
             bool: True if token was seeded from environment, False otherwise
         """
-        env_key = f'AGORAS_{platform.upper()}_REFRESH_TOKEN'
+        env_key = f"{platform.upper()}_REFRESH_TOKEN"
         refresh_token = os.environ.get(env_key)
 
         if refresh_token:
-            token_data = {'refresh_token': refresh_token}
+            token_data = {"refresh_token": refresh_token}
             self.save_token(platform, identifier, token_data)
             return True
 

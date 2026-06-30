@@ -15,8 +15,11 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.tiktok.wrapper module."""
 
 import asyncio
+import json
+import sys
 
 from agoras.core.interfaces import SocialNetwork
 
@@ -30,6 +33,11 @@ class TikTok(SocialNetwork):
     This class provides TikTok-specific functionality for posting videos and photos,
     and managing TikTok interactions asynchronously.
     """
+
+    def _output_status(self, post_id):
+        """Emit publish_id JSON on stdout for CLI piping."""
+        status = {"publish_id": post_id}
+        print(json.dumps(status, separators=(",", ":")))
 
     def __init__(self, **kwargs):
         """
@@ -64,6 +72,8 @@ class TikTok(SocialNetwork):
         self.brand_organic = None
         self.brand_content = None
         self.api = None
+        # Store action to determine appropriate defaults
+        self._action = kwargs.get("action", "")
 
     async def _initialize_client(self):
         """
@@ -72,42 +82,47 @@ class TikTok(SocialNetwork):
         Tries to load credentials from CLI params, environment variables, or storage.
         """
         # Try params/environment first
-        self.tiktok_username = self._get_config_value('tiktok_username', 'TIKTOK_USERNAME')
-        self.tiktok_client_key = self._get_config_value('tiktok_client_key', 'TIKTOK_CLIENT_KEY')
-        self.tiktok_client_secret = self._get_config_value('tiktok_client_secret', 'TIKTOK_CLIENT_SECRET')
-        self.tiktok_refresh_token = self._get_config_value('tiktok_refresh_token', 'TIKTOK_REFRESH_TOKEN')
-
+        self.tiktok_username = self._get_config_value("tiktok_username", "TIKTOK_USERNAME")
+        self.tiktok_client_key = self._get_config_value("tiktok_client_key", "TIKTOK_CLIENT_KEY")
+        self.tiktok_client_secret = self._get_config_value("tiktok_client_secret", "TIKTOK_CLIENT_SECRET")
+        self.tiktok_refresh_token = self._get_config_value("tiktok_refresh_token", "TIKTOK_REFRESH_TOKEN")
         # Configuration options
-        self.tiktok_title = self._get_config_value('tiktok_title', 'TIKTOK_TITLE') or ''
+        self.tiktok_title = self._get_config_value("tiktok_title", "TIKTOK_TITLE") or ""
         self.tiktok_privacy_status = (
-            self._get_config_value('tiktok_privacy_status', 'TIKTOK_PRIVACY_STATUS') or 'SELF_ONLY'
+            self._get_config_value("tiktok_privacy_status", "TIKTOK_PRIVACY_STATUS") or "SELF_ONLY"
         )
-        self.tiktok_allow_comments = self._get_config_value('tiktok_allow_comments', 'TIKTOK_ALLOW_COMMENTS')
-        self.tiktok_allow_duet = self._get_config_value('tiktok_allow_duet', 'TIKTOK_ALLOW_DUET')
-        self.tiktok_allow_stitch = self._get_config_value('tiktok_allow_stitch', 'TIKTOK_ALLOW_STITCH')
-        self.tiktok_auto_add_music = self._get_config_value('tiktok_auto_add_music', 'TIKTOK_AUTO_ADD_MUSIC')
-        self.brand_organic = self._get_config_value('brand_organic', 'TIKTOK_BRAND_ORGANIC')
-        self.brand_content = self._get_config_value('brand_content', 'TIKTOK_BRAND_CONTENT')
+        self.tiktok_allow_comments = self._get_config_value("tiktok_allow_comments", "TIKTOK_ALLOW_COMMENTS")
+        self.tiktok_allow_duet = self._get_config_value("tiktok_allow_duet", "TIKTOK_ALLOW_DUET")
+        self.tiktok_allow_stitch = self._get_config_value("tiktok_allow_stitch", "TIKTOK_ALLOW_STITCH")
+        self.tiktok_auto_add_music = self._get_config_value("tiktok_auto_add_music", "TIKTOK_AUTO_ADD_MUSIC")
+        self.tiktok_description = self._get_config_value("tiktok_description", "TIKTOK_DESCRIPTION") or ""
+        self.brand_organic = self._get_config_value("brand_organic", "TIKTOK_BRAND_ORGANIC")
+        self.brand_content = self._get_config_value("brand_content", "TIKTOK_BRAND_CONTENT")
 
         # Convert string booleans
         self.tiktok_allow_comments = self._convert_bool(self.tiktok_allow_comments, True)
-        self.tiktok_allow_duet = self._convert_bool(self.tiktok_allow_duet, True)
-        self.tiktok_allow_stitch = self._convert_bool(self.tiktok_allow_stitch, True)
+        # Set defaults for duet/stitch based on action:
+        # - True for video action (duets/stitches are supported)
+        # - False for post action (duets/stitches are not supported for photos)
+        duet_default = True if self._action == "video" else False
+        stitch_default = True if self._action == "video" else False
+        self.tiktok_allow_duet = self._convert_bool(self.tiktok_allow_duet, duet_default)
+        self.tiktok_allow_stitch = self._convert_bool(self.tiktok_allow_stitch, stitch_default)
         self.tiktok_auto_add_music = self._convert_bool(self.tiktok_auto_add_music, False)
         self.brand_organic = self._convert_bool(self.brand_organic, False)
         self.brand_content = self._convert_bool(self.brand_content, False)
 
         # If credentials not provided, try loading from storage
         # TikTok needs username, client_key, client_secret, and refresh_token to authenticate
-        if not all([self.tiktok_username,
-                    self.tiktok_client_key,
-                    self.tiktok_client_secret,
-                    self.tiktok_refresh_token]):
+        if not all(
+            [self.tiktok_username, self.tiktok_client_key, self.tiktok_client_secret, self.tiktok_refresh_token]
+        ):
             from .auth import TikTokAuthManager
+
             auth_manager = TikTokAuthManager(
-                username=self.tiktok_username or '',
-                client_key=self.tiktok_client_key or '',
-                client_secret=self.tiktok_client_secret or ''
+                username=self.tiktok_username or "",
+                client_key=self.tiktok_client_key or "",
+                client_secret=self.tiktok_client_secret or "",
             )
 
             if auth_manager._load_credentials_from_storage():
@@ -122,19 +137,17 @@ class TikTok(SocialNetwork):
                     self.tiktok_refresh_token = auth_manager.refresh_token
 
         # Validate all credentials are now available
-        if not all([self.tiktok_username,
-                    self.tiktok_client_key,
-                    self.tiktok_client_secret,
-                    self.tiktok_refresh_token]):
+        if not all(
+            [self.tiktok_username, self.tiktok_client_key, self.tiktok_client_secret, self.tiktok_refresh_token]
+        ):
             raise Exception("Not authenticated. Please run 'agoras tiktok authorize' first.")
 
         # Initialize TikTok API
         self.api = TikTokAPI(
-            self.tiktok_username,
-            self.tiktok_client_key,
-            self.tiktok_client_secret,
-            self.tiktok_refresh_token
+            self.tiktok_username, self.tiktok_client_key, self.tiktok_client_secret, self.tiktok_refresh_token
         )
+
+        # Authenticate with provided credentials
         await self.api.authenticate()
 
     async def disconnect(self):
@@ -151,12 +164,18 @@ class TikTok(SocialNetwork):
         if isinstance(value, bool):
             return value
         if isinstance(value, str):
-            return value.upper() in ['TRUE', '1', 'YES', 'ON']
+            return value.upper() in ["TRUE", "1", "YES", "ON"]
         return bool(value)
 
-    async def post(self, status_text, status_link,
-                   status_image_url_1=None, status_image_url_2=None,
-                   status_image_url_3=None, status_image_url_4=None):
+    async def post(
+        self,
+        status_text,
+        status_link,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+    ):
         """
         Create a photo post on TikTok.
 
@@ -175,47 +194,58 @@ class TikTok(SocialNetwork):
             Exception: If post creation fails or duet/stitch not supported for photos
         """
         if not self.api:
-            raise Exception('TikTok API not initialized')
+            raise Exception("TikTok API not initialized")
 
         # Validate settings for photo posts
         if self.tiktok_allow_duet:
-            raise Exception('--allow-duet is not supported for photo posts.')
+            raise Exception("--allow-duet is not supported for photo posts.")
 
         if self.tiktok_allow_stitch:
-            raise Exception('--allow-stitch is not supported for photo posts.')
+            raise Exception("--allow-stitch is not supported for photo posts.")
 
         # Collect source media
-        source_media = list(filter(None, [
-            status_image_url_1, status_image_url_2,
-            status_image_url_3, status_image_url_4
-        ]))
+        source_media = list(
+            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        )
 
         if not source_media:
-            raise Exception('At least one image is required for TikTok photo posts.')
+            raise Exception("At least one image is required for TikTok photo posts.")
 
         if not status_text:
-            status_text = self.tiktok_title or ''
+            status_text = self.tiktok_title or ""
+
+        from agoras.media.constraints import image_limits
+        from agoras.media.errors import MediaValidationError
+        from agoras.media.preflight import preflight_url_for_platform
 
         # Validate images using Media system
         validated_media = []
         images = await self.download_images(source_media)
+        allowed_images = image_limits("tiktok").mime_types
 
         try:
             for image in images:
                 if not image.content or not image.file_type:
                     image.cleanup()
-                    raise Exception(f'Failed to download or validate image: {image.url}')
+                    raise Exception(f"Failed to download or validate image: {image.url}")
 
-                # Ensure image is valid format for TikTok
-                if image.file_type.mime not in ['image/jpeg', 'image/png', 'image/jpg']:
+                allowed = allowed_images
+                if image.file_type.mime not in allowed:
                     image.cleanup()
-                    raise Exception(f'Invalid image type "{image.file_type.mime}" for {image.url}')
+                    raise MediaValidationError(
+                        "tiktok",
+                        "image",
+                        "mime_types",
+                        image.file_type.mime,
+                        sorted(allowed),
+                    )
+                preflight_url_for_platform(image.url, "tiktok", kind="image")
 
                 validated_media.append(image.url)
 
             # Validate brand content settings
-            if self.brand_content and self.tiktok_privacy_status == 'ONLY_ME':
-                raise Exception('You cannot use brand content with ONLY_ME privacy status')
+            if self.brand_content and self.tiktok_privacy_status == "ONLY_ME":
+                raise Exception("You cannot use brand content with ONLY_ME privacy status")
 
             # Print brand content notices
             self._print_brand_content_notices()
@@ -228,10 +258,13 @@ class TikTok(SocialNetwork):
                 bool(self.tiktok_allow_comments),
                 bool(self.brand_organic),
                 bool(self.brand_content),
-                bool(self.tiktok_auto_add_music)
+                bool(self.tiktok_auto_add_music),
+                str(self.tiktok_description),
             )
 
-            post_id = response.get('publish_id')
+            post_id = response.get("publish_id")
+            if not post_id:
+                raise Exception("Failed to get publish_id from TikTok API response")
             self._output_status(post_id)
             return post_id
 
@@ -253,56 +286,54 @@ class TikTok(SocialNetwork):
             str: Post ID
         """
         if not self.api:
-            raise Exception('TikTok API not initialized')
-
-        # Check if video upload scopes are available (requires Production app approval)
-        # NOTE: Temporarily disabled for testing - requires Production app approval
-        # raise Exception(
-        #     'TikTok video upload requires Production app approval from TikTok. '
-        #     'Your app is currently in Sandbox mode. Please:\n'
-        #     '1. Go to TikTok Developer Portal\n'
-        #     '2. Submit your app for review\n'
-        #     '3. Request approval for video.upload and video.publish scopes\n'
-        #     '4. Once approved, switch to Production mode'
-        # )
+            raise Exception("TikTok API not initialized")
 
         if not video_url:
-            raise Exception('Video URL is required.')
+            raise Exception("Video URL is required.")
 
-        title = video_title or status_text or self.tiktok_title or ''
+        title = video_title or status_text or self.tiktok_title or ""
         if not title:
-            raise Exception('Video title is required.')
+            raise Exception("Video title is required.")
 
         # Validate settings for video posts
         if self.tiktok_auto_add_music:
-            raise Exception('Auto-add music is not supported for video posts.')
+            raise Exception("Auto-add music is not supported for video posts.")
 
         # Download and validate video using Media system
         video = await self.download_video(video_url)
 
         try:
             if not video.content or not video.file_type:
-                raise Exception('Failed to download or validate video')
+                raise Exception("Failed to download or validate video")
 
-            # Ensure video is valid format for TikTok
-            if video.file_type.mime not in ['video/quicktime', 'video/mp4', 'video/webm']:
-                raise Exception(f'Invalid video type "{video.file_type.mime}" for {video_url}')
+            from agoras.media.constraints import video_limits
+            from agoras.media.errors import MediaValidationError
+
+            allowed = video_limits("tiktok").mime_types
+            if video.file_type.mime not in allowed:
+                raise MediaValidationError(
+                    "tiktok",
+                    "video",
+                    "mime_types",
+                    video.file_type.mime,
+                    sorted(allowed),
+                )
 
             # Check video duration against creator limits
-            if hasattr(self.api, 'creator_info') and self.api.creator_info:
-                max_duration = self.api.creator_info.get('max_video_post_duration_sec', 0)
+            if hasattr(self.api, "creator_info") and self.api.creator_info:
+                max_duration = self.api.creator_info.get("max_video_post_duration_sec", 0)
                 video_duration = video.get_duration()
                 if video_duration and video_duration > max_duration:
-                    raise Exception(f'Video duration {video_duration}s exceeds max duration of {max_duration}s')
+                    raise Exception(f"Video duration {video_duration}s exceeds max duration of {max_duration}s")
 
             # Validate brand content settings
-            if self.brand_content and self.tiktok_privacy_status == 'ONLY_ME':
-                raise Exception('You cannot use brand content with ONLY_ME privacy status')
+            if self.brand_content and self.tiktok_privacy_status == "ONLY_ME":
+                raise Exception("You cannot use brand content with ONLY_ME privacy status")
 
             # Print brand content notices
             self._print_brand_content_notices()
 
-            print(f'Uploading video to @{self.tiktok_username}...')
+            print(f"Uploading video to @{self.tiktok_username}...", file=sys.stderr)
 
             # Upload the video
             response = await self.api.upload_video(
@@ -313,10 +344,10 @@ class TikTok(SocialNetwork):
                 bool(self.tiktok_allow_duet),
                 bool(self.tiktok_allow_stitch),
                 bool(self.brand_organic),
-                bool(self.brand_content)
+                bool(self.brand_content),
             )
 
-            post_id = response.get('publish_id')
+            post_id = response.get("publish_id")
             self._output_status(post_id)
             return post_id
 
@@ -336,7 +367,7 @@ class TikTok(SocialNetwork):
         Raises:
             Exception: Always, as like is not supported
         """
-        raise Exception('Like not supported for TikTok')
+        raise Exception("Like not supported for TikTok")
 
     async def delete(self, post_id):
         """
@@ -350,7 +381,7 @@ class TikTok(SocialNetwork):
         Raises:
             Exception: Always, as delete is not supported
         """
-        raise Exception('Delete not supported for TikTok')
+        raise Exception("Delete not supported for TikTok")
 
     async def share(self, post_id):
         """
@@ -364,45 +395,53 @@ class TikTok(SocialNetwork):
         Raises:
             Exception: Always, as share is not supported
         """
-        raise Exception('Share not supported for TikTok')
+        raise Exception("Share not supported for TikTok")
 
     def _print_brand_content_notices(self):
         """Print brand content compliance notices."""
         if self.brand_organic and self.brand_content:
-            print("Your photo/video will be labeled as 'Paid partnership'")
-            print("By posting, you agree to TikTok's Branded Content Policy "
-                  "(https://www.tiktok.com/legal/page/global/bc-policy/en) "
-                  "and Music Usage Confirmation "
-                  "(https://www.tiktok.com/legal/page/global/music-usage-confirmation/en).")
+            print("Your photo/video will be labeled as 'Paid partnership'", file=sys.stderr)
+            print(
+                "By posting, you agree to TikTok's Branded Content Policy "
+                "(https://www.tiktok.com/legal/page/global/bc-policy/en) "
+                "and Music Usage Confirmation "
+                "(https://www.tiktok.com/legal/page/global/music-usage-confirmation/en).",
+                file=sys.stderr,
+            )
         elif self.brand_organic:
-            print("Your photo/video will be labeled as 'Promotional content'")
-            print("By posting, you agree to TikTok's Music Usage Confirmation "
-                  "(https://www.tiktok.com/legal/page/global/music-usage-confirmation/en).")
+            print("Your photo/video will be labeled as 'Promotional content'", file=sys.stderr)
+            print(
+                "By posting, you agree to TikTok's Music Usage Confirmation "
+                "(https://www.tiktok.com/legal/page/global/music-usage-confirmation/en).",
+                file=sys.stderr,
+            )
         elif self.brand_content:
-            print("Your photo/video will be labeled as 'Paid partnership'")
-            print("By posting, you agree to TikTok's Branded Content Policy "
-                  "(https://www.tiktok.com/legal/page/global/bc-policy/en) "
-                  "and Music Usage Confirmation "
-                  "(https://www.tiktok.com/legal/page/global/music-usage-confirmation/en).")
+            print("Your photo/video will be labeled as 'Paid partnership'", file=sys.stderr)
+            print(
+                "By posting, you agree to TikTok's Branded Content Policy "
+                "(https://www.tiktok.com/legal/page/global/bc-policy/en) "
+                "and Music Usage Confirmation "
+                "(https://www.tiktok.com/legal/page/global/music-usage-confirmation/en).",
+                file=sys.stderr,
+            )
 
     # Override action handlers to use TikTok-specific parameter names
     async def _handle_post_action(self):
         """Handle post action with TikTok-specific parameter extraction."""
-        status_image_url_1 = self._get_config_value('status_image_url_1', 'STATUS_IMAGE_URL_1')
-        status_image_url_2 = self._get_config_value('status_image_url_2', 'STATUS_IMAGE_URL_2')
-        status_image_url_3 = self._get_config_value('status_image_url_3', 'STATUS_IMAGE_URL_3')
-        status_image_url_4 = self._get_config_value('status_image_url_4', 'STATUS_IMAGE_URL_4')
+        status_image_url_1 = self._get_config_value("status_image_url_1", "STATUS_IMAGE_URL_1")
+        status_image_url_2 = self._get_config_value("status_image_url_2", "STATUS_IMAGE_URL_2")
+        status_image_url_3 = self._get_config_value("status_image_url_3", "STATUS_IMAGE_URL_3")
+        status_image_url_4 = self._get_config_value("status_image_url_4", "STATUS_IMAGE_URL_4")
 
-        await self.post('', '', status_image_url_1, status_image_url_2,
-                        status_image_url_3, status_image_url_4)
+        await self.post("", "", status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4)
 
     async def _handle_video_action(self):
         """Handle video action with TikTok-specific parameter extraction."""
-        video_url = self._get_config_value('tiktok_video_url', 'TIKTOK_VIDEO_URL')
-        video_title = self.tiktok_title or ''
+        video_url = self._get_config_value("tiktok_video_url", "TIKTOK_VIDEO_URL")
+        video_title = self.tiktok_title or ""
 
         if not video_url:
-            raise Exception('TikTok video URL is required for video action.')
+            raise Exception("TikTok video URL is required for video action.")
 
         await self.video(video_title, video_url, video_title)
 
@@ -427,15 +466,11 @@ class TikTok(SocialNetwork):
         """
         from .auth import TikTokAuthManager
 
-        username = self._get_config_value('tiktok_username', 'TIKTOK_USERNAME')
-        client_key = self._get_config_value('tiktok_client_key', 'TIKTOK_CLIENT_KEY')
-        client_secret = self._get_config_value('tiktok_client_secret', 'TIKTOK_CLIENT_SECRET')
+        username = self._get_config_value("tiktok_username", "TIKTOK_USERNAME")
+        client_key = self._get_config_value("tiktok_client_key", "TIKTOK_CLIENT_KEY")
+        client_secret = self._get_config_value("tiktok_client_secret", "TIKTOK_CLIENT_SECRET")
 
-        auth_manager = TikTokAuthManager(
-            username=username,
-            client_key=client_key,
-            client_secret=client_secret
-        )
+        auth_manager = TikTokAuthManager(username=username, client_key=client_key, client_secret=client_secret)
 
         result = await auth_manager.authorize()
         if result:
@@ -451,16 +486,16 @@ async def main_async(kwargs):
     Args:
         kwargs (dict): Configuration arguments
     """
-    action = kwargs.get('action', '')
+    action = kwargs.get("action", "")
 
-    if action == '':
-        raise Exception('Action is a required argument.')
+    if action == "":
+        raise Exception("Action is a required argument.")
 
     # Create TikTok instance with configuration
     instance = TikTok(**kwargs)
 
     # Handle authorize action separately (doesn't need client initialization)
-    if action == 'authorize':
+    if action == "authorize":
         success = await instance.authorize_credentials()
         return 0 if success else 1
 

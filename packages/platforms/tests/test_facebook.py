@@ -499,7 +499,9 @@ async def test_facebook_video_type_validation(mock_api_class):
         mock_video.cleanup = MagicMock()
         mock_download.return_value = mock_video
 
-        with pytest.raises(Exception, match='Invalid video type'):
+        from agoras.media.errors import MediaValidationError
+
+        with pytest.raises(MediaValidationError, match='facebook'):
             await facebook.video('Description', 'http://video.avi', 'Title')
 
 

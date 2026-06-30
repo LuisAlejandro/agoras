@@ -31,4 +31,4 @@ from .row import SheetRow
 from .schedule import ScheduleSheet
 from .sheet import Sheet
 
-__all__ = ['SheetRow', 'Sheet', 'SheetManager', 'ScheduleSheet']
+__all__ = ["SheetRow", "Sheet", "SheetManager", "ScheduleSheet"]

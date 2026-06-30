@@ -50,7 +50,7 @@ After your developer account is approved:
 .. image:: images/tiktok-3.png
 
 Configure app permissions
-------------------------
+-------------------------
 
 After creating your app:
 
@@ -73,7 +73,7 @@ Set up OAuth redirect URI
 -------------------------
 
 1. In your app dashboard, go to "Login Kit" settings
-2. Add a redirect URI: ``http://127.0.0.1:3456/callback/``
+2. Add a redirect URI: ``https://localhost:3456/callback``
 3. Make sure this exact URL is added to your app configuration
 
 .. image:: images/tiktok-5.png
@@ -93,7 +93,7 @@ The review process typically takes 2-4 weeks. During this time, you can use your
 .. image:: images/tiktok-6.png
 
 Get your credentials
--------------------
+--------------------
 
 Once your app is created (and optionally approved):
 
@@ -165,7 +165,7 @@ For CI/CD environments where interactive browser authorization isn't possible, y
 **Note**: For unattended execution, you must provide all required credentials. The refresh token alone is not sufficient - you also need username, client key, and client secret as shown in the :doc:`../reference/platform-arguments-envvars` documentation.
 
 Development vs Production
-------------------------
+-------------------------
 
 **Development Mode**:
 - Available immediately after app creation
@@ -187,7 +187,7 @@ Agoras parameters
 +========================+===========================+
 | Client Key             | --client-key              |
 +------------------------+---------------------------+
-| Client Secret          | --client-secret            |
+| Client Secret          | --client-secret           |
 +------------------------+---------------------------+
 | Username               | --username                |
 +------------------------+---------------------------+
@@ -205,7 +205,7 @@ Troubleshooting
 **"Invalid credentials" error**:
 - Double-check your Client Key and Client Secret
 - Make sure you're using the correct TikTok username
-- Verify your app's redirect URI is set to ``http://127.0.0.1:3456/callback/``
+- Verify your app's redirect URI is set to ``https://localhost:3456/callback``
 
 **"Authorization failed" error**:
 - Make sure you're logged into the correct TikTok account
