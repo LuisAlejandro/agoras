@@ -1,3 +1,3 @@
 # Auto-generated from setup.py by scripts/sync_package_deps.py — do not edit.
-requests==2.33.1
+requests==2.34.2
 beautifulsoup4==4.15.0
