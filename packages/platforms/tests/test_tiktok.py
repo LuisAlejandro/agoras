@@ -25,6 +25,8 @@ from agoras.platforms.tiktok.api import TikTokAPI
 from agoras.platforms.tiktok.auth import TikTokAuthManager
 from agoras.platforms.tiktok.client import TikTokAPIClient
 
+from .wrapper_test_helpers import SAMPLE_IMAGE_URL
+
 # TikTok Wrapper Tests
 
 
@@ -136,8 +138,9 @@ async def test_tiktok_authorize_credentials_failure(mock_auth_manager_class):
 
 
 @pytest.mark.asyncio
+@patch('agoras.media.preflight.preflight_url_for_platform')
 @patch('agoras.platforms.tiktok.wrapper.TikTokAPI')
-async def test_tiktok_post(mock_api_class):
+async def test_tiktok_post(mock_api_class, mock_preflight):
     """Test TikTok post method."""
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
@@ -166,14 +169,67 @@ async def test_tiktok_post(mock_api_class):
         mock_file_type = MagicMock()
         mock_file_type.mime = 'image/jpeg'
         mock_image.file_type = mock_file_type
-        mock_image.url = 'img.jpg'
+        mock_image.url = SAMPLE_IMAGE_URL
         mock_image.cleanup = MagicMock()
         mock_download.return_value = [mock_image]
 
         with patch.object(tiktok, '_output_status'):
-            result = await tiktok.post('Hello TikTok', 'http://link.com', status_image_url_1='img.jpg')
+            result = await tiktok.post(
+                'Hello TikTok', 'http://link.com', status_image_url_1=SAMPLE_IMAGE_URL,
+            )
 
     assert result == 'video-123'
+    mock_preflight.assert_called_once_with(SAMPLE_IMAGE_URL, 'tiktok', kind='image')
+
+
+@pytest.mark.asyncio
+@patch('agoras.media.preflight.preflight_url_for_platform')
+@patch('agoras.platforms.tiktok.wrapper.TikTokAPI')
+async def test_tiktok_post_with_description(mock_api_class, mock_preflight):
+    """Test TikTok post method with description parameter."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    tiktok = TikTok(
+        tiktok_client_key='key',
+        tiktok_client_secret='secret',
+        tiktok_access_token="token",
+        tiktok_username="testuser",
+        tiktok_refresh_token="refresh",
+        tiktok_description="Test description"
+    )
+
+    await tiktok._initialize_client()
+
+    # Ensure allow_duet is False for photo posts
+    tiktok.tiktok_allow_duet = False
+    tiktok.tiktok_allow_stitch = False
+
+    # Mock upload_photo since post with images calls it
+    mock_api.upload_photo = AsyncMock(return_value={'publish_id': 'photo-123'})
+
+    # Mock download_images to avoid actual HTTP call
+    with patch.object(tiktok, 'download_images', new_callable=AsyncMock) as mock_download:
+        mock_image = MagicMock()
+        mock_image.content = b'image_content'
+        mock_file_type = MagicMock()
+        mock_file_type.mime = 'image/jpeg'
+        mock_image.file_type = mock_file_type
+        mock_image.url = SAMPLE_IMAGE_URL
+        mock_image.cleanup = MagicMock()
+        mock_download.return_value = [mock_image]
+
+        with patch.object(tiktok, '_output_status'):
+            result = await tiktok.post(
+                'Hello TikTok', 'http://link.com', status_image_url_1=SAMPLE_IMAGE_URL,
+            )
+
+    assert result == 'photo-123'
+    mock_preflight.assert_called_once_with(SAMPLE_IMAGE_URL, 'tiktok', kind='image')
+    # Verify description was passed to upload_photo
+    mock_api.upload_photo.assert_called_once()
+    assert mock_api.upload_photo.call_args.args[7] == 'Test description'
 
 
 @pytest.mark.asyncio

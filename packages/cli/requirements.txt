@@ -1,1 +1,2 @@
-agoras-platforms>=2.0.0
+# Auto-generated from setup.py by scripts/sync_package_deps.py — do not edit.
+agoras-platforms==2.0.5

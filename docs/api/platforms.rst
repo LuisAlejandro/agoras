@@ -9,7 +9,7 @@ Package Overview
 This package contains platform-specific implementations that extend the abstract interfaces defined in ``agoras-core``. Each platform provides:
 
 - Platform-specific API client implementations
-- OAuth2 authentication handlers
+- Authentication handlers (OAuth 2.0 for Meta/Google/TikTok/LinkedIn platforms, OAuth 1.0a for X, API/bot tokens for Discord, Telegram, and WhatsApp)
 - Wrapper classes that implement the ``SocialNetwork`` interface
 - Platform-specific posting and interaction methods
 
@@ -30,7 +30,7 @@ Supported Platforms
 - **WhatsApp** - Messaging platform
 
 .. note::
-   This documentation covers all 10 platforms. Facebook, X, and Instagram are documented in Part 1. Remaining platforms (LinkedIn, Discord, YouTube, TikTok, Threads, Telegram, WhatsApp) are documented below.
+   Autodoc sections below cover all 10 supported platforms.
 
 agoras.platforms.facebook package
 ----------------------------------

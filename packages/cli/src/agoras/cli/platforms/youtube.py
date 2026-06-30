@@ -27,6 +27,7 @@ from argparse import ArgumentParser, Namespace, _SubParsersAction
 from agoras.platforms.youtube.wrapper import main as youtube_main
 
 from ..converter import ParameterConverter
+from ..media_help import video_url_help
 from ..validator import ActionValidator
 
 
@@ -41,41 +42,32 @@ def create_youtube_parser(subparsers: _SubParsersAction) -> ArgumentParser:
         ArgumentParser for YouTube commands
     """
     parser = subparsers.add_parser(
-        'youtube',
-        help='YouTube operations. Run "agoras youtube authorize" before any actions.'
+        "youtube", help='YouTube operations. Run "agoras youtube authorize" before any actions.'
     )
 
-    actions = parser.add_subparsers(
-        dest='action',
-        title='YouTube Actions',
-        required=True
-    )
+    actions = parser.add_subparsers(dest="action", title="YouTube Actions", required=True)
 
     # Authorize action
     authorize = actions.add_parser(
-        'authorize',
-        help='Authorize YouTube account (OAuth 2.0). Run this first before any other actions.'
+        "authorize", help="Authorize YouTube account (OAuth 2.0). Run this first before any other actions."
     )
     _add_youtube_authorize_options(authorize)
 
     # Video action (main action for YouTube)
     video = actions.add_parser(
-        'video',
-        help='Upload a video to YouTube. Requires prior authorization via "agoras youtube authorize".'
+        "video", help='Upload a video to YouTube. Requires prior authorization via "agoras youtube authorize".'
     )
     _add_video_options(video)
 
     # Like action
     like = actions.add_parser(
-        'like',
-        help='Like a YouTube video. Requires prior authorization via "agoras youtube authorize".'
+        "like", help='Like a YouTube video. Requires prior authorization via "agoras youtube authorize".'
     )
     _add_video_id_option(like)
 
     # Delete action
     delete = actions.add_parser(
-        'delete',
-        help='Delete a YouTube video. Requires prior authorization via "agoras youtube authorize".'
+        "delete", help='Delete a YouTube video. Requires prior authorization via "agoras youtube authorize".'
     )
     _add_video_id_option(delete)
 
@@ -92,22 +84,9 @@ def _add_youtube_authorize_options(parser: ArgumentParser):
     Args:
         parser: ArgumentParser to add options to
     """
-    auth = parser.add_argument_group(
-        'YouTube OAuth Credentials',
-        'Get these from https://console.cloud.google.com'
-    )
-    auth.add_argument(
-        '--client-id',
-        required=True,
-        metavar='<id>',
-        help='YouTube (Google) OAuth client ID'
-    )
-    auth.add_argument(
-        '--client-secret',
-        required=True,
-        metavar='<secret>',
-        help='YouTube (Google) OAuth client secret'
-    )
+    auth = parser.add_argument_group("YouTube OAuth Credentials", "Get these from https://console.cloud.google.com")
+    auth.add_argument("--client-id", required=True, metavar="<id>", help="YouTube (Google) OAuth client ID")
+    auth.add_argument("--client-secret", required=True, metavar="<secret>", help="YouTube (Google) OAuth client secret")
 
 
 def _add_video_options(parser: ArgumentParser):
@@ -117,40 +96,19 @@ def _add_video_options(parser: ArgumentParser):
     Args:
         parser: ArgumentParser to add options to
     """
-    video = parser.add_argument_group('Video Options')
+    video = parser.add_argument_group("Video Options")
+    video.add_argument("--video-url", required=True, metavar="<url>", help=video_url_help("youtube"))
+    video.add_argument("--title", metavar="<title>", help="Video title")
+    video.add_argument("--description", metavar="<description>", help="Video description")
+    video.add_argument("--category-id", metavar="<id>", help="YouTube category ID")
     video.add_argument(
-        '--video-url',
-        required=True,
-        metavar='<url>',
-        help='URL of video file to upload'
+        "--privacy",
+        metavar="<status>",
+        default="private",
+        choices=["public", "private", "unlisted"],
+        help="Video privacy status (default: private)",
     )
-    video.add_argument(
-        '--title',
-        metavar='<title>',
-        help='Video title'
-    )
-    video.add_argument(
-        '--description',
-        metavar='<description>',
-        help='Video description'
-    )
-    video.add_argument(
-        '--category-id',
-        metavar='<id>',
-        help='YouTube category ID'
-    )
-    video.add_argument(
-        '--privacy',
-        metavar='<status>',
-        default='private',
-        choices=['public', 'private', 'unlisted'],
-        help='Video privacy status (default: private)'
-    )
-    video.add_argument(
-        '--keywords',
-        metavar='<keywords>',
-        help='Video keywords separated by comma'
-    )
+    video.add_argument("--keywords", metavar="<keywords>", help="Video keywords separated by comma")
 
 
 def _add_video_id_option(parser: ArgumentParser):
@@ -160,12 +118,7 @@ def _add_video_id_option(parser: ArgumentParser):
     Args:
         parser: ArgumentParser to add options to
     """
-    parser.add_argument(
-        '--video-id',
-        required=True,
-        metavar='<id>',
-        help='YouTube video ID to interact with'
-    )
+    parser.add_argument("--video-id", required=True, metavar="<id>", help="YouTube video ID to interact with")
 
 
 def _handle_youtube_command(args: Namespace):
@@ -179,10 +132,10 @@ def _handle_youtube_command(args: Namespace):
         Exit status from core execution
     """
     # Validate action
-    ActionValidator.validate('youtube', args.action)
+    ActionValidator.validate("youtube", args.action)
 
     # Convert new args to legacy format
-    converter = ParameterConverter('youtube')
+    converter = ParameterConverter("youtube")
     legacy_args = converter.convert_to_legacy(args)
 
     # Call core YouTube module

@@ -29,71 +29,71 @@ class PlatformRegistry:
     """Registry of all platforms and their supported actions."""
 
     PLATFORMS: Dict[str, Dict[str, Any]] = {
-        'x': {
-            'name': 'X',
-            'description': 'X (formerly Twitter) social network',
-            'actions': {'authorize', 'post', 'video', 'like', 'share', 'delete'},
-            'module': 'agoras.cli.platforms.x',
+        "x": {
+            "name": "X",
+            "description": "X (formerly Twitter) social network",
+            "actions": {"authorize", "post", "video", "like", "share", "delete"},
+            "module": "agoras.cli.platforms.x",
         },
-        'twitter': {
-            'name': 'Twitter',
-            'description': 'Twitter/X social network',
-            'actions': {'authorize', 'post', 'video', 'like', 'share', 'delete'},
-            'module': 'agoras.cli.platforms.x',  # Phase 2 will add proper aliasing
+        "twitter": {
+            "name": "Twitter",
+            "description": "Twitter/X social network",
+            "actions": {"authorize", "post", "video", "like", "share", "delete"},
+            "module": "agoras.cli.platforms.x",  # Phase 2 will add proper aliasing
         },
-        'facebook': {
-            'name': 'Facebook',
-            'description': 'Facebook social network',
-            'actions': {'authorize', 'post', 'video', 'like', 'share', 'delete'},
-            'module': 'agoras.cli.platforms.facebook',
+        "facebook": {
+            "name": "Facebook",
+            "description": "Facebook social network",
+            "actions": {"authorize", "post", "video", "like", "share", "delete"},
+            "module": "agoras.cli.platforms.facebook",
         },
-        'instagram': {
-            'name': 'Instagram',
-            'description': 'Instagram social network',
-            'actions': {'authorize', 'post', 'video'},
-            'module': 'agoras.cli.platforms.instagram',
+        "instagram": {
+            "name": "Instagram",
+            "description": "Instagram social network",
+            "actions": {"authorize", "post", "video"},
+            "module": "agoras.cli.platforms.instagram",
         },
-        'linkedin': {
-            'name': 'LinkedIn',
-            'description': 'LinkedIn professional network',
-            'actions': {'authorize', 'post', 'video', 'like', 'share', 'delete'},
-            'module': 'agoras.cli.platforms.linkedin',
+        "linkedin": {
+            "name": "LinkedIn",
+            "description": "LinkedIn professional network",
+            "actions": {"authorize", "post", "video", "like", "share", "delete"},
+            "module": "agoras.cli.platforms.linkedin",
         },
-        'discord': {
-            'name': 'Discord',
-            'description': 'Discord chat platform',
-            'actions': {'authorize', 'post', 'video', 'delete'},
-            'module': 'agoras.cli.platforms.discord',
+        "discord": {
+            "name": "Discord",
+            "description": "Discord chat platform",
+            "actions": {"authorize", "post", "video", "delete"},
+            "module": "agoras.cli.platforms.discord",
         },
-        'youtube': {
-            'name': 'YouTube',
-            'description': 'YouTube video platform',
-            'actions': {'authorize', 'video', 'like', 'delete'},
-            'module': 'agoras.cli.platforms.youtube',
+        "youtube": {
+            "name": "YouTube",
+            "description": "YouTube video platform",
+            "actions": {"authorize", "video", "like", "delete"},
+            "module": "agoras.cli.platforms.youtube",
         },
-        'tiktok': {
-            'name': 'TikTok',
-            'description': 'TikTok video platform',
-            'actions': {'authorize', 'post', 'video'},
-            'module': 'agoras.cli.platforms.tiktok',
+        "tiktok": {
+            "name": "TikTok",
+            "description": "TikTok video platform",
+            "actions": {"authorize", "post", "video"},
+            "module": "agoras.cli.platforms.tiktok",
         },
-        'threads': {
-            'name': 'Threads',
-            'description': 'Threads (Meta) social network',
-            'actions': {'authorize', 'post', 'video', 'share'},
-            'module': 'agoras.cli.platforms.threads',
+        "threads": {
+            "name": "Threads",
+            "description": "Threads (Meta) social network",
+            "actions": {"authorize", "post", "video", "share", "delete"},
+            "module": "agoras.cli.platforms.threads",
         },
-        'telegram': {
-            'name': 'Telegram',
-            'description': 'Telegram messaging platform',
-            'actions': {'authorize', 'post', 'video', 'delete'},
-            'module': 'agoras.cli.platforms.telegram',
+        "telegram": {
+            "name": "Telegram",
+            "description": "Telegram messaging platform",
+            "actions": {"authorize", "post", "video", "delete"},
+            "module": "agoras.cli.platforms.telegram",
         },
-        'whatsapp': {
-            'name': 'WhatsApp',
-            'description': 'WhatsApp Business API messaging platform',
-            'actions': {'authorize', 'post', 'video', 'template'},
-            'module': 'agoras.cli.platforms.whatsapp',
+        "whatsapp": {
+            "name": "WhatsApp",
+            "description": "WhatsApp Business API messaging platform",
+            "actions": {"authorize", "post", "video", "template"},
+            "module": "agoras.cli.platforms.whatsapp",
         },
     }
 
@@ -118,7 +118,7 @@ class PlatformRegistry:
         Returns:
             Set of supported action names
         """
-        return cls.PLATFORMS.get(platform, {}).get('actions', set())
+        return cls.PLATFORMS.get(platform, {}).get("actions", set())
 
     @classmethod
     def validate_action(cls, platform: str, action: str) -> bool:

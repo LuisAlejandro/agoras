@@ -15,8 +15,15 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.media.image module."""
+
+from typing import Optional
+
+from PIL import Image as PILImage
 
 from .base import Media
+from .constraints import MediaConstraints, image_limits, resolve_platform
+from .errors import MediaValidationError
 
 
 class Image(Media):
@@ -26,39 +33,58 @@ class Image(Media):
     Handles downloading, validation, and processing of image files.
     """
 
+    def __init__(self, url, platform: str = "generic", constraints: Optional[MediaConstraints] = None):
+        """Initialize an image media handler for the given URL and platform."""
+        super().__init__(url)
+        self.platform_key = resolve_platform(platform)
+        self.constraints = constraints or image_limits(self.platform_key)
+        self.media_kind = "image"
+
     @property
     def allowed_types(self):
-        """
-        Get allowed image MIME types.
-
-        Returns:
-            list: List of allowed image MIME types
-        """
-        return ['image/jpeg', 'image/png', 'image/jpg']
+        """Return allowed MIME types for the configured platform."""
+        return list(self.constraints.mime_types)
 
     def get_dimensions(self):
         """
-        Get image dimensions (placeholder for future implementation).
+        Get image dimensions using Pillow.
 
         Returns:
             tuple: (width, height) or None if not available
         """
-        # TODO: Implement using PIL/Pillow if needed
-        return None
+        if not self._downloaded or not self.content:
+            return None
+        try:
+            with PILImage.open(self.get_file_like_object()) as img:
+                return img.size
+        except Exception:
+            return None
 
-    @classmethod
-    def for_linkedin(cls, url: str) -> 'Image':
-        """
-        Create an Image instance optimized for LinkedIn.
+    def _validate_content(self):
+        limits = self.constraints
+        file_size = self.get_file_size()
+        if limits.max_bytes is not None and file_size > limits.max_bytes:
+            self.cleanup()
+            raise MediaValidationError(self.platform_key, self.media_kind, "max_bytes", file_size, limits.max_bytes)
 
-        LinkedIn limits:
-        - Max file size: 5 MB
-        - Supported formats: JPEG, PNG
-
-        Args:
-            url (str): Image URL
-
-        Returns:
-            Image: Image instance with LinkedIn-specific limits
-        """
-        return cls(url)
+        dimensions = self.get_dimensions()
+        if dimensions:
+            width, height = dimensions
+            if limits.max_width is not None and width > limits.max_width:
+                self.cleanup()
+                raise MediaValidationError(
+                    self.platform_key,
+                    self.media_kind,
+                    "max_width",
+                    f"{width}x{height}",
+                    limits.max_width,
+                )
+            if limits.max_height is not None and height > limits.max_height:
+                self.cleanup()
+                raise MediaValidationError(
+                    self.platform_key,
+                    self.media_kind,
+                    "max_height",
+                    f"{width}x{height}",
+                    limits.max_height,
+                )

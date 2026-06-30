@@ -15,6 +15,11 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.core.auth.exceptions module."""
+
+from typing import Optional
+
+from .failure import AuthFailureDetails, format_auth_failure_message
 
 
 class AuthenticationError(Exception):
@@ -25,3 +30,17 @@ class AuthenticationError(Exception):
     requiring users to explicitly run the authorize action before attempting
     other actions.
     """
+
+    def __init__(
+        self,
+        message: Optional[str] = None,
+        *,
+        details: Optional[AuthFailureDetails] = None,
+    ):
+        """Initialize with an explicit message or structured failure details."""
+        if details is not None:
+            message = format_auth_failure_message(details)
+        if message is None:
+            message = "Not authenticated."
+        super().__init__(message)
+        self.details = details

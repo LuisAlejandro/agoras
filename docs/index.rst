@@ -35,7 +35,7 @@
    :alt: Discord Channel
 
 .. _GitHub actions: https://github.com/LuisAlejandro/agoras-actions
-.. _full documentation: https://agoras.readthedocs.org
+.. _full documentation: https://agoras.luisalejandro.org
 
 Agoras is a python utility that helps publish and delete posts on the most
 popular social networks (X (formerly Twitter), Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, Threads, Telegram, and WhatsApp).
@@ -45,12 +45,12 @@ that you can incorporate into your workflows.
 
 For more information, please read the `full documentation`_.
 
-What's New in v2.0
-==================
+Architecture
+============
 
-Agoras v2.0 represents a major architectural shift from a monolithic package to a modular 5-package structure. This allows you to install only the components you need.
+Agoras uses a modular five-package structure. Install only the components you need, or ``pip install agoras`` for the full CLI.
 
-**Package Structure:**
+**Package structure:**
 
 .. code-block:: text
 
@@ -60,29 +60,14 @@ Agoras v2.0 represents a major architectural shift from a monolithic package to 
            ├── agoras-media
            └── agoras-common
 
-**Key Improvements:**
+**Capabilities:**
 
-- **Modular Architecture**: Install only what you need (e.g., ``agoras-core`` for custom integrations)
-- **New Platforms**: Telegram, WhatsApp, Threads, and X support
-- **Better Authentication**: Built-in OAuth 2.0 callback server
-- **Improved CLI**: Platform-first commands (``agoras x post``)
+- **Modular packages**: ``agoras-common``, ``agoras-media``, ``agoras-core``, ``agoras-platforms``, ``agoras``
+- **10 platforms**: X, Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, Threads, Telegram, WhatsApp
+- **OAuth callback server**: Easier browser-based authentication on supported networks
+- **Platform-first CLI**: ``agoras x post`` instead of ``agoras publish --network x --action post``
 
-For detailed migration instructions, see :doc:`migration`.
-
-.. note::
-
-   **Agoras v2.0 Now Available!**
-
-   Version 2.0 introduces a modular architecture with 5 separate packages for better maintainability and flexibility.
-
-   **What's New:**
-
-   - Modular package structure (agoras-common, agoras-media, agoras-core, agoras-platforms, agoras)
-   - New platforms: Telegram, WhatsApp, Threads, and X (Twitter rebrand)
-   - OAuth 2.0 callback server for easier authentication
-   - Enhanced CLI with platform-first commands
-
-   **Breaking Changes:** Import paths and CLI syntax have changed. See :doc:`migration` for upgrade instructions.
+Upgrading from Agoras 1.x? See :doc:`migration/index`.
 
 Table of Contents
 -----------------
@@ -91,17 +76,17 @@ Getting Started
 ~~~~~~~~~~~~~~~
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    installation
    usage
-   migration
+   migration/index
 
 Platform Guides
 ~~~~~~~~~~~~~~~
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    x
    facebook
@@ -115,10 +100,10 @@ Platform Guides
    whatsapp
 
 Getting Credentials
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    credentials/x
    credentials/facebook
@@ -132,20 +117,30 @@ Getting Credentials
    credentials/whatsapp
    credentials/google
 
+Reference
+~~~~~~~~~
+
+.. toctree::
+   :maxdepth: 1
+
+   reference/action-support
+   reference/parameters
+   reference/platform-arguments-envvars
+
 Advanced Topics
 ~~~~~~~~~~~~~~~
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    rss
    api
 
 Developer Documentation
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    contributing
    authors

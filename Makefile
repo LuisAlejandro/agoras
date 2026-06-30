@@ -2,7 +2,7 @@
 # -*- makefile -*-
 
 SHELL = bash -e
-all_ps_hashes = $(shell docker ps -q)
+export BASH_ENV := $(HOME)/.bash_env
 img_hash = $(shell docker images -q luisalejandro/agoras:latest)
 exec_on_docker = docker compose \
 	-p agoras -f docker-compose.yml exec \
@@ -29,15 +29,14 @@ help:
 	@echo "clean-build - remove build artifacts"
 	@echo "clean-pyc - remove Python file artifacts"
 	@echo "clean-test - remove test and coverage artifacts"
-	@echo "lint - check style with flake8"
-	@echo "format - format Python code with autopep8"
-	@echo "lint-and-format - lint and format all Python files"
-	@echo "test - run tests quickly with the default Python"
+	@echo "lint - check style with tox -e lint (Ruff, pydocstyle, bandit, Pyright)"
+	@echo "format - format Python code with tox -e format (Ruff)"
+	@echo "lint-and-format - format then lint all production source"
+	@echo "test - run coverage tests with tox"
 	@echo "test-all - run tests on every Python version with tox"
 	@echo "coverage - check code coverage quickly with the default Python"
 	@echo "docs - generate Sphinx HTML documentation, including API docs"
-	@echo "pypi-upload - package and upload a release"
-	@echo "dist - package"
+	@echo "build - build PyPI sdist/wheel packages for all namespace packages"
 	@echo "install - install the package to the active Python's site-packages"
 
 clean: clean-build clean-pyc clean-test clean-docs
@@ -67,15 +66,16 @@ lint: start
 	@$(exec_on_docker) tox -e lint
 
 format: start
-	@$(exec_on_docker) autoflake --in-place --recursive --remove-all-unused-imports --remove-unused-variables --ignore-init-module-imports packages/*/src/agoras
-	@$(exec_on_docker) autopep8 --in-place --recursive --aggressive --aggressive packages/*/src/agoras
+	@$(exec_on_docker) tox -e format
 
 lint-and-format: start
-	@$(exec_on_docker) autoflake --in-place --recursive --remove-all-unused-imports --remove-unused-variables --ignore-init-module-imports packages/*/src/agoras
-	@$(exec_on_docker) autopep8 --in-place --recursive --aggressive --aggressive packages/*/src/agoras
+	@$(exec_on_docker) tox -e format
 	@$(exec_on_docker) tox -e lint
 
 test: start
+	@$(exec_on_docker) tox -e coverage
+
+test-all: start
 	@$(exec_on_docker) tox -e all
 
 functional-test: start
@@ -97,27 +97,18 @@ docs:
 servedocs: docs start
 	@$(exec_on_docker) watchmedo shell-command -p '*.rst' -c 'make -C docs html' -R -D .
 
-pypi-upload: clean start dist
-	@twine upload dist/*
+dependencies:
+	@:
 
-dist: clean start
-	@$(exec_on_docker) python3 -m build
-	@ls -l dist
+build: start
+	@$(exec_on_docker) bash -c '\
+		set -e; \
+		for pkg in common media core platforms cli; do \
+			( cd packages/$$pkg && python3 -m build && twine check dist/* ); \
+		done'
 
 install: clean start
 	@$(exec_on_docker) pip3 install .
-
-image:
-	@docker compose -p agoras -f docker-compose.yml build \
-		--build-arg UID=$(shell id -u) \
-		--build-arg GID=$(shell id -g)
-
-start:
-	@if [ -z "$(img_hash)" ]; then\
-		make image;\
-	fi
-	@docker compose -p agoras -f docker-compose.yml up \
-		--remove-orphans --no-build --detach
 
 console: start
 	@$(exec_on_docker) bash
@@ -134,11 +125,26 @@ virtualenv: start
 	@./virtualenv/bin/python3 -m pip install -e packages/platforms
 	@./virtualenv/bin/python3 -m pip install -e packages/cli
 
+PROJECT_NAME ?= agoras
+all_ps_hashes = $(shell docker ps -q)
+
+image:
+	@docker compose -p $(PROJECT_NAME) -f docker-compose.yml build \
+		--build-arg UID=$(shell id -u) \
+		--build-arg GID=$(shell id -g)
+
+start:
+	@if [ -z "$(img_hash)" ]; then\
+		make image;\
+	fi
+	@docker compose -p $(PROJECT_NAME) -f docker-compose.yml up \
+		--remove-orphans --no-build --detach
+
 stop:
-	@docker compose -p agoras -f docker-compose.yml stop app
+	@docker compose -p $(PROJECT_NAME) -f docker-compose.yml stop
 
 down:
-	@docker compose -p agoras -f docker-compose.yml down \
+	@docker compose -p $(PROJECT_NAME) -f docker-compose.yml down \
 		--remove-orphans
 
 destroy:
@@ -147,7 +153,7 @@ destroy:
 	@echo "This will stop and delete all containers, images and volumes related to this project."
 	@echo
 	@read -p "Press ctrl+c to abort or enter to continue." -n 1 -r
-	@docker compose -p agoras -f docker-compose.yml down \
+	@docker compose -p $(PROJECT_NAME) -f docker-compose.yml down \
 		--rmi all --remove-orphans --volumes
 
 cataplum:
@@ -159,25 +165,37 @@ cataplum:
 	@if [ -n "$(all_ps_hashes)" ]; then\
 		docker kill $(shell docker ps -q);\
 	fi
-	@docker compose -p agoras -f docker-compose.yml down \
+	@docker compose -p $(PROJECT_NAME) -f docker-compose.yml down \
 		--rmi all --remove-orphans --volumes
 	@docker system prune -a -f --volumes
 
-# Release management
 release:
-	@./scripts/release.sh $(VERSION_TYPE)
+	@./scripts/release.sh $${VERSION_TYPE}
 
 release-patch:
-	@./scripts/release.sh patch $(APP_NAME)
+	@./scripts/release.sh patch $${APP_NAME}
 
 release-minor:
-	@./scripts/release.sh minor $(APP_NAME)
+	@./scripts/release.sh minor $${APP_NAME}
 
 release-major:
-	@./scripts/release.sh major $(APP_NAME)
+	@./scripts/release.sh major $${APP_NAME}
 
-# Hotfix management
-hotfix:
-	@./scripts/hotfix.sh $(APP_NAME)
 
-.PHONY: clean-pyc clean-build docs clean release release-patch release-minor release-major hotfix
+release-preflight:
+	@make image
+	@make dependencies
+	@make build
+	@make format
+	@make lint
+	@make test
+
+undo-release:
+	@: "$${VERSION:?Set VERSION=x.y.z before running make undo-release}"
+	@VERSION=$${VERSION} ./scripts/rollback.sh release
+
+.PHONY: clean clean-pyc clean-build clean-test clean-docs \
+	help lint format lint-and-format test test-all functional-test coverage \
+	docs servedocs build dependencies install console virtualenv \
+	image start stop down destroy cataplum \
+	release release-patch release-minor release-major release-preflight undo-release

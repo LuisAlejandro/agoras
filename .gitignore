@@ -18,6 +18,9 @@ downloads/
 eggs/
 .eggs/
 lib/
+!tests/lib/
+!tests/lib/**
+tests/lib/__pycache__/
 lib64/
 parts/
 sdist/
@@ -72,10 +75,16 @@ target/
 *.swo
 *~
 
+# Cursor (local MCP config may contain API keys; skill npm installs)
+.cursor/
+
 # Virtual environments
 virtualenv/
 
 # Environment files
+.env
+.env.*
+!.env.example
 *.env
 
 # OS files
@@ -90,3 +99,19 @@ packages/*/.tox/
 packages/*/.coverage
 packages/*/htmlcov/
 packages/*/.pytest_cache/
+
+# Rosey Agentic Environment
+rosey/brainstorms/
+rosey/plans/
+rosey/designs/
+rosey/solutions/
+rosey/insights/
+rosey/design-system/
+rosey/qa/
+rosey/deepening/
+rosey/agentic-env.json
+AGENTS.md
+DESIGN.md
+
+# Rosey Maintainer Tools
+rosey/maintainer-manifest.json

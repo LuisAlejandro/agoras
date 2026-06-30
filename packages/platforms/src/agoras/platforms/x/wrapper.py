@@ -15,8 +15,10 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.x.wrapper module."""
 
 import asyncio
+import sys
 
 from agoras.core.interfaces import SocialNetwork
 
@@ -58,19 +60,25 @@ class X(SocialNetwork):
         Tries to load credentials from CLI params, environment variables, or storage.
         """
         # Try params/environment first
-        self.twitter_consumer_key = self._get_config_value('twitter_consumer_key', 'TWITTER_CONSUMER_KEY')
-        self.twitter_consumer_secret = self._get_config_value('twitter_consumer_secret', 'TWITTER_CONSUMER_SECRET')
-        self.twitter_oauth_token = self._get_config_value('twitter_oauth_token', 'TWITTER_OAUTH_TOKEN')
-        self.twitter_oauth_secret = self._get_config_value('twitter_oauth_secret', 'TWITTER_OAUTH_SECRET')
-        self.tweet_id = self._get_config_value('tweet_id', 'TWEET_ID')
+        self.twitter_consumer_key = self._get_config_value("twitter_consumer_key", "TWITTER_CONSUMER_KEY")
+        self.twitter_consumer_secret = self._get_config_value("twitter_consumer_secret", "TWITTER_CONSUMER_SECRET")
+        self.twitter_oauth_token = self._get_config_value("twitter_oauth_token", "TWITTER_OAUTH_TOKEN")
+        self.twitter_oauth_secret = self._get_config_value("twitter_oauth_secret", "TWITTER_OAUTH_SECRET")
+        self.tweet_id = self._get_config_value("tweet_id", "TWEET_ID")
 
         # If any credentials missing, try loading from storage
-        if not all([self.twitter_consumer_key, self.twitter_consumer_secret,
-                   self.twitter_oauth_token, self.twitter_oauth_secret]):
+        if not all(
+            [
+                self.twitter_consumer_key,
+                self.twitter_consumer_secret,
+                self.twitter_oauth_token,
+                self.twitter_oauth_secret,
+            ]
+        ):
             from .auth import XAuthManager
+
             auth_manager = XAuthManager(
-                consumer_key=self.twitter_consumer_key,
-                consumer_secret=self.twitter_consumer_secret
+                consumer_key=self.twitter_consumer_key, consumer_secret=self.twitter_consumer_secret
             )
 
             if auth_manager._load_credentials_from_storage():
@@ -85,21 +93,19 @@ class X(SocialNetwork):
                     self.twitter_oauth_secret = auth_manager.oauth_secret
 
         # Validate all credentials are now available
-        if not self.twitter_consumer_key:
-            raise Exception("Not authenticated. Please run 'agoras x authorize' first.")
-        if not self.twitter_consumer_secret:
-            raise Exception("Not authenticated. Please run 'agoras x authorize' first.")
-        if not self.twitter_oauth_token:
-            raise Exception("Not authenticated. Please run 'agoras x authorize' first.")
-        if not self.twitter_oauth_secret:
+        if not all(
+            [
+                self.twitter_consumer_key,
+                self.twitter_consumer_secret,
+                self.twitter_oauth_token,
+                self.twitter_oauth_secret,
+            ]
+        ):
             raise Exception("Not authenticated. Please run 'agoras x authorize' first.")
 
         # Initialize X API
         self.api = XAPI(
-            self.twitter_consumer_key,
-            self.twitter_consumer_secret,
-            self.twitter_oauth_token,
-            self.twitter_oauth_secret
+            self.twitter_consumer_key, self.twitter_consumer_secret, self.twitter_oauth_token, self.twitter_oauth_secret
         )
 
         # Authenticate with provided credentials
@@ -114,16 +120,16 @@ class X(SocialNetwork):
         """
         from .auth import XAuthManager
 
-        consumer_key = self._get_config_value('twitter_consumer_key', 'TWITTER_CONSUMER_KEY')
-        consumer_secret = self._get_config_value('twitter_consumer_secret', 'TWITTER_CONSUMER_SECRET')
-        oauth_token = self._get_config_value('twitter_oauth_token', 'TWITTER_OAUTH_TOKEN')
-        oauth_secret = self._get_config_value('twitter_oauth_secret', 'TWITTER_OAUTH_SECRET')
+        consumer_key = self._get_config_value("twitter_consumer_key", "TWITTER_CONSUMER_KEY")
+        consumer_secret = self._get_config_value("twitter_consumer_secret", "TWITTER_CONSUMER_SECRET")
+        oauth_token = self._get_config_value("twitter_oauth_token", "TWITTER_OAUTH_TOKEN")
+        oauth_secret = self._get_config_value("twitter_oauth_secret", "TWITTER_OAUTH_SECRET")
 
         auth_manager = XAuthManager(
             consumer_key=consumer_key,
             consumer_secret=consumer_secret,
             oauth_token=oauth_token,
-            oauth_secret=oauth_secret
+            oauth_secret=oauth_secret,
         )
 
         result = await auth_manager.authorize()
@@ -139,11 +145,17 @@ class X(SocialNetwork):
         if self.api:
             await self.api.disconnect()
 
-    async def post(self, status_text, status_link,
-                   status_image_url_1=None, status_image_url_2=None,
-                   status_image_url_3=None, status_image_url_4=None):
+    async def post(
+        self,
+        status_text,
+        status_link,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+    ):
         """
-        Create a post (tweet) on X.
+        Publish content to X.
 
         Args:
             status_text (str): Text content of the tweet
@@ -157,16 +169,15 @@ class X(SocialNetwork):
             str: Tweet ID
         """
         if not self.api:
-            raise Exception('X API not initialized')
+            raise Exception("X API not initialized")
 
         media_ids = []
-        source_media = list(filter(None, [
-            status_image_url_1, status_image_url_2,
-            status_image_url_3, status_image_url_4
-        ]))
+        source_media = list(
+            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        )
 
         if not source_media and not status_text and not status_link:
-            raise Exception('No status text, link, or images provided.')
+            raise Exception("No status text, link, or images provided.")
 
         # Download and upload media using the Media system
         if source_media:
@@ -179,7 +190,7 @@ class X(SocialNetwork):
                         if image and len(image) > 0:
                             media_obj = image[0]
                         else:
-                            raise Exception('Failed to download as image')
+                            raise Exception("Failed to download as image")
                     except Exception:
                         # Try as video
                         video = await self.download_video(media_url)
@@ -187,10 +198,7 @@ class X(SocialNetwork):
 
                     # Upload media to X
                     if media_obj.content and media_obj.file_type:
-                        media_id = await self.api.upload_media(
-                            media_obj.content,
-                            media_obj.file_type.mime
-                        )
+                        media_id = await self.api.upload_media(media_obj.content, media_obj.file_type.mime)
                         if media_id:
                             media_ids.append(media_id)
 
@@ -198,10 +206,10 @@ class X(SocialNetwork):
                     media_obj.cleanup()
 
                 except Exception as e:
-                    print(f"Failed to upload media {media_url}: {str(e)}")
+                    print(f"Failed to upload media {media_url}: {str(e)}", file=sys.stderr)
 
         # Compose tweet text
-        tweet_text = f'{status_text} {status_link}'.strip()
+        tweet_text = f"{status_text} {status_link}".strip()
 
         # Create the tweet
         tweet_id = await self.api.post(tweet_text, media_ids or [])
@@ -221,11 +229,11 @@ class X(SocialNetwork):
             str: Tweet ID
         """
         if not self.api:
-            raise Exception('X API not initialized')
+            raise Exception("X API not initialized")
 
         post_id = tweet_id or self.tweet_id
         if not post_id:
-            raise Exception('Tweet ID is required.')
+            raise Exception("Tweet ID is required.")
 
         result = await self.api.like(post_id)
         self._output_status(result)
@@ -243,11 +251,11 @@ class X(SocialNetwork):
             str: Tweet ID
         """
         if not self.api:
-            raise Exception('X API not initialized')
+            raise Exception("X API not initialized")
 
         post_id = tweet_id or self.tweet_id
         if not post_id:
-            raise Exception('Tweet ID is required.')
+            raise Exception("Tweet ID is required.")
 
         result = await self.api.delete(post_id)
         self._output_status(result)
@@ -265,11 +273,11 @@ class X(SocialNetwork):
             str: Tweet ID
         """
         if not self.api:
-            raise Exception('X API not initialized')
+            raise Exception("X API not initialized")
 
         post_id = tweet_id or self.tweet_id
         if not post_id:
-            raise Exception('Tweet ID is required.')
+            raise Exception("Tweet ID is required.")
 
         result = await self.api.share(post_id)
         self._output_status(result)
@@ -288,27 +296,34 @@ class X(SocialNetwork):
             str: Tweet ID
         """
         if not self.api:
-            raise Exception('X API not initialized')
+            raise Exception("X API not initialized")
 
         if not video_url:
-            raise Exception('Video URL is required.')
+            raise Exception("Video URL is required.")
 
         # Download and validate video using the Media system
         video = await self.download_video(video_url)
 
         if not video.content or not video.file_type:
             video.cleanup()
-            raise Exception('Failed to download or validate video')
+            raise Exception("Failed to download or validate video")
 
-        # Ensure video is MP4 format for X
-        if video.file_type.mime not in ['video/mp4']:
+        from agoras.media.constraints import video_limits
+        from agoras.media.errors import MediaValidationError
+
+        allowed = video_limits("twitter").mime_types
+        if video.file_type.mime not in allowed:
             video.cleanup()
-            raise Exception(f'Invalid video type "{video.file_type.mime}" for {video_url}. '
-                            f'X only supports MP4 videos.')
+            raise MediaValidationError(
+                "twitter",
+                "video",
+                "mime_types",
+                video.file_type.mime,
+                sorted(allowed),
+            )
 
         try:
             # Upload video to X
-
             media_id = await self.api.upload_media(video.content, video.file_type.mime)
 
             # Compose tweet text with title and description
@@ -318,11 +333,11 @@ class X(SocialNetwork):
             if status_text:
                 tweet_text_parts.append(status_text)
 
-            final_text = ' - '.join(tweet_text_parts) if tweet_text_parts else ''
+            final_text = " - ".join(tweet_text_parts) if tweet_text_parts else ""
 
             # X has a 280 character limit (handled by API, but let's be safe)
             if len(final_text) > 280:
-                final_text = final_text[:277] + '...'
+                final_text = final_text[:277] + "..."
 
             # Create the tweet with video
             tweet_id = await self.api.post(final_text, [media_id] if media_id else [])
@@ -337,33 +352,33 @@ class X(SocialNetwork):
     # Override action handlers to use X-specific parameter names
     async def _handle_like_action(self):
         """Handle like action with X-specific parameter extraction."""
-        tweet_id = self._get_config_value('tweet_id', 'TWEET_ID')
+        tweet_id = self._get_config_value("tweet_id", "TWEET_ID")
         if not tweet_id:
-            raise Exception('Tweet ID is required for like action.')
+            raise Exception("Tweet ID is required for like action.")
         await self.like(tweet_id)
 
     async def _handle_share_action(self):
         """Handle share action with X-specific parameter extraction."""
-        tweet_id = self._get_config_value('tweet_id', 'TWEET_ID')
+        tweet_id = self._get_config_value("tweet_id", "TWEET_ID")
         if not tweet_id:
-            raise Exception('Tweet ID is required for share action.')
+            raise Exception("Tweet ID is required for share action.")
         await self.share(tweet_id)
 
     async def _handle_delete_action(self):
         """Handle delete action with X-specific parameter extraction."""
-        tweet_id = self._get_config_value('tweet_id', 'TWEET_ID')
+        tweet_id = self._get_config_value("tweet_id", "TWEET_ID")
         if not tweet_id:
-            raise Exception('Tweet ID is required for delete action.')
+            raise Exception("Tweet ID is required for delete action.")
         await self.delete(tweet_id)
 
     async def _handle_video_action(self):
         """Handle video action with X-specific parameter extraction."""
-        status_text = self._get_config_value('status_text', 'STATUS_TEXT') or ''
-        video_url = self._get_config_value('twitter_video_url', 'TWITTER_VIDEO_URL')
-        video_title = self._get_config_value('twitter_video_title', 'TWITTER_VIDEO_TITLE') or ''
+        status_text = self._get_config_value("status_text", "STATUS_TEXT") or ""
+        video_url = self._get_config_value("twitter_video_url", "TWITTER_VIDEO_URL")
+        video_title = self._get_config_value("twitter_video_title", "TWITTER_VIDEO_TITLE") or ""
 
         if not video_url:
-            raise Exception('X video URL is required for video action.')
+            raise Exception("X video URL is required for video action.")
 
         await self.video(status_text, video_url, video_title)
 
@@ -375,16 +390,16 @@ async def main_async(kwargs):
     Args:
         kwargs (dict): Configuration arguments
     """
-    action = kwargs.get('action', '')
+    action = kwargs.get("action", "")
 
-    if action == '':
-        raise Exception('Action is a required argument.')
+    if action == "":
+        raise Exception("Action is a required argument.")
 
     # Create X instance with configuration
     instance = X(**kwargs)
 
     # Handle authorize action separately (doesn't need client initialization)
-    if action == 'authorize':
+    if action == "authorize":
         success = await instance.authorize_credentials()
         return 0 if success else 1
 

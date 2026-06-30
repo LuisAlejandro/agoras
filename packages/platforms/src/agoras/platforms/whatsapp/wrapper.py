@@ -15,8 +15,11 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.whatsapp.wrapper module."""
 
 import asyncio
+import os
+from pathlib import Path
 from typing import List, Optional
 
 from agoras.core.interfaces import SocialNetwork
@@ -54,6 +57,12 @@ class WhatsApp(SocialNetwork):
         self.whatsapp_message_id = None
         self.api = None
 
+    def _require_recipient(self) -> str:
+        recipient = self.whatsapp_recipient
+        if not recipient:
+            raise Exception("WhatsApp recipient is required")
+        return recipient
+
     async def _initialize_client(self):
         """
         Initialize WhatsApp API client.
@@ -62,16 +71,28 @@ class WhatsApp(SocialNetwork):
         Tries to load credentials from storage if not provided via parameters.
         """
         # Get configuration using existing pattern
-        self.whatsapp_access_token = self._get_config_value('whatsapp_access_token', 'WHATSAPP_ACCESS_TOKEN')
-        self.whatsapp_phone_number_id = self._get_config_value('whatsapp_phone_number_id', 'WHATSAPP_PHONE_NUMBER_ID')
+        self.whatsapp_access_token = self._get_config_value("whatsapp_access_token", "WHATSAPP_ACCESS_TOKEN")
+        self.whatsapp_phone_number_id = self._get_config_value("whatsapp_phone_number_id", "WHATSAPP_PHONE_NUMBER_ID")
         self.whatsapp_business_account_id = self._get_config_value(
-            'whatsapp_business_account_id', 'WHATSAPP_BUSINESS_ACCOUNT_ID')
+            "whatsapp_business_account_id", "WHATSAPP_BUSINESS_ACCOUNT_ID"
+        )
+        # Required recipient for messaging
+        self.whatsapp_recipient = self._get_config_value("whatsapp_recipient", "WHATSAPP_RECIPIENT")
+        # Optional message ID for status/tracking actions
+        self.whatsapp_message_id = self._get_config_value("whatsapp_message_id", "WHATSAPP_MESSAGE_ID")
 
-        # If credentials not provided, try loading from storage
-        if not self.whatsapp_access_token or not self.whatsapp_phone_number_id:
+        # If required credentials not provided, try loading from storage
+        if not all([self.whatsapp_access_token, self.whatsapp_phone_number_id]):
             from .auth import WhatsAppAuthManager
-            auth_manager = WhatsAppAuthManager()
+
+            auth_manager = WhatsAppAuthManager(
+                access_token=self.whatsapp_access_token,
+                phone_number_id=self.whatsapp_phone_number_id,
+                business_account_id=self.whatsapp_business_account_id,
+            )
+
             if auth_manager._load_credentials_from_storage():
+                # Fill in missing credentials from storage
                 if not self.whatsapp_access_token:
                     self.whatsapp_access_token = auth_manager.access_token
                 if not self.whatsapp_phone_number_id:
@@ -79,25 +100,25 @@ class WhatsApp(SocialNetwork):
                 if not self.whatsapp_business_account_id:
                     self.whatsapp_business_account_id = auth_manager.business_account_id
 
-        # Required recipient for messaging
-        self.whatsapp_recipient = self._get_config_value('whatsapp_recipient', 'WHATSAPP_RECIPIENT')
-
-        # Optional message ID for status/tracking actions
-        self.whatsapp_message_id = self._get_config_value('whatsapp_message_id', 'WHATSAPP_MESSAGE_ID')
-
-        # Validation
         if not all([self.whatsapp_access_token, self.whatsapp_phone_number_id]):
+            storage_dir = os.environ.get("AGORAS_STORAGE_DIR")
+            if storage_dir:
+                storage_hint = f" Checked AGORAS_STORAGE_DIR={storage_dir}."
+            else:
+                storage_hint = (
+                    f" Using default storage at {Path.home() / '.agoras'} (set AGORAS_STORAGE_DIR to match authorize)."
+                )
+            raise Exception(f"Not authenticated. Please run 'agoras whatsapp authorize' first.{storage_hint}")
+
+        access_token = self.whatsapp_access_token
+        phone_number_id = self.whatsapp_phone_number_id
+        if not access_token or not phone_number_id:
             raise Exception("Not authenticated. Please run 'agoras whatsapp authorize' first.")
 
-        if not self.whatsapp_recipient:
-            raise Exception('WhatsApp recipient phone number is required.')
+        # Initialize WhatsApp API
+        self.api = WhatsAppAPI(access_token, phone_number_id, self.whatsapp_business_account_id)
 
-        # Initialize API
-        self.api = WhatsAppAPI(
-            self.whatsapp_access_token,
-            self.whatsapp_phone_number_id,
-            self.whatsapp_business_account_id
-        )
+        # Authenticate with provided credentials
         await self.api.authenticate()
 
     async def disconnect(self):
@@ -107,9 +128,15 @@ class WhatsApp(SocialNetwork):
         if self.api:
             await self.api.disconnect()
 
-    async def post(self, status_text, status_link,
-                   status_image_url_1=None, status_image_url_2=None,
-                   status_image_url_3=None, status_image_url_4=None):
+    async def post(
+        self,
+        status_text,
+        status_link,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+    ):
         """
         Create a WhatsApp message (text, image, or video).
 
@@ -125,16 +152,15 @@ class WhatsApp(SocialNetwork):
             str: Message ID
         """
         if not self.api:
-            raise Exception('WhatsApp API not initialized')
+            raise Exception("WhatsApp API not initialized")
 
         # Combine text and link
-        message_text = f'{status_text}\n{status_link}'.strip() if status_link else status_text
+        message_text = f"{status_text}\n{status_link}".strip() if status_link else status_text
 
         # Handle images
-        image_urls = list(filter(None, [
-            status_image_url_1, status_image_url_2,
-            status_image_url_3, status_image_url_4
-        ]))
+        image_urls = list(
+            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        )
 
         if image_urls:
             # WhatsApp supports multiple media in sequence
@@ -148,13 +174,11 @@ class WhatsApp(SocialNetwork):
                         caption = message_text if i == 0 else f"Image {i + 1}"
 
                         message_id = await self.api.send_image(
-                            to=self.whatsapp_recipient,
-                            image_url=image.url,
-                            caption=caption
+                            to=self._require_recipient(), image_url=image.url, caption=caption
                         )
                         message_ids.append(message_id)
                     else:
-                        raise Exception(f'Failed to validate image: {image.url}')
+                        raise Exception(f"Failed to validate image: {image.url}")
             finally:
                 for image in images:
                     image.cleanup()
@@ -164,12 +188,9 @@ class WhatsApp(SocialNetwork):
         else:
             # Text-only message
             if not message_text:
-                raise Exception('No status text, link, or images provided.')
+                raise Exception("No status text, link, or images provided.")
 
-            primary_message_id = await self.api.send_message(
-                to=self.whatsapp_recipient,
-                text=message_text
-            )
+            primary_message_id = await self.api.send_message(to=self._require_recipient(), text=message_text)
 
         self._output_status(primary_message_id)
         return primary_message_id
@@ -185,7 +206,7 @@ class WhatsApp(SocialNetwork):
         Raises:
             Exception: Like not supported for WhatsApp
         """
-        raise Exception('Like not supported for WhatsApp')
+        raise Exception("Like not supported for WhatsApp")
 
     async def delete(self, message_id=None):
         """
@@ -198,7 +219,7 @@ class WhatsApp(SocialNetwork):
         Raises:
             Exception: Delete not supported for WhatsApp
         """
-        raise Exception('Delete not supported for WhatsApp')
+        raise Exception("Delete not supported for WhatsApp")
 
     async def share(self, message_id=None):
         """
@@ -211,7 +232,7 @@ class WhatsApp(SocialNetwork):
         Raises:
             Exception: Share not supported for WhatsApp
         """
-        raise Exception('Share not supported for WhatsApp')
+        raise Exception("Share not supported for WhatsApp")
 
     async def video(self, status_text, video_url, video_title):
         """
@@ -226,31 +247,36 @@ class WhatsApp(SocialNetwork):
             str: Message ID
         """
         if not self.api:
-            raise Exception('WhatsApp API not initialized')
+            raise Exception("WhatsApp API not initialized")
 
         if not video_url:
-            raise Exception('Video URL is required.')
+            raise Exception("Video URL is required.")
 
         # Download and validate video using the Media system
         video = await self.download_video(video_url)
 
         if not video.content or not video.file_type:
             video.cleanup()
-            raise Exception('Failed to download or validate video')
+            raise Exception("Failed to download or validate video")
 
-        # Ensure video is in supported format (MP4, 3GP)
-        supported_formats = ['video/mp4', 'video/3gp', 'video/3gpp']
-        if video.file_type.mime not in supported_formats:
+        from agoras.media.constraints import video_limits
+        from agoras.media.errors import MediaValidationError
+
+        allowed = video_limits("whatsapp").mime_types
+        if video.file_type.mime not in allowed:
             video.cleanup()
-            raise Exception(f'Invalid video type "{video.file_type.mime}" for {video_url}. '
-                            f'WhatsApp supports MP4 and 3GP formats.')
+            raise MediaValidationError(
+                "whatsapp",
+                "video",
+                "mime_types",
+                video.file_type.mime,
+                sorted(allowed),
+            )
 
         try:
             # Send video with caption (status_text)
             message_id = await self.api.send_video(
-                to=self.whatsapp_recipient,
-                video_url=video.url,
-                caption=status_text
+                to=self._require_recipient(), video_url=video.url, caption=status_text
             )
         finally:
             # Clean up using Media system
@@ -260,10 +286,8 @@ class WhatsApp(SocialNetwork):
         return message_id
 
     async def send_template(
-            self,
-            template_name: str,
-            language_code: str = "en",
-            components: Optional[List] = None) -> str:
+        self, template_name: str, language_code: str = "en", components: Optional[List] = None
+    ) -> str:
         """
         Send a template message.
 
@@ -276,16 +300,16 @@ class WhatsApp(SocialNetwork):
             str: Message ID
         """
         if not self.api:
-            raise Exception('WhatsApp API not initialized')
+            raise Exception("WhatsApp API not initialized")
 
         if not template_name:
-            raise Exception('Template name is required.')
+            raise Exception("Template name is required.")
 
         message_id = await self.api.send_template(
-            to=self.whatsapp_recipient,
+            to=self._require_recipient(),
             template_name=template_name,
             language_code=language_code,
-            components=components
+            components=components,
         )
         self._output_status(message_id)
         return message_id
@@ -293,46 +317,46 @@ class WhatsApp(SocialNetwork):
     # Override action handlers to use WhatsApp-specific parameter names
     async def _handle_like_action(self):
         """Handle like action with WhatsApp-specific parameter extraction."""
-        whatsapp_message_id = self._get_config_value('whatsapp_message_id', 'WHATSAPP_MESSAGE_ID')
+        whatsapp_message_id = self._get_config_value("whatsapp_message_id", "WHATSAPP_MESSAGE_ID")
         if not whatsapp_message_id:
-            raise Exception('WhatsApp message ID is required for like action.')
+            raise Exception("WhatsApp message ID is required for like action.")
         await self.like(whatsapp_message_id)
 
     async def _handle_share_action(self):
         """Handle share action with WhatsApp-specific parameter extraction."""
-        whatsapp_message_id = self._get_config_value('whatsapp_message_id', 'WHATSAPP_MESSAGE_ID')
+        whatsapp_message_id = self._get_config_value("whatsapp_message_id", "WHATSAPP_MESSAGE_ID")
         if not whatsapp_message_id:
-            raise Exception('WhatsApp message ID is required for share action.')
+            raise Exception("WhatsApp message ID is required for share action.")
         await self.share(whatsapp_message_id)
 
     async def _handle_delete_action(self):
         """Handle delete action with WhatsApp-specific parameter extraction."""
-        whatsapp_message_id = self._get_config_value('whatsapp_message_id', 'WHATSAPP_MESSAGE_ID')
+        whatsapp_message_id = self._get_config_value("whatsapp_message_id", "WHATSAPP_MESSAGE_ID")
         if not whatsapp_message_id:
-            raise Exception('WhatsApp message ID is required for delete action.')
+            raise Exception("WhatsApp message ID is required for delete action.")
         await self.delete(whatsapp_message_id)
 
     async def _handle_video_action(self):
         """Handle video action with WhatsApp-specific parameter extraction."""
-        status_text = self._get_config_value('status_text', 'STATUS_TEXT') or ''
-        video_url = self._get_config_value('video_url', 'VIDEO_URL')
-        video_title = self._get_config_value('video_title', 'VIDEO_TITLE') or ''
+        status_text = self._get_config_value("status_text", "STATUS_TEXT") or ""
+        video_url = self._get_config_value("video_url", "VIDEO_URL")
+        video_title = self._get_config_value("video_title", "VIDEO_TITLE") or ""
 
         if not video_url:
-            raise Exception('Video URL is required for video action.')
+            raise Exception("Video URL is required for video action.")
 
         await self.video(status_text, video_url, video_title)
 
     async def _handle_template_action(self):
         """Handle template action with WhatsApp-specific parameter extraction."""
-        template_name = self._get_config_value('whatsapp_template_name', 'WHATSAPP_TEMPLATE_NAME')
-        language_code = self._get_config_value('whatsapp_template_language', 'WHATSAPP_TEMPLATE_LANGUAGE') or 'en'
+        template_name = self._get_config_value("whatsapp_template_name", "WHATSAPP_TEMPLATE_NAME")
+        language_code = self._get_config_value("whatsapp_template_language", "WHATSAPP_TEMPLATE_LANGUAGE") or "en"
         # Note: Template components would need JSON parsing if provided
         # For now, support simple template sending without components
         components = None
 
         if not template_name:
-            raise Exception('Template name is required for template action.')
+            raise Exception("Template name is required for template action.")
 
         await self.send_template(template_name, language_code=language_code, components=components)
 
@@ -345,14 +369,12 @@ class WhatsApp(SocialNetwork):
         """
         from .auth import WhatsAppAuthManager
 
-        access_token = self._get_config_value('whatsapp_access_token', 'WHATSAPP_ACCESS_TOKEN')
-        phone_number_id = self._get_config_value('whatsapp_phone_number_id', 'WHATSAPP_PHONE_NUMBER_ID')
-        business_account_id = self._get_config_value('whatsapp_business_account_id', 'WHATSAPP_BUSINESS_ACCOUNT_ID')
+        access_token = self._get_config_value("whatsapp_access_token", "WHATSAPP_ACCESS_TOKEN")
+        phone_number_id = self._get_config_value("whatsapp_phone_number_id", "WHATSAPP_PHONE_NUMBER_ID")
+        business_account_id = self._get_config_value("whatsapp_business_account_id", "WHATSAPP_BUSINESS_ACCOUNT_ID")
 
         auth_manager = WhatsAppAuthManager(
-            access_token=access_token,
-            phone_number_id=phone_number_id,
-            business_account_id=business_account_id
+            access_token=access_token, phone_number_id=phone_number_id, business_account_id=business_account_id
         )
 
         result = await auth_manager.authorize()
@@ -373,36 +395,36 @@ class WhatsApp(SocialNetwork):
         Raises:
             Exception: If action is not supported or required arguments missing
         """
-        if action == '':
-            raise Exception('Action is a required argument.')
+        if action == "":
+            raise Exception("Action is a required argument.")
 
         # Handle authorize action separately (doesn't need client initialization)
-        if action == 'authorize':
+        if action == "authorize":
             success = await self.authorize_credentials()
             if not success:
-                raise Exception('WhatsApp authorization failed.')
+                raise Exception("WhatsApp authorization failed.")
             return
 
         # Initialize client before executing other actions
         await self._initialize_client()
 
-        if action == 'post':
+        if action == "post":
             await self._handle_post_action()
-        elif action == 'like':
+        elif action == "like":
             await self._handle_like_action()
-        elif action == 'share':
+        elif action == "share":
             await self._handle_share_action()
-        elif action == 'delete':
+        elif action == "delete":
             await self._handle_delete_action()
-        elif action == 'video':
+        elif action == "video":
             await self._handle_video_action()
-        elif action == 'template':
+        elif action == "template":
             await self._handle_template_action()
-        elif action == 'last-from-feed':
+        elif action == "last-from-feed":
             await self._handle_last_from_feed_action()
-        elif action == 'random-from-feed':
+        elif action == "random-from-feed":
             await self._handle_random_from_feed_action()
-        elif action == 'schedule':
+        elif action == "schedule":
             await self._handle_schedule_action()
         else:
             raise Exception(f'"{action}" action not supported.')
@@ -415,10 +437,10 @@ async def main_async(kwargs):
     Args:
         kwargs (dict): Configuration arguments
     """
-    action = kwargs.get('action', '')
+    action = kwargs.get("action", "")
 
-    if action == '':
-        raise Exception('Action is a required argument.')
+    if action == "":
+        raise Exception("Action is a required argument.")
 
     # Create WhatsApp instance with configuration
     instance = WhatsApp(**kwargs)
@@ -427,7 +449,7 @@ async def main_async(kwargs):
     await instance.execute_action(action)
 
     # Only disconnect if client was initialized (not for authorize action)
-    if action != 'authorize':
+    if action != "authorize":
         await instance.disconnect()
 
 

@@ -242,6 +242,51 @@ def test_threads_client_check_response_error_no_json():
         client._check_response(mock_response)
 
 
+# Create Video Post Tests
+
+
+@patch('agoras.platforms.threads.client.time.sleep')
+@patch('agoras.platforms.threads.client.requests.get')
+@patch('agoras.platforms.threads.client.requests.post')
+def test_threads_client_create_video_post_success(mock_requests_post, mock_requests_get, mock_sleep):
+    """Test ThreadsAPIClient create_video_post success."""
+    mock_container_response = MagicMock()
+    mock_container_response.status_code = 200
+    mock_container_response.json.return_value = {'id': 'c1'}
+    mock_container_response.text = '{"id": "c1"}'
+
+    mock_status_response = MagicMock()
+    mock_status_response.status_code = 200
+    mock_status_response.json.return_value = {'status': 'FINISHED'}
+    mock_status_response.text = '{"status": "FINISHED"}'
+    mock_requests_get.return_value = mock_status_response
+
+    mock_publish_response = MagicMock()
+    mock_publish_response.status_code = 200
+    mock_publish_response.json.return_value = {'id': 'p1'}
+    mock_publish_response.text = '{"id": "p1"}'
+
+    mock_requests_post.side_effect = [mock_container_response, mock_publish_response]
+
+    client = ThreadsAPIClient('access_token', 'user_id')
+    result = client.create_video_post('Video caption', 'http://video.mp4')
+
+    assert result == {'id': 'p1'}
+    container_call = mock_requests_post.call_args_list[0]
+    container_data = container_call[1]['data']
+    assert container_data['media_type'] == 'VIDEO'
+    assert container_data['video_url'] == 'http://video.mp4'
+    assert container_data['text'] == 'Video caption'
+
+
+def test_threads_client_create_video_post_no_url():
+    """Test ThreadsAPIClient create_video_post with no video URL."""
+    client = ThreadsAPIClient('access_token', 'user_id')
+
+    with pytest.raises(Exception, match='Video URL is required'):
+        client.create_video_post('caption', '')
+
+
 # Repost Post Tests
 
 

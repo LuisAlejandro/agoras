@@ -15,15 +15,20 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
+Core interfaces and shared social network abstractions for Agoras.
+"""
 
 import datetime
 import json
 import os
 from abc import ABC, abstractmethod
+from typing import Any
 
 from agoras.core.feed import Feed
 from agoras.core.sheet import ScheduleSheet
 from agoras.media import MediaFactory
+from agoras.media.constraints import resolve_platform
 
 
 class SocialNetwork(ABC):
@@ -61,9 +66,15 @@ class SocialNetwork(ABC):
         """
 
     @abstractmethod
-    async def post(self, status_text, status_link,
-                   status_image_url_1=None, status_image_url_2=None,
-                   status_image_url_3=None, status_image_url_4=None):
+    async def post(
+        self,
+        status_text,
+        status_link,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+    ):
         """
         Create a post on the social network.
 
@@ -130,7 +141,7 @@ class SocialNetwork(ABC):
         Raises:
             Exception: If video posting is not supported
         """
-        raise Exception(f'Video posting not supported for {self.__class__.__name__}')
+        raise Exception(f"Video posting not supported for {self.__class__.__name__}")
 
     def get_platform_name(self):
         """
@@ -140,7 +151,7 @@ class SocialNetwork(ABC):
             str: Platform name (class name without 'Network' suffix if present)
         """
         name = self.__class__.__name__
-        if name.endswith('Network'):
+        if name.endswith("Network"):
             return name[:-7]  # Remove 'Network' suffix
         return name
 
@@ -154,7 +165,8 @@ class SocialNetwork(ABC):
         Returns:
             list: List of downloaded Image instances
         """
-        return await MediaFactory.download_images(image_urls)
+        platform = resolve_platform(self.get_platform_name())
+        return await MediaFactory.download_images(image_urls, platform=platform)
 
     async def download_video(self, video_url):
         """
@@ -166,7 +178,7 @@ class SocialNetwork(ABC):
         Returns:
             Video: Downloaded Video instance
         """
-        platform = self.get_platform_name()
+        platform = resolve_platform(self.get_platform_name())
         video = MediaFactory.create_video(video_url, platform)
         await video.download()
         return video
@@ -185,8 +197,9 @@ class SocialNetwork(ABC):
         await feed.download()
         return feed
 
-    async def create_schedule_sheet(self, google_sheets_id, google_sheets_name,
-                                    google_sheets_client_email, google_sheets_private_key):
+    async def create_schedule_sheet(
+        self, google_sheets_id, google_sheets_name, google_sheets_client_email, google_sheets_private_key
+    ):
         """
         Create a ScheduleSheet instance with proper configuration.
 
@@ -201,13 +214,10 @@ class SocialNetwork(ABC):
         """
         # Clean up private key format
         if google_sheets_private_key:
-            google_sheets_private_key = google_sheets_private_key.replace('\\n', '\n')
+            google_sheets_private_key = google_sheets_private_key.replace("\\n", "\n")
 
         sheet = ScheduleSheet(
-            google_sheets_id,
-            google_sheets_client_email,
-            google_sheets_private_key,
-            google_sheets_name
+            google_sheets_id, google_sheets_client_email, google_sheets_private_key, google_sheets_name
         )
 
         await sheet.authenticate()
@@ -234,7 +244,7 @@ class SocialNetwork(ABC):
             if count >= max_count:
                 break
 
-            status_link = item.get_timestamped_link(today.strftime('%Y%m%d%H%M%S')) if item.link else ''
+            status_link = item.get_timestamped_link(today.strftime("%Y%m%d%H%M%S")) if item.link else ""
             status_title = item.title
             status_image = item.image_url
 
@@ -253,14 +263,15 @@ class SocialNetwork(ABC):
         random_item = feed.get_random_item(max_post_age)
 
         today = datetime.datetime.now()
-        status_link = random_item.get_timestamped_link(today.strftime('%Y%m%d%H%M%S')) if random_item.link else ''
+        status_link = random_item.get_timestamped_link(today.strftime("%Y%m%d%H%M%S")) if random_item.link else ""
         status_title = random_item.title
         status_image = random_item.image_url
 
         await self.post(status_title, status_link, status_image)
 
-    async def schedule(self, google_sheets_id, google_sheets_name,
-                       google_sheets_client_email, google_sheets_private_key, max_count):
+    async def schedule(
+        self, google_sheets_id, google_sheets_name, google_sheets_client_email, google_sheets_private_key, max_count
+    ):
         """
         Schedule posts from Google Sheets asynchronously.
 
@@ -273,8 +284,7 @@ class SocialNetwork(ABC):
         """
         # Create and configure the schedule sheet
         sheet = await self.create_schedule_sheet(
-            google_sheets_id, google_sheets_name,
-            google_sheets_client_email, google_sheets_private_key
+            google_sheets_id, google_sheets_name, google_sheets_client_email, google_sheets_private_key
         )
 
         # Process scheduled posts
@@ -283,12 +293,12 @@ class SocialNetwork(ABC):
         # Create posts asynchronously
         for post_data in posts_to_create:
             await self.post(
-                post_data['status_text'],
-                post_data['status_link'],
-                post_data['status_image_url_1'],
-                post_data['status_image_url_2'],
-                post_data['status_image_url_3'],
-                post_data['status_image_url_4']
+                post_data["status_text"],
+                post_data["status_link"],
+                post_data["status_image_url_1"],
+                post_data["status_image_url_2"],
+                post_data["status_image_url_3"],
+                post_data["status_image_url_4"],
             )
 
     def _output_status(self, post_id):
@@ -299,9 +309,9 @@ class SocialNetwork(ABC):
             post_id (str): ID of the created/modified post
         """
         status = {"id": post_id}
-        print(json.dumps(status, separators=(',', ':')))
+        print(json.dumps(status, separators=(",", ":")))
 
-    def _get_config_value(self, key, env_key=None):
+    def _get_config_value(self, key, env_key=None) -> Any:
         """
         Get configuration value from kwargs or environment.
 
@@ -315,6 +325,25 @@ class SocialNetwork(ABC):
         env_key = env_key or key.upper()
         return self.config.get(key) or os.environ.get(env_key)
 
+    def _require_config_value(self, key, env_key=None) -> str:
+        """
+        Get a required configuration value from kwargs or environment.
+
+        Args:
+            key (str): Configuration key
+            env_key (str, optional): Environment variable key
+
+        Returns:
+            str: Configuration value
+
+        Raises:
+            ValueError: If the configuration value is missing or empty
+        """
+        value = self._get_config_value(key, env_key)
+        if value is None or value == "":
+            raise ValueError(f"Missing required configuration for {key}")
+        return str(value)
+
     async def execute_action(self, action):
         """
         Execute the specified action asynchronously.
@@ -325,98 +354,99 @@ class SocialNetwork(ABC):
         Raises:
             Exception: If action is not supported or required arguments missing
         """
-        if action == '':
-            raise Exception('Action is a required argument.')
+        if action == "":
+            raise Exception("Action is a required argument.")
 
         # Initialize client before executing other actions
         await self._initialize_client()
 
-        if action == 'post':
+        if action == "post":
             await self._handle_post_action()
-        elif action == 'like':
+        elif action == "like":
             await self._handle_like_action()
-        elif action == 'share':
+        elif action == "share":
             await self._handle_share_action()
-        elif action == 'delete':
+        elif action == "delete":
             await self._handle_delete_action()
-        elif action == 'video':
+        elif action == "video":
             await self._handle_video_action()
-        elif action == 'last-from-feed':
+        elif action == "last-from-feed":
             await self._handle_last_from_feed_action()
-        elif action == 'random-from-feed':
+        elif action == "random-from-feed":
             await self._handle_random_from_feed_action()
-        elif action == 'schedule':
+        elif action == "schedule":
             await self._handle_schedule_action()
         else:
             raise Exception(f'"{action}" action not supported.')
 
     async def _handle_post_action(self):
         """Handle post action with common parameter extraction."""
-        status_text = self._get_config_value('status_text', 'STATUS_TEXT') or ''
-        status_link = self._get_config_value('status_link', 'STATUS_LINK') or ''
-        status_image_url_1 = self._get_config_value('status_image_url_1', 'STATUS_IMAGE_URL_1')
-        status_image_url_2 = self._get_config_value('status_image_url_2', 'STATUS_IMAGE_URL_2')
-        status_image_url_3 = self._get_config_value('status_image_url_3', 'STATUS_IMAGE_URL_3')
-        status_image_url_4 = self._get_config_value('status_image_url_4', 'STATUS_IMAGE_URL_4')
+        status_text = self._get_config_value("status_text", "STATUS_TEXT") or ""
+        status_link = self._get_config_value("status_link", "STATUS_LINK") or ""
+        status_image_url_1 = self._get_config_value("status_image_url_1", "STATUS_IMAGE_URL_1")
+        status_image_url_2 = self._get_config_value("status_image_url_2", "STATUS_IMAGE_URL_2")
+        status_image_url_3 = self._get_config_value("status_image_url_3", "STATUS_IMAGE_URL_3")
+        status_image_url_4 = self._get_config_value("status_image_url_4", "STATUS_IMAGE_URL_4")
 
-        await self.post(status_text, status_link,
-                        status_image_url_1, status_image_url_2,
-                        status_image_url_3, status_image_url_4)
+        await self.post(
+            status_text, status_link, status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4
+        )
 
     async def _handle_like_action(self):
         """Handle like action with common parameter extraction."""
-        post_id = self._get_config_value('post_id')
+        post_id = self._get_config_value("post_id")
         if not post_id:
-            raise Exception('Post ID is required for like action.')
+            raise Exception("Post ID is required for like action.")
         await self.like(post_id)
 
     async def _handle_share_action(self):
         """Handle share action with common parameter extraction."""
-        post_id = self._get_config_value('post_id')
+        post_id = self._get_config_value("post_id")
         if not post_id:
-            raise Exception('Post ID is required for share action.')
+            raise Exception("Post ID is required for share action.")
         await self.share(post_id)
 
     async def _handle_delete_action(self):
         """Handle delete action with common parameter extraction."""
-        post_id = self._get_config_value('post_id')
+        post_id = self._get_config_value("post_id")
         if not post_id:
-            raise Exception('Post ID is required for delete action.')
+            raise Exception("Post ID is required for delete action.")
         await self.delete(post_id)
 
     async def _handle_video_action(self):
         """Handle video action with common parameter extraction."""
-        status_text = self._get_config_value('status_text', 'STATUS_TEXT') or ''
-        video_url = self._get_config_value('video_url')
-        video_title = self._get_config_value('video_title') or ''
+        status_text = self._get_config_value("status_text", "STATUS_TEXT") or ""
+        video_url = self._get_config_value("video_url")
+        video_title = self._get_config_value("video_title") or ""
 
         if not video_url:
-            raise Exception('Video URL is required for video action.')
+            raise Exception("Video URL is required for video action.")
 
         await self.video(status_text, video_url, video_title)
 
     async def _handle_last_from_feed_action(self):
         """Handle last-from-feed action with common parameter extraction."""
-        feed_url = self._get_config_value('feed_url', 'FEED_URL')
-        max_count = int(self._get_config_value('max_count', 'MAX_COUNT') or 1)
-        post_lookback = int(self._get_config_value('post_lookback', 'POST_LOOKBACK') or 3600)
+        feed_url = self._get_config_value("feed_url", "FEED_URL")
+        max_count = int(self._get_config_value("max_count", "MAX_COUNT") or 1)
+        post_lookback = int(self._get_config_value("post_lookback", "POST_LOOKBACK") or 3600)
 
         await self.last_from_feed(feed_url, max_count, post_lookback)
 
     async def _handle_random_from_feed_action(self):
         """Handle random-from-feed action with common parameter extraction."""
-        feed_url = self._get_config_value('feed_url', 'FEED_URL')
-        max_post_age = int(self._get_config_value('max_post_age', 'MAX_POST_AGE') or 365)
+        feed_url = self._get_config_value("feed_url", "FEED_URL")
+        max_post_age = int(self._get_config_value("max_post_age", "MAX_POST_AGE") or 365)
 
         await self.random_from_feed(feed_url, max_post_age)
 
     async def _handle_schedule_action(self):
         """Handle schedule action with common parameter extraction."""
-        google_sheets_id = self._get_config_value('google_sheets_id', 'GOOGLE_SHEETS_ID')
-        google_sheets_name = self._get_config_value('google_sheets_name', 'GOOGLE_SHEETS_NAME')
-        google_sheets_client_email = self._get_config_value('google_sheets_client_email', 'GOOGLE_SHEETS_CLIENT_EMAIL')
-        google_sheets_private_key = self._get_config_value('google_sheets_private_key', 'GOOGLE_SHEETS_PRIVATE_KEY')
-        max_count = int(self._get_config_value('max_count', 'MAX_COUNT') or 1)
+        google_sheets_id = self._get_config_value("google_sheets_id", "GOOGLE_SHEETS_ID")
+        google_sheets_name = self._get_config_value("google_sheets_name", "GOOGLE_SHEETS_NAME")
+        google_sheets_client_email = self._get_config_value("google_sheets_client_email", "GOOGLE_SHEETS_CLIENT_EMAIL")
+        google_sheets_private_key = self._get_config_value("google_sheets_private_key", "GOOGLE_SHEETS_PRIVATE_KEY")
+        max_count = int(self._get_config_value("max_count", "MAX_COUNT") or 1)
 
-        await self.schedule(google_sheets_id, google_sheets_name,
-                            google_sheets_client_email, google_sheets_private_key, max_count)
+        await self.schedule(
+            google_sheets_id, google_sheets_name, google_sheets_client_email, google_sheets_private_key, max_count
+        )

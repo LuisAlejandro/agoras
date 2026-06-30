@@ -19,9 +19,11 @@
 
 from setuptools import find_namespace_packages, setup
 
+version = '2.0.5'
+
 setup(
     name='agoras-media',
-    version='2.0.0',
+    version=version,
     author='Luis Alejandro Martínez Faneyth',
     author_email='luis@luisalejandro.org',
     url='https://github.com/LuisAlejandro/agoras',
@@ -32,11 +34,12 @@ setup(
     package_dir={'': 'src'},
     python_requires='>=3.10',
     install_requires=[
-        'agoras-common>=2.0.0',
+        f'agoras-common=={version}',
         'filetype==1.2.0',
         'opencv-python-headless==4.13.0.92',
         'Pillow>=10.0.0',
     ],
+
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',

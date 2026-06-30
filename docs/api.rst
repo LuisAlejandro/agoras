@@ -12,19 +12,11 @@ agoras package
     :private-members:
     :special-members:
 
-agoras.cli module
------------------
-
-.. automodule:: agoras.cli
-    :members:
-    :private-members:
-    :special-members:
-
 Subpackages
 -----------
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    api/common
    api/media
@@ -34,4 +26,3 @@ Subpackages
    api/core_sheet
    api/platforms
    api/cli
-   api/commands

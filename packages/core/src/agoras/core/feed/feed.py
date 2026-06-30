@@ -15,6 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.core.feed.feed module."""
 
 import asyncio
 import datetime
@@ -62,10 +63,10 @@ class Feed:
             return self
 
         if not self.url:
-            raise Exception('No feed URL provided.')
+            raise Exception("No feed URL provided.")
 
         def _sync_download():
-            request = Request(url=self.url, headers={'User-Agent': f'Agoras/{__version__}'})
+            request = Request(url=self.url, headers={"User-Agent": f"Agoras/{__version__}"})
             return parse_rss_bytes(urlopen(request).read())
 
         self._feed_data = await asyncio.to_thread(_sync_download)
@@ -86,22 +87,22 @@ class Feed:
             Exception: If feed hasn't been downloaded
         """
         if not self._downloaded:
-            raise Exception('Feed must be downloaded before accessing items')
+            raise Exception("Feed must be downloaded before accessing items")
         return self._items or []
 
     @property
     def title(self):
         """Get feed title."""
         if not self._downloaded:
-            raise Exception('Feed must be downloaded before accessing title')
-        return getattr(self._feed_data, 'title', '') or ''
+            raise Exception("Feed must be downloaded before accessing title")
+        return getattr(self._feed_data, "title", "") or ""
 
     @property
     def description(self):
         """Get feed description."""
         if not self._downloaded:
-            raise Exception('Feed must be downloaded before accessing description')
-        return getattr(self._feed_data, 'description', '') or ''
+            raise Exception("Feed must be downloaded before accessing description")
+        return getattr(self._feed_data, "description", "") or ""
 
     def get_items_since(self, lookback_seconds):
         """
@@ -114,11 +115,11 @@ class Feed:
             list: List of FeedItem instances within the time range
         """
         if not self._downloaded:
-            raise Exception('Feed must be downloaded before filtering items')
+            raise Exception("Feed must be downloaded before filtering items")
 
         now = datetime.datetime.now()
         cutoff = now - datetime.timedelta(seconds=lookback_seconds)
-        cutoff_timestamp = int(cutoff.strftime('%Y%m%d%H%M%S'))
+        cutoff_timestamp = int(cutoff.strftime("%Y%m%d%H%M%S"))
 
         recent_items = []
         for item in self.items:
@@ -138,11 +139,11 @@ class Feed:
             list: List of FeedItem instances within the age range
         """
         if not self._downloaded:
-            raise Exception('Feed must be downloaded before filtering items')
+            raise Exception("Feed must be downloaded before filtering items")
 
         now = datetime.datetime.now()
         cutoff = now - datetime.timedelta(days=max_age_days)
-        cutoff_timestamp = int(cutoff.strftime('%Y%m%d%H%M%S'))
+        cutoff_timestamp = int(cutoff.strftime("%Y%m%d%H%M%S"))
 
         valid_items = []
         for item in self.items:
@@ -165,7 +166,7 @@ class Feed:
             Exception: If no items are available
         """
         if not self._downloaded:
-            raise Exception('Feed must be downloaded before selecting items')
+            raise Exception("Feed must be downloaded before selecting items")
 
         available_items = self.items
 
@@ -173,7 +174,7 @@ class Feed:
             available_items = self.get_items_within_days(max_age_days)
 
         if not available_items:
-            raise Exception('No suitable items found in feed')
+            raise Exception("No suitable items found in feed")
 
         return random.choice(available_items)
 
@@ -188,15 +189,11 @@ class Feed:
             list: List of the most recent FeedItem instances
         """
         if not self._downloaded:
-            raise Exception('Feed must be downloaded before selecting items')
+            raise Exception("Feed must be downloaded before selecting items")
 
         # Sort by publication date (newest first), handling None values
         items_with_dates = [item for item in self.items if item.pub_date]
-        sorted_items = sorted(
-            items_with_dates,
-            key=lambda x: x.pub_date or datetime.datetime.min,
-            reverse=True
-        )
+        sorted_items = sorted(items_with_dates, key=lambda x: x.pub_date or datetime.datetime.min, reverse=True)
 
         return sorted_items[:count]
 
@@ -213,15 +210,12 @@ class Feed:
             list: List of filtered FeedItem instances
         """
         if not self._downloaded:
-            raise Exception('Feed must be downloaded before filtering items')
+            raise Exception("Feed must be downloaded before filtering items")
 
         filtered_items = self.items
 
         if title_contains:
-            filtered_items = [
-                item for item in filtered_items
-                if title_contains.lower() in item.title.lower()
-            ]
+            filtered_items = [item for item in filtered_items if title_contains.lower() in item.title.lower()]
 
         if has_image is not None:
             if has_image:
@@ -242,12 +236,12 @@ class Feed:
             dict: Feed data including items
         """
         if not self._downloaded:
-            raise Exception('Feed must be downloaded before converting to dict')
+            raise Exception("Feed must be downloaded before converting to dict")
 
         return {
-            'url': self.url,
-            'title': self.title,
-            'description': self.description,
-            'item_count': len(self.items),
-            'items': [item.to_dict() for item in self.items]
+            "url": self.url,
+            "title": self.title,
+            "description": self.description,
+            "item_count": len(self.items),
+            "items": [item.to_dict() for item in self.items],
         }

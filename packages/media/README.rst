@@ -51,9 +51,26 @@ Usage
 
    asyncio.run(download_image())
 
+Media constraints
+-----------------
+
+Per-platform MIME, size, duration, and transfer limits live in
+``agoras.media.constraints``. Wrappers and ``MediaFactory`` import the same
+table; do not hardcode limits elsewhere.
+
+To inspect limits::
+
+   agoras utils media-limits
+   agoras utils media-limits --platform discord --kind video
+
+To add a platform row, edit ``constraints.py`` and run::
+
+   pytest packages/media/tests/test_constraints_contract.py
+
 Dependencies
 ------------
 
 - agoras-common
 - Pillow (image processing)
+- opencv-python-headless (video duration and validation)
 - filetype (file type detection)

@@ -20,8 +20,9 @@ Integration tests for CLI end-to-end behavior.
 """
 
 import pytest
+from unittest.mock import patch
 
-from agoras.cli.main import commandline
+from agoras.cli.main import commandline, main
 from agoras.cli.validator import ActionValidator
 
 
@@ -58,37 +59,27 @@ def test_legacy_publish_still_works():
 
 
 def test_x_post_complete_flow():
-    """Test complete X post command parsing."""
+    """Test complete X post command parsing without auth flags."""
     parser, args = commandline([
         'x', 'post',
-        '--consumer-key', 'key',
-        '--consumer-secret', 'secret',
-        '--oauth-token', 'token',
-        '--oauth-secret', 'oauth',
         '--text', 'Test post',
         '--image-1', 'img.jpg'
     ])
 
     assert args.action == 'post'
-    assert args.consumer_key == 'key'
     assert args.text == 'Test post'
     assert args.image_1 == 'img.jpg'
 
 
 def test_twitter_post_complete_flow():
-    """Test complete Twitter alias post command parsing (backward compatibility)."""
+    """Test complete Twitter alias post command parsing without auth flags."""
     parser, args = commandline([
         'twitter', 'post',
-        '--consumer-key', 'key',
-        '--consumer-secret', 'secret',
-        '--oauth-token', 'token',
-        '--oauth-secret', 'oauth',
         '--text', 'Test post',
         '--image-1', 'img.jpg'
     ])
 
     assert args.action == 'post'
-    assert args.consumer_key == 'key'
     assert args.text == 'Test post'
     assert args.image_1 == 'img.jpg'
 
@@ -115,42 +106,119 @@ def test_utils_feed_publish_complete_flow():
         '--network', 'x',
         '--mode', 'last',
         '--feed-url', 'https://example.com/feed.xml',
-        '--x-consumer-key', 'key'
     ])
 
     assert args.network == 'x'
     assert args.mode == 'last'
     assert args.feed_url == 'https://example.com/feed.xml'
-    assert args.x_consumer_key == 'key'
+
+
+def test_utils_feed_publish_rejects_cred_flags():
+    """Test utils feed-publish rejects platform credential flags."""
+    with pytest.raises(SystemExit):
+        commandline([
+            'utils', 'feed-publish',
+            '--network', 'x',
+            '--mode', 'last',
+            '--feed-url', 'https://example.com/feed.xml',
+            '--x-consumer-key', 'key',
+        ])
+
+
+@patch('agoras.cli.platform_runner.x')
+def test_utils_feed_publish_main_reaches_platform_runner(mock_x):
+    """Test utils feed-publish CLI entry dispatches through platform_runner."""
+    mock_x.return_value = 0
+    status = main([
+        'utils', 'feed-publish',
+        '--network', 'x',
+        '--mode', 'last',
+        '--feed-url', 'https://example.com/feed.xml',
+        '--max-count', '2',
+    ])
+    assert status == 0
+    mock_x.assert_called_once()
+    call_kwargs = mock_x.call_args[0][0]
+    assert call_kwargs == {
+        'network': 'x',
+        'action': 'last-from-feed',
+        'feed_url': 'https://example.com/feed.xml',
+        'max_count': 2,
+        'post_lookback': None,
+        'max_post_age': None,
+    }
 
 
 def test_utils_schedule_run_complete_flow():
     """Test complete utils schedule-run command parsing."""
     parser, args = commandline([
         'utils', 'schedule-run',
+        '--network', 'x',
         '--sheets-id', 'sheet123',
         '--sheets-name', 'Schedule',
         '--sheets-client-email', 'email@example.com',
         '--sheets-private-key', 'private_key'
     ])
 
+    assert args.network == 'x'
     assert args.sheets_id == 'sheet123'
     assert args.sheets_name == 'Schedule'
 
 
-def test_discord_unique_auth_flow():
-    """Test Discord unique authentication flow."""
+def test_utils_schedule_run_requires_network():
+    """Test utils schedule-run requires --network."""
+    with pytest.raises(SystemExit):
+        commandline([
+            'utils', 'schedule-run',
+            '--sheets-id', 'sheet123',
+            '--sheets-name', 'Schedule',
+            '--sheets-client-email', 'email@example.com',
+            '--sheets-private-key', 'private_key'
+        ])
+
+
+def test_utils_schedule_run_rejects_cred_flags():
+    """Test utils schedule-run rejects platform credential flags."""
+    with pytest.raises(SystemExit):
+        commandline([
+            'utils', 'schedule-run',
+            '--network', 'facebook',
+            '--sheets-id', 'sheet123',
+            '--sheets-name', 'Schedule',
+            '--sheets-client-email', 'email@example.com',
+            '--sheets-private-key', 'private_key',
+            '--facebook-access-token', 'token',
+        ])
+
+
+@patch('agoras.cli.platform_runner.x')
+def test_utils_schedule_run_main_reaches_platform_runner(mock_x):
+    """Test utils schedule-run CLI entry dispatches through platform_runner."""
+    mock_x.return_value = 0
+    status = main([
+        'utils', 'schedule-run',
+        '--network', 'x',
+        '--sheets-id', 'sheet123',
+        '--sheets-name', 'Schedule',
+        '--sheets-client-email', 'email@example.com',
+        '--sheets-private-key', 'private_key',
+    ])
+    assert status == 0
+    mock_x.assert_called_once()
+    call_kwargs = mock_x.call_args[0][0]
+    assert call_kwargs['action'] == 'schedule'
+    assert call_kwargs['network'] == 'x'
+    assert call_kwargs['google_sheets_id'] == 'sheet123'
+
+
+def test_discord_post_parses_content_only():
+    """Test Discord post parses content flags without auth flags."""
     parser, args = commandline([
         'discord', 'post',
-        '--bot-token', 'BOT_TOKEN',
-        '--server-name', 'Server',
-        '--channel-name', 'general',
         '--text', 'Hello Discord'
     ])
 
-    assert args.bot_token == 'BOT_TOKEN'
-    assert args.server_name == 'Server'
-    assert args.channel_name == 'general'
+    assert args.text == 'Hello Discord'
 
 
 def test_threads_new_platform_accessible():
@@ -177,7 +245,7 @@ def test_action_validation_integration():
 
     # Valid: TikTok post (now supported)
     ActionValidator.validate('tiktok', 'post')
-    
+
     # Invalid: TikTok like (not supported)
     with pytest.raises(ValueError):
         ActionValidator.validate('tiktok', 'like')

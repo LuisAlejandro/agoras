@@ -38,7 +38,9 @@ def threads_api():
         api._authenticated = True
         api.client = MagicMock()
         api.client.create_post = MagicMock(return_value={'id': 'thread-123'})
+        api.client.create_video_post = MagicMock(return_value={'id': 'video-123'})
         api.client.repost_post = MagicMock(return_value={'id': 'repost-123'})
+        api.client.delete_post = MagicMock(return_value={'id': 'thread-123'})
         api.client.get_profile = MagicMock(return_value={'id': 'user123', 'username': 'testuser'})
         yield api
 
@@ -85,8 +87,11 @@ async def test_threads_api_create_post_with_text(mock_media_factory, threads_api
 
 
 @pytest.mark.asyncio
+@patch('agoras.media.preflight.preflight_url_for_platform')
 @patch('agoras.platforms.threads.api.MediaFactory')
-async def test_threads_api_create_post_with_images(mock_media_factory, threads_api):
+async def test_threads_api_create_post_with_images(
+    mock_media_factory, mock_preflight, threads_api,
+):
     """Test ThreadsAPI create_post with images."""
     # Mock MediaFactory.download_images
     mock_image = MagicMock()
@@ -101,6 +106,7 @@ async def test_threads_api_create_post_with_images(mock_media_factory, threads_a
 
     assert result == 'thread-123'
     threads_api.client.create_post.assert_called_once()
+    mock_preflight.assert_called_once_with('http://image.jpg', 'threads', kind='image')
     mock_image.cleanup.assert_called()
 
 
@@ -124,6 +130,30 @@ async def test_threads_api_create_post_with_hashtags(mock_media_factory, threads
     threads_api.client.create_post.assert_called_once()
 
 
+@pytest.mark.asyncio
+@patch('agoras.platforms.threads.api.MediaFactory')
+async def test_threads_api_create_video_post(mock_media_factory, threads_api):
+    """Test ThreadsAPI create_video_post with video validation."""
+    mock_video = MagicMock()
+    mock_video.content = b'video_content'
+    mock_video.file_type = MagicMock()
+    mock_video.file_type.mime = 'video/mp4'
+    mock_video.url = 'http://video.mp4'
+    mock_video.download = AsyncMock()
+    mock_video.cleanup = MagicMock()
+    mock_media_factory.create_video = MagicMock(return_value=mock_video)
+
+    result = await threads_api.create_video_post('Video caption', 'http://video.mp4')
+
+    assert result == 'video-123'
+    threads_api.client.create_video_post.assert_called_once_with(
+        post_text='Video caption',
+        video_url='http://video.mp4',
+        who_can_reply='everyone'
+    )
+    mock_video.cleanup.assert_called_once()
+
+
 # Interaction Tests
 
 @pytest.mark.asyncio
@@ -134,10 +164,12 @@ async def test_threads_api_like_not_supported(threads_api):
 
 
 @pytest.mark.asyncio
-async def test_threads_api_delete_not_supported(threads_api):
-    """Test ThreadsAPI delete is not supported."""
-    with pytest.raises(Exception, match='Delete not supported'):
-        await threads_api.delete('thread-123')
+async def test_threads_api_delete(threads_api):
+    """Test ThreadsAPI delete post."""
+    result = await threads_api.delete('thread-123')
+
+    assert result == 'thread-123'
+    threads_api.client.delete_post.assert_called_once_with(post_id='thread-123')
 
 
 @pytest.mark.asyncio
@@ -170,8 +202,11 @@ async def test_threads_api_get_profile(threads_api):
 
 
 @pytest.mark.asyncio
+@patch('agoras.media.preflight.preflight_url_for_platform')
 @patch('agoras.platforms.threads.api.MediaFactory')
-async def test_threads_api_validate_and_download_images(mock_media_factory, threads_api):
+async def test_threads_api_validate_and_download_images(
+    mock_media_factory, mock_preflight, threads_api,
+):
     """Test ThreadsAPI _validate_and_download_images method."""
     # Mock MediaFactory.download_images
     mock_image = MagicMock()
@@ -186,6 +221,9 @@ async def test_threads_api_validate_and_download_images(mock_media_factory, thre
         ['http://image.jpg'], ['Caption']
     )
 
+    mock_media_factory.download_images.assert_called_once_with(
+        ['http://image.jpg'], platform='threads',
+    )
     assert len(validated_files) == 1
     assert validated_files[0] == 'http://image.jpg'
     assert len(validated_captions) == 1

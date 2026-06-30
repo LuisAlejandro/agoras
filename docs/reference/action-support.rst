@@ -8,7 +8,7 @@ Complete Support Matrix
 
 .. list-table::
    :header-rows: 1
-   :widths: 20 10 10 10 10 10 10
+   :widths: 16 8 8 8 8 8 8 8
 
    * - Platform
      - post
@@ -16,13 +16,15 @@ Complete Support Matrix
      - like
      - share
      - delete
+     - template
      - authorize
-   * - Twitter
+   * - X
      - ✓
      - ✓
      - ✓
      - ✓
      - ✓
+     - ✗
      - ✓
    * - Facebook
      - ✓
@@ -30,10 +32,12 @@ Complete Support Matrix
      - ✓
      - ✓
      - ✓
+     - ✗
      - ✓
    * - Instagram
      - ✓
      - ✓
+     - ✗
      - ✗
      - ✗
      - ✗
@@ -44,6 +48,7 @@ Complete Support Matrix
      - ✓
      - ✓
      - ✓
+     - ✗
      - ✓
    * - Discord
      - ✓
@@ -51,6 +56,7 @@ Complete Support Matrix
      - ✗ [1]
      - ✗
      - ✓
+     - ✗
      - ✓
    * - YouTube
      - ✗ [2]
@@ -58,10 +64,12 @@ Complete Support Matrix
      - ✓
      - ✗
      - ✓
+     - ✗
      - ✓
    * - TikTok
-     - ✗ [2]
+     - ✓ [3]
      - ✓
+     - ✗
      - ✗
      - ✗
      - ✗
@@ -71,14 +79,36 @@ Complete Support Matrix
      - ✓
      - ✗
      - ✓
+     - ✓
      - ✗
+     - ✓
+   * - Telegram
+     - ✓
+     - ✓
+     - ✗
+     - ✗
+     - ✓
+     - ✗
+     - ✓
+   * - WhatsApp
+     - ✓
+     - ✓
+     - ✗
+     - ✗
+     - ✗
+     - ✓
      - ✓
 
 **Notes:**
 
 [1] Discord uses reactions, not traditional "likes". Use Discord's native reaction system instead.
 
-[2] YouTube and TikTok are video-only platforms. Text-only posts are not supported.
+[2] YouTube does not support text-only posts; use ``video`` for uploads.
+
+[3] TikTok ``post`` creates photo slideshow posts; ``video`` uploads video content.
+
+.. note::
+   The deprecated ``twitter`` CLI alias exposes the same actions as ``x``.
 
 Platform Categories
 -------------------
@@ -86,45 +116,45 @@ Platform Categories
 Full-Featured Platforms
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-These platforms support all standard actions:
+These platforms support the full social action set (post, video, like, share, delete):
 
-* **Twitter**: Complete social network features
+* **X**: Complete social network features
 * **Facebook**: Complete social network features
 * **LinkedIn**: Complete professional network features
 
-Video-Only Platforms
-~~~~~~~~~~~~~~~~~~~~
+Video-Focused Platforms
+~~~~~~~~~~~~~~~~~~~~~~~
 
-These platforms only support video content:
-
-* **YouTube**: Video sharing and management
-* **TikTok**: Short-form video content
+* **YouTube**: Video uploads, likes, and deletes
+* **TikTok**: Video uploads and photo slideshow posts
 
 Limited Action Platforms
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-These platforms have specific limitations:
+These platforms have specific API limitations:
 
-* **Instagram**: Post and video only (API limitations for likes/shares/deletes)
-* **Discord**: Bot-based messaging (no traditional likes)
-* **Threads**: Post, video, and share only. Like and delete actions are not supported by the API.
+* **Instagram**: Post and video only (no like, share, or delete via API)
+* **Discord**: Bot-based messaging (post, video, delete; no traditional likes)
+* **Threads**: Post, video, share, and delete (no like via CLI)
+* **Telegram**: Post, video, and delete (messaging platform)
+* **WhatsApp**: Post, video, and template messages (Business API)
 
 Feed and Schedule Support
 --------------------------
 
-All platforms support feed automation and schedule commands:
+Feed automation and schedule commands work with all 10 platforms:
 
-* ``agoras utils feed-publish --network <platform>`` - Works with all 8 platforms
-* ``agoras utils schedule-run`` - Works with all 8 platforms
+* ``agoras utils feed-publish --network <platform>`` — all platforms (``twitter`` accepted as deprecated alias for ``x``)
+* ``agoras utils schedule-run --network <platform>`` — all platforms (one platform per run; required since 2.1.0)
 
-These are orchestration commands that work uniformly across platforms.
+These are orchestration commands that delegate to each platform's supported actions.
 
 Checking Platform Support
 --------------------------
 
 To see which actions a platform supports, use the help command::
 
-    agoras twitter --help
+    agoras x --help
     agoras youtube --help
     agoras instagram --help
 

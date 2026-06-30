@@ -23,7 +23,7 @@ This is a skeleton implementation to be fully populated in later phases.
 """
 
 from argparse import Namespace
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 
 class ParameterConverter:
@@ -32,139 +32,140 @@ class ParameterConverter:
     # Platform-specific parameter mappings
     # To be fully populated in Phase 3 (Week 5)
     PLATFORM_MAPPINGS: Dict[str, Dict[str, str]] = {
-        'x': {
+        "x": {
             # Auth
-            'consumer_key': 'twitter_consumer_key',
-            'consumer_secret': 'twitter_consumer_secret',
-            'oauth_token': 'twitter_oauth_token',
-            'oauth_secret': 'twitter_oauth_secret',
+            "consumer_key": "twitter_consumer_key",
+            "consumer_secret": "twitter_consumer_secret",
+            "oauth_token": "twitter_oauth_token",
+            "oauth_secret": "twitter_oauth_secret",
             # Content
-            'post_id': 'tweet_id',
-            'video_url': 'twitter_video_url',
-            'video_title': 'twitter_video_title',
+            "post_id": "tweet_id",
+            "video_url": "twitter_video_url",
+            "video_title": "twitter_video_title",
         },
-        'twitter': {
+        "twitter": {
             # Auth
-            'consumer_key': 'twitter_consumer_key',
-            'consumer_secret': 'twitter_consumer_secret',
-            'oauth_token': 'twitter_oauth_token',
-            'oauth_secret': 'twitter_oauth_secret',
+            "consumer_key": "twitter_consumer_key",
+            "consumer_secret": "twitter_consumer_secret",
+            "oauth_token": "twitter_oauth_token",
+            "oauth_secret": "twitter_oauth_secret",
             # Content
-            'post_id': 'tweet_id',
-            'video_url': 'twitter_video_url',
-            'video_title': 'twitter_video_title',
+            "post_id": "tweet_id",
+            "video_url": "twitter_video_url",
+            "video_title": "twitter_video_title",
         },
-        'facebook': {
-            'client_id': 'facebook_client_id',
-            'client_secret': 'facebook_client_secret',
-            'app_id': 'facebook_app_id',
-            'object_id': 'facebook_object_id',
-            'post_id': 'facebook_post_id',
-            'profile_id': 'facebook_profile_id',
-            'video_url': 'facebook_video_url',
-            'video_title': 'facebook_video_title',
-            'video_description': 'facebook_video_description',
-            'video_type': 'facebook_video_type',
+        "facebook": {
+            "client_id": "facebook_client_id",
+            "client_secret": "facebook_client_secret",
+            "app_id": "facebook_app_id",
+            "object_id": "facebook_object_id",
+            "post_id": "facebook_post_id",
+            "profile_id": "facebook_profile_id",
+            "video_url": "facebook_video_url",
+            "video_title": "facebook_video_title",
+            "video_description": "facebook_video_description",
+            "video_type": "facebook_video_type",
         },
-        'instagram': {
-            'client_id': 'instagram_client_id',
-            'client_secret': 'instagram_client_secret',
-            'object_id': 'instagram_object_id',
-            'post_id': 'instagram_post_id',
-            'video_url': 'instagram_video_url',
-            'video_caption': 'instagram_video_caption',
-            'video_type': 'instagram_video_type',
+        "instagram": {
+            "client_id": "instagram_client_id",
+            "client_secret": "instagram_client_secret",
+            "object_id": "instagram_object_id",
+            "post_id": "instagram_post_id",
+            "video_url": "instagram_video_url",
+            "video_caption": "instagram_video_caption",
+            "video_type": "instagram_video_type",
         },
-        'linkedin': {
-            'client_id': 'linkedin_client_id',
-            'client_secret': 'linkedin_client_secret',
-            'object_id': 'linkedin_object_id',
-            'post_id': 'linkedin_post_id',
-            'video_url': 'linkedin_video_url',
-            'video_title': 'linkedin_video_title',
+        "linkedin": {
+            "client_id": "linkedin_client_id",
+            "client_secret": "linkedin_client_secret",
+            "object_id": "linkedin_object_id",
+            "post_id": "linkedin_post_id",
+            "video_url": "linkedin_video_url",
+            "video_title": "linkedin_video_title",
         },
-        'discord': {
-            'bot_token': 'discord_bot_token',
-            'server_name': 'discord_server_name',
-            'channel_name': 'discord_channel_name',
-            'post_id': 'discord_post_id',
-            'video_url': 'discord_video_url',
-            'video_title': 'discord_video_title',
+        "discord": {
+            "bot_token": "discord_bot_token",
+            "server_name": "discord_server_name",
+            "channel_name": "discord_channel_name",
+            "post_id": "discord_post_id",
+            "video_url": "discord_video_url",
+            "video_title": "discord_video_title",
         },
-        'youtube': {
-            'client_id': 'youtube_client_id',
-            'client_secret': 'youtube_client_secret',
-            'video_id': 'youtube_video_id',
-            'video_url': 'youtube_video_url',
-            'title': 'youtube_title',
-            'description': 'youtube_description',
-            'category_id': 'youtube_category_id',
-            'privacy': 'youtube_privacy_status',
-            'keywords': 'youtube_keywords',
+        "youtube": {
+            "client_id": "youtube_client_id",
+            "client_secret": "youtube_client_secret",
+            "video_id": "youtube_video_id",
+            "video_url": "youtube_video_url",
+            "title": "youtube_title",
+            "description": "youtube_description",
+            "category_id": "youtube_category_id",
+            "privacy": "youtube_privacy_status",
+            "keywords": "youtube_keywords",
         },
-        'tiktok': {
-            'client_key': 'tiktok_client_key',
-            'client_secret': 'tiktok_client_secret',
-            'username': 'tiktok_username',
-            'video_url': 'tiktok_video_url',
-            'title': 'tiktok_title',
-            'privacy': 'tiktok_privacy_status',
-            'allow_comments': 'tiktok_allow_comments',
-            'allow_duet': 'tiktok_allow_duet',
-            'allow_stitch': 'tiktok_allow_stitch',
-            'auto_add_music': 'tiktok_auto_add_music',
+        "tiktok": {
+            "client_key": "tiktok_client_key",
+            "client_secret": "tiktok_client_secret",
+            "username": "tiktok_username",
+            "video_url": "tiktok_video_url",
+            "title": "tiktok_title",
+            "privacy": "tiktok_privacy_status",
+            "allow_comments": "tiktok_allow_comments",
+            "allow_duet": "tiktok_allow_duet",
+            "allow_stitch": "tiktok_allow_stitch",
+            "auto_add_music": "tiktok_auto_add_music",
+            "description": "tiktok_description",
         },
-        'threads': {
-            'app_id': 'threads_app_id',
-            'app_secret': 'threads_app_secret',
-            'post_id': 'threads_post_id',
-            'video_url': 'threads_video_url',
-            'video_title': 'threads_video_title',
+        "threads": {
+            "app_id": "threads_app_id",
+            "app_secret": "threads_app_secret",
+            "post_id": "threads_post_id",
+            "video_url": "threads_video_url",
+            "video_title": "threads_video_title",
         },
-        'telegram': {
-            'bot_token': 'telegram_bot_token',
-            'chat_id': 'telegram_chat_id',
-            'parse_mode': 'telegram_parse_mode',
-            'message_id': 'telegram_message_id',
-            'post_id': 'telegram_message_id',
-            'video_url': 'video_url',
-            'video_title': 'video_title',
+        "telegram": {
+            "bot_token": "telegram_bot_token",
+            "chat_id": "telegram_chat_id",
+            "parse_mode": "telegram_parse_mode",
+            "message_id": "telegram_message_id",
+            "post_id": "telegram_message_id",
+            "video_url": "video_url",
+            "video_title": "video_title",
         },
-        'whatsapp': {
-            'access_token': 'whatsapp_access_token',
-            'phone_number_id': 'whatsapp_phone_number_id',
-            'business_account_id': 'whatsapp_business_account_id',
-            'recipient': 'whatsapp_recipient',
-            'message_id': 'whatsapp_message_id',
-            'template_name': 'whatsapp_template_name',
-            'language_code': 'whatsapp_template_language',
-            'template_components': 'whatsapp_template_components',
-            'video_url': 'video_url',
-            'video_title': 'video_title',
+        "whatsapp": {
+            "access_token": "whatsapp_access_token",
+            "phone_number_id": "whatsapp_phone_number_id",
+            "business_account_id": "whatsapp_business_account_id",
+            "recipient": "whatsapp_recipient",
+            "message_id": "whatsapp_message_id",
+            "template_name": "whatsapp_template_name",
+            "language_code": "whatsapp_template_language",
+            "template_components": "whatsapp_template_components",
+            "video_url": "video_url",
+            "video_title": "video_title",
         },
     }
 
     # Common parameter mappings (apply to all platforms)
     COMMON_MAPPINGS = {
         # Content parameters
-        'text': 'status_text',
-        'link': 'status_link',
-        'image_1': 'status_image_url_1',
-        'image_2': 'status_image_url_2',
-        'image_3': 'status_image_url_3',
-        'image_4': 'status_image_url_4',
+        "text": "status_text",
+        "link": "status_link",
+        "image_1": "status_image_url_1",
+        "image_2": "status_image_url_2",
+        "image_3": "status_image_url_3",
+        "image_4": "status_image_url_4",
         # Feed parameters
-        'feed_url': 'feed_url',
-        'max_count': 'feed_max_count',
-        'post_lookback': 'feed_post_lookback',
-        'max_post_age': 'feed_max_post_age',
+        "feed_url": "feed_url",
+        "max_count": "feed_max_count",
+        "post_lookback": "feed_post_lookback",
+        "max_post_age": "feed_max_post_age",
         # Google Sheets parameters
-        'sheets_id': 'google_sheets_id',
-        'sheets_name': 'google_sheets_name',
-        'sheets_client_email': 'google_sheets_client_email',
-        'sheets_private_key': 'google_sheets_private_key',
+        "sheets_id": "google_sheets_id",
+        "sheets_name": "google_sheets_name",
+        "sheets_client_email": "google_sheets_client_email",
+        "sheets_private_key": "google_sheets_private_key",
         # System parameters
-        'loglevel': 'loglevel',
+        "loglevel": "loglevel",
     }
 
     def __init__(self, platform: str):
@@ -188,8 +189,8 @@ class ParameterConverter:
             Dictionary of legacy-format arguments
         """
         legacy_args = {
-            'network': self.platform,
-            'action': getattr(args, 'action', None),
+            "network": self.platform,
+            "action": getattr(args, "action", None),
         }
 
         # Convert platform-specific parameters
@@ -199,7 +200,7 @@ class ParameterConverter:
                 continue
 
             # Skip empty strings (edge case handling)
-            if isinstance(value, str) and value.strip() == '':
+            if isinstance(value, str) and value.strip() == "":
                 continue
 
             # Check platform-specific mapping
@@ -238,7 +239,7 @@ class ParameterConverter:
                 continue
 
             # Skip empty strings (edge case handling)
-            if isinstance(value, str) and value.strip() == '':
+            if isinstance(value, str) and value.strip() == "":
                 continue
 
             # Check platform-specific reverse mapping
@@ -283,9 +284,9 @@ class ParameterConverter:
             ValueError: If required parameters are missing
         """
         # Check that network and action are present
-        if not legacy_args.get('network'):
+        if not legacy_args.get("network"):
             raise ValueError("Missing required parameter: network")
-        if not legacy_args.get('action'):
+        if not legacy_args.get("action"):
             raise ValueError("Missing required parameter: action")
 
     def get_unmapped_parameters(self, args: Namespace) -> list:
@@ -305,7 +306,7 @@ class ParameterConverter:
                 continue
 
             # Skip special parameters
-            if param in ['handler', 'action', 'network']:
+            if param in ["handler", "action", "network"]:
                 continue
 
             # Check if parameter was mapped
@@ -318,7 +319,7 @@ class ParameterConverter:
         return unmapped
 
     @classmethod
-    def get_all_mappings(cls, platform: str = None) -> Dict[str, Any]:
+    def get_all_mappings(cls, platform: Optional[str] = None) -> Dict[str, Any]:
         """
         Get complete mapping reference for debugging.
 
@@ -330,14 +331,14 @@ class ParameterConverter:
         """
         if platform:
             return {
-                'platform': platform,
-                'platform_mappings': cls.PLATFORM_MAPPINGS.get(platform, {}),
-                'common_mappings': cls.COMMON_MAPPINGS,
+                "platform": platform,
+                "platform_mappings": cls.PLATFORM_MAPPINGS.get(platform, {}),
+                "common_mappings": cls.COMMON_MAPPINGS,
             }
         else:
             return {
-                'all_platforms': cls.PLATFORM_MAPPINGS,
-                'common_mappings': cls.COMMON_MAPPINGS,
+                "all_platforms": cls.PLATFORM_MAPPINGS,
+                "common_mappings": cls.COMMON_MAPPINGS,
             }
 
     def log_conversion(self, args: Namespace, legacy_args: Dict[str, Any]) -> None:
@@ -352,7 +353,7 @@ class ParameterConverter:
         print(f"Action: {args.action}")
         print("\nNew format parameters:")
         for key, value in vars(args).items():
-            if value is not None and key not in ['handler']:
+            if value is not None and key not in ["handler"]:
                 print(f"  {key}: {value}")
         print("\nConverted to legacy format:")
         for key, value in legacy_args.items():
@@ -379,30 +380,22 @@ class ParameterConverter:
         pass_through = []
 
         for param, value in vars(args).items():
-            if value is None or param in ['handler', 'action', 'network']:
+            if value is None or param in ["handler", "action", "network"]:
                 continue
 
             if param in self.platform_mapping:
-                platform_conversions.append({
-                    'new': param,
-                    'legacy': self.platform_mapping[param],
-                    'value': value
-                })
+                platform_conversions.append({"new": param, "legacy": self.platform_mapping[param], "value": value})
             elif param in self.COMMON_MAPPINGS:
-                common_conversions.append({
-                    'new': param,
-                    'legacy': self.COMMON_MAPPINGS[param],
-                    'value': value
-                })
+                common_conversions.append({"new": param, "legacy": self.COMMON_MAPPINGS[param], "value": value})
             else:
-                pass_through.append({'param': param, 'value': value})
+                pass_through.append({"param": param, "value": value})
 
         return {
-            'platform': self.platform,
-            'action': getattr(args, 'action', None),
-            'platform_conversions': platform_conversions,
-            'common_conversions': common_conversions,
-            'pass_through': pass_through,
-            'unmapped_params': unmapped,
-            'legacy_args': legacy_args,
+            "platform": self.platform,
+            "action": getattr(args, "action", None),
+            "platform_conversions": platform_conversions,
+            "common_conversions": common_conversions,
+            "pass_through": pass_through,
+            "unmapped_params": unmapped,
+            "legacy_args": legacy_args,
         }
