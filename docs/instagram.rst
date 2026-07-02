@@ -10,7 +10,7 @@ Before using Agoras with Instagram, you'll need to manually extract the followin
 
 - **Client ID** (``INSTAGRAM_CLIENT_ID``): Your Facebook App ID, used as the OAuth client identifier
 - **Client Secret** (``INSTAGRAM_CLIENT_SECRET``): Your Facebook App Secret, used for OAuth authentication
-- **Object ID** (``INSTAGRAM_OBJECT_ID``): The Facebook User ID that has access to the Instagram business account
+- **Object ID** (``INSTAGRAM_OBJECT_ID``): The Instagram Business Account ID
 
 See :doc:`credentials/instagram` for detailed instructions on how to create a Facebook App, connect it to your Instagram account, and obtain these credentials.
 
@@ -175,19 +175,25 @@ Scheduling Logic
 How to get ``--instagram-object-id`` parameter
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-With Agoras you can use the Instagram network to create posts. You're going to need the ID of the instagram account, for that we're going to need the id of the facebook page that's associated with the instagram account. Replace ``{page_id}`` in the following URL, then put it on your browser and hit enter::
+With Agoras you can use the Instagram network to create posts. You're going to need the ID of the instagram account, for that we're going to need the id of the facebook page that's associated with the instagram account.
 
-      https://developers.facebook.com/tools/explorer/?method=GET&path={page_id}%3Ffields%3Dconnected_instagram_account
+You can find all your pages and their connected Instagram accounts by using this URL in the Graph API Explorer::
+
+      https://developers.facebook.com/tools/explorer/?method=GET&path=me/accounts%3Ffields%3Dname,instagram_business_account
+
+Alternatively, if you already know your Facebook page ID, replace ``{page_id}`` in the following URL, then put it on your browser and hit enter::
+
+      https://developers.facebook.com/tools/explorer/?method=GET&path={page_id}%3Ffields%3Dinstagram_business_account
 
 Then click on submit and you'll see a response like this::
 
       {
-            "connected_instagram_account": {
+            "instagram_business_account": {
                   "id": "ZZZZZZZ"
             },
             "id": "YYYYYYY"
       }
 
-"ZZZZZZZ" is your Instagram aacount ID.
+"ZZZZZZZ" is your Instagram account ID.
 
 .. image:: credentials/images/instagram-2.png

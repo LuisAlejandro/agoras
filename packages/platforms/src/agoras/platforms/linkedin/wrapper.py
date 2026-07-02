@@ -129,7 +129,11 @@ class LinkedIn(SocialNetwork):
 
         # Initialize LinkedIn API
         self.api = LinkedInAPI(
-            self.linkedin_object_id, self.linkedin_client_id, self.linkedin_client_secret, self.linkedin_refresh_token
+            self.linkedin_object_id,
+            self.linkedin_client_id,
+            self.linkedin_client_secret,
+            self.linkedin_refresh_token,
+            self.linkedin_access_token,
         )
 
         # Authenticate with provided credentials

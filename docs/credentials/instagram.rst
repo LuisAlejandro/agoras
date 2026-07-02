@@ -8,7 +8,7 @@ Agoras needs the following OAuth app credentials to access the Instagram Graph A
 
 - Client ID (Facebook App ID)
 - Client Secret (Facebook App Secret)
-- Object ID (Facebook User ID for Instagram business account)
+- Object ID (Instagram Business Account ID)
 
 Instagram uses Facebook OAuth, so you'll need a Facebook App. You also need to connect a Facebook page with the Instagram account that you wish to use.
 
@@ -58,25 +58,34 @@ Configure OAuth Settings
 
 3. Save changes
 
-Get Object ID (Facebook User ID)
---------------------------------
+Get Object ID (Instagram Business Account ID)
+---------------------------------------------
 
-You need the Facebook user ID that has access to the Instagram business account. To find it:
+You need the Instagram Business Account ID connected to your Facebook Page. To find it:
 
 1. Use the Graph API Explorer with a valid access token::
 
-      https://developers.facebook.com/tools/explorer/?method=GET&path=me
+      https://developers.facebook.com/tools/explorer/?method=GET&path=me/accounts%3Ffields%3Dname,instagram_business_account
 
-2. The response will show your user ID::
+2. The response will show your pages and their connected Instagram accounts::
 
       {
-            "name": "Your Name",
-            "id": "XXXXX"
+        "data": [
+          {
+            "name": "Your Page Name",
+            "instagram_business_account": {
+              "id": "1784140XXXXXXXXXX"
+            },
+            "id": "134895XXXXXXXXX"
+          }
+        ]
       }
 
-The ``id`` field is your ``--object-id``.
+The ``id`` inside ``instagram_business_account`` is your ``--object-id``.
 
-Alternatively, if you know the Facebook page ID linked to your Instagram account, you can get the user ID from the page's accounts endpoint.
+Alternatively, if you already know your Facebook page ID, you can query its specific Instagram account::
+
+      https://developers.facebook.com/tools/explorer/?method=GET&path={page-id}%3Ffields%3Dinstagram_business_account
 
 Authorize Agoras
 ----------------
@@ -132,5 +141,5 @@ Agoras parameters
 +------------------------------+--------------------------+
 | Client Secret (App Secret)   | --client-secret          |
 +------------------------------+--------------------------+
-| Object ID (Facebook User ID)  | --object-id             |
+| Object ID (IG Business Acct) | --object-id             |
 +------------------------------+--------------------------+
