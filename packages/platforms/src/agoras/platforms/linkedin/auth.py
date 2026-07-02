@@ -18,6 +18,7 @@
 """agoras.platforms.linkedin.auth module."""
 
 import asyncio
+import os
 import secrets
 import sys
 import webbrowser
@@ -27,6 +28,7 @@ from authlib.integrations.requests_client import OAuth2Session
 
 from agoras.core.auth import BaseAuthManager
 from agoras.core.auth.callback_server import OAuthCallbackServer
+from agoras.core.auth.failure import env_has_refresh_token
 
 from .client import LinkedInAPIClient
 
@@ -34,7 +36,14 @@ from .client import LinkedInAPIClient
 class LinkedInAuthManager(BaseAuthManager):
     """LinkedIn authentication manager using Authlib OAuth2Session for OAuth 2.0."""
 
-    def __init__(self, user_id: str, client_id: str, client_secret: str, refresh_token: Optional[str] = None):
+    def __init__(
+        self,
+        user_id: str,
+        client_id: str,
+        client_secret: str,
+        refresh_token: Optional[str] = None,
+        access_token: Optional[str] = None,
+    ):
         """
         Initialize LinkedIn authentication manager.
 
@@ -43,12 +52,16 @@ class LinkedInAuthManager(BaseAuthManager):
             client_id (str): LinkedIn client ID
             client_secret (str): LinkedIn client secret
             refresh_token (str, optional): LinkedIn refresh token
+            access_token (str, optional): LinkedIn access token (used when no refresh token)
         """
         super().__init__()
         self.user_id = user_id
         self.client_id = client_id
         self.client_secret = client_secret
+        self.access_token = access_token
         self.refresh_token = refresh_token or self._load_refresh_token_from_storage()
+        if not self.access_token:
+            self.access_token = self._load_access_token_from_storage()
         self.api_version = "202503"
 
         # Authlib OAuth2Session configuration for LinkedIn
@@ -70,20 +83,22 @@ class LinkedInAuthManager(BaseAuthManager):
         if not self._validate_credentials():
             return self._missing_credentials_failed()
 
-        # If we don't have a refresh token, fail fast (don't trigger OAuth)
-        if not self.refresh_token:
+        # Fail fast when no stored token material (don't trigger OAuth interactively)
+        if not self.refresh_token and not self.access_token:
             return self._missing_credentials_failed()
 
         try:
-            # Refresh access token using authlib's built-in method
-            token_data = await self._refresh_access_token_with_authlib()
-            self.access_token = token_data["access_token"]
+            if self.refresh_token:
+                # Refresh access token using authlib's built-in method
+                token_data = await self._refresh_access_token_with_authlib()
+                self.access_token = token_data["access_token"]
 
-            # Update refresh token if new one provided
-            if token_data.get("refresh_token") and token_data["refresh_token"] != self.refresh_token:
-                self.refresh_token = token_data["refresh_token"]
-                # Save all credentials to storage
-                self._save_credentials_to_storage()
+                # Update refresh token if new one provided
+                if token_data.get("refresh_token") and token_data["refresh_token"] != self.refresh_token:
+                    self.refresh_token = token_data["refresh_token"]
+                    # Save all credentials to storage
+                    self._save_credentials_to_storage()
+            # Standard LinkedIn apps only issue 60-day access tokens (no refresh token)
 
             # Create client and get user info
             if self.access_token:
@@ -137,13 +152,21 @@ class LinkedInAuthManager(BaseAuthManager):
                 )
 
                 access_token = token.get("access_token")
-                if access_token:
-                    refresh_token = token.get("refresh_token")
-                    if not refresh_token:
-                        raise Exception("No refresh token in LinkedIn response")
+                if not access_token:
+                    raise Exception("No access token in LinkedIn response")
+
+                refresh_token = token.get("refresh_token")
+                if refresh_token:
                     self.refresh_token = refresh_token
-                    return access_token
-                raise Exception("No access token in LinkedIn response")
+                else:
+                    print(
+                        "Note: LinkedIn did not return a refresh token (normal for standard apps). "
+                        "The access token is valid for about 60 days; re-run authorize before it expires.",
+                        file=sys.stderr,
+                    )
+
+                self.access_token = access_token
+                return access_token
 
             access_token = await asyncio.to_thread(_sync_exchange)
             if access_token:
@@ -232,6 +255,40 @@ class LinkedInAuthManager(BaseAuthManager):
         """Get unique identifier for token storage."""
         return self.user_id or "default"
 
+    def _has_stored_or_env_credentials(self) -> bool:
+        """Return True when stored or env credentials appear present for LinkedIn."""
+        if self._load_credentials_from_storage():
+            return bool(self.refresh_token or self.access_token)
+        if env_has_refresh_token("linkedin"):
+            return True
+        return bool(os.environ.get("LINKEDIN_ACCESS_TOKEN"))
+
+    def _load_and_refresh_from_storage(self) -> bool:
+        """Load credentials from storage and authenticate (refresh or use access token)."""
+        try:
+            if not self._load_credentials_from_storage():
+                return False
+            if not (self.refresh_token or self.access_token):
+                return False
+
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                return True
+            return loop.run_until_complete(self.authenticate())
+        except Exception as exc:
+            return self._authentication_failed(exc)
+
+    def _load_access_token_from_storage(self) -> Optional[str]:
+        """Load access token from secure storage."""
+        platform_name = self._get_platform_name()
+        identifier = self._get_token_identifier()
+
+        token_data = self.token_storage.load_token(platform_name, identifier)
+        if token_data:
+            return token_data.get("access_token")
+
+        return None
+
     def _save_credentials_to_storage(self):
         """Save all LinkedIn credentials to secure storage."""
         platform_name = self._get_platform_name()
@@ -243,6 +300,8 @@ class LinkedInAuthManager(BaseAuthManager):
             "client_secret": self.client_secret,
             "refresh_token": self.refresh_token,
         }
+        if self.access_token:
+            token_data["access_token"] = self.access_token
 
         self.token_storage.save_token(platform_name, identifier, token_data)
         # Also save as default so it becomes the primary credential loaded
@@ -273,7 +332,11 @@ class LinkedInAuthManager(BaseAuthManager):
                 self.client_secret = token_data.get("client_secret")
             if not self.refresh_token:
                 self.refresh_token = token_data.get("refresh_token")
+            if not self.access_token:
+                self.access_token = token_data.get("access_token")
 
-            return bool(all([self.user_id, self.client_id, self.client_secret, self.refresh_token]))
+            has_core = all([self.user_id, self.client_id, self.client_secret])
+            has_token = bool(self.refresh_token or self.access_token)
+            return bool(has_core and has_token)
 
         return False

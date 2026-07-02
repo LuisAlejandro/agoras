@@ -27,6 +27,21 @@ from pyfacebook import GraphAPI
 from agoras.common import __version__
 
 
+def _is_video_file_processing_error(error: requests.HTTPError) -> bool:
+    """Return whether Facebook rejected a resumable video handle during publish."""
+    response = error.response
+    if response is None:
+        return False
+
+    try:
+        payload = response.json()
+    except ValueError:
+        return False
+
+    facebook_error = payload.get("error", {})
+    return facebook_error.get("code") == 6000 and facebook_error.get("error_subcode") == 1363019
+
+
 class FacebookAPIClient:
     """
     Facebook API client that centralizes Facebook operations.
@@ -308,7 +323,13 @@ class FacebookAPIClient:
         """
 
         def _sync_delete():
-            self.delete_object(object_id=f"{object_id}_{post_id}")
+            delete_id = post_id if "_" in post_id else f"{object_id}_{post_id}"
+            try:
+                self.delete_object(object_id=delete_id)
+            except Exception:
+                if delete_id == post_id:
+                    raise
+                self.delete_object(object_id=post_id)
             return post_id
 
         return await asyncio.to_thread(_sync_delete)
@@ -400,6 +421,7 @@ class FacebookAPIClient:
         video_filename: str,
         status_text: str,
         video_title: str,
+        source_video_url: Optional[str] = None,
     ) -> str:
         """
         Upload a regular video to Facebook using manual HTTP requests.
@@ -413,6 +435,8 @@ class FacebookAPIClient:
             video_filename (str): Video filename
             status_text (str): Text content to accompany the video
             video_title (str): Title of the video
+            source_video_url (str, optional): Original public URL, used as a
+                fallback when Facebook rejects the resumable upload handle
 
         Returns:
             str: Post ID
@@ -474,7 +498,51 @@ class FacebookAPIClient:
                 },
                 timeout=30,
             )
-            video_response.raise_for_status()
+            try:
+                video_response.raise_for_status()
+            except requests.HTTPError as error:
+                if (
+                    source_video_url
+                    and source_video_url.startswith(("http://", "https://"))
+                    and _is_video_file_processing_error(error)
+                ):
+                    return self.upload_regular_video_from_url(object_id, source_video_url, status_text, video_title)
+                raise
             return str(video_response.json()["id"])
 
         return await asyncio.to_thread(_sync_upload_regular_video)
+
+    def upload_regular_video_from_url(
+        self,
+        object_id: str,
+        video_url: str,
+        status_text: str,
+        video_title: str,
+    ) -> str:
+        """
+        Publish a regular Facebook Page video by URL.
+
+        Args:
+            object_id (str): Facebook object ID
+            video_url (str): Public video URL for Facebook to fetch
+            status_text (str): Text content to accompany the video
+            video_title (str): Title of the video
+
+        Returns:
+            str: Post ID
+        """
+        response = requests.post(
+            f"https://graph.facebook.com/v21.0/{object_id}/videos",
+            headers={
+                "Authorization": f"OAuth {self.access_token}",
+                "User-Agent": f"Agoras/{__version__}",
+            },
+            data={
+                "title": video_title,
+                "description": status_text,
+                "file_url": video_url,
+            },
+            timeout=30,
+        )
+        response.raise_for_status()
+        return str(response.json()["id"])

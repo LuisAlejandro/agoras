@@ -65,7 +65,7 @@ Quick Reference: Unattended Execution
 +----------------+----------------------------------------+--------------------------------------------------------------------------------------------------------------------------------+
 | Instagram      | OAuth 2.0                              | ``INSTAGRAM_OBJECT_ID``, ``INSTAGRAM_CLIENT_ID``, ``INSTAGRAM_CLIENT_SECRET``, ``INSTAGRAM_REFRESH_TOKEN``           |
 +----------------+----------------------------------------+--------------------------------------------------------------------------------------------------------------------------------+
-| LinkedIn       | OAuth 2.0                              | ``LINKEDIN_OBJECT_ID``, ``LINKEDIN_CLIENT_ID``, ``LINKEDIN_CLIENT_SECRET``, ``LINKEDIN_REFRESH_TOKEN``               |
+| LinkedIn       | OAuth 2.0                              | ``LINKEDIN_OBJECT_ID``, ``LINKEDIN_CLIENT_ID``, ``LINKEDIN_CLIENT_SECRET``, and either ``LINKEDIN_REFRESH_TOKEN`` or ``LINKEDIN_ACCESS_TOKEN`` |
 +----------------+----------------------------------------+--------------------------------------------------------------------------------------------------------------------------------+
 | Discord        | Bot Token                              | ``DISCORD_BOT_TOKEN``, ``DISCORD_SERVER_NAME``, ``DISCORD_CHANNEL_NAME``                                                    |
 +----------------+----------------------------------------+--------------------------------------------------------------------------------------------------------------------------------+
@@ -345,7 +345,7 @@ Post Action
 - ``--link`` (CLI) / ``STATUS_LINK`` (ENVVAR) - URL to include
 - ``--image-1`` (CLI) / ``STATUS_IMAGE_URL_1`` (ENVVAR) - First image URL
 
-**Unattended Execution**: Set ``LINKEDIN_OBJECT_ID``, ``LINKEDIN_CLIENT_ID``, ``LINKEDIN_CLIENT_SECRET``, and ``LINKEDIN_REFRESH_TOKEN`` environment variables.
+**Unattended Execution**: Set ``LINKEDIN_OBJECT_ID``, ``LINKEDIN_CLIENT_ID``, ``LINKEDIN_CLIENT_SECRET``, and either ``LINKEDIN_REFRESH_TOKEN`` or ``LINKEDIN_ACCESS_TOKEN`` environment variables.
 
 Video Action
 ------------
@@ -358,7 +358,7 @@ Video Action
 
 - ``--video-title`` (CLI) / ``LINKEDIN_VIDEO_TITLE`` (ENVVAR) - Video title
 
-**Unattended Execution**: Set ``LINKEDIN_OBJECT_ID``, ``LINKEDIN_CLIENT_ID``, ``LINKEDIN_CLIENT_SECRET``, and ``LINKEDIN_REFRESH_TOKEN`` environment variables.
+**Unattended Execution**: Set ``LINKEDIN_OBJECT_ID``, ``LINKEDIN_CLIENT_ID``, ``LINKEDIN_CLIENT_SECRET``, and either ``LINKEDIN_REFRESH_TOKEN`` or ``LINKEDIN_ACCESS_TOKEN`` environment variables.
 
 Like Action
 -----------
@@ -367,7 +367,7 @@ Like Action
 
 - ``--post-id`` (CLI) / ``LINKEDIN_POST_ID`` (ENVVAR) - LinkedIn post ID
 
-**Unattended Execution**: Set ``LINKEDIN_OBJECT_ID``, ``LINKEDIN_CLIENT_ID``, ``LINKEDIN_CLIENT_SECRET``, and ``LINKEDIN_REFRESH_TOKEN`` environment variables.
+**Unattended Execution**: Set ``LINKEDIN_OBJECT_ID``, ``LINKEDIN_CLIENT_ID``, ``LINKEDIN_CLIENT_SECRET``, and either ``LINKEDIN_REFRESH_TOKEN`` or ``LINKEDIN_ACCESS_TOKEN`` environment variables.
 
 Share Action
 ------------
@@ -376,7 +376,7 @@ Share Action
 
 - ``--post-id`` (CLI) / ``LINKEDIN_POST_ID`` (ENVVAR) - LinkedIn post ID
 
-**Unattended Execution**: Set ``LINKEDIN_OBJECT_ID``, ``LINKEDIN_CLIENT_ID``, ``LINKEDIN_CLIENT_SECRET``, and ``LINKEDIN_REFRESH_TOKEN`` environment variables.
+**Unattended Execution**: Set ``LINKEDIN_OBJECT_ID``, ``LINKEDIN_CLIENT_ID``, ``LINKEDIN_CLIENT_SECRET``, and either ``LINKEDIN_REFRESH_TOKEN`` or ``LINKEDIN_ACCESS_TOKEN`` environment variables.
 
 Delete Action
 -------------
@@ -385,7 +385,7 @@ Delete Action
 
 - ``--post-id`` (CLI) / ``LINKEDIN_POST_ID`` (ENVVAR) - LinkedIn post ID
 
-**Unattended Execution**: Set ``LINKEDIN_OBJECT_ID``, ``LINKEDIN_CLIENT_ID``, ``LINKEDIN_CLIENT_SECRET``, and ``LINKEDIN_REFRESH_TOKEN`` environment variables.
+**Unattended Execution**: Set ``LINKEDIN_OBJECT_ID``, ``LINKEDIN_CLIENT_ID``, ``LINKEDIN_CLIENT_SECRET``, and either ``LINKEDIN_REFRESH_TOKEN`` or ``LINKEDIN_ACCESS_TOKEN`` environment variables.
 
 Discord
 =======

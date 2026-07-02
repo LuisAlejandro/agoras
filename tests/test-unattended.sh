@@ -56,7 +56,7 @@ verify_env_vars() {
         [[ -z "${LINKEDIN_OBJECT_ID:-}" ]] && missing_vars+=("LINKEDIN_OBJECT_ID")
         [[ -z "${LINKEDIN_CLIENT_ID:-}" ]] && missing_vars+=("LINKEDIN_CLIENT_ID")
         [[ -z "${LINKEDIN_CLIENT_SECRET:-}" ]] && missing_vars+=("LINKEDIN_CLIENT_SECRET")
-        [[ -z "${LINKEDIN_REFRESH_TOKEN:-}" ]] && missing_vars+=("LINKEDIN_REFRESH_TOKEN")
+        [[ -z "${LINKEDIN_REFRESH_TOKEN:-}" && -z "${LINKEDIN_ACCESS_TOKEN:-}" ]] && missing_vars+=("LINKEDIN_REFRESH_TOKEN or LINKEDIN_ACCESS_TOKEN")
         ;;
     tiktok)
         [[ -z "${TIKTOK_USERNAME:-}" ]] && missing_vars+=("TIKTOK_USERNAME")

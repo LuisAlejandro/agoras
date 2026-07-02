@@ -67,6 +67,23 @@ async def test_linkedin_api_authenticate(mock_auth_class):
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.linkedin.api.LinkedInAuthManager')
+async def test_linkedin_api_initializes_with_access_token(mock_auth_class):
+    """Test LinkedInAPI initializes and passes access token."""
+    mock_auth = MagicMock()
+    mock_auth_class.return_value = mock_auth
+
+    api = LinkedInAPI('user_id', 'client_id', 'secret', access_token='stored_token')
+    mock_auth_class.assert_called_once_with(
+        user_id='user_id',
+        client_id='client_id',
+        client_secret='secret',
+        refresh_token=None,
+        access_token='stored_token'
+    )
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.linkedin.api.LinkedInAuthManager')
 async def test_linkedin_api_disconnect(mock_auth_class):
     """Test LinkedInAPI disconnect method."""
     mock_auth = MagicMock()

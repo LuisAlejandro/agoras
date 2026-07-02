@@ -32,26 +32,26 @@ from .wrapper_test_helpers import (
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.linkedin.wrapper.LinkedInAPI')
-@patch('agoras.platforms.linkedin.auth.LinkedInAuthManager')
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
 async def test_linkedin_initialize_client(mock_auth_manager_class, mock_api_class):
     """Test LinkedIn _initialize_client extracts config and creates API."""
-    configure_linkedin_auth_mock(mock_auth_manager_class, access_token='test_token')
+    configure_linkedin_auth_mock(mock_auth_manager_class, access_token="test_token")
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    linkedin = LinkedIn(**{**LINKEDIN_KWARGS, 'linkedin_access_token': 'test_token'})
+    linkedin = LinkedIn(**{**LINKEDIN_KWARGS, "linkedin_access_token": "test_token"})
 
     await linkedin._initialize_client()
 
-    assert linkedin.linkedin_access_token == 'test_token'
+    assert linkedin.linkedin_access_token == "test_token"
     assert linkedin.api is mock_api
     mock_api.authenticate.assert_called_once()
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.linkedin.auth.LinkedInAuthManager._load_credentials_from_storage', return_value=False)
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager._load_credentials_from_storage", return_value=False)
 async def test_linkedin_initialize_client_missing_credentials(mock_load_credentials):
     """Test LinkedIn _initialize_client raises exception without credentials."""
     linkedin = LinkedIn()
@@ -61,17 +61,17 @@ async def test_linkedin_initialize_client_missing_credentials(mock_load_credenti
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.linkedin.wrapper.LinkedInAPI')
-@patch('agoras.platforms.linkedin.auth.LinkedInAuthManager')
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
 async def test_linkedin_initialize_client_loads_from_storage(mock_auth_manager_class, mock_api_class):
     """Test LinkedIn _initialize_client loads credentials from storage when not provided."""
     # Mock auth manager that loads from storage
     mock_auth_manager = MagicMock()
-    mock_auth_manager.user_id = 'stored_user_id'
-    mock_auth_manager.client_id = 'stored_client_id'
-    mock_auth_manager.client_secret = 'stored_client_secret'
-    mock_auth_manager.refresh_token = 'stored_refresh_token'
-    mock_auth_manager.access_token = 'stored_access_token'
+    mock_auth_manager.user_id = "stored_user_id"
+    mock_auth_manager.client_id = "stored_client_id"
+    mock_auth_manager.client_secret = "stored_client_secret"
+    mock_auth_manager.refresh_token = "stored_refresh_token"
+    mock_auth_manager.access_token = "stored_access_token"
     mock_auth_manager._load_credentials_from_storage = MagicMock(return_value=True)
     mock_auth_manager.authenticate = AsyncMock(return_value=True)
     mock_auth_manager_class.return_value = mock_auth_manager
@@ -87,17 +87,53 @@ async def test_linkedin_initialize_client_loads_from_storage(mock_auth_manager_c
     await linkedin._initialize_client()
 
     # Verify credentials were loaded from storage
-    assert linkedin.linkedin_object_id == 'stored_user_id'
-    assert linkedin.linkedin_client_id == 'stored_client_id'
-    assert linkedin.linkedin_client_secret == 'stored_client_secret'
-    assert linkedin.linkedin_refresh_token == 'stored_refresh_token'
-    assert linkedin.linkedin_access_token == 'stored_access_token'
+    assert linkedin.linkedin_object_id == "stored_user_id"
+    assert linkedin.linkedin_client_id == "stored_client_id"
+    assert linkedin.linkedin_client_secret == "stored_client_secret"
+    assert linkedin.linkedin_refresh_token == "stored_refresh_token"
+    assert linkedin.linkedin_access_token == "stored_access_token"
     assert linkedin.api is mock_api
     mock_api.authenticate.assert_called_once()
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.linkedin.auth.LinkedInAuthManager')
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
+async def test_linkedin_initialize_client_loads_access_token_only_from_storage(mock_auth_manager_class, mock_api_class):
+    """Test LinkedIn _initialize_client loads and works with stored access token only."""
+    # Mock auth manager that loads from storage with NO refresh token
+    mock_auth_manager = MagicMock()
+    mock_auth_manager.user_id = "stored_user_id"
+    mock_auth_manager.client_id = "stored_client_id"
+    mock_auth_manager.client_secret = "stored_client_secret"
+    mock_auth_manager.refresh_token = None
+    mock_auth_manager.access_token = "stored_access_token"
+    mock_auth_manager._load_credentials_from_storage = MagicMock(return_value=True)
+    mock_auth_manager.authenticate = AsyncMock(return_value=True)
+    mock_auth_manager_class.return_value = mock_auth_manager
+
+    # Mock API
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    # Create LinkedIn instance with NO credentials
+    linkedin = LinkedIn()
+
+    await linkedin._initialize_client()
+
+    # Verify credentials were loaded from storage
+    assert linkedin.linkedin_object_id == "stored_user_id"
+    assert linkedin.linkedin_client_id == "stored_client_id"
+    assert linkedin.linkedin_client_secret == "stored_client_secret"
+    assert linkedin.linkedin_refresh_token is None
+    assert linkedin.linkedin_access_token == "stored_access_token"
+    assert linkedin.api is mock_api
+    mock_api.authenticate.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
 async def test_linkedin_authorize_credentials(mock_auth_manager_class):
     """Test LinkedIn authorize_credentials method."""
     mock_auth_manager = MagicMock()
@@ -105,12 +141,10 @@ async def test_linkedin_authorize_credentials(mock_auth_manager_class):
     mock_auth_manager_class.return_value = mock_auth_manager
 
     linkedin = LinkedIn(
-        linkedin_object_id='user123',
-        linkedin_client_id='client123',
-        linkedin_client_secret='secret123'
+        linkedin_object_id="user123", linkedin_client_id="client123", linkedin_client_secret="secret123"
     )
 
-    with patch('builtins.print'):
+    with patch("builtins.print"):
         result = await linkedin.authorize_credentials()
 
     assert result is True
@@ -118,7 +152,7 @@ async def test_linkedin_authorize_credentials(mock_auth_manager_class):
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.linkedin.auth.LinkedInAuthManager')
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
 async def test_linkedin_authorize_credentials_failure(mock_auth_manager_class):
     """Test LinkedIn authorize_credentials method when authorization fails."""
     mock_auth_manager = MagicMock()
@@ -126,9 +160,7 @@ async def test_linkedin_authorize_credentials_failure(mock_auth_manager_class):
     mock_auth_manager_class.return_value = mock_auth_manager
 
     linkedin = LinkedIn(
-        linkedin_object_id='user123',
-        linkedin_client_id='client123',
-        linkedin_client_secret='secret123'
+        linkedin_object_id="user123", linkedin_client_id="client123", linkedin_client_secret="secret123"
     )
 
     result = await linkedin.authorize_credentials()
@@ -138,128 +170,130 @@ async def test_linkedin_authorize_credentials_failure(mock_auth_manager_class):
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.linkedin.wrapper.LinkedInAPI')
-@patch('agoras.platforms.linkedin.auth.LinkedInAuthManager')
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
 async def test_linkedin_post(mock_auth_manager_class, mock_api_class):
     """Test LinkedIn post method."""
     configure_linkedin_auth_mock(mock_auth_manager_class)
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
-    mock_api.post = AsyncMock(return_value='post-123')
+    mock_api.post = AsyncMock(return_value="post-123")
     mock_api_class.return_value = mock_api
 
     linkedin = LinkedIn(**LINKEDIN_KWARGS)
 
     await linkedin._initialize_client()
 
-    with patch.object(linkedin, '_output_status'):
-        result = await linkedin.post('Hello LinkedIn', 'http://link.com')
+    with patch.object(linkedin, "_output_status"):
+        result = await linkedin.post("Hello LinkedIn", "http://link.com")
 
-    assert result == 'post-123'
+    assert result == "post-123"
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.linkedin.wrapper.LinkedInAPI')
-@patch('agoras.platforms.linkedin.auth.LinkedInAuthManager')
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
 async def test_linkedin_like(mock_auth_manager_class, mock_api_class):
     """Test LinkedIn like method."""
     configure_linkedin_auth_mock(mock_auth_manager_class)
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
-    mock_api.like = AsyncMock(return_value='post-123')
+    mock_api.like = AsyncMock(return_value="post-123")
     mock_api_class.return_value = mock_api
 
     linkedin = LinkedIn(**LINKEDIN_KWARGS)
 
     await linkedin._initialize_client()
 
-    with patch.object(linkedin, '_output_status'):
-        result = await linkedin.like('post-123')
+    with patch.object(linkedin, "_output_status"):
+        result = await linkedin.like("post-123")
 
-    assert result == 'post-123'
+    assert result == "post-123"
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.linkedin.wrapper.LinkedInAPI')
-@patch('agoras.platforms.linkedin.auth.LinkedInAuthManager')
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
 async def test_linkedin_share(mock_auth_manager_class, mock_api_class):
     """Test LinkedIn share method."""
     configure_linkedin_auth_mock(mock_auth_manager_class)
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
-    mock_api.share = AsyncMock(return_value='share-456')
+    mock_api.share = AsyncMock(return_value="share-456")
     mock_api_class.return_value = mock_api
 
     linkedin = LinkedIn(**LINKEDIN_KWARGS)
 
     await linkedin._initialize_client()
 
-    with patch.object(linkedin, '_output_status'):
-        result = await linkedin.share('post-123')
+    with patch.object(linkedin, "_output_status"):
+        result = await linkedin.share("post-123")
 
-    assert result == 'share-456'
+    assert result == "share-456"
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.linkedin.wrapper.LinkedInAPI')
-@patch('agoras.platforms.linkedin.auth.LinkedInAuthManager')
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
 async def test_linkedin_delete(mock_auth_manager_class, mock_api_class):
     """Test LinkedIn delete method."""
     configure_linkedin_auth_mock(mock_auth_manager_class)
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
-    mock_api.delete = AsyncMock(return_value='post-123')
+    mock_api.delete = AsyncMock(return_value="post-123")
     mock_api_class.return_value = mock_api
 
     linkedin = LinkedIn(**LINKEDIN_KWARGS)
 
     await linkedin._initialize_client()
 
-    with patch.object(linkedin, '_output_status'):
-        result = await linkedin.delete('post-123')
+    with patch.object(linkedin, "_output_status"):
+        result = await linkedin.delete("post-123")
 
-    assert result == 'post-123'
+    assert result == "post-123"
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.linkedin.wrapper.LinkedInAPI')
-@patch('agoras.platforms.linkedin.auth.LinkedInAuthManager')
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
 async def test_linkedin_video(mock_auth_manager_class, mock_api_class):
     """Test LinkedIn video method uploads and posts."""
     configure_linkedin_auth_mock(mock_auth_manager_class)
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
-    mock_api.upload_video = AsyncMock(return_value='urn:li:video:123')
-    mock_api.post = AsyncMock(return_value='post-789')
+    mock_api.upload_video = AsyncMock(return_value="urn:li:video:123")
+    mock_api.post = AsyncMock(return_value="post-789")
     mock_api_class.return_value = mock_api
 
     linkedin = LinkedIn(**LINKEDIN_KWARGS)
     await linkedin._initialize_client()
 
     mock_video = MagicMock()
-    mock_video.content = b'video-bytes'
+    mock_video.content = b"video-bytes"
     mock_file_type = MagicMock()
-    mock_file_type.mime = 'video/mp4'
+    mock_file_type.mime = "video/mp4"
     mock_video.file_type = mock_file_type
     mock_video.cleanup = MagicMock()
 
-    with patch.object(linkedin, 'download_video', new_callable=AsyncMock, return_value=mock_video), \
-            patch.object(linkedin, '_output_status'):
-        result = await linkedin.video('Caption', 'http://video.mp4', 'Title')
+    with (
+        patch.object(linkedin, "download_video", new_callable=AsyncMock, return_value=mock_video),
+        patch.object(linkedin, "_output_status"),
+    ):
+        result = await linkedin.video("Caption", "http://video.mp4", "Title")
 
-    assert result == 'post-789'
-    mock_api.upload_video.assert_called_once_with(b'video-bytes')
+    assert result == "post-789"
+    mock_api.upload_video.assert_called_once_with(b"video-bytes")
     mock_api.post.assert_called_once_with(
-        text='Caption',
-        video_id='urn:li:video:123',
-        video_title='Title',
+        text="Caption",
+        video_id="urn:li:video:123",
+        video_title="Title",
     )
     mock_video.cleanup.assert_called_once()
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.linkedin.wrapper.LinkedInAPI')
-@patch('agoras.platforms.linkedin.auth.LinkedInAuthManager')
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
 async def test_linkedin_disconnect(mock_auth_manager_class, mock_api_class):
     """Test LinkedIn disconnect method."""
     configure_linkedin_auth_mock(mock_auth_manager_class)
@@ -277,6 +311,7 @@ async def test_linkedin_disconnect(mock_auth_manager_class, mock_api_class):
 
 
 # LinkedIn API Tests
+
 
 def test_linkedin_api_class_exists():
     """Test LinkedInAPI class exists."""

@@ -326,6 +326,7 @@ class FacebookAPI(BaseAPI):
         video_filename: str,
         status_text: str,
         video_title: str,
+        source_video_url: Optional[str] = None,
     ) -> str:
         """
         Upload a regular video to Facebook.
@@ -338,6 +339,8 @@ class FacebookAPI(BaseAPI):
             video_filename (str): Video filename
             status_text (str): Text content to accompany the video
             video_title (str): Title of the video
+            source_video_url (str, optional): Original public URL for fallback
+                URL publishing if Facebook rejects the uploaded file handle
 
         Returns:
             str: Post ID
@@ -365,6 +368,7 @@ class FacebookAPI(BaseAPI):
                 video_filename,
                 status_text,
                 video_title,
+                source_video_url=source_video_url,
             )
         except Exception as e:
             self._handle_api_error(e, "Facebook regular video upload")

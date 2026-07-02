@@ -33,7 +33,7 @@ class LinkedInAPI(BaseAPI):
     and all LinkedIn API operations including posts, likes, shares, and media uploads.
     """
 
-    def __init__(self, user_id, client_id, client_secret, refresh_token=None):
+    def __init__(self, user_id, client_id, client_secret, refresh_token=None, access_token=None):
         """
         Initialize LinkedIn API instance.
 
@@ -42,9 +42,10 @@ class LinkedInAPI(BaseAPI):
             client_id (str): LinkedIn client ID
             client_secret (str): LinkedIn client secret
             refresh_token (str, optional): LinkedIn refresh token
+            access_token (str, optional): LinkedIn access token
         """
         super().__init__(
-            access_token=None,  # Will be set by auth manager
+            access_token=access_token,
             client_id=client_id,
             client_secret=client_secret,
             refresh_token=refresh_token,
@@ -52,7 +53,11 @@ class LinkedInAPI(BaseAPI):
 
         # Initialize the authentication manager
         self.auth_manager = LinkedInAuthManager(
-            user_id=user_id, client_id=client_id, client_secret=client_secret, refresh_token=refresh_token
+            user_id=user_id,
+            client_id=client_id,
+            client_secret=client_secret,
+            refresh_token=refresh_token,
+            access_token=access_token,
         )
         self.api_version = "202302"
 
