@@ -108,6 +108,11 @@ async def _refresh_instagram() -> str:
 
 
 async def _refresh_linkedin() -> str:
+    refresh_token = _env("LINKEDIN_REFRESH_TOKEN")
+    access_token = os.environ.get("LINKEDIN_ACCESS_TOKEN")
+    if not refresh_token and access_token:
+        return "skipped access-token-only credential"
+
     manager = LinkedInAuthManager(
         user_id=_env("LINKEDIN_OBJECT_ID"),
         client_id=_env("LINKEDIN_CLIENT_ID"),

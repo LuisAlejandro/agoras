@@ -99,6 +99,7 @@ PLATFORM_SECTIONS: tuple[PlatformSection, ...] = (
             ("LINKEDIN_CLIENT_SECRET", _field("client_secret")),
             ("LINKEDIN_OBJECT_ID", _field("user_id")),
             ("LINKEDIN_REFRESH_TOKEN", _field("refresh_token")),
+            ("LINKEDIN_ACCESS_TOKEN", _field("access_token")),
         ),
     ),
     PlatformSection(

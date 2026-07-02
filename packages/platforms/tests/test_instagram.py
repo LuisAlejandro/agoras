@@ -19,6 +19,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
 from agoras.platforms.instagram import Instagram
 from agoras.platforms.instagram.api import InstagramAPI
 from agoras.platforms.instagram.wrapper import _instagram_video_media_type
@@ -29,20 +30,20 @@ from .wrapper_test_helpers import INSTAGRAM_KWARGS, SAMPLE_IMAGE_URL, configure_
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.instagram.wrapper.InstagramAPI')
-@patch('agoras.platforms.instagram.auth.InstagramAuthManager')
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
 async def test_instagram_initialize_client(mock_auth_manager_class, mock_api_class):
     """Test Instagram _initialize_client extracts config and creates API."""
-    configure_instagram_auth_mock(mock_auth_manager_class, access_token='test_token')
+    configure_instagram_auth_mock(mock_auth_manager_class, access_token="test_token")
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    instagram = Instagram(**{**INSTAGRAM_KWARGS, 'instagram_access_token': 'test_token'})
+    instagram = Instagram(**{**INSTAGRAM_KWARGS, "instagram_access_token": "test_token"})
 
     await instagram._initialize_client()
 
-    assert instagram.instagram_access_token == 'test_token'
+    assert instagram.instagram_access_token == "test_token"
     assert instagram.api is mock_api
     mock_api.authenticate.assert_called_once()
 
@@ -57,20 +58,22 @@ async def test_instagram_initialize_client_missing_credentials():
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.instagram.wrapper.Instagram._get_config_value', return_value=None)
-@patch('agoras.platforms.instagram.wrapper.InstagramAPI')
-@patch('agoras.platforms.instagram.auth.InstagramAuthManager')
+@patch("agoras.platforms.instagram.wrapper.Instagram._get_config_value", return_value=None)
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
 async def test_instagram_initialize_client_loads_from_storage(
-    mock_auth_manager_class, mock_api_class, mock_get_config,
+    mock_auth_manager_class,
+    mock_api_class,
+    mock_get_config,
 ):
     """Test Instagram _initialize_client loads credentials from storage when not provided."""
     # Mock auth manager that loads from storage
     mock_auth_manager = MagicMock()
-    mock_auth_manager.user_id = 'stored_user_id'
-    mock_auth_manager.client_id = 'stored_client_id'
-    mock_auth_manager.client_secret = 'stored_client_secret'
-    mock_auth_manager.refresh_token = 'stored_refresh_token'
-    mock_auth_manager.access_token = 'stored_access_token'
+    mock_auth_manager.user_id = "stored_user_id"
+    mock_auth_manager.client_id = "stored_client_id"
+    mock_auth_manager.client_secret = "stored_client_secret"
+    mock_auth_manager.refresh_token = "stored_refresh_token"
+    mock_auth_manager.access_token = "stored_access_token"
     mock_auth_manager._load_credentials_from_storage = MagicMock(return_value=True)
     mock_auth_manager.authenticate = AsyncMock(return_value=True)
     mock_auth_manager_class.return_value = mock_auth_manager
@@ -86,17 +89,17 @@ async def test_instagram_initialize_client_loads_from_storage(
     await instagram._initialize_client()
 
     # Verify credentials were loaded from storage
-    assert instagram.instagram_object_id == 'stored_user_id'
-    assert instagram.instagram_client_id == 'stored_client_id'
-    assert instagram.instagram_client_secret == 'stored_client_secret'
-    assert instagram.instagram_refresh_token == 'stored_refresh_token'
-    assert instagram.instagram_access_token == 'stored_access_token'
+    assert instagram.instagram_object_id == "stored_user_id"
+    assert instagram.instagram_client_id == "stored_client_id"
+    assert instagram.instagram_client_secret == "stored_client_secret"
+    assert instagram.instagram_refresh_token == "stored_refresh_token"
+    assert instagram.instagram_access_token == "stored_access_token"
     assert instagram.api is mock_api
     mock_api.authenticate.assert_called_once()
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.instagram.auth.InstagramAuthManager')
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
 async def test_instagram_authorize_credentials(mock_auth_manager_class):
     """Test Instagram authorize_credentials method."""
     mock_auth_manager = MagicMock()
@@ -104,12 +107,10 @@ async def test_instagram_authorize_credentials(mock_auth_manager_class):
     mock_auth_manager_class.return_value = mock_auth_manager
 
     instagram = Instagram(
-        instagram_object_id='user123',
-        instagram_client_id='client123',
-        instagram_client_secret='secret123'
+        instagram_object_id="user123", instagram_client_id="client123", instagram_client_secret="secret123"
     )
 
-    with patch('builtins.print'):
+    with patch("builtins.print"):
         result = await instagram.authorize_credentials()
 
     assert result is True
@@ -117,7 +118,7 @@ async def test_instagram_authorize_credentials(mock_auth_manager_class):
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.instagram.auth.InstagramAuthManager')
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
 async def test_instagram_authorize_credentials_failure(mock_auth_manager_class):
     """Test Instagram authorize_credentials method when authorization fails."""
     mock_auth_manager = MagicMock()
@@ -125,9 +126,7 @@ async def test_instagram_authorize_credentials_failure(mock_auth_manager_class):
     mock_auth_manager_class.return_value = mock_auth_manager
 
     instagram = Instagram(
-        instagram_object_id='user123',
-        instagram_client_id='client123',
-        instagram_client_secret='secret123'
+        instagram_object_id="user123", instagram_client_id="client123", instagram_client_secret="secret123"
     )
 
     result = await instagram.authorize_credentials()
@@ -137,14 +136,14 @@ async def test_instagram_authorize_credentials_failure(mock_auth_manager_class):
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.instagram.wrapper.InstagramAPI')
-@patch('agoras.platforms.instagram.auth.InstagramAuthManager')
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
 async def test_instagram_post(mock_auth_manager_class, mock_api_class):
     """Test Instagram post method."""
     configure_instagram_auth_mock(mock_auth_manager_class)
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
-    mock_api.post = AsyncMock(return_value='media-123')
+    mock_api.post = AsyncMock(return_value="media-123")
     mock_api_class.return_value = mock_api
 
     instagram = Instagram(**INSTAGRAM_KWARGS)
@@ -152,85 +151,87 @@ async def test_instagram_post(mock_auth_manager_class, mock_api_class):
     await instagram._initialize_client()
 
     # Mock download_images to avoid actual HTTP call
-    with patch.object(instagram, 'download_images', new_callable=AsyncMock) as mock_download:
+    with patch.object(instagram, "download_images", new_callable=AsyncMock) as mock_download:
         mock_image = MagicMock()
         mock_image.url = SAMPLE_IMAGE_URL
         mock_image.cleanup = MagicMock()
         mock_download.return_value = [mock_image]
 
         # Mock create_media to be async
-        mock_api.create_media = AsyncMock(return_value='container-123')
-        mock_api.create_carousel = AsyncMock(return_value='media-123')
-        mock_api.publish_media = AsyncMock(return_value='media-123')
+        mock_api.create_media = AsyncMock(return_value="container-123")
+        mock_api.create_carousel = AsyncMock(return_value="media-123")
+        mock_api.publish_media = AsyncMock(return_value="media-123")
 
-        with patch.object(instagram, '_output_status'):
+        with patch.object(instagram, "_output_status"):
             result = await instagram.post(
-                'Hello Instagram', 'http://link.com', status_image_url_1=SAMPLE_IMAGE_URL,
+                "Hello Instagram",
+                "http://link.com",
+                status_image_url_1=SAMPLE_IMAGE_URL,
             )
 
-    assert result == 'media-123'
+    assert result == "media-123"
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.instagram.wrapper.InstagramAPI')
-@patch('agoras.platforms.instagram.auth.InstagramAuthManager')
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
 async def test_instagram_like_not_supported(mock_auth_manager_class, mock_api_class):
     """Test Instagram like is not supported."""
     configure_instagram_auth_mock(mock_auth_manager_class)
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
-    mock_api.like = AsyncMock(side_effect=Exception('Like not supported'))
+    mock_api.like = AsyncMock(side_effect=Exception("Like not supported"))
     mock_api_class.return_value = mock_api
 
     instagram = Instagram(**INSTAGRAM_KWARGS)
 
     await instagram._initialize_client()
 
-    with pytest.raises(Exception, match='not supported'):
-        await instagram.like('media-123')
+    with pytest.raises(Exception, match="not supported"):
+        await instagram.like("media-123")
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.instagram.wrapper.InstagramAPI')
-@patch('agoras.platforms.instagram.auth.InstagramAuthManager')
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
 async def test_instagram_share_not_supported(mock_auth_manager_class, mock_api_class):
     """Test Instagram share is not supported."""
     configure_instagram_auth_mock(mock_auth_manager_class)
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
-    mock_api.share = AsyncMock(side_effect=Exception('Share not supported'))
+    mock_api.share = AsyncMock(side_effect=Exception("Share not supported"))
     mock_api_class.return_value = mock_api
 
     instagram = Instagram(**INSTAGRAM_KWARGS)
 
     await instagram._initialize_client()
 
-    with pytest.raises(Exception, match='not supported'):
-        await instagram.share('media-123')
+    with pytest.raises(Exception, match="not supported"):
+        await instagram.share("media-123")
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.instagram.wrapper.InstagramAPI')
-@patch('agoras.platforms.instagram.auth.InstagramAuthManager')
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
 async def test_instagram_delete_not_supported(mock_auth_manager_class, mock_api_class):
     """Test Instagram delete is not supported."""
     configure_instagram_auth_mock(mock_auth_manager_class)
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
-    mock_api.delete = AsyncMock(side_effect=Exception('Delete not supported'))
+    mock_api.delete = AsyncMock(side_effect=Exception("Delete not supported"))
     mock_api_class.return_value = mock_api
 
     instagram = Instagram(**INSTAGRAM_KWARGS)
 
     await instagram._initialize_client()
 
-    with pytest.raises(Exception, match='not supported'):
-        await instagram.delete('media-123')
+    with pytest.raises(Exception, match="not supported"):
+        await instagram.delete("media-123")
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.instagram.wrapper.InstagramAPI')
-@patch('agoras.platforms.instagram.auth.InstagramAuthManager')
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
 async def test_instagram_disconnect(mock_auth_manager_class, mock_api_class):
     """Test Instagram disconnect method."""
     configure_instagram_auth_mock(mock_auth_manager_class)
@@ -249,21 +250,24 @@ async def test_instagram_disconnect(mock_auth_manager_class, mock_api_class):
 
 # Additional Instagram Wrapper Tests
 
+
 @pytest.mark.asyncio
-@patch('agoras.platforms.instagram.wrapper.Instagram._get_config_value', return_value=None)
-@patch('agoras.platforms.instagram.wrapper.InstagramAPI')
-@patch('agoras.platforms.instagram.auth.InstagramAuthManager')
+@patch("agoras.platforms.instagram.wrapper.Instagram._get_config_value", return_value=None)
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
 async def test_instagram_initialize_client_loads_from_storage_authenticate_path(
-    mock_auth_manager_class, mock_api_class, mock_get_config,
+    mock_auth_manager_class,
+    mock_api_class,
+    mock_get_config,
 ):
     """Test Instagram _initialize_client loads from storage and calls authenticate."""
     # Mock auth manager that loads from storage with all credentials
     mock_auth_manager = MagicMock()
-    mock_auth_manager.user_id = 'stored_user_id'
-    mock_auth_manager.client_id = 'stored_client_id'
-    mock_auth_manager.client_secret = 'stored_client_secret'
-    mock_auth_manager.refresh_token = 'stored_refresh_token'
-    mock_auth_manager.access_token = 'stored_access_token'
+    mock_auth_manager.user_id = "stored_user_id"
+    mock_auth_manager.client_id = "stored_client_id"
+    mock_auth_manager.client_secret = "stored_client_secret"
+    mock_auth_manager.refresh_token = "stored_refresh_token"
+    mock_auth_manager.access_token = "stored_access_token"
     mock_auth_manager._load_credentials_from_storage = MagicMock(return_value=True)
     mock_auth_manager.authenticate = AsyncMock(return_value=True)
     mock_auth_manager_class.return_value = mock_auth_manager
@@ -279,31 +283,28 @@ async def test_instagram_initialize_client_loads_from_storage_authenticate_path(
     await instagram._initialize_client()
 
     # Verify the authenticate path was taken (since all creds are available from storage)
-    assert instagram.instagram_object_id == 'stored_user_id'
-    assert instagram.instagram_client_id == 'stored_client_id'
-    assert instagram.instagram_client_secret == 'stored_client_secret'
-    assert instagram.instagram_refresh_token == 'stored_refresh_token'
-    assert instagram.instagram_access_token == 'stored_access_token'
+    assert instagram.instagram_object_id == "stored_user_id"
+    assert instagram.instagram_client_id == "stored_client_id"
+    assert instagram.instagram_client_secret == "stored_client_secret"
+    assert instagram.instagram_refresh_token == "stored_refresh_token"
+    assert instagram.instagram_access_token == "stored_access_token"
     assert instagram.api is mock_api
     mock_auth_manager.authenticate.assert_called_once()
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.instagram.wrapper.InstagramAPI')
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
 async def test_instagram_post_no_api(mock_api_class):
     """Test Instagram post with no API initialized."""
-    instagram = Instagram(
-        instagram_access_token='token',
-        instagram_object_id='user123'
-    )
+    instagram = Instagram(instagram_access_token="token", instagram_object_id="user123")
 
-    with pytest.raises(Exception, match='Instagram API not initialized'):
-        await instagram.post('text', 'link')
+    with pytest.raises(Exception, match="Instagram API not initialized"):
+        await instagram.post("text", "link")
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.instagram.wrapper.InstagramAPI')
-@patch('agoras.platforms.instagram.auth.InstagramAuthManager')
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
 async def test_instagram_post_no_images(mock_auth_manager_class, mock_api_class):
     """Test Instagram post with no images."""
     configure_instagram_auth_mock(mock_auth_manager_class)
@@ -315,13 +316,13 @@ async def test_instagram_post_no_images(mock_auth_manager_class, mock_api_class)
 
     await instagram._initialize_client()
 
-    with pytest.raises(Exception, match='Instagram requires at least one status image'):
-        await instagram.post('text', 'link')
+    with pytest.raises(Exception, match="Instagram requires at least one status image"):
+        await instagram.post("text", "link")
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.instagram.wrapper.InstagramAPI')
-@patch('agoras.platforms.instagram.auth.InstagramAuthManager')
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
 async def test_instagram_post_carousel(mock_auth_manager_class, mock_api_class):
     """Test Instagram post with carousel (multiple images)."""
     configure_instagram_auth_mock(mock_auth_manager_class)
@@ -334,46 +335,44 @@ async def test_instagram_post_carousel(mock_auth_manager_class, mock_api_class):
     await instagram._initialize_client()
 
     # Mock download_images to return multiple images
-    with patch.object(instagram, 'download_images', new_callable=AsyncMock) as mock_download:
+    with patch.object(instagram, "download_images", new_callable=AsyncMock) as mock_download:
         mock_image1 = MagicMock()
-        mock_image1.url = 'http://example.com/img1.jpg'
+        mock_image1.url = "http://example.com/img1.jpg"
         mock_image1.cleanup = MagicMock()
         mock_image2 = MagicMock()
-        mock_image2.url = 'http://example.com/img2.jpg'
+        mock_image2.url = "http://example.com/img2.jpg"
         mock_image2.cleanup = MagicMock()
         mock_download.return_value = [mock_image1, mock_image2]
 
         # Mock create_media for carousel
-        mock_api.create_media = AsyncMock(side_effect=['media1', 'media2'])
-        mock_api.create_carousel = AsyncMock(return_value='container123')
-        mock_api.publish_media = AsyncMock(return_value='post123')
+        mock_api.create_media = AsyncMock(side_effect=["media1", "media2"])
+        mock_api.create_carousel = AsyncMock(return_value="container123")
+        mock_api.publish_media = AsyncMock(return_value="post123")
 
-        with patch.object(instagram, '_output_status'):
+        with patch.object(instagram, "_output_status"):
             result = await instagram.post(
-                'Hello Instagram', 'http://link.com',
-                status_image_url_1='http://example.com/img1.jpg',
-                status_image_url_2='http://example.com/img2.jpg',
+                "Hello Instagram",
+                "http://link.com",
+                status_image_url_1="http://example.com/img1.jpg",
+                status_image_url_2="http://example.com/img2.jpg",
             )
 
-    assert result == 'post123'
+    assert result == "post123"
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.instagram.wrapper.InstagramAPI')
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
 async def test_instagram_video_no_api(mock_api_class):
     """Test Instagram video with no API initialized."""
-    instagram = Instagram(
-        instagram_access_token='token',
-        instagram_object_id='user123'
-    )
+    instagram = Instagram(instagram_access_token="token", instagram_object_id="user123")
 
-    with pytest.raises(Exception, match='Instagram API not initialized'):
-        await instagram.video('text', 'url', 'title')
+    with pytest.raises(Exception, match="Instagram API not initialized"):
+        await instagram.video("text", "url", "title")
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.instagram.wrapper.InstagramAPI')
-@patch('agoras.platforms.instagram.auth.InstagramAuthManager')
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
 async def test_instagram_video_no_url(mock_auth_manager_class, mock_api_class):
     """Test Instagram video with no URL."""
     configure_instagram_auth_mock(mock_auth_manager_class)
@@ -385,13 +384,13 @@ async def test_instagram_video_no_url(mock_auth_manager_class, mock_api_class):
 
     await instagram._initialize_client()
 
-    with pytest.raises(Exception, match='Instagram video URL is required'):
-        await instagram.video('text', '', 'title')
+    with pytest.raises(Exception, match="Instagram video URL is required"):
+        await instagram.video("text", "", "title")
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.instagram.wrapper.InstagramAPI')
-@patch('agoras.platforms.instagram.auth.InstagramAuthManager')
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
 async def test_instagram_video_invalid_mime(mock_auth_manager_class, mock_api_class):
     """Test Instagram video with invalid MIME type."""
     configure_instagram_auth_mock(mock_auth_manager_class)
@@ -403,34 +402,34 @@ async def test_instagram_video_invalid_mime(mock_auth_manager_class, mock_api_cl
 
     await instagram._initialize_client()
 
-    with patch.object(instagram, 'download_video', new_callable=AsyncMock) as mock_download:
+    with patch.object(instagram, "download_video", new_callable=AsyncMock) as mock_download:
         mock_video = MagicMock()
-        mock_video.content = b'video_content'
+        mock_video.content = b"video_content"
         mock_file_type = MagicMock()
-        mock_file_type.mime = 'video/avi'  # Invalid MIME
+        mock_file_type.mime = "video/avi"  # Invalid MIME
         mock_video.file_type = mock_file_type
         mock_video.cleanup = MagicMock()
         mock_download.return_value = mock_video
 
         from agoras.media.errors import MediaValidationError
 
-        with pytest.raises(MediaValidationError, match='instagram'):
-            await instagram.video('text', 'url', 'title')
+        with pytest.raises(MediaValidationError, match="instagram"):
+            await instagram.video("text", "url", "title")
 
 
 @pytest.mark.parametrize(
-    'video_type, expected',
+    "video_type, expected",
     [
-        ('STORIES', 'STORIES'),
-        ('stories', 'STORIES'),
-        ('story', 'STORIES'),
-        ('STORY', 'STORIES'),
-        ('REELS', 'REELS'),
-        ('reels', 'REELS'),
-        ('reel', 'REELS'),
-        ('', 'REELS'),
-        (None, 'REELS'),
-        ('unknown', 'REELS'),
+        ("STORIES", "STORIES"),
+        ("stories", "STORIES"),
+        ("story", "STORIES"),
+        ("STORY", "STORIES"),
+        ("REELS", "REELS"),
+        ("reels", "REELS"),
+        ("reel", "REELS"),
+        ("", "REELS"),
+        (None, "REELS"),
+        ("unknown", "REELS"),
     ],
 )
 def test_instagram_video_media_type_mapping(video_type, expected):
@@ -439,8 +438,8 @@ def test_instagram_video_media_type_mapping(video_type, expected):
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.instagram.wrapper.InstagramAPI')
-@patch('agoras.platforms.instagram.auth.InstagramAuthManager')
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
 async def test_instagram_video_reel(mock_auth_manager_class, mock_api_class):
     """Test Instagram video with reel type."""
     configure_instagram_auth_mock(mock_auth_manager_class)
@@ -448,31 +447,31 @@ async def test_instagram_video_reel(mock_auth_manager_class, mock_api_class):
     mock_api.authenticate = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    instagram = Instagram(**{**INSTAGRAM_KWARGS, 'instagram_video_type': 'reel'})
+    instagram = Instagram(**{**INSTAGRAM_KWARGS, "instagram_video_type": "reel"})
 
     await instagram._initialize_client()
 
-    with patch.object(instagram, 'download_video', new_callable=AsyncMock) as mock_download:
+    with patch.object(instagram, "download_video", new_callable=AsyncMock) as mock_download:
         mock_video = MagicMock()
-        mock_video.content = b'video_content'
+        mock_video.content = b"video_content"
         mock_file_type = MagicMock()
-        mock_file_type.mime = 'video/mp4'
+        mock_file_type.mime = "video/mp4"
         mock_video.file_type = mock_file_type
         mock_video.cleanup = MagicMock()
         mock_download.return_value = mock_video
 
-        mock_api.create_media = AsyncMock(return_value='container123')
-        mock_api.publish_media = AsyncMock(return_value='post123')
+        mock_api.create_media = AsyncMock(return_value="container123")
+        mock_api.publish_media = AsyncMock(return_value="post123")
 
-        with patch.object(instagram, '_output_status'):
-            result = await instagram.video('Video text', 'http://video.mp4', 'Video Title')
+        with patch.object(instagram, "_output_status"):
+            result = await instagram.video("Video text", "http://video.mp4", "Video Title")
 
-    assert result == 'post123'
+    assert result == "post123"
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.instagram.wrapper.InstagramAPI')
-@patch('agoras.platforms.instagram.auth.InstagramAuthManager')
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
 async def test_instagram_video_story(mock_auth_manager_class, mock_api_class):
     """Test Instagram video with story type."""
     configure_instagram_auth_mock(mock_auth_manager_class)
@@ -480,36 +479,38 @@ async def test_instagram_video_story(mock_auth_manager_class, mock_api_class):
     mock_api.authenticate = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    instagram = Instagram(**{**INSTAGRAM_KWARGS, 'instagram_video_type': 'story'})
+    instagram = Instagram(**{**INSTAGRAM_KWARGS, "instagram_video_type": "story"})
 
     await instagram._initialize_client()
 
-    with patch.object(instagram, 'download_video', new_callable=AsyncMock) as mock_download:
+    with patch.object(instagram, "download_video", new_callable=AsyncMock) as mock_download:
         mock_video = MagicMock()
-        mock_video.content = b'video_content'
+        mock_video.content = b"video_content"
         mock_file_type = MagicMock()
-        mock_file_type.mime = 'video/mp4'
+        mock_file_type.mime = "video/mp4"
         mock_video.file_type = mock_file_type
         mock_video.cleanup = MagicMock()
         mock_download.return_value = mock_video
 
-        mock_api.create_media = AsyncMock(return_value='container123')
-        mock_api.publish_media = AsyncMock(return_value='post123')
+        mock_api.create_media = AsyncMock(return_value="container123")
+        mock_api.publish_media = AsyncMock(return_value="post123")
 
-        with patch.object(instagram, '_output_status'):
-            result = await instagram.video('Video text', 'http://video.mp4', 'Video Title')
+        with patch.object(instagram, "_output_status"):
+            result = await instagram.video("Video text", "http://video.mp4", "Video Title")
 
-    assert result == 'post123'
+    assert result == "post123"
     mock_api.create_media.assert_called_once()
-    assert mock_api.create_media.call_args.kwargs['media_type'] == 'STORIES'
+    assert mock_api.create_media.call_args.kwargs["media_type"] == "STORIES"
 
 
-@pytest.mark.parametrize('video_type', ['STORIES', 'stories', 'story'])
+@pytest.mark.parametrize("video_type", ["STORIES", "stories", "story"])
 @pytest.mark.asyncio
-@patch('agoras.platforms.instagram.wrapper.InstagramAPI')
-@patch('agoras.platforms.instagram.auth.InstagramAuthManager')
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
 async def test_instagram_video_story_type_aliases(
-    mock_auth_manager_class, mock_api_class, video_type,
+    mock_auth_manager_class,
+    mock_api_class,
+    video_type,
 ):
     """Test Instagram video story aliases map to STORIES media_type."""
     configure_instagram_auth_mock(mock_auth_manager_class)
@@ -517,31 +518,31 @@ async def test_instagram_video_story_type_aliases(
     mock_api.authenticate = AsyncMock()
     mock_api_class.return_value = mock_api
 
-    instagram = Instagram(**{**INSTAGRAM_KWARGS, 'instagram_video_type': video_type})
+    instagram = Instagram(**{**INSTAGRAM_KWARGS, "instagram_video_type": video_type})
 
     await instagram._initialize_client()
 
-    with patch.object(instagram, 'download_video', new_callable=AsyncMock) as mock_download:
+    with patch.object(instagram, "download_video", new_callable=AsyncMock) as mock_download:
         mock_video = MagicMock()
-        mock_video.content = b'video_content'
+        mock_video.content = b"video_content"
         mock_file_type = MagicMock()
-        mock_file_type.mime = 'video/mp4'
+        mock_file_type.mime = "video/mp4"
         mock_video.file_type = mock_file_type
         mock_video.cleanup = MagicMock()
         mock_download.return_value = mock_video
 
-        mock_api.create_media = AsyncMock(return_value='container123')
-        mock_api.publish_media = AsyncMock(return_value='post123')
+        mock_api.create_media = AsyncMock(return_value="container123")
+        mock_api.publish_media = AsyncMock(return_value="post123")
 
-        with patch.object(instagram, '_output_status'):
-            await instagram.video('Video text', 'http://video.mp4', 'Video Title')
+        with patch.object(instagram, "_output_status"):
+            await instagram.video("Video text", "http://video.mp4", "Video Title")
 
-    assert mock_api.create_media.call_args.kwargs['media_type'] == 'STORIES'
+    assert mock_api.create_media.call_args.kwargs["media_type"] == "STORIES"
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.instagram.wrapper.InstagramAPI')
-@patch('agoras.platforms.instagram.auth.InstagramAuthManager')
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
 async def test_instagram_video_default_reels(mock_auth_manager_class, mock_api_class):
     """Test Instagram video defaults to REELS for feed posts."""
     configure_instagram_auth_mock(mock_auth_manager_class)
@@ -553,28 +554,28 @@ async def test_instagram_video_default_reels(mock_auth_manager_class, mock_api_c
 
     await instagram._initialize_client()
 
-    with patch.object(instagram, 'download_video', new_callable=AsyncMock) as mock_download:
+    with patch.object(instagram, "download_video", new_callable=AsyncMock) as mock_download:
         mock_video = MagicMock()
-        mock_video.content = b'video_content'
+        mock_video.content = b"video_content"
         mock_file_type = MagicMock()
-        mock_file_type.mime = 'video/mp4'
+        mock_file_type.mime = "video/mp4"
         mock_video.file_type = mock_file_type
         mock_video.cleanup = MagicMock()
         mock_download.return_value = mock_video
 
-        mock_api.create_media = AsyncMock(return_value='container123')
-        mock_api.publish_media = AsyncMock(return_value='post123')
+        mock_api.create_media = AsyncMock(return_value="container123")
+        mock_api.publish_media = AsyncMock(return_value="post123")
 
-        with patch.object(instagram, '_output_status'):
-            result = await instagram.video('Video text', 'http://video.mp4', 'Video Title')
+        with patch.object(instagram, "_output_status"):
+            result = await instagram.video("Video text", "http://video.mp4", "Video Title")
 
-    assert result == 'post123'
-    assert mock_api.create_media.call_args.kwargs['media_type'] == 'REELS'
+    assert result == "post123"
+    assert mock_api.create_media.call_args.kwargs["media_type"] == "REELS"
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.instagram.wrapper.InstagramAPI')
-@patch('agoras.platforms.instagram.auth.InstagramAuthManager')
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
 async def test_instagram_handle_video_action_missing_url(mock_auth_manager_class, mock_api_class):
     """Test Instagram _handle_video_action with missing URL."""
     configure_instagram_auth_mock(mock_auth_manager_class)
@@ -586,8 +587,8 @@ async def test_instagram_handle_video_action_missing_url(mock_auth_manager_class
 
     await instagram._initialize_client()
 
-    with patch.object(instagram, '_get_config_value', return_value=''):
-        with pytest.raises(Exception, match='Instagram video URL is required for video action'):
+    with patch.object(instagram, "_get_config_value", return_value=""):
+        with pytest.raises(Exception, match="Instagram video URL is required for video action"):
             await instagram._handle_video_action()
 
 
@@ -601,7 +602,7 @@ async def test_instagram_main_async_empty_action():
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.instagram.wrapper.Instagram')
+@patch("agoras.platforms.instagram.wrapper.Instagram")
 async def test_instagram_main_async_authorize(mock_instagram_class):
     """Test Instagram main_async with authorize action."""
     from agoras.platforms.instagram.wrapper import main_async
@@ -610,14 +611,14 @@ async def test_instagram_main_async_authorize(mock_instagram_class):
     mock_instagram.authorize_credentials = AsyncMock(return_value=True)
     mock_instagram_class.return_value = mock_instagram
 
-    result = await main_async({'action': 'authorize'})
+    result = await main_async({"action": "authorize"})
 
     assert result == 0
     mock_instagram.authorize_credentials.assert_called_once()
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.instagram.wrapper.Instagram')
+@patch("agoras.platforms.instagram.wrapper.Instagram")
 async def test_instagram_main_async_execute_action(mock_instagram_class):
     """Test Instagram main_async with other actions."""
     from agoras.platforms.instagram.wrapper import main_async
@@ -627,14 +628,15 @@ async def test_instagram_main_async_execute_action(mock_instagram_class):
     mock_instagram.disconnect = AsyncMock()
     mock_instagram_class.return_value = mock_instagram
 
-    result = await main_async({'action': 'video'})
+    result = await main_async({"action": "video"})
 
     assert result is None
-    mock_instagram.execute_action.assert_called_once_with('video')
+    mock_instagram.execute_action.assert_called_once_with("video")
     mock_instagram.disconnect.assert_called_once()
 
 
 # Instagram API Tests
+
 
 def test_instagram_api_class_exists():
     """Test InstagramAPI class exists."""

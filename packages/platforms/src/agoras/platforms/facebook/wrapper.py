@@ -412,7 +412,7 @@ class Facebook(SocialNetwork):
             object_id=self.facebook_object_id, video_type=video_type, status_text=status_text, video_url=video_url
         )
 
-    async def _upload_regular_video(self, video, status_text, video_title):
+    async def _upload_regular_video(self, video, status_text, video_title, video_url=None):
         """
         Upload a regular video to Facebook.
 
@@ -420,6 +420,7 @@ class Facebook(SocialNetwork):
             video: Video object from Media system
             status_text (str): Text content to accompany the video
             video_title (str): Title of the video
+            video_url (str, optional): Original public URL for fallback publishing
 
         Returns:
             str: Post ID
@@ -444,6 +445,7 @@ class Facebook(SocialNetwork):
             video_filename=video_filename,
             status_text=status_text,
             video_title=video_title,
+            source_video_url=video_url,
         )
 
     async def video(self, status_text, video_url, video_title):
@@ -497,7 +499,7 @@ class Facebook(SocialNetwork):
             if video_type in ["reel", "story"]:
                 post_id = await self._upload_reel_or_story(video_type, status_text, video_url)
             else:
-                post_id = await self._upload_regular_video(video, status_text, video_title)
+                post_id = await self._upload_regular_video(video, status_text, video_title, video_url)
 
         finally:
             # Clean up using Media system

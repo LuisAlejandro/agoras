@@ -88,13 +88,16 @@ This will:
 
 After authorization, you can use LinkedIn actions without providing tokens. Credentials are automatically refreshed when needed.
 
+.. note::
+   Standard LinkedIn apps (for example, "Share on LinkedIn") usually return a 60-day access token and **no** refresh token. Agoras stores the access token and uses it until it expires; run ``agoras linkedin authorize`` again before the 60-day window ends. Programmatic refresh tokens are only available to LinkedIn partner programs.
+
 CI/CD Setup (Unattended Execution)
 -----------------------------------
 
 For CI/CD environments where interactive browser authorization isn't possible, you can skip the ``authorize`` step entirely and provide all required credentials via environment variables.
 
-1. Run ``agoras linkedin authorize`` locally first to generate a refresh token (one-time setup)
-2. Extract the refresh token using the tokens utility command::
+1. Run ``agoras linkedin authorize`` locally first to generate credential tokens (one-time setup)
+2. Extract the access or refresh token using the tokens utility command::
 
       # First, list tokens to find the identifier (if you don't know it)
       agoras utils tokens list --platform linkedin
@@ -107,11 +110,14 @@ For CI/CD environments where interactive browser authorization isn't possible, y
       export LINKEDIN_OBJECT_ID="your_object_id"
       export LINKEDIN_CLIENT_ID="your_client_id"
       export LINKEDIN_CLIENT_SECRET="your_client_secret"
+      # Use LINKEDIN_ACCESS_TOKEN for standard apps (expires in 60 days):
+      export LINKEDIN_ACCESS_TOKEN="your_access_token_here"
+      # Or use LINKEDIN_REFRESH_TOKEN for partner apps with programmatic refresh:
       export LINKEDIN_REFRESH_TOKEN="your_refresh_token_here"
 
 4. Run Agoras actions directly without running ``authorize``. All credentials will be loaded from environment variables.
 
-**Note**: For unattended execution, you must provide all required credentials. The refresh token alone is not sufficient - you also need client ID, client secret, and object ID as shown in the :doc:`../reference/platform-arguments-envvars` documentation.
+**Note**: For unattended execution, you must provide all required credentials. The access token (or refresh token) alone is not sufficient - you also need client ID, client secret, and object ID as shown in the :doc:`../reference/platform-arguments-envvars` documentation.
 
 Agoras parameters
 ~~~~~~~~~~~~~~~~~

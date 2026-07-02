@@ -71,9 +71,9 @@ class LinkedIn(SocialNetwork):
         self.linkedin_post_id = self._get_config_value("linkedin_post_id", "LINKEDIN_POST_ID")
 
         # If credentials not provided, try loading from storage
-        # LinkedIn needs user_id (object_id), client_id, client_secret, and refresh_token to authenticate
-        if not all(
-            [self.linkedin_object_id, self.linkedin_client_id, self.linkedin_client_secret, self.linkedin_refresh_token]
+        # LinkedIn needs user_id (object_id), client_id, client_secret, and a refresh or access token
+        if not all([self.linkedin_object_id, self.linkedin_client_id, self.linkedin_client_secret]) or not (
+            self.linkedin_refresh_token or self.linkedin_access_token
         ):
             from .auth import LinkedInAuthManager
 
@@ -93,9 +93,15 @@ class LinkedIn(SocialNetwork):
                     self.linkedin_client_secret = auth_manager.client_secret
                 if not self.linkedin_refresh_token:
                     self.linkedin_refresh_token = auth_manager.refresh_token
+                if not self.linkedin_access_token:
+                    self.linkedin_access_token = auth_manager.access_token
 
         # If we have the required auth credentials, authenticate to get access token
-        if self.linkedin_client_id and self.linkedin_client_secret and self.linkedin_refresh_token:
+        if (
+            self.linkedin_client_id
+            and self.linkedin_client_secret
+            and (self.linkedin_refresh_token or self.linkedin_access_token)
+        ):
             from .auth import LinkedInAuthManager
 
             auth_manager = LinkedInAuthManager(
@@ -103,10 +109,13 @@ class LinkedIn(SocialNetwork):
                 client_id=self.linkedin_client_id,
                 client_secret=self.linkedin_client_secret,
                 refresh_token=self.linkedin_refresh_token,
+                access_token=self.linkedin_access_token,
             )
             authenticated = await auth_manager.authenticate()
             if authenticated:
                 self.linkedin_access_token = auth_manager.access_token
+                if auth_manager.refresh_token:
+                    self.linkedin_refresh_token = auth_manager.refresh_token
 
         # Validate all credentials are now available
         if not all(
@@ -114,7 +123,6 @@ class LinkedIn(SocialNetwork):
                 self.linkedin_access_token,
                 self.linkedin_client_id,
                 self.linkedin_client_secret,
-                self.linkedin_refresh_token,
             ]
         ):
             raise Exception("Not authenticated. Please run 'agoras linkedin authorize' first.")
