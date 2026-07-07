@@ -36,7 +36,7 @@ setup(
     install_requires=[
         f'agoras-common=={version}',
         'filetype==1.2.0',
-        'opencv-python-headless==4.13.0.92',
+        'opencv-python-headless==5.0.0.93',
         'Pillow>=10.0.0',
     ],
 
