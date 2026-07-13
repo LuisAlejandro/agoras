@@ -3,14 +3,16 @@
 
 SHELL = bash -e
 export BASH_ENV := $(HOME)/.bash_env
+
+PROJECT_NAME ?= agoras
+VERSION_TYPE ?= patch
+APP_NAME ?= Agoras
+
 img_hash = $(shell docker images -q luisalejandro/agoras:latest)
+all_ps_hashes = $(shell docker ps -q)
 exec_on_docker = docker compose \
 	-p agoras -f docker-compose.yml exec \
 	--user agoras app
-
-# Release configuration
-VERSION_TYPE ?= patch
-APP_NAME ?= Agoras
 
 define BROWSER_PYSCRIPT
 import os, webbrowser, sys
@@ -62,6 +64,16 @@ clean-test:
 clean-docs:
 	rm -rf docs/_build
 
+dependencies:
+	@:
+
+build: start
+	@$(exec_on_docker) bash -c '\
+		set -e; \
+		for pkg in common media core platforms cli; do \
+			( cd packages/$$pkg && python3 -m build && twine check dist/* ); \
+		done'
+
 lint: start
 	@$(exec_on_docker) tox -e lint
 
@@ -97,36 +109,8 @@ docs:
 servedocs: docs start
 	@$(exec_on_docker) watchmedo shell-command -p '*.rst' -c 'make -C docs html' -R -D .
 
-dependencies:
-	@:
-
-build: start
-	@$(exec_on_docker) bash -c '\
-		set -e; \
-		for pkg in common media core platforms cli; do \
-			( cd packages/$$pkg && python3 -m build && twine check dist/* ); \
-		done'
-
 install: clean start
 	@$(exec_on_docker) pip3 install .
-
-console: start
-	@$(exec_on_docker) bash
-
-virtualenv: start
-	@python3 -m venv --clear --copies ./virtualenv
-	@./virtualenv/bin/python3 -m pip install --upgrade pip
-	@./virtualenv/bin/python3 -m pip install --upgrade setuptools
-	@./virtualenv/bin/python3 -m pip install --upgrade wheel
-	@./virtualenv/bin/python3 -m pip install -r requirements-dev.txt
-	@./virtualenv/bin/python3 -m pip install -e packages/common
-	@./virtualenv/bin/python3 -m pip install -e packages/media
-	@./virtualenv/bin/python3 -m pip install -e packages/core
-	@./virtualenv/bin/python3 -m pip install -e packages/platforms
-	@./virtualenv/bin/python3 -m pip install -e packages/cli
-
-PROJECT_NAME ?= agoras
-all_ps_hashes = $(shell docker ps -q)
 
 image:
 	@docker compose -p $(PROJECT_NAME) -f docker-compose.yml build \
@@ -169,6 +153,21 @@ cataplum:
 		--rmi all --remove-orphans --volumes
 	@docker system prune -a -f --volumes
 
+console: start
+	@$(exec_on_docker) bash
+
+virtualenv: start
+	@python3 -m venv --clear --copies ./virtualenv
+	@./virtualenv/bin/python3 -m pip install --upgrade pip
+	@./virtualenv/bin/python3 -m pip install --upgrade setuptools
+	@./virtualenv/bin/python3 -m pip install --upgrade wheel
+	@./virtualenv/bin/python3 -m pip install -r requirements-dev.txt
+	@./virtualenv/bin/python3 -m pip install -e packages/common
+	@./virtualenv/bin/python3 -m pip install -e packages/media
+	@./virtualenv/bin/python3 -m pip install -e packages/core
+	@./virtualenv/bin/python3 -m pip install -e packages/platforms
+	@./virtualenv/bin/python3 -m pip install -e packages/cli
+
 release:
 	@./scripts/release.sh $${VERSION_TYPE}
 
@@ -180,7 +179,6 @@ release-minor:
 
 release-major:
 	@./scripts/release.sh major $${APP_NAME}
-
 
 release-preflight:
 	@make image
