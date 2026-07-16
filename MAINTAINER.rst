@@ -12,6 +12,18 @@ Feature work
 
 Repeat until ready to ship.
 
+Commit messages
+---------------
+
+Subjects feed ``HISTORY.rst`` via gitchangelog, then GitHub release notes on ``make release-*``.
+
+- ``[ADD]`` — Added (new user-facing capability)
+- ``[FIX]`` — Fixed (bug or broken behavior)
+- ``[REF]`` — Changed (behavior change that is not a new feature)
+- ``[DEL]`` — Removed
+
+Format: ``[TAG] Imperative user-facing summary.`` Non-user-facing work (deps, lint, sync, CI): append ``!cosmetic`` / ``!refactor`` / ``!wip``, or use a ``CI:`` prefix, so it is omitted from HISTORY. PR titles may stay Conventional-style; only commit subjects use these tags.
+
 Release
 -------
 
