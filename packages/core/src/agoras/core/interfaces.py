@@ -22,6 +22,7 @@ Core interfaces and shared social network abstractions for Agoras.
 import datetime
 import json
 import os
+import sys
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -249,7 +250,10 @@ class SocialNetwork(ABC):
             status_image = item.image_url
 
             count += 1
-            await self.post(status_title, status_link, status_image)
+            try:
+                await self.post(status_title, status_link, status_image)
+            except Exception as exc:
+                print(f"Feed item failed ({count}): {exc}", file=sys.stderr)
 
     async def random_from_feed(self, feed_url, max_post_age):
         """
@@ -290,16 +294,19 @@ class SocialNetwork(ABC):
         # Process scheduled posts
         posts_to_create = await sheet.process_scheduled_posts(max_count)
 
-        # Create posts asynchronously
-        for post_data in posts_to_create:
-            await self.post(
-                post_data["status_text"],
-                post_data["status_link"],
-                post_data["status_image_url_1"],
-                post_data["status_image_url_2"],
-                post_data["status_image_url_3"],
-                post_data["status_image_url_4"],
-            )
+        # Create posts asynchronously; continue after per-item failures
+        for index, post_data in enumerate(posts_to_create, start=1):
+            try:
+                await self.post(
+                    post_data["status_text"],
+                    post_data["status_link"],
+                    post_data["status_image_url_1"],
+                    post_data["status_image_url_2"],
+                    post_data["status_image_url_3"],
+                    post_data["status_image_url_4"],
+                )
+            except Exception as exc:
+                print(f"Scheduled item failed ({index}): {exc}", file=sys.stderr)
 
     def _output_status(self, post_id):
         """

@@ -21,6 +21,7 @@ import asyncio
 import sys
 
 from agoras.core.interfaces import SocialNetwork
+from agoras.core.text_limits import validate_text, x_mode_for_subscription
 
 from .api import XAPI
 
@@ -52,6 +53,28 @@ class X(SocialNetwork):
         self.twitter_oauth_secret = None
         self.tweet_id = None
         self.api = None
+        self._subscription_type = None
+
+    def _load_subscription_type(self):
+        """Load stored X subscription_type for text-limit selection (no network)."""
+        from .auth import XAuthManager
+
+        auth_manager = XAuthManager(
+            consumer_key=self.twitter_consumer_key, consumer_secret=self.twitter_consumer_secret
+        )
+        # Prefer values already loaded into auth manager when credentials came from storage
+        if auth_manager._load_credentials_from_storage():
+            self._subscription_type = auth_manager.subscription_type
+        else:
+            self._subscription_type = auth_manager.load_subscription_type_from_storage()
+        return self._subscription_type
+
+    def _validate_tweet_text(self, tweet_text: str) -> None:
+        """Reject oversized tweet text using stored entitlement (fail closed to free)."""
+        if self._subscription_type is None:
+            self._load_subscription_type()
+        mode = x_mode_for_subscription(self._subscription_type)
+        validate_text("twitter", "text", tweet_text, mode=mode)
 
     async def _initialize_client(self):
         """
@@ -110,6 +133,7 @@ class X(SocialNetwork):
 
         # Authenticate with provided credentials
         await self.api.authenticate()
+        self._load_subscription_type()
 
     async def authorize_credentials(self):
         """
@@ -179,6 +203,10 @@ class X(SocialNetwork):
         if not source_media and not status_text and not status_link:
             raise Exception("No status text, link, or images provided.")
 
+        # Compose tweet text and validate before media I/O when possible
+        tweet_text = f"{status_text} {status_link}".strip()
+        self._validate_tweet_text(tweet_text)
+
         # Download and upload media using the Media system
         if source_media:
             # Handle both images and videos
@@ -207,9 +235,6 @@ class X(SocialNetwork):
 
                 except Exception as e:
                     print(f"Failed to upload media {media_url}: {str(e)}", file=sys.stderr)
-
-        # Compose tweet text
-        tweet_text = f"{status_text} {status_link}".strip()
 
         # Create the tweet
         tweet_id = await self.api.post(tweet_text, media_ids or [])
@@ -301,6 +326,15 @@ class X(SocialNetwork):
         if not video_url:
             raise Exception("Video URL is required.")
 
+        # Compose tweet text and validate before media I/O
+        tweet_text_parts = []
+        if video_title:
+            tweet_text_parts.append(video_title)
+        if status_text:
+            tweet_text_parts.append(status_text)
+        final_text = " - ".join(tweet_text_parts) if tweet_text_parts else ""
+        self._validate_tweet_text(final_text)
+
         # Download and validate video using the Media system
         video = await self.download_video(video_url)
 
@@ -325,19 +359,6 @@ class X(SocialNetwork):
         try:
             # Upload video to X
             media_id = await self.api.upload_media(video.content, video.file_type.mime)
-
-            # Compose tweet text with title and description
-            tweet_text_parts = []
-            if video_title:
-                tweet_text_parts.append(video_title)
-            if status_text:
-                tweet_text_parts.append(status_text)
-
-            final_text = " - ".join(tweet_text_parts) if tweet_text_parts else ""
-
-            # X has a 280 character limit (handled by API, but let's be safe)
-            if len(final_text) > 280:
-                final_text = final_text[:277] + "..."
 
             # Create the tweet with video
             tweet_id = await self.api.post(final_text, [media_id] if media_id else [])

@@ -33,6 +33,13 @@ from .auth import AuthenticationError, BaseAuthManager, OAuthCallbackServer, Sec
 from .feed import Feed, FeedItem
 from .interfaces import SocialNetwork
 from .sheet import ScheduleSheet, Sheet
+from .text_limits import (
+    TextValidationError,
+    iter_text_limits,
+    measure_length,
+    validate_text,
+    x_limit_for_subscription,
+)
 
 __all__ = [
     "SocialNetwork",
@@ -45,4 +52,9 @@ __all__ = [
     "FeedItem",
     "ScheduleSheet",
     "Sheet",
+    "TextValidationError",
+    "iter_text_limits",
+    "measure_length",
+    "validate_text",
+    "x_limit_for_subscription",
 ]

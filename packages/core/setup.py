@@ -32,6 +32,8 @@ setup(
     long_description_content_type='text/x-rst',
     packages=find_namespace_packages(where='src'),
     package_dir={'': 'src'},
+    package_data={'agoras.core.text_limits': ['data/*.json']},
+    include_package_data=True,
     python_requires='>=3.10',
     install_requires=[
         f'agoras-common=={version}',

@@ -166,10 +166,6 @@ class XAPI(BaseAPI):
 
         await self._rate_limit_check("post", 1.0)
 
-        # X has a 280 character limit
-        if len(text) > 280:
-            text = text[:277] + "..."
-
         try:
             tweet_id = await self.client.create_tweet(text, media_ids)
             return tweet_id

@@ -754,3 +754,53 @@ async def test_schedule(mock_sheet_class):
     assert len(network.posts_created) == 2
     assert network.posts_created[0]['text'] == 'Scheduled 1'
     assert network.posts_created[1]['text'] == 'Scheduled 2'
+
+
+@pytest.mark.asyncio
+@patch('agoras.core.interfaces.ScheduleSheet')
+async def test_schedule_continues_after_item_failure(mock_sheet_class):
+    """Oversized/failed middle item must not abort remaining due posts."""
+    post_data = [
+        {
+            'status_text': 'ok-1',
+            'status_link': '',
+            'status_image_url_1': None,
+            'status_image_url_2': None,
+            'status_image_url_3': None,
+            'status_image_url_4': None,
+        },
+        {
+            'status_text': 'bad',
+            'status_link': '',
+            'status_image_url_1': None,
+            'status_image_url_2': None,
+            'status_image_url_3': None,
+            'status_image_url_4': None,
+        },
+        {
+            'status_text': 'ok-3',
+            'status_link': '',
+            'status_image_url_1': None,
+            'status_image_url_2': None,
+            'status_image_url_3': None,
+            'status_image_url_4': None,
+        },
+    ]
+
+    mock_sheet = MagicMock()
+    mock_sheet.authenticate = AsyncMock()
+    mock_sheet.get_worksheet = AsyncMock()
+    mock_sheet.process_scheduled_posts = AsyncMock(return_value=post_data)
+    mock_sheet_class.return_value = mock_sheet
+
+    network = ConcreteSocialNetwork()
+
+    async def flaky_post(status_text, status_link, *images):
+        if status_text == 'bad':
+            raise Exception('text too long')
+        return await ConcreteSocialNetwork.post(network, status_text, status_link, *images)
+
+    with patch.object(network, 'post', new=AsyncMock(side_effect=flaky_post)):
+        await network.schedule('sheet-id', 'Sheet1', 'email@example.com', 'key', max_count=5)
+
+    assert [p['text'] for p in network.posts_created] == ['ok-1', 'ok-3']

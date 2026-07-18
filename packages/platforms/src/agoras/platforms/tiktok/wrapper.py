@@ -22,6 +22,7 @@ import json
 import sys
 
 from agoras.core.interfaces import SocialNetwork
+from agoras.core.text_limits import validate_text
 
 from .api import TikTokAPI
 
@@ -214,6 +215,9 @@ class TikTok(SocialNetwork):
         if not status_text:
             status_text = self.tiktok_title or ""
 
+        validate_text("tiktok", "title", status_text, mode="photo")
+        validate_text("tiktok", "description", str(self.tiktok_description or ""), mode="photo")
+
         from agoras.media.constraints import image_limits
         from agoras.media.errors import MediaValidationError
         from agoras.media.preflight import preflight_url_for_platform
@@ -294,6 +298,8 @@ class TikTok(SocialNetwork):
         title = video_title or status_text or self.tiktok_title or ""
         if not title:
             raise Exception("Video title is required.")
+
+        validate_text("tiktok", "title", title, mode="video")
 
         # Validate settings for video posts
         if self.tiktok_auto_add_music:

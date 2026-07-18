@@ -20,6 +20,7 @@
 import asyncio
 
 from agoras.core.interfaces import SocialNetwork
+from agoras.core.text_limits import validate_text
 
 from .api import InstagramAPI
 
@@ -197,6 +198,9 @@ class Instagram(SocialNetwork):
         if not source_media:
             raise Exception("Instagram requires at least one status image.")
 
+        caption = f"{status_text} {status_link}".strip()
+        validate_text("instagram", "caption", caption)
+
         is_carousel_item = len(source_media) > 1
 
         # Download and validate images using the Media system
@@ -215,7 +219,6 @@ class Instagram(SocialNetwork):
 
         # Create carousel or single post
         if is_carousel_item:
-            caption = f"{status_text} {status_link}"
             creation_id = await self.api.create_carousel(self.instagram_object_id, attached_media, caption)
         else:
             # For single image, the caption needs to be set in create_media
@@ -227,7 +230,7 @@ class Instagram(SocialNetwork):
                 creation_id = await self.api.create_media(
                     self.instagram_object_id,
                     image_url=images[0].url,
-                    caption=f"{status_text} {status_link}",
+                    caption=caption,
                     is_carousel_item=False,
                 )
             else:
@@ -294,6 +297,8 @@ class Instagram(SocialNetwork):
             raise Exception("Instagram object ID is required.")
         if not video_url:
             raise Exception("Instagram video URL is required.")
+
+        validate_text("instagram", "caption", status_text or "")
 
         video_type = self.instagram_video_type or ""
 

@@ -653,3 +653,57 @@ async def test_youtube_main_async_execute_action(mock_youtube_class):
     assert result is None
     mock_youtube.execute_action.assert_called_once_with('video')
     mock_youtube.disconnect.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
+async def test_youtube_video_rejects_title_over_limit(mock_api_class):
+    """YouTube title over 100 chars rejects before download/upload."""
+    from agoras.core.text_limits import TextValidationError
+
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.upload_video = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    youtube = YouTube(**YOUTUBE_KWARGS)
+    await youtube._initialize_client()
+
+    with patch.object(youtube, 'download_video', new_callable=AsyncMock) as mock_download:
+        with pytest.raises(TextValidationError) as exc_info:
+            await youtube.video('ok description', 'http://video.mp4', 'T' * 101)
+
+    assert exc_info.value.platform == 'youtube'
+    assert exc_info.value.field == 'title'
+    mock_download.assert_not_called()
+    mock_api.upload_video.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
+async def test_youtube_video_rejects_description_utf8_over_limit(mock_api_class):
+    """YouTube description over 5000 UTF-8 bytes rejects before download (AE6-style)."""
+    from agoras.core.text_limits import TextValidationError
+
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.upload_video = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    youtube = YouTube(**YOUTUBE_KWARGS)
+    await youtube._initialize_client()
+
+    # 2501 multi-byte chars → 5002 UTF-8 bytes while char count is 2501
+    oversize_desc = 'é' * 2501
+    assert len(oversize_desc) <= 5000
+    assert len(oversize_desc.encode('utf-8')) > 5000
+
+    with patch.object(youtube, 'download_video', new_callable=AsyncMock) as mock_download:
+        with pytest.raises(TextValidationError) as exc_info:
+            await youtube.video(oversize_desc, 'http://video.mp4', 'Ok Title')
+
+    assert exc_info.value.platform == 'youtube'
+    assert exc_info.value.field == 'description'
+    assert exc_info.value.counting == 'utf8_bytes'
+    mock_download.assert_not_called()
+    mock_api.upload_video.assert_not_called()

@@ -58,6 +58,7 @@ class XAuthManager(BaseAuthManager):
         self.consumer_secret = consumer_secret
         self.oauth_token = oauth_token
         self.oauth_secret = oauth_secret
+        self.subscription_type: Optional[str] = None
 
     async def authenticate(self) -> bool:
         """
@@ -99,11 +100,24 @@ class XAuthManager(BaseAuthManager):
 
         # If OAuth tokens are already provided, just save them
         if self.oauth_token and self.oauth_secret:
+            await self._refresh_and_store_subscription_type()
             self._save_credentials_to_storage()
             return "Authorization successful. Credentials stored securely."
 
         # Interactive mode with callback server
         return await self._authorize_interactive()
+
+    async def _refresh_and_store_subscription_type(self) -> None:
+        """Fetch subscription_type via API v2 and keep it on the manager."""
+        try:
+            client = self._create_client()
+            await client.authenticate()
+            self.subscription_type = await client.get_subscription_type()
+            client.disconnect()
+        except Exception as exc:
+            # Fail closed to free-tier limits at post time when lookup fails
+            print(f"Warning: could not fetch X subscription_type: {exc}", file=sys.stderr)
+            self.subscription_type = None
 
     async def _authorize_interactive(self) -> Optional[str]:
         """Authorize using local callback server (interactive mode)."""
@@ -163,9 +177,10 @@ class XAuthManager(BaseAuthManager):
 
                 self.oauth_token = access_token["oauth_token"]
                 self.oauth_secret = access_token["oauth_token_secret"]
-                self._save_credentials_to_storage()
 
             await asyncio.to_thread(_sync_complete_oauth)
+            await self._refresh_and_store_subscription_type()
+            self._save_credentials_to_storage()
 
             return "Authorization successful. Credentials stored securely."
 
@@ -236,11 +251,23 @@ class XAuthManager(BaseAuthManager):
             "consumer_secret": self.consumer_secret,
             "oauth_token": self.oauth_token,
             "oauth_secret": self.oauth_secret,
+            "subscription_type": self.subscription_type,
         }
 
         self.token_storage.save_token(platform_name, identifier, token_data)
         # Also save as default so it becomes the primary credential loaded
         self.token_storage.save_token(platform_name, "default", token_data)
+
+    def load_subscription_type_from_storage(self) -> Optional[str]:
+        """Load stored subscription_type without requiring full re-auth."""
+        platform_name = self._get_platform_name()
+        identifier = self._get_token_identifier()
+        token_data = self.token_storage.load_token(platform_name, identifier)
+        if not token_data:
+            token_data = self.token_storage.load_token(platform_name, "default")
+        if not token_data:
+            return None
+        return token_data.get("subscription_type")
 
     def _load_credentials_from_storage(self) -> bool:
         """Load X credentials from secure storage."""
@@ -262,6 +289,7 @@ class XAuthManager(BaseAuthManager):
             self.consumer_secret = token_data.get("consumer_secret")
             self.oauth_token = token_data.get("oauth_token")
             self.oauth_secret = token_data.get("oauth_secret")
+            self.subscription_type = token_data.get("subscription_type")
             return bool(all([self.consumer_key, self.consumer_secret, self.oauth_token, self.oauth_secret]))
 
         return False

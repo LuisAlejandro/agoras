@@ -20,6 +20,7 @@
 import asyncio
 
 from agoras.core.interfaces import SocialNetwork
+from agoras.core.text_limits import validate_text
 
 from .api import YouTubeAPI
 
@@ -215,6 +216,9 @@ class YouTube(SocialNetwork):
 
         if not video_title or not video_url:
             raise Exception("Video title and URL are required.")
+
+        validate_text("youtube", "title", video_title)
+        validate_text("youtube", "description", status_text or "")
 
         # Download and validate video using the Media system
         video = await self.download_video(video_url)
