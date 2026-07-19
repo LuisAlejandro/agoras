@@ -21,6 +21,7 @@ import asyncio
 
 from agoras.common.utils import parse_metatags
 from agoras.core.interfaces import SocialNetwork
+from agoras.core.text_limits import validate_discord_embeds, validate_text
 
 from .api import DiscordAPI
 
@@ -162,12 +163,17 @@ class Discord(SocialNetwork):
         if not source_media and not status_text and not status_link:
             raise Exception("No status text, link, or images provided.")
 
+        validate_text("discord", "content", status_text or "")
+
         # Parse link metadata
         if status_link:
             scraped_data = parse_metatags(status_link)
             status_link_title = scraped_data.get("title", "")
             status_link_description = scraped_data.get("description", "")
             status_link_image = scraped_data.get("image", "")
+
+            # Validate scraped embed fields before media I/O / publish
+            validate_discord_embeds([{"title": status_link_title, "description": status_link_description}])
 
             # Create link embed
             link_embed = self.api.create_embed(
@@ -264,6 +270,10 @@ class Discord(SocialNetwork):
 
         if not video_url:
             raise Exception("No Discord video URL provided.")
+
+        # Validate embed text before media I/O when title/description are known
+        if video_title or status_text:
+            validate_discord_embeds([{"title": video_title or "Video", "description": status_text or ""}])
 
         # Download and validate video using the Media system
         video = await self.download_video(video_url)
