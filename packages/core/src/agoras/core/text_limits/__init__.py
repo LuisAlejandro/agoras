@@ -329,6 +329,4 @@ def validate_discord_embeds(embeds: Iterable[dict]) -> None:
             validate_text("discord", "embed_description", description)
             total += len(description)
     if total > embed_total.limit:
-        raise TextValidationError(
-            "discord", "embed_total", total, embed_total.limit, embed_total.counting
-        )
+        raise TextValidationError("discord", "embed_total", total, embed_total.limit, embed_total.counting)
