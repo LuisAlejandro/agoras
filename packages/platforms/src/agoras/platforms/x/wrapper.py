@@ -280,7 +280,7 @@ class X(SocialNetwork):
                     print(f"Failed to upload media {media_url}: {str(e)}", file=sys.stderr)
 
         # Create the tweet
-        tweet_id = await self.api.post(tweet_text, media_ids or [])
+        tweet_id = await self.api.post(tweet_text, media_ids or [], validate=False)
 
         self._output_status(tweet_id)
         return tweet_id
@@ -404,7 +404,7 @@ class X(SocialNetwork):
             media_id = await self.api.upload_media(video.content, video.file_type.mime)
 
             # Create the tweet with video
-            tweet_id = await self.api.post(final_text, [media_id] if media_id else [])
+            tweet_id = await self.api.post(final_text, [media_id] if media_id else [], validate=False)
 
         finally:
             # Clean up using Media system
@@ -412,17 +412,6 @@ class X(SocialNetwork):
 
         self._output_status(tweet_id)
         return tweet_id
-
-    def _x_text_mode(self) -> str:
-        """Resolve free|premium mode from API user info when available."""
-        subscription = None
-        if self.api and isinstance(self.api.user_info, dict):
-            subscription = self.api.user_info.get("subscription_type") or self.api.user_info.get("subscription_type_v2")
-        return x_mode_for_subscription(subscription)
-
-    def _validate_tweet_text(self, text: str) -> None:
-        """Reject over-limit tweet text using weighted X limits."""
-        validate_text("twitter", "text", text, mode=self._x_text_mode())
 
     async def _upload_entry_media(self, entry: Dict[str, Any]) -> List[str]:
         """Upload images or video for one thread entry; return media IDs."""
