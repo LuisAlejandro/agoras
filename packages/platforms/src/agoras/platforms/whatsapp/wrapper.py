@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from agoras.core.interfaces import SocialNetwork
+from agoras.core.text_limits import validate_text
 
 from .api import WhatsAppAPI
 
@@ -163,6 +164,7 @@ class WhatsApp(SocialNetwork):
         )
 
         if image_urls:
+            validate_text("whatsapp", "caption", message_text or "", mode="caption")
             # WhatsApp supports multiple media in sequence
             message_ids = []
             images = await self.download_images(image_urls)
@@ -190,6 +192,7 @@ class WhatsApp(SocialNetwork):
             if not message_text:
                 raise Exception("No status text, link, or images provided.")
 
+            validate_text("whatsapp", "text", message_text, mode="text")
             primary_message_id = await self.api.send_message(to=self._require_recipient(), text=message_text)
 
         self._output_status(primary_message_id)
@@ -251,6 +254,8 @@ class WhatsApp(SocialNetwork):
 
         if not video_url:
             raise Exception("Video URL is required.")
+
+        validate_text("whatsapp", "caption", status_text or "", mode="caption")
 
         # Download and validate video using the Media system
         video = await self.download_video(video_url)

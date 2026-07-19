@@ -22,6 +22,7 @@ import sys
 
 from agoras.common.utils import parse_metatags
 from agoras.core.interfaces import SocialNetwork
+from agoras.core.text_limits import validate_text
 
 from .api import LinkedInAPI
 
@@ -183,12 +184,18 @@ class LinkedIn(SocialNetwork):
         if not source_media and not status_text and not status_link:
             raise Exception("No status text, link, or images provided.")
 
+        validate_text("linkedin", "text", status_text or "")
+
         # Parse link metadata if link is provided
         if status_link:
             scraped_data = parse_metatags(status_link)
             status_link_title = scraped_data.get("title", "")
             status_link_description = scraped_data.get("description", "")
             status_link_image = scraped_data.get("image", "")
+
+            # Validate scraped article fields before media I/O / publish
+            validate_text("linkedin", "link_title", status_link_title or "")
+            validate_text("linkedin", "link_description", status_link_description or "")
 
             if status_link_image and not source_media:
                 source_media = [status_link_image]
@@ -304,6 +311,8 @@ class LinkedIn(SocialNetwork):
 
         if not video_url:
             raise Exception("LinkedIn video URL is required.")
+
+        validate_text("linkedin", "text", status_text or "")
 
         video = await self.download_video(video_url)
 

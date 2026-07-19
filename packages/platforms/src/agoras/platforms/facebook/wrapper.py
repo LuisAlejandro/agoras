@@ -21,6 +21,7 @@ import asyncio
 import sys
 
 from agoras.core.interfaces import SocialNetwork
+from agoras.core.text_limits import validate_text
 
 from .api import FacebookAPI
 
@@ -272,6 +273,8 @@ class Facebook(SocialNetwork):
         if not source_media and not status_text and not status_link:
             raise Exception("No status text, link, or images provided.")
 
+        validate_text("facebook", "message", status_text or "")
+
         # Handle posting differently for pages vs profiles
         is_page_target = getattr(self, "_is_page_target", False)
 
@@ -469,6 +472,8 @@ class Facebook(SocialNetwork):
             raise Exception("Video URL is required.")
         if not self.facebook_object_id:
             raise Exception("Facebook object ID is required.")
+
+        validate_text("facebook", "message", status_text)
 
         # Get video type from config
         video_type = self._get_config_value("facebook_video_type", "FACEBOOK_VIDEO_TYPE") or ""

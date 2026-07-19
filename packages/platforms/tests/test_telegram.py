@@ -172,3 +172,35 @@ def test_telegram_auth_class_exists():
 def test_telegram_client_class_exists():
     """Test TelegramAPIClient class exists."""
     assert TelegramAPIClient is not None
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.telegram.wrapper.TelegramAPI")
+async def test_telegram_text_vs_caption_limits(mock_api_class):
+    """AE4: length 2000 text-only allowed; same string as photo caption rejected."""
+    from agoras.core.text_limits import TextValidationError
+
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.send_message = AsyncMock(return_value="message-ok")
+    mock_api.send_photo = AsyncMock(return_value="photo-ok")
+    mock_api_class.return_value = mock_api
+
+    telegram = Telegram(telegram_bot_token="token", telegram_chat_id="123")
+    await telegram._initialize_client()
+
+    body = "A" * 2000
+
+    with patch.object(telegram, "_output_status"):
+        result = await telegram.post(body, "")
+    assert result == "message-ok"
+    mock_api.send_message.assert_called_once()
+
+    with patch.object(telegram, "download_images", new_callable=AsyncMock) as mock_download:
+        with pytest.raises(TextValidationError) as exc_info:
+            await telegram.post(body, "", status_image_url_1="http://example.com/img.jpg")
+
+    assert exc_info.value.platform == "telegram"
+    assert exc_info.value.field == "caption"
+    mock_download.assert_not_called()
+    mock_api.send_photo.assert_not_called()

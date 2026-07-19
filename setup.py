@@ -66,7 +66,7 @@ setup(
         'google-auth==2.56.0',
         'python-dateutil==2.9.0.post0',
         # From agoras-platforms
-        'tweepy==4.16.0',
+        'tweepy==4.17.0',
         'python-facebook-api==0.24.0',
         'linkedin-api-client==0.3.0',
         'discord.py==2.7.1',

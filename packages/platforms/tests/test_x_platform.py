@@ -612,15 +612,14 @@ async def test_x_video_invalid_mime(mock_api_class):
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.x.wrapper.XAPI')
-async def test_x_video_truncates_over_280(mock_api_class):
-    """Test X video truncates text over 280 characters."""
+async def test_x_video_rejects_over_280(mock_api_class):
+    """Test X video rejects text over free-tier 280 weighted characters."""
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
     mock_api.upload_media = AsyncMock(return_value='media123')
     mock_api.post = AsyncMock(return_value='tweet-456')
     mock_api_class.return_value = mock_api
 
-    # Mock video download
     mock_video = MagicMock()
     mock_video.content = b'fake_video_data'
     mock_video.file_type.mime = 'video/mp4'
@@ -633,23 +632,79 @@ async def test_x_video_truncates_over_280(mock_api_class):
         twitter_oauth_token='token',
         twitter_oauth_secret='secret'
     )
+    x._subscription_type = None  # fail closed to free
 
     await x._initialize_client()
 
-    # Create text longer than 280 chars
     long_text = 'A' * 300
     long_title = 'B' * 50
 
+    from agoras.core.text_limits import TextValidationError
+
     with patch.object(x, 'download_video', return_value=mock_video), \
-         patch.object(x, '_output_status'):
-        result = await x.video(long_text, 'video.mp4', long_title)
+         patch.object(x, '_output_status'), \
+         patch.object(x, '_load_subscription_type', return_value=None):
+        x._subscription_type = None
+        with pytest.raises(TextValidationError):
+            await x.video(long_text, 'video.mp4', long_title)
 
-    # Check that post was called with truncated text
-    call_args = mock_api.post.call_args
-    posted_text = call_args[0][0]  # First positional argument
-    assert len(posted_text) <= 283  # 280 + 3 for '...'
-    assert posted_text.endswith('...')
+    mock_api.upload_media.assert_not_called()
+    mock_api.post.assert_not_called()
+    mock_video.cleanup.assert_not_called()
 
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_post_rejects_over_limit_before_api(mock_api_class):
+    """Test X post rejects oversized text before create_tweet."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.post = AsyncMock(return_value='tweet-1')
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret',
+    )
+    await x._initialize_client()
+    x._subscription_type = None
+
+    from agoras.core.text_limits import TextValidationError
+
+    with patch.object(x, '_output_status'), patch.object(x, '_load_subscription_type', return_value=None):
+        x._subscription_type = None
+        with pytest.raises(TextValidationError):
+            await x.post('A' * 281, '')
+
+    mock_api.post.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_post_allows_premium_long_text(mock_api_class):
+    """Premium stored tier allows long posts through validation."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.post = AsyncMock(return_value='tweet-1')
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret',
+    )
+    await x._initialize_client()
+    x._subscription_type = 'Premium'
+
+    with patch.object(x, '_output_status'):
+        result = await x.post('A' * 1000, '')
+
+    assert result == 'tweet-1'
+    mock_api.post.assert_called_once()
+    assert len(mock_api.post.call_args[0][0]) == 1000
 
 @pytest.mark.asyncio
 async def test_x_handle_like_action_no_tweet_id():

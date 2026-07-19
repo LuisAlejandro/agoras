@@ -21,6 +21,7 @@ import asyncio
 from typing import List
 
 from agoras.core.interfaces import SocialNetwork
+from agoras.core.text_limits import validate_text
 
 from .api import TelegramAPI
 from .auth import normalize_chat_id
@@ -148,6 +149,7 @@ class Telegram(SocialNetwork):
         )
 
         if image_urls:
+            validate_text("telegram", "caption", message_text or "", mode="caption")
             # For multiple images, create a media group
             if len(image_urls) > 1:
                 message_id = await self._send_media_group(image_urls, message_text)
@@ -169,6 +171,7 @@ class Telegram(SocialNetwork):
                     for image in images:
                         image.cleanup()
         else:
+            validate_text("telegram", "text", message_text or "", mode="text")
             # Text-only message
             message_id = await self.api.send_message(
                 chat_id=self._require_chat_id(), text=message_text, parse_mode=self.telegram_parse_mode
@@ -243,6 +246,7 @@ class Telegram(SocialNetwork):
 
         # Use status_text or video_title as caption
         caption = status_text or video_title or ""
+        validate_text("telegram", "caption", caption, mode="caption")
 
         # Download and validate video using Media system
         video = await self.download_video(video_url)
