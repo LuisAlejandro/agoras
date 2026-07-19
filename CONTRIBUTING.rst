@@ -466,8 +466,7 @@ botched release. Contributors do not need to publish packages or push release ta
 Tips
 ----
 
-To run a subset of tests::
+To run a subset of tests for one package::
 
-
-    $ python -m unittest tests.test_core_logger
-    $ python -m unittest tests.test_core_utils
+    $ pytest packages/common/tests/ -q
+    $ pytest packages/cli/tests/test_integration.py -v

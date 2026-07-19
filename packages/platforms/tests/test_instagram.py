@@ -635,6 +635,36 @@ async def test_instagram_main_async_execute_action(mock_instagram_class):
     mock_instagram.disconnect.assert_called_once()
 
 
+@pytest.mark.asyncio
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
+async def test_instagram_post_rejects_caption_over_limit(mock_auth_manager_class, mock_api_class):
+    """AE3: Instagram caption length 2201 rejects before Graph create/download."""
+    from agoras.core.text_limits import TextValidationError
+
+    configure_instagram_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.create_media = AsyncMock()
+    mock_api.create_carousel = AsyncMock()
+    mock_api.publish_media = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    instagram = Instagram(**INSTAGRAM_KWARGS)
+    await instagram._initialize_client()
+
+    oversize = "A" * 2201
+    with patch.object(instagram, "download_images", new_callable=AsyncMock) as mock_download:
+        with pytest.raises(TextValidationError) as exc_info:
+            await instagram.post(oversize, "", status_image_url_1=SAMPLE_IMAGE_URL)
+
+    assert exc_info.value.platform == "instagram"
+    assert exc_info.value.field == "caption"
+    mock_download.assert_not_called()
+    mock_api.create_media.assert_not_called()
+    mock_api.publish_media.assert_not_called()
+
+
 # Instagram API Tests
 
 

@@ -165,6 +165,27 @@ class XAPIClient:
 
         return await asyncio.to_thread(_sync_get_info)
 
+    async def get_subscription_type(self) -> Optional[str]:
+        """
+        Fetch authenticated user subscription_type via API v2.
+
+        Returns:
+            str | None: Basic, Premium, PremiumPlus, None, or None if unavailable
+        """
+        if not self.client_v2:
+            raise Exception("X v2 client not initialized")
+
+        def _sync_get_subscription():
+            if not self.client_v2:
+                raise Exception("X v2 client not initialized")
+            response = self.client_v2.get_me(user_fields=["subscription_type"])
+            data = getattr(response, "data", None)
+            if data is None:
+                return None
+            return getattr(data, "subscription_type", None)
+
+        return await asyncio.to_thread(_sync_get_subscription)
+
     async def upload_media(self, media_content: bytes, media_type: str) -> str:
         """
         Upload media using v1.1 API.

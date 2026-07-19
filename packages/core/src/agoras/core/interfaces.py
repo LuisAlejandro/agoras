@@ -22,6 +22,7 @@ Core interfaces and shared social network abstractions for Agoras.
 import datetime
 import json
 import os
+import sys
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -249,7 +250,10 @@ class SocialNetwork(ABC):
             status_image = item.image_url
 
             count += 1
-            await self.post(status_title, status_link, status_image)
+            try:
+                await self.post(status_title, status_link, status_image)
+            except Exception as exc:
+                print(f"Feed item failed ({count}): {exc}", file=sys.stderr)
 
     async def random_from_feed(self, feed_url, max_post_age):
         """
@@ -287,19 +291,25 @@ class SocialNetwork(ABC):
             google_sheets_id, google_sheets_name, google_sheets_client_email, google_sheets_private_key
         )
 
-        # Process scheduled posts
+        # Process scheduled posts (selection only — not marked published yet)
         posts_to_create = await sheet.process_scheduled_posts(max_count)
 
-        # Create posts asynchronously
-        for post_data in posts_to_create:
-            await self.post(
-                post_data["status_text"],
-                post_data["status_link"],
-                post_data["status_image_url_1"],
-                post_data["status_image_url_2"],
-                post_data["status_image_url_3"],
-                post_data["status_image_url_4"],
-            )
+        # Create posts asynchronously; mark published only after success
+        for index, post_data in enumerate(posts_to_create, start=1):
+            try:
+                await self.post(
+                    post_data["status_text"],
+                    post_data["status_link"],
+                    post_data["status_image_url_1"],
+                    post_data["status_image_url_2"],
+                    post_data["status_image_url_3"],
+                    post_data["status_image_url_4"],
+                )
+                sheet_row = post_data.get("_sheet_row")
+                if sheet_row is not None:
+                    await sheet.mark_as_published(sheet_row)
+            except Exception as exc:
+                print(f"Scheduled item failed ({index}): {exc}", file=sys.stderr)
 
     def _output_status(self, post_id):
         """

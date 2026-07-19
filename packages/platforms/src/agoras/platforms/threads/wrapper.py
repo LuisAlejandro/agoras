@@ -20,6 +20,7 @@
 import asyncio
 
 from agoras.core.interfaces import SocialNetwork
+from agoras.core.text_limits import validate_text
 
 from .api import ThreadsAPI
 
@@ -139,6 +140,7 @@ class Threads(SocialNetwork):
 
         # Combine text and link
         post_text = f"{status_text} {status_link}".strip()
+        validate_text("threads", "text", post_text)
 
         # Collect media files
         files = list(filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4]))
@@ -261,6 +263,7 @@ class Threads(SocialNetwork):
             raise Exception("Threads video URL is required.")
 
         post_text = status_text or video_title or ""
+        validate_text("threads", "text", post_text)
 
         post_id = await self.api.create_video_post(
             post_text, video_url, who_can_reply=self.threads_who_can_reply or "everyone"
