@@ -614,10 +614,13 @@ async def test_x_video_invalid_mime(mock_api_class):
 @patch('agoras.platforms.x.wrapper.XAPI')
 async def test_x_video_rejects_over_280(mock_api_class):
     """Test X video rejects text over free-tier 280 weighted characters."""
+    from agoras.core.text_limits import TextValidationError
+
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
+    mock_api.user_info = None
     mock_api.upload_media = AsyncMock(return_value='media123')
-    mock_api.post = AsyncMock(return_value='tweet-456')
+    mock_api.post = AsyncMock(side_effect=TextValidationError('twitter', 'text', 400, 280, 'weighted_x'))
     mock_api_class.return_value = mock_api
 
     mock_video = MagicMock()
@@ -651,6 +654,69 @@ async def test_x_video_rejects_over_280(mock_api_class):
     mock_api.upload_media.assert_not_called()
     mock_api.post.assert_not_called()
     mock_video.cleanup.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_thread_reply_chain(mock_api_class):
+    """Test X.thread publishes ordered reply chain and returns ThreadResult."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.user_info = None
+    mock_api.post = AsyncMock(side_effect=['id1', 'id2', 'id3'])
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret'
+    )
+    await x._initialize_client()
+
+    entries = [
+        {'text': 'one'},
+        {'text': 'two'},
+        {'text': 'three'},
+    ]
+    result = await x.thread(entries)
+
+    assert result.complete is True
+    assert result.ids == ['id1', 'id2', 'id3']
+    assert mock_api.post.call_count == 3
+    assert mock_api.post.call_args_list[0].kwargs.get('in_reply_to_tweet_id') is None
+    assert mock_api.post.call_args_list[1].kwargs.get('in_reply_to_tweet_id') == 'id1'
+    assert mock_api.post.call_args_list[2].kwargs.get('in_reply_to_tweet_id') == 'id2'
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_thread_partial_on_api_failure(mock_api_class):
+    """Test X.thread stops on failure and raises ThreadPublishError."""
+    from agoras.core.threading import ThreadPublishError
+
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.user_info = None
+    mock_api.post = AsyncMock(side_effect=['id1', Exception('API rejected')])
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret'
+    )
+    await x._initialize_client()
+
+    with pytest.raises(ThreadPublishError) as exc_info:
+        await x.thread([{'text': 'one'}, {'text': 'two'}, {'text': 'three'}])
+
+    assert exc_info.value.result.complete is False
+    assert exc_info.value.result.ids == ['id1']
+    assert exc_info.value.result.failed_index == 1
+    assert exc_info.value.result.outcome == 'failed'
+    assert mock_api.post.call_count == 2
 
 
 @pytest.mark.asyncio

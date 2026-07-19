@@ -25,7 +25,7 @@ from argparse import ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.linkedin.wrapper import main as linkedin_main
 
-from ..base import add_common_content_options, add_video_options
+from ..base import add_common_content_options, add_video_options, prepare_content_args
 from ..converter import ParameterConverter
 from ..validator import ActionValidator
 
@@ -130,6 +130,7 @@ def _handle_linkedin_command(args: Namespace):
     """
     # Validate action
     ActionValidator.validate("linkedin", args.action)
+    prepare_content_args(args, "linkedin")
 
     # Convert new args to legacy format
     converter = ParameterConverter("linkedin")

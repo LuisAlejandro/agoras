@@ -562,3 +562,63 @@ def test_discord_client_create_embed_minimal():
         assert result is mock_embed
         # Verify embed was created (no title/description set when not provided)
         mock_embed_class.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_discord_client_create_public_thread():
+    """Test create_public_thread uses message starter and public type."""
+    client = DiscordAPIClient('bot_token', 'server_name', 'channel_name')
+    client._authenticated = True
+    client.client = MagicMock()
+
+    mock_channel = MagicMock()
+    mock_message = MagicMock()
+    mock_thread = MagicMock()
+    mock_thread.id = 999
+    mock_channel.fetch_message = AsyncMock(return_value=mock_message)
+    mock_channel.create_thread = AsyncMock(return_value=mock_thread)
+
+    with patch.object(client, '_get_channel', return_value=mock_channel):
+        result = await client.create_public_thread('111', 'My Thread', auto_archive_duration=1440)
+
+    assert result == '999'
+    kwargs = mock_channel.create_thread.call_args.kwargs
+    assert kwargs['name'] == 'My Thread'
+    assert kwargs['message'] is mock_message
+    assert kwargs['auto_archive_duration'] == 1440
+
+
+@pytest.mark.asyncio
+async def test_discord_client_send_message_to_thread():
+    """Test send_message_to_thread targets thread without mutating channel_name."""
+    client = DiscordAPIClient('bot_token', 'server_name', 'channel_name')
+    client._authenticated = True
+    client.client = MagicMock()
+
+    mock_thread = MagicMock()
+    mock_message = MagicMock()
+    mock_message.id = 222
+    mock_thread.send = AsyncMock(return_value=mock_message)
+    client.client.get_channel.return_value = mock_thread
+
+    result = await client.send_message_to_thread('888', content='hello')
+
+    assert result == '222'
+    assert client.channel_name == 'channel_name'
+    mock_thread.send.assert_called_once_with(content='hello')
+
+
+@pytest.mark.asyncio
+async def test_discord_client_create_public_thread_permission_error():
+    """Test create_public_thread surfaces permission failures."""
+    client = DiscordAPIClient('bot_token', 'server_name', 'channel_name')
+    client._authenticated = True
+    client.client = MagicMock()
+
+    mock_channel = MagicMock()
+    mock_channel.fetch_message = AsyncMock(return_value=MagicMock())
+    mock_channel.create_thread = AsyncMock(side_effect=Exception('Missing Permissions'))
+
+    with patch.object(client, '_get_channel', return_value=mock_channel):
+        with pytest.raises(Exception, match='create public thread failed'):
+            await client.create_public_thread('111', 'Nope')

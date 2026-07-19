@@ -21,11 +21,12 @@ Facebook platform CLI parser.
 This module provides the Facebook command parser for the new CLI structure.
 """
 
-from argparse import ArgumentParser, Namespace, _SubParsersAction
+from argparse import SUPPRESS, ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.facebook.wrapper import main as facebook_main
 
-from ..base import add_common_content_options
+from ..base import add_common_content_options, prepare_content_args
+from ..content import add_content_file_option
 from ..converter import ParameterConverter
 from ..media_help import video_url_help
 from ..validator import ActionValidator
@@ -67,7 +68,7 @@ def create_facebook_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     )
     _add_facebook_action_options(video, object_id_required=False)
     _add_video_options(video)
-    add_common_content_options(video, images=0)
+    add_common_content_options(video, images=0, with_content_file=False)
 
     # Like action
     like = actions.add_parser(
@@ -134,14 +135,19 @@ def _add_video_options(parser: ArgumentParser):
     """
     Add video-specific options for Facebook.
 
+    Content fields use SUPPRESS so --content can supply them without argparse
+    requiredness or XOR conflicts.
+
     Args:
         parser: ArgumentParser to add options to
     """
+    add_content_file_option(parser)
+
     video = parser.add_argument_group("Video Options")
-    video.add_argument("--video-url", required=True, metavar="<url>", help=video_url_help("facebook"))
-    video.add_argument("--video-title", metavar="<title>", help="Video title")
-    video.add_argument("--video-description", metavar="<description>", help="Video description")
-    video.add_argument("--video-type", metavar="<type>", help="Video type")
+    video.add_argument("--video-url", default=SUPPRESS, metavar="<url>", help=video_url_help("facebook"))
+    video.add_argument("--video-title", default=SUPPRESS, metavar="<title>", help="Video title")
+    video.add_argument("--video-description", default=SUPPRESS, metavar="<description>", help="Video description")
+    video.add_argument("--video-type", default=SUPPRESS, metavar="<type>", help="Video type")
 
 
 def _add_post_id_option(parser: ArgumentParser):
@@ -176,6 +182,7 @@ def _handle_facebook_command(args: Namespace):
     """
     # Validate action
     ActionValidator.validate("facebook", args.action)
+    prepare_content_args(args, "facebook")
 
     # Convert new args to legacy format
     converter = ParameterConverter("facebook")

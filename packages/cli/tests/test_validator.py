@@ -91,6 +91,6 @@ def test_get_supported_actions():
     """Test getting supported actions for a platform."""
     actions = ActionValidator.get_supported_actions('twitter')
 
-    assert 'post' in actions
-    assert 'video' in actions
-    assert len(actions) == 6
+    assert set(actions) == {
+        'authorize', 'post', 'video', 'like', 'share', 'delete', 'thread',
+    }

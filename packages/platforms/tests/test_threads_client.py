@@ -287,6 +287,79 @@ def test_threads_client_create_video_post_no_url():
         client.create_video_post('caption', '')
 
 
+@patch('agoras.platforms.threads.client.time.sleep')
+@patch('agoras.platforms.threads.client.requests.post')
+def test_threads_client_create_post_reply_to_id(mock_requests_post, mock_sleep):
+    """Test create_post includes reply_to_id in container payload."""
+    mock_container = MagicMock()
+    mock_container.status_code = 200
+    mock_container.json.return_value = {'id': 'container-1'}
+    mock_container.text = '{"id": "container-1"}'
+
+    mock_publish = MagicMock()
+    mock_publish.status_code = 200
+    mock_publish.json.return_value = {'id': 'published-9'}
+    mock_publish.text = '{"id": "published-9"}'
+    mock_requests_post.side_effect = [mock_container, mock_publish]
+
+    client = ThreadsAPIClient('access_token', 'user_id')
+    result = client.create_post('Reply body', reply_to_id='parent-published')
+
+    assert result == {'id': 'published-9'}
+    container_data = mock_requests_post.call_args_list[0][1]['data']
+    assert container_data['reply_to_id'] == 'parent-published'
+    # Publish response id is returned, not container id
+    assert result['id'] != 'container-1'
+
+
+@patch('agoras.platforms.threads.client.time.monotonic')
+@patch('agoras.platforms.threads.client.time.sleep')
+@patch('agoras.platforms.threads.client.requests.get')
+@patch('agoras.platforms.threads.client.requests.post')
+def test_threads_client_video_poll_timeout(mock_post, mock_get, mock_sleep, mock_monotonic):
+    """Test create_video_post raises uncertain timeout when poll budget expires."""
+    from agoras.platforms.threads.client import ThreadsContainerTimeoutError
+
+    mock_container = MagicMock()
+    mock_container.status_code = 200
+    mock_container.json.return_value = {'id': 'c1'}
+    mock_container.text = '{"id": "c1"}'
+    mock_post.return_value = mock_container
+
+    mock_status = MagicMock()
+    mock_status.status_code = 200
+    mock_status.json.return_value = {'status': 'IN_PROGRESS'}
+    mock_get.return_value = mock_status
+
+    # First call starts the clock; subsequent calls exceed max wait
+    mock_monotonic.side_effect = [0, 301]
+
+    client = ThreadsAPIClient('access_token', 'user_id')
+    with pytest.raises(ThreadsContainerTimeoutError, match='not ready after'):
+        client.create_video_post('caption', 'http://video.mp4')
+
+
+@patch('agoras.platforms.threads.client.time.sleep')
+@patch('agoras.platforms.threads.client.requests.get')
+@patch('agoras.platforms.threads.client.requests.post')
+def test_threads_client_video_poll_error_status(mock_post, mock_get, mock_sleep):
+    """Test create_video_post treats ERROR status as confirmed failure."""
+    mock_container = MagicMock()
+    mock_container.status_code = 200
+    mock_container.json.return_value = {'id': 'c1'}
+    mock_container.text = '{"id": "c1"}'
+    mock_post.return_value = mock_container
+
+    mock_status = MagicMock()
+    mock_status.status_code = 200
+    mock_status.json.return_value = {'status': 'ERROR'}
+    mock_get.return_value = mock_status
+
+    client = ThreadsAPIClient('access_token', 'user_id')
+    with pytest.raises(Exception, match='processing failed'):
+        client.create_video_post('caption', 'http://video.mp4')
+
+
 # Repost Post Tests
 
 

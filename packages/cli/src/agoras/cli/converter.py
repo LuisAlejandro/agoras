@@ -113,6 +113,8 @@ class ParameterConverter:
             "allow_duet": "tiktok_allow_duet",
             "allow_stitch": "tiktok_allow_stitch",
             "auto_add_music": "tiktok_auto_add_music",
+            "brand_organic": "tiktok_brand_organic",
+            "brand_content": "tiktok_brand_content",
             "description": "tiktok_description",
         },
         "threads": {
@@ -121,6 +123,7 @@ class ParameterConverter:
             "post_id": "threads_post_id",
             "video_url": "threads_video_url",
             "video_title": "threads_video_title",
+            "who_can_reply": "threads_who_can_reply",
         },
         "telegram": {
             "bot_token": "telegram_bot_token",
@@ -194,12 +197,19 @@ class ParameterConverter:
         }
 
         # Convert platform-specific parameters
+        skip_params = {
+            "command",
+            "content",
+            "help",
+        }
         for new_param, value in vars(args).items():
+            if new_param in skip_params:
+                continue
             # Skip None values
             if value is None:
                 continue
 
-            # Skip empty strings (edge case handling)
+            # Preserve explicit False / 0; only skip blank strings
             if isinstance(value, str) and value.strip() == "":
                 continue
 
@@ -211,7 +221,7 @@ class ParameterConverter:
             elif new_param in self.COMMON_MAPPINGS:
                 legacy_param = self.COMMON_MAPPINGS[new_param]
                 legacy_args[legacy_param] = value
-            # Pass through unchanged
+            # Pass through unchanged (entries, embeds, provenance, …)
             else:
                 legacy_args[new_param] = value
 

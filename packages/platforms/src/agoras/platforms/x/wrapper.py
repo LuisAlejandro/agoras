@@ -19,11 +19,54 @@
 
 import asyncio
 import sys
+from typing import Any, Dict, List, Optional
 
 from agoras.core.interfaces import SocialNetwork
 from agoras.core.text_limits import validate_text, x_mode_for_subscription
+from agoras.core.threading import (
+    ThreadPublishError,
+    ThreadResult,
+    partial_result,
+    success_result,
+)
 
 from .api import XAPI
+
+
+def _entry_images(entry: Dict[str, Any]) -> List[str]:
+    """Collect flattened image_1..image_4 URLs from a thread entry."""
+    return list(
+        filter(
+            None,
+            [
+                entry.get("image_1"),
+                entry.get("image_2"),
+                entry.get("image_3"),
+                entry.get("image_4"),
+            ],
+        )
+    )
+
+
+def _compose_tweet_text(entry: Dict[str, Any]) -> str:
+    """Build tweet text from entry text, link, and optional video_title."""
+    text = entry.get("text") or ""
+    link = entry.get("link") or ""
+    video_title = entry.get("video_title") or ""
+    video_url = entry.get("video_url")
+    if video_url and video_title and not text:
+        text = video_title
+    elif video_url and video_title and text:
+        text = f"{video_title} - {text}"
+    return f"{text} {link}".strip()
+
+
+def _is_uncertain_publish_error(exc: BaseException) -> bool:
+    """Classify timeout/uncertain errors after a publish dispatch."""
+    if isinstance(exc, (TimeoutError, asyncio.TimeoutError)):
+        return True
+    message = str(exc).lower()
+    return any(token in message for token in ("timeout", "timed out", "temporarily unavailable"))
 
 
 class X(SocialNetwork):
@@ -370,6 +413,121 @@ class X(SocialNetwork):
         self._output_status(tweet_id)
         return tweet_id
 
+    def _x_text_mode(self) -> str:
+        """Resolve free|premium mode from API user info when available."""
+        subscription = None
+        if self.api and isinstance(self.api.user_info, dict):
+            subscription = self.api.user_info.get("subscription_type") or self.api.user_info.get("subscription_type_v2")
+        return x_mode_for_subscription(subscription)
+
+    def _validate_tweet_text(self, text: str) -> None:
+        """Reject over-limit tweet text using weighted X limits."""
+        validate_text("twitter", "text", text, mode=self._x_text_mode())
+
+    async def _upload_entry_media(self, entry: Dict[str, Any]) -> List[str]:
+        """Upload images or video for one thread entry; return media IDs."""
+        if not self.api:
+            raise Exception("X API not initialized")
+
+        media_ids: List[str] = []
+        images = _entry_images(entry)
+        video_url = entry.get("video_url")
+        if images and video_url:
+            raise Exception("Images and video_url are mutually exclusive in a thread entry.")
+
+        if images:
+            for media_url in images:
+                try:
+                    downloaded = await self.download_images([media_url])
+                    if not downloaded:
+                        raise Exception(f"Failed to download image: {media_url}")
+                    media_obj = downloaded[0]
+                except Exception:
+                    media_obj = await self.download_video(media_url)
+
+                try:
+                    if media_obj.content and media_obj.file_type:
+                        media_id = await self.api.upload_media(media_obj.content, media_obj.file_type.mime)
+                        if media_id:
+                            media_ids.append(media_id)
+                finally:
+                    media_obj.cleanup()
+
+        if video_url:
+            video = await self.download_video(video_url)
+            try:
+                if not video.content or not video.file_type:
+                    raise Exception("Failed to download or validate video")
+                media_id = await self.api.upload_media(video.content, video.file_type.mime)
+                if media_id:
+                    media_ids.append(media_id)
+            finally:
+                video.cleanup()
+
+        return media_ids
+
+    async def thread(self, entries, **kwargs) -> ThreadResult:
+        """
+        Publish an ordered reply-chain thread on X.
+
+        Args:
+            entries: Ordered entry mappings (text/link/images/video)
+            **kwargs: Unused platform options
+
+        Returns:
+            ThreadResult: Structured success result
+
+        Raises:
+            ThreadPublishError: On partial or failed publish with structured result
+        """
+        del kwargs  # X reply chains do not use Discord/Threads-specific options
+        if not self.api:
+            raise Exception("X API not initialized")
+
+        if not entries or not isinstance(entries, list):
+            raise Exception("Thread entries are required.")
+
+        prepared: List[Dict[str, Any]] = []
+        for entry in entries:
+            if not isinstance(entry, dict):
+                raise Exception("Each thread entry must be a mapping.")
+            images = _entry_images(entry)
+            video_url = entry.get("video_url")
+            if images and video_url:
+                raise Exception("Images and video_url are mutually exclusive in a thread entry.")
+            tweet_text = _compose_tweet_text(entry)
+            if not tweet_text and not images and not video_url:
+                raise Exception("Thread entry requires text, link, images, or video_url.")
+            if tweet_text:
+                self._validate_tweet_text(tweet_text)
+            prepared.append({"text": tweet_text, "entry": entry})
+
+        ids: List[str] = []
+        previous_id: Optional[str] = None
+        for index, item in enumerate(prepared):
+            try:
+                media_ids = await self._upload_entry_media(item["entry"])
+                tweet_id = await self.api.post(
+                    item["text"],
+                    media_ids or None,
+                    in_reply_to_tweet_id=previous_id,
+                    validate=False,  # already validated above
+                )
+            except Exception as exc:
+                outcome = "unknown" if _is_uncertain_publish_error(exc) else "failed"
+                result = partial_result(
+                    ids,
+                    failed_index=index,
+                    outcome=outcome,
+                    error=str(exc),
+                )
+                raise ThreadPublishError(result) from exc
+
+            ids.append(str(tweet_id))
+            previous_id = str(tweet_id)
+
+        return success_result(ids)
+
     # Override action handlers to use X-specific parameter names
     async def _handle_like_action(self):
         """Handle like action with X-specific parameter extraction."""
@@ -424,9 +582,10 @@ async def main_async(kwargs):
         success = await instance.authorize_credentials()
         return 0 if success else 1
 
-    # Execute other actions using the base class method
-    await instance.execute_action(action)
-    await instance.disconnect()
+    try:
+        await instance.execute_action(action)
+    finally:
+        await instance.disconnect()
 
 
 def main(kwargs):

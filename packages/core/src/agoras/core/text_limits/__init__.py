@@ -95,6 +95,7 @@ TEXT_LIMITS: Tuple[TextFieldLimit, ...] = (
     TextFieldLimit("discord", "embed_title", 256, "chars"),
     TextFieldLimit("discord", "embed_description", 4096, "chars"),
     TextFieldLimit("discord", "embed_total", 6000, "chars"),
+    TextFieldLimit("discord", "thread_name", 100, "chars"),
     TextFieldLimit("whatsapp", "text", 4096, "chars", mode="text"),
     TextFieldLimit("whatsapp", "caption", 1024, "chars", mode="caption"),
 )

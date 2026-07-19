@@ -29,6 +29,7 @@ Available Actions
 * ``authorize`` - Set up bot authentication (required first step)
 * ``post`` - Send text messages with links and images (up to 4 images)
 * ``video`` - Upload and send video files
+* ``thread`` - Create a public text-channel thread from a YAML content file
 * ``delete`` - Delete messages
 
 Authorization
@@ -78,6 +79,28 @@ Parameters:
 
 .. deprecated:: 2.0
    The ``agoras publish --network "discord"`` command is deprecated. Use ``agoras discord post`` instead.
+
+Publish a Discord thread
+------------------------
+
+.. versionadded:: 2.2
+
+``thread`` is YAML-only. Agoras posts the first entry in the configured text
+channel, creates a public thread named ``thread_name``, then sends remaining
+entries into that thread. See :doc:`content-files`.
+
+Example::
+
+    agoras discord thread --content discord-thread.yaml
+
+``discord-thread.yaml``::
+
+    version: 1
+    thread_name: Release discussion
+    auto_archive_duration: 1440
+    entries:
+      - text: Starter message
+      - text: Follow-up in the thread
 
 Publish a Discord video
 -----------------------

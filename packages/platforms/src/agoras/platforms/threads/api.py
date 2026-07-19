@@ -222,6 +222,7 @@ class ThreadsAPI(BaseAPI):
         files: Optional[List[str]] = None,
         file_captions: Optional[List[str]] = None,
         who_can_reply: str = "everyone",
+        reply_to_id: Optional[str] = None,
     ) -> str:
         """
         Create a post on Threads.
@@ -231,9 +232,10 @@ class ThreadsAPI(BaseAPI):
             files (list, optional): List of file URLs to attach
             file_captions (list, optional): Captions for files (must align with files array)
             who_can_reply (str): Who can reply to this post
+            reply_to_id (str, optional): Published media ID to reply to
 
         Returns:
-            str: Post ID
+            str: Published post ID
 
         Raises:
             Exception: If post creation fails
@@ -268,12 +270,13 @@ class ThreadsAPI(BaseAPI):
                 files=validated_files if validated_files else None,
                 file_captions=validated_captions if validated_captions else None,
                 who_can_reply=who_can_reply,
+                reply_to_id=reply_to_id,
             )
 
         try:
             response = await asyncio.to_thread(_sync_create_post)
 
-            # Extract post ID from response
+            # Extract published media ID from response (never container id)
             post_id = response.get("id") or response.get("post_id") or str(response)
             return post_id
         except Exception as e:
@@ -287,7 +290,13 @@ class ThreadsAPI(BaseAPI):
                 except Exception:
                     pass
 
-    async def create_video_post(self, post_text: str, video_url: str, who_can_reply: str = "everyone") -> str:
+    async def create_video_post(
+        self,
+        post_text: str,
+        video_url: str,
+        who_can_reply: str = "everyone",
+        reply_to_id: Optional[str] = None,
+    ) -> str:
         """
         Create a video post on Threads.
 
@@ -295,9 +304,10 @@ class ThreadsAPI(BaseAPI):
             post_text (str): Text content / caption for the video
             video_url (str): Publicly accessible URL of the video
             who_can_reply (str): Who can reply to this post
+            reply_to_id (str, optional): Published media ID to reply to
 
         Returns:
-            str: Post ID
+            str: Published post ID
 
         Raises:
             Exception: If video post creation fails
@@ -339,7 +349,10 @@ class ThreadsAPI(BaseAPI):
                 if not self.client:
                     raise Exception("Threads client not available")
                 return self.client.create_video_post(
-                    post_text=post_text, video_url=video_url, who_can_reply=who_can_reply
+                    post_text=post_text,
+                    video_url=video_url,
+                    who_can_reply=who_can_reply,
+                    reply_to_id=reply_to_id,
                 )
 
             response = await asyncio.to_thread(_sync_create_video_post)

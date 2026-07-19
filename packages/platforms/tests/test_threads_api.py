@@ -149,7 +149,8 @@ async def test_threads_api_create_video_post(mock_media_factory, threads_api):
     threads_api.client.create_video_post.assert_called_once_with(
         post_text='Video caption',
         video_url='http://video.mp4',
-        who_can_reply='everyone'
+        who_can_reply='everyone',
+        reply_to_id=None,
     )
     mock_video.cleanup.assert_called_once()
 
