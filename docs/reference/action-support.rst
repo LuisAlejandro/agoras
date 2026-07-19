@@ -8,11 +8,12 @@ Complete Support Matrix
 
 .. list-table::
    :header-rows: 1
-   :widths: 16 8 8 8 8 8 8 8
+   :widths: 14 7 7 7 7 7 7 7 8
 
    * - Platform
      - post
      - video
+     - thread
      - like
      - share
      - delete
@@ -21,6 +22,7 @@ Complete Support Matrix
    * - X
      - ✓
      - ✓
+     - ✓ [4]
      - ✓
      - ✓
      - ✓
@@ -29,6 +31,7 @@ Complete Support Matrix
    * - Facebook
      - ✓
      - ✓
+     - ✗
      - ✓
      - ✓
      - ✓
@@ -41,10 +44,12 @@ Complete Support Matrix
      - ✗
      - ✗
      - ✗
+     - ✗
      - ✓
    * - LinkedIn
      - ✓
      - ✓
+     - ✗
      - ✓
      - ✓
      - ✓
@@ -53,6 +58,7 @@ Complete Support Matrix
    * - Discord
      - ✓
      - ✓
+     - ✓ [4]
      - ✗ [1]
      - ✗
      - ✓
@@ -61,6 +67,7 @@ Complete Support Matrix
    * - YouTube
      - ✗ [2]
      - ✓
+     - ✗
      - ✓
      - ✗
      - ✓
@@ -73,10 +80,12 @@ Complete Support Matrix
      - ✗
      - ✗
      - ✗
+     - ✗
      - ✓
    * - Threads
      - ✓
      - ✓
+     - ✓ [4]
      - ✗
      - ✓
      - ✓
@@ -87,12 +96,14 @@ Complete Support Matrix
      - ✓
      - ✗
      - ✗
+     - ✗
      - ✓
      - ✗
      - ✓
    * - WhatsApp
      - ✓
      - ✓
+     - ✗
      - ✗
      - ✗
      - ✗
@@ -107,6 +118,8 @@ Complete Support Matrix
 
 [3] TikTok ``post`` creates photo slideshow posts; ``video`` uploads video content.
 
+[4] ``thread`` is YAML-only via ``--content``. See :doc:`../content-files`.
+
 .. note::
    The deprecated ``twitter`` CLI alias exposes the same actions as ``x``.
 
@@ -118,7 +131,7 @@ Full-Featured Platforms
 
 These platforms support the full social action set (post, video, like, share, delete):
 
-* **X**: Complete social network features
+* **X**: Complete social network features (plus YAML ``thread``)
 * **Facebook**: Complete social network features
 * **LinkedIn**: Complete professional network features
 
@@ -134,8 +147,8 @@ Limited Action Platforms
 These platforms have specific API limitations:
 
 * **Instagram**: Post and video only (no like, share, or delete via API)
-* **Discord**: Bot-based messaging (post, video, delete; no traditional likes)
-* **Threads**: Post, video, share, and delete (no like via CLI)
+* **Discord**: Bot-based messaging (post, video, thread, delete; no traditional likes)
+* **Threads**: Post, video, thread, share, and delete (no like via CLI)
 * **Telegram**: Post, video, and delete (messaging platform)
 * **WhatsApp**: Post, video, and template messages (Business API)
 

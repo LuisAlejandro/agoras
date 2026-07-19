@@ -54,6 +54,24 @@ All platforms require ``agoras <platform> authorize`` (or equivalent environment
 
 See platform-specific credential guides for detailed setup instructions.
 
+YAML Content Files
+------------------
+
+.. versionadded:: 2.2
+
+Publish actions accept ``--content path.yaml`` as an alternative to inline
+content flags. The CLI action remains authoritative; the file must not declare
+platform or action. ``--content`` cannot be combined with ``--text``,
+``--video-url``, ``--image-*``, and other payload flags.
+
+Example::
+
+    agoras x post --content post.yaml
+    agoras x thread --content thread.yaml
+    agoras discord thread --content discord-thread.yaml
+
+See :doc:`content-files` for schemas, XOR rules, thread envelopes, and examples.
+
 Error Handling
 --------------
 
@@ -70,7 +88,7 @@ Agoras v2.0 provides clearer error messages and validation:
 
     $ agoras x invalid-action
     Error: Unknown action 'invalid-action' for platform 'x'.
-    Available actions: authorize, post, video, like, share, delete
+    Available actions: authorize, post, video, like, share, delete, thread
 
 Automatic Token Refresh
 -----------------------

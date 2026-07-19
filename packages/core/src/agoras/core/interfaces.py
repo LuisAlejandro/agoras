@@ -144,6 +144,23 @@ class SocialNetwork(ABC):
         """
         raise Exception(f"Video posting not supported for {self.__class__.__name__}")
 
+    async def thread(self, entries, **kwargs):
+        """
+        Publish an ordered multi-entry thread.
+
+        Default implementation raises not supported. Platforms that support
+        threads override this and return a ThreadResult without printing
+        intermediate single-post JSON lines.
+
+        Args:
+            entries (list): Ordered entry mappings (text/link/images/video fields)
+            **kwargs: Platform-specific options (e.g. thread_name for Discord)
+
+        Returns:
+            ThreadResult: Structured success or partial result
+        """
+        raise Exception(f"Thread publishing not supported for {self.__class__.__name__}")
+
     def get_platform_name(self):
         """
         Get the platform name for media handling.
@@ -325,15 +342,26 @@ class SocialNetwork(ABC):
         """
         Get configuration value from kwargs or environment.
 
-        Args:
-            key (str): Configuration key
-            env_key (str, optional): Environment variable key
-
-        Returns:
-            Configuration value or None
+        File-mode content (`_content_source=file`) never falls back to payload
+        environment variables for keys present in config (including explicit
+        False / empty / None). Inline mode preserves explicit False/0 and uses
+        environment fallback for missing or blank values. Auth keys without a
+        config entry still read from the environment.
         """
         env_key = env_key or key.upper()
-        return self.config.get(key) or os.environ.get(env_key)
+        file_mode = self.config.get("_content_source") == "file"
+
+        if key in self.config:
+            value = self.config[key]
+            if file_mode:
+                return value
+            if value is False or value == 0:
+                return value
+            if value is not None and value != "":
+                return value
+            # Blank / None in inline mode: fall through to environment
+
+        return os.environ.get(env_key)
 
     def _require_config_value(self, key, env_key=None) -> str:
         """
@@ -380,6 +408,8 @@ class SocialNetwork(ABC):
             await self._handle_delete_action()
         elif action == "video":
             await self._handle_video_action()
+        elif action == "thread":
+            await self._handle_thread_action()
         elif action == "last-from-feed":
             await self._handle_last_from_feed_action()
         elif action == "random-from-feed":
@@ -433,6 +463,32 @@ class SocialNetwork(ABC):
             raise Exception("Video URL is required for video action.")
 
         await self.video(status_text, video_url, video_title)
+
+    async def _handle_thread_action(self):
+        """Handle thread action: validate entries, publish, emit one result."""
+        from agoras.core.threading import ThreadPublishError, emit_thread_result
+
+        entries = self._get_config_value("entries")
+        if not entries or not isinstance(entries, list):
+            raise Exception("Thread entries are required for thread action.")
+
+        thread_name = self._get_config_value("thread_name")
+        auto_archive_duration = self._get_config_value("auto_archive_duration")
+        who_can_reply = self._get_config_value("threads_who_can_reply") or self._get_config_value("who_can_reply")
+
+        try:
+            result = await self.thread(
+                entries,
+                thread_name=thread_name,
+                auto_archive_duration=auto_archive_duration,
+                who_can_reply=who_can_reply,
+            )
+        except ThreadPublishError as exc:
+            emit_thread_result(exc.result)
+            raise
+        emit_thread_result(result)
+        if not result.complete:
+            raise ThreadPublishError(result)
 
     async def _handle_last_from_feed_action(self):
         """Handle last-from-feed action with common parameter extraction."""

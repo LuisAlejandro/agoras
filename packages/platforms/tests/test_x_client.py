@@ -303,6 +303,25 @@ class TestXAPIClient:
         with pytest.raises(Exception, match="X API error: API error"):
             await client.create_tweet("test")
 
+    @patch("asyncio.to_thread")
+    @pytest.mark.asyncio
+    async def test_x_client_create_tweet_with_reply_parent(self, mock_to_thread):
+        """Test create_tweet passes in_reply_to_tweet_id to Tweepy."""
+        mock_response = MagicMock()
+        mock_response.data = {"id": "tweet789"}
+        mock_to_thread.side_effect = lambda func: func()
+
+        client = XAPIClient("ck", "cs", "ot", "os")
+        client.client_v2 = MagicMock()
+        client.client_v2.create_tweet.return_value = mock_response
+
+        result = await client.create_tweet("Reply", in_reply_to_tweet_id="parent123")
+
+        assert result == "tweet789"
+        client.client_v2.create_tweet.assert_called_once_with(
+            text="Reply", in_reply_to_tweet_id="parent123"
+        )
+
     @pytest.mark.asyncio
     async def test_x_client_like_tweet_no_client(self):
         """Test like_tweet with no client_v2."""

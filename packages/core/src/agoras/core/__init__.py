@@ -40,6 +40,7 @@ from .text_limits import (
     validate_text,
     x_limit_for_subscription,
 )
+from .threading import ThreadPublishError, ThreadResult, emit_thread_result
 
 __all__ = [
     "SocialNetwork",
@@ -57,4 +58,7 @@ __all__ = [
     "measure_length",
     "validate_text",
     "x_limit_for_subscription",
+    "ThreadResult",
+    "ThreadPublishError",
+    "emit_thread_result",
 ]

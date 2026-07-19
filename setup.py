@@ -79,6 +79,8 @@ setup(
         'authlib==1.7.2',
         'cryptography>=42.0.0',
         'python-telegram-bot>=22.1',
+        # From agoras
+        'PyYAML==6.0.3',
     ],
 
     # CLI Entry point

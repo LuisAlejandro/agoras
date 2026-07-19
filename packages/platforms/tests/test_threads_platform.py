@@ -257,6 +257,57 @@ async def test_threads_disconnect(mock_api_class):
     mock_api.disconnect.assert_called_once()
 
 
+@pytest.mark.asyncio
+@patch('agoras.platforms.threads.wrapper.ThreadsAPI')
+async def test_threads_thread_reply_chain(mock_api_class):
+    """Test Threads.thread chains published IDs via reply_to_id."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.create_post = AsyncMock(side_effect=['pub1', 'pub2'])
+    mock_api_class.return_value = mock_api
+
+    threads = Threads(
+        threads_app_id='app_id',
+        threads_app_secret='secret',
+        threads_refresh_token='token',
+    )
+    await threads._initialize_client()
+
+    result = await threads.thread([{'text': 'first'}, {'text': 'second'}], who_can_reply='everyone')
+
+    assert result.complete is True
+    assert result.ids == ['pub1', 'pub2']
+    assert mock_api.create_post.call_args_list[0].kwargs.get('reply_to_id') is None
+    assert mock_api.create_post.call_args_list[1].kwargs.get('reply_to_id') == 'pub1'
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.threads.wrapper.ThreadsAPI')
+async def test_threads_thread_partial_failure(mock_api_class):
+    """Test Threads.thread raises ThreadPublishError with ids so far."""
+    from agoras.core.threading import ThreadPublishError
+
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.create_post = AsyncMock(side_effect=['pub1', Exception('API error')])
+    mock_api_class.return_value = mock_api
+
+    threads = Threads(
+        threads_app_id='app_id',
+        threads_app_secret='secret',
+        threads_refresh_token='token',
+    )
+    await threads._initialize_client()
+
+    with pytest.raises(ThreadPublishError) as exc_info:
+        await threads.thread([{'text': 'a'}, {'text': 'b'}, {'text': 'c'}])
+
+    assert exc_info.value.result.ids == ['pub1']
+    assert exc_info.value.result.failed_index == 1
+    assert exc_info.value.result.outcome == 'failed'
+    assert mock_api.create_post.call_count == 2
+
+
 # Threads API Tests (Skip complex instantiation)
 
 def test_threads_api_class_exists():

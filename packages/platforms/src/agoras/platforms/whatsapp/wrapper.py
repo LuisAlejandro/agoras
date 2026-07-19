@@ -354,11 +354,22 @@ class WhatsApp(SocialNetwork):
 
     async def _handle_template_action(self):
         """Handle template action with WhatsApp-specific parameter extraction."""
+        import json
+
         template_name = self._get_config_value("whatsapp_template_name", "WHATSAPP_TEMPLATE_NAME")
         language_code = self._get_config_value("whatsapp_template_language", "WHATSAPP_TEMPLATE_LANGUAGE") or "en"
-        # Note: Template components would need JSON parsing if provided
-        # For now, support simple template sending without components
+        components_raw = self._get_config_value("whatsapp_template_components", "WHATSAPP_TEMPLATE_COMPONENTS")
         components = None
+        if isinstance(components_raw, str) and components_raw.strip():
+            try:
+                parsed = json.loads(components_raw)
+            except json.JSONDecodeError as exc:
+                raise Exception(f"Invalid WhatsApp template components JSON: {exc}") from exc
+            if parsed is not None and not isinstance(parsed, list):
+                raise Exception("WhatsApp template components must be a JSON list")
+            components = parsed
+        elif isinstance(components_raw, list):
+            components = components_raw
 
         if not template_name:
             raise Exception("Template name is required for template action.")

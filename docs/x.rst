@@ -29,6 +29,7 @@ Available Actions
 * ``authorize`` - Set up OAuth 1.0a authentication (required first step)
 * ``post`` - Create text and image posts (up to 4 images)
 * ``video`` - Upload videos
+* ``thread`` - Publish an ordered reply-chain thread from a YAML content file
 * ``like`` - Like posts
 * ``share`` - Retweet/share posts
 * ``delete`` - Delete your own posts
@@ -67,6 +68,30 @@ Post a Tweet
 
 .. note::
    You must run ``agoras x authorize`` first before using this command.
+
+Publish a Thread
+----------------
+
+.. versionadded:: 2.2
+
+``thread`` is YAML-only. Each entry may include text/link/images **or** one
+video URL. Agoras posts the first entry, then replies in order using the
+previous tweet ID. Output is one JSON envelope (see :doc:`content-files`).
+
+Example::
+
+    agoras x thread --content thread.yaml
+
+``thread.yaml``::
+
+    version: 1
+    entries:
+      - text: First tweet
+      - text: Second tweet
+        images:
+          - https://cdn.example.com/a.jpg
+      - text: Closing with video
+        video_url: https://cdn.example.com/clip.mp4
 
 Like a Tweet
 ------------

@@ -392,6 +392,31 @@ async def test_threads_auth_load_credentials_from_storage_empty_dict(mock_storag
 
 @pytest.mark.asyncio
 @patch('agoras.core.auth.base.SecureTokenStorage')
+async def test_threads_auth_authorize_scope_includes_manage_replies(mock_storage_class):
+    """Authorize URL includes threads_manage_replies for reply-chain publishing."""
+    mock_storage = MagicMock()
+    mock_storage_class.return_value = mock_storage
+
+    auth = ThreadsAuthManager('app_id', 'app_secret')
+    captured = {}
+
+    with patch('agoras.platforms.threads.auth.OAuthCallbackServer') as mock_callback_class:
+        mock_callback_server = MagicMock()
+        mock_callback_server.start_and_wait = AsyncMock(side_effect=Exception('stop'))
+        mock_callback_class.return_value = mock_callback_server
+
+        def _capture(url):
+            captured['url'] = url
+
+        with patch('agoras.platforms.threads.auth.webbrowser.open', side_effect=_capture):
+            await auth._authorize_interactive()
+
+    assert 'threads_manage_replies' in captured['url']
+    assert 'threads_content_publish' in captured['url']
+
+
+@pytest.mark.asyncio
+@patch('agoras.core.auth.base.SecureTokenStorage')
 async def test_threads_auth_refresh_or_get_token_user_id_not_in_storage(mock_storage_class):
     """Test _refresh_or_get_token when user_id is not found in storage."""
     mock_storage = MagicMock()

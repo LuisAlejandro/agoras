@@ -25,7 +25,8 @@ from argparse import ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.x.wrapper import main as x_main
 
-from ..base import add_common_content_options, add_video_options
+from ..base import add_common_content_options, add_video_options, prepare_content_args
+from ..content import add_content_file_option
 from ..converter import ParameterConverter
 from ..validator import ActionValidator
 
@@ -61,7 +62,14 @@ def create_x_parser(subparsers: _SubParsersAction) -> ArgumentParser:
         "video", help='Upload a video to X. Requires prior authorization via "agoras x authorize".'
     )
     _add_video_options(video)
-    add_common_content_options(video, images=0)
+    add_common_content_options(video, images=0, with_content_file=False)
+
+    # Thread action
+    thread = actions.add_parser(
+        "thread",
+        help='Publish an ordered thread on X. Requires prior authorization via "agoras x authorize".',
+    )
+    add_content_file_option(thread)
 
     # Like action
     like = actions.add_parser("like", help='Like a tweet. Requires prior authorization via "agoras x authorize".')
@@ -123,6 +131,7 @@ def _handle_x_command(args: Namespace):
     """
     # Validate action
     ActionValidator.validate("x", args.action)
+    prepare_content_args(args, "x")
 
     # Convert new args to legacy format
     converter = ParameterConverter("x")
@@ -185,7 +194,14 @@ def create_twitter_parser_alias(subparsers: _SubParsersAction) -> ArgumentParser
         "video", help='Upload a video to Twitter/X. Requires prior authorization via "agoras twitter authorize".'
     )
     _add_video_options(video)
-    add_common_content_options(video, images=0)
+    add_common_content_options(video, images=0, with_content_file=False)
+
+    # Thread action
+    thread = actions.add_parser(
+        "thread",
+        help='Publish an ordered thread on Twitter/X. Requires prior authorization via "agoras twitter authorize".',
+    )
+    add_content_file_option(thread)
 
     # Like action
     like = actions.add_parser("like", help='Like a tweet. Requires prior authorization via "agoras twitter authorize".')

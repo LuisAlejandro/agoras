@@ -21,11 +21,12 @@ TikTok platform CLI parser.
 This module provides the TikTok command parser for the new CLI structure.
 """
 
-from argparse import ArgumentParser, Namespace, _SubParsersAction
+from argparse import SUPPRESS, ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.tiktok.wrapper import main as tiktok_main
 
-from ..base import add_common_content_options
+from ..base import add_common_content_options, prepare_content_args
+from ..content import add_content_file_option
 from ..converter import ParameterConverter
 from ..media_help import video_url_help
 from ..validator import ActionValidator
@@ -93,16 +94,16 @@ def _add_post_options(parser: ArgumentParser):
     Args:
         parser: ArgumentParser to add options to
     """
-    # Add common content options (text, link, images)
+    # Add common content options (text, link, images) including --content
     add_common_content_options(parser, images=4)
 
-    # Add TikTok-specific post options
+    # Add TikTok-specific post options (SUPPRESS for XOR-safe content fields)
     post_opts = parser.add_argument_group("TikTok Post Options")
-    post_opts.add_argument("--title", metavar="<title>", help="Post title/caption")
+    post_opts.add_argument("--title", default=SUPPRESS, metavar="<title>", help="Post title/caption")
     post_opts.add_argument(
         "--privacy",
         metavar="<status>",
-        default="SELF_ONLY",
+        default=SUPPRESS,
         choices=["PUBLIC_TO_EVERYONE", "MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR", "SELF_ONLY"],
         help="Post privacy status (default: SELF_ONLY)",
     )
@@ -128,7 +129,10 @@ def _add_post_options(parser: ArgumentParser):
         help='Mark content as paid partnership (displays "Paid partnership" label)',
     )
     post_opts.add_argument(
-        "--description", metavar="<description>", help="Post description/caption (max 4000 UTF-16 runes)"
+        "--description",
+        default=SUPPRESS,
+        metavar="<description>",
+        help="Post description/caption (max 4000 UTF-16 runes)",
     )
 
 
@@ -136,16 +140,21 @@ def _add_video_options(parser: ArgumentParser):
     """
     Add video-specific options for TikTok.
 
+    Content fields use SUPPRESS so unspecified flags are absent from the Namespace
+    (required for --content XOR detection). Defaults come from the content contract.
+
     Args:
         parser: ArgumentParser to add options to
     """
+    add_content_file_option(parser)
+
     video = parser.add_argument_group("Video Options")
-    video.add_argument("--video-url", required=True, metavar="<url>", help=video_url_help("tiktok"))
-    video.add_argument("--title", metavar="<title>", help="Video title/caption")
+    video.add_argument("--video-url", default=SUPPRESS, metavar="<url>", help=video_url_help("tiktok"))
+    video.add_argument("--title", default=SUPPRESS, metavar="<title>", help="Video title/caption")
     video.add_argument(
         "--privacy",
         metavar="<status>",
-        default="SELF_ONLY",
+        default=SUPPRESS,
         choices=["PUBLIC_TO_EVERYONE", "MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR", "SELF_ONLY"],
         help="Video privacy status (default: SELF_ONLY)",
     )
@@ -190,6 +199,7 @@ def _handle_tiktok_command(args: Namespace):
     """
     # Validate action
     ActionValidator.validate("tiktok", args.action)
+    prepare_content_args(args, "tiktok")
 
     # Convert new args to legacy format
     converter = ParameterConverter("tiktok")

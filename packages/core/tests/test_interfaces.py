@@ -184,6 +184,26 @@ def test_get_config_value_returns_none_when_missing():
     assert value is None
 
 
+@patch.dict(os.environ, {'STATUS_TEXT': 'from-env', 'TIKTOK_ALLOW_COMMENTS': 'true'})
+def test_get_config_value_preserves_explicit_false():
+    """Explicit False must not fall through to environment."""
+    network = ConcreteSocialNetwork(tiktok_allow_comments=False)
+
+    value = network._get_config_value('tiktok_allow_comments', 'TIKTOK_ALLOW_COMMENTS')
+
+    assert value is False
+
+
+@patch.dict(os.environ, {'STATUS_TEXT': 'from-env'})
+def test_get_config_value_file_mode_skips_payload_env():
+    """File-mode content must not inherit payload environment variables."""
+    network = ConcreteSocialNetwork(_content_source='file', status_text=None)
+
+    value = network._get_config_value('status_text', 'STATUS_TEXT')
+
+    assert value is None
+
+
 @patch('builtins.print')
 def test_output_status(mock_print):
     """Test _output_status prints JSON formatted status."""

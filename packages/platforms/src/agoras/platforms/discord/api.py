@@ -131,6 +131,49 @@ class DiscordAPI(BaseAPI):
         await self._rate_limit_check("post", 1.0)
         return await self.client.send_message(content=content, embeds=embeds, file=file)
 
+    async def create_public_thread(self, message_id, name, auto_archive_duration=None):
+        """
+        Create a public Discord thread from a starter message.
+
+        Args:
+            message_id (str): Starter message ID
+            name (str): Thread name
+            auto_archive_duration (int, optional): Archive duration in minutes
+
+        Returns:
+            str: Thread ID
+        """
+        if not self._authenticated:
+            await self.authenticate()
+
+        if not self.client:
+            raise Exception("Discord client not available")
+
+        await self._rate_limit_check("create_public_thread", 1.0)
+        return await self.client.create_public_thread(message_id, name, auto_archive_duration)
+
+    async def send_message_to_thread(self, thread, content=None, embeds=None, file=None):
+        """
+        Send a message into an existing Discord thread.
+
+        Args:
+            thread: Thread object or thread ID
+            content (str, optional): Text content
+            embeds (list, optional): Embeds
+            file: Optional file attachment
+
+        Returns:
+            str: Message ID
+        """
+        if not self._authenticated:
+            await self.authenticate()
+
+        if not self.client:
+            raise Exception("Discord client not available")
+
+        await self._rate_limit_check("send_message_to_thread", 1.0)
+        return await self.client.send_message_to_thread(thread, content=content, embeds=embeds, file=file)
+
     async def like(self, message_id, emoji="❤️"):
         """
         Add a reaction (like) to a Discord message.

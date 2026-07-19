@@ -18,11 +18,53 @@
 """agoras.platforms.threads.wrapper module."""
 
 import asyncio
+from typing import Any, Dict, List, Optional
 
 from agoras.core.interfaces import SocialNetwork
 from agoras.core.text_limits import validate_text
+from agoras.core.threading import (
+    ThreadPublishError,
+    ThreadResult,
+    partial_result,
+    success_result,
+)
+from agoras.platforms.threads.client import ThreadsContainerTimeoutError
 
 from .api import ThreadsAPI
+
+
+def _entry_images(entry: Dict[str, Any]) -> List[str]:
+    """Collect flattened image_1..image_4 URLs from a thread entry."""
+    return list(
+        filter(
+            None,
+            [
+                entry.get("image_1"),
+                entry.get("image_2"),
+                entry.get("image_3"),
+                entry.get("image_4"),
+            ],
+        )
+    )
+
+
+def _compose_post_text(entry: Dict[str, Any]) -> str:
+    """Build Threads post text from entry text, link, and optional video_title."""
+    text = entry.get("text") or ""
+    link = entry.get("link") or ""
+    video_title = entry.get("video_title") or ""
+    video_url = entry.get("video_url")
+    if video_url and video_title and not text:
+        text = video_title
+    return f"{text} {link}".strip()
+
+
+def _is_uncertain_publish_error(exc: BaseException) -> bool:
+    """Classify timeout/uncertain errors after a publish dispatch."""
+    if isinstance(exc, (TimeoutError, asyncio.TimeoutError, ThreadsContainerTimeoutError)):
+        return True
+    message = str(exc).lower()
+    return any(token in message for token in ("timeout", "timed out", "not ready after"))
 
 
 class Threads(SocialNetwork):
@@ -152,6 +194,87 @@ class Threads(SocialNetwork):
 
         self._output_status(post_id)
         return post_id
+
+    async def thread(self, entries, **kwargs) -> ThreadResult:
+        """
+        Publish an ordered reply-chain thread on Meta Threads.
+
+        Args:
+            entries: Ordered entry mappings (text/link/images/video)
+            **kwargs: May include who_can_reply
+
+        Returns:
+            ThreadResult: Structured success result
+
+        Raises:
+            ThreadPublishError: On partial or failed publish with structured result
+        """
+        if not self.api:
+            raise Exception("Threads API not initialized")
+
+        if not entries or not isinstance(entries, list):
+            raise Exception("Thread entries are required.")
+
+        who_can_reply = kwargs.get("who_can_reply") or self.threads_who_can_reply or "everyone"
+
+        prepared: List[Dict[str, Any]] = []
+        for entry in entries:
+            if not isinstance(entry, dict):
+                raise Exception("Each thread entry must be a mapping.")
+            images = _entry_images(entry)
+            video_url = entry.get("video_url")
+            if images and video_url:
+                raise Exception("Images and video_url are mutually exclusive in a thread entry.")
+            post_text = _compose_post_text(entry)
+            if not post_text and not images and not video_url:
+                raise Exception("Thread entry requires text, link, images, or video_url.")
+            if post_text:
+                validate_text("threads", "text", post_text)
+            alt_texts = entry.get("alt_texts")
+            if alt_texts is not None and not isinstance(alt_texts, list):
+                raise Exception("alt_texts must be a list when provided.")
+            prepared.append(
+                {
+                    "text": post_text,
+                    "images": images,
+                    "video_url": video_url,
+                    "alt_texts": alt_texts,
+                }
+            )
+
+        ids: List[str] = []
+        previous_id: Optional[str] = None
+        for index, item in enumerate(prepared):
+            try:
+                if item["video_url"]:
+                    post_id = await self.api.create_video_post(
+                        item["text"],
+                        item["video_url"],
+                        who_can_reply=who_can_reply,
+                        reply_to_id=previous_id,
+                    )
+                else:
+                    post_id = await self.api.create_post(
+                        item["text"],
+                        files=item["images"] or None,
+                        file_captions=item["alt_texts"],
+                        who_can_reply=who_can_reply,
+                        reply_to_id=previous_id,
+                    )
+            except Exception as exc:
+                outcome = "unknown" if _is_uncertain_publish_error(exc) else "failed"
+                result = partial_result(
+                    ids,
+                    failed_index=index,
+                    outcome=outcome,
+                    error=str(exc),
+                )
+                raise ThreadPublishError(result) from exc
+
+            ids.append(str(post_id))
+            previous_id = str(post_id)
+
+        return success_result(ids)
 
     async def like(self, post_id):
         """
@@ -329,6 +452,8 @@ class Threads(SocialNetwork):
             await self._handle_delete_action()
         elif action == "video":
             await self._handle_video_action()
+        elif action == "thread":
+            await self._handle_thread_action()
         elif action == "last-from-feed":
             await self._handle_last_from_feed_action()
         elif action == "random-from-feed":
@@ -359,9 +484,10 @@ async def main_async(kwargs):
         success = await instance.authorize_credentials()
         return 0 if success else 1
 
-    # Execute other actions using the base class method
-    await instance.execute_action(action)
-    await instance.disconnect()
+    try:
+        await instance.execute_action(action)
+    finally:
+        await instance.disconnect()
 
 
 def main(kwargs):

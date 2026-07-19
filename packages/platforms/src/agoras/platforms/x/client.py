@@ -21,7 +21,7 @@ import asyncio
 import mimetypes
 import os
 import tempfile
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from tweepy import API, Client, OAuth1UserHandler
 
@@ -226,13 +226,19 @@ class XAPIClient:
         media_id = await asyncio.to_thread(_sync_upload)
         return str(media_id)
 
-    async def create_tweet(self, text: str, media_ids: Optional[List[str]] = None) -> str:
+    async def create_tweet(
+        self,
+        text: str,
+        media_ids: Optional[List[str]] = None,
+        in_reply_to_tweet_id: Optional[str] = None,
+    ) -> str:
         """
         Create a tweet using v2 API.
 
         Args:
             text (str): Tweet text content
             media_ids (list, optional): List of media IDs
+            in_reply_to_tweet_id (str, optional): Parent tweet ID for reply chains
 
         Returns:
             str: Tweet ID
@@ -245,11 +251,12 @@ class XAPIClient:
 
         def _sync_create_tweet():
             try:
-                # Use the correct method signature for Tweepy v2
+                kwargs: Dict[str, Any] = {"text": text}
                 if media_ids:
-                    response = self.client_v2.create_tweet(text=text, media_ids=media_ids)  # type: ignore
-                else:
-                    response = self.client_v2.create_tweet(text=text)  # type: ignore
+                    kwargs["media_ids"] = media_ids
+                if in_reply_to_tweet_id:
+                    kwargs["in_reply_to_tweet_id"] = in_reply_to_tweet_id
+                response = self.client_v2.create_tweet(**kwargs)  # type: ignore
 
                 # Handle Tweepy response object safely
                 response_data = getattr(response, "data", None)

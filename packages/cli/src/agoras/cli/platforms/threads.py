@@ -25,7 +25,8 @@ from argparse import ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.threads.wrapper import main as threads_main
 
-from ..base import add_common_content_options, add_video_options
+from ..base import add_common_content_options, add_video_options, prepare_content_args
+from ..content import add_content_file_option
 from ..converter import ParameterConverter
 from ..validator import ActionValidator
 
@@ -64,6 +65,16 @@ def create_threads_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     )
     _add_video_options(video)
 
+    # Thread action (YAML content file only)
+    thread = actions.add_parser(
+        "thread",
+        help=(
+            "Publish an ordered thread on Threads. Content must come from a YAML file via --content. "
+            'Requires prior authorization via "agoras threads authorize".'
+        ),
+    )
+    add_content_file_option(thread)
+
     # Share action
     share = actions.add_parser(
         "share", help='Share/repost a Threads post. Requires prior authorization via "agoras threads authorize".'
@@ -101,7 +112,7 @@ def _add_video_options(parser: ArgumentParser):
 
 def _add_post_id_option(parser: ArgumentParser):
     """
-    Add post ID option for share/delete actions.
+    Add post ID option for like/share/delete actions.
 
     Args:
         parser: ArgumentParser to add options to
@@ -121,6 +132,7 @@ def _handle_threads_command(args: Namespace):
     """
     # Validate action
     ActionValidator.validate("threads", args.action)
+    prepare_content_args(args, "threads")
 
     # Convert new args to legacy format
     converter = ParameterConverter("threads")
