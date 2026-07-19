@@ -65,6 +65,7 @@ class TikTok(SocialNetwork):
         self.tiktok_client_secret = None
         self.tiktok_refresh_token = None
         self.tiktok_title = None
+        self.tiktok_description = None
         self.tiktok_privacy_status = None
         self.tiktok_allow_comments = None
         self.tiktok_allow_duet = None
