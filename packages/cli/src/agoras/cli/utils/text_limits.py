@@ -21,7 +21,7 @@ import json
 import sys
 from argparse import ArgumentParser, Namespace, _SubParsersAction
 
-from agoras.core.text_limits import TEXT_LIMITS, iter_text_limits, resolve_platform
+from agoras.core.text_limits import TEXT_LIMITS, iter_text_limits
 
 
 def create_text_limits_parser(subparsers: _SubParsersAction) -> ArgumentParser:
@@ -59,8 +59,6 @@ def _handle_text_limits(args: Namespace) -> None:
         rows = [_row(item) for item in iter_text_limits(args.platform)]
         if not rows:
             raise ValueError(f"Unknown platform or no text limits: {args.platform}")
-        # Ensure alias resolves for empty filter edge cases
-        resolve_platform(args.platform)
     else:
         rows = [_row(item) for item in TEXT_LIMITS]
 

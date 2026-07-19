@@ -102,22 +102,46 @@ class XAuthManager(BaseAuthManager):
         if self.oauth_token and self.oauth_secret:
             await self._refresh_and_store_subscription_type()
             self._save_credentials_to_storage()
-            return "Authorization successful. Credentials stored securely."
+            return self._authorize_success_message()
 
         # Interactive mode with callback server
         return await self._authorize_interactive()
 
+    def _authorize_success_message(self) -> str:
+        """Build authorize result message; warn when Premium tier was not detected."""
+        base = "Authorization successful. Credentials stored securely."
+        if self.subscription_type is None:
+            return (
+                f"{base} Warning: X Premium subscription was not detected; "
+                "free-tier (280) text limits will apply until subscription_type is stored."
+            )
+        return base
+
     async def _refresh_and_store_subscription_type(self) -> None:
-        """Fetch subscription_type via API v2 and keep it on the manager."""
+        """Fetch subscription_type via API v2; keep prior stored tier on failure."""
+        previous = self.subscription_type
+        if previous is None:
+            previous = self.load_subscription_type_from_storage()
         try:
             client = self._create_client()
             await client.authenticate()
             self.subscription_type = await client.get_subscription_type()
             client.disconnect()
         except Exception as exc:
-            # Fail closed to free-tier limits at post time when lookup fails
+            # Fail closed to free-tier limits when lookup fails and nothing was stored
             print(f"Warning: could not fetch X subscription_type: {exc}", file=sys.stderr)
-            self.subscription_type = None
+            if previous:
+                print(
+                    f"Warning: keeping previously stored subscription_type={previous}",
+                    file=sys.stderr,
+                )
+                self.subscription_type = previous
+            else:
+                print(
+                    "Warning: Premium was not detected; free-tier (280) limits will apply.",
+                    file=sys.stderr,
+                )
+                self.subscription_type = None
 
     async def _authorize_interactive(self) -> Optional[str]:
         """Authorize using local callback server (interactive mode)."""
@@ -182,7 +206,7 @@ class XAuthManager(BaseAuthManager):
             await self._refresh_and_store_subscription_type()
             self._save_credentials_to_storage()
 
-            return "Authorization successful. Credentials stored securely."
+            return self._authorize_success_message()
 
         except Exception as e:
             error = str(e)
@@ -267,6 +291,29 @@ class XAuthManager(BaseAuthManager):
             token_data = self.token_storage.load_token(platform_name, "default")
         if not token_data:
             return None
+        return token_data.get("subscription_type")
+
+    def load_subscription_type_for_active_oauth(self) -> Optional[str]:
+        """
+        Load subscription_type only when stored oauth matches this manager's tokens.
+
+        Never adopts an unrelated list_tokens entry for tier selection — mismatch
+        or missing bind fails closed to free (None).
+        """
+        if not self.oauth_token or not self.oauth_secret:
+            return None
+
+        platform_name = self._get_platform_name()
+        identifier = self._get_token_identifier()
+        token_data = self.token_storage.load_token(platform_name, identifier)
+        if not token_data:
+            token_data = self.token_storage.load_token(platform_name, "default")
+        if not token_data:
+            return None
+
+        if token_data.get("oauth_token") != self.oauth_token or token_data.get("oauth_secret") != self.oauth_secret:
+            return None
+
         return token_data.get("subscription_type")
 
     def _load_credentials_from_storage(self) -> bool:

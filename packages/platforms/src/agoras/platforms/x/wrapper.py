@@ -56,17 +56,17 @@ class X(SocialNetwork):
         self._subscription_type = None
 
     def _load_subscription_type(self):
-        """Load stored X subscription_type for text-limit selection (no network)."""
+        """Load stored X subscription_type bound to active oauth tokens (no network)."""
         from .auth import XAuthManager
 
         auth_manager = XAuthManager(
-            consumer_key=self.twitter_consumer_key, consumer_secret=self.twitter_consumer_secret
+            consumer_key=self.twitter_consumer_key,
+            consumer_secret=self.twitter_consumer_secret,
+            oauth_token=self.twitter_oauth_token,
+            oauth_secret=self.twitter_oauth_secret,
         )
-        # Prefer values already loaded into auth manager when credentials came from storage
-        if auth_manager._load_credentials_from_storage():
-            self._subscription_type = auth_manager.subscription_type
-        else:
-            self._subscription_type = auth_manager.load_subscription_type_from_storage()
+        # Bind tier to active oauth only — never adopt unrelated stored tokens
+        self._subscription_type = auth_manager.load_subscription_type_for_active_oauth()
         return self._subscription_type
 
     def _validate_tweet_text(self, tweet_text: str) -> None:

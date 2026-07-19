@@ -3,7 +3,7 @@
   "maxWeightedTweetLength": 280,
   "scale": 100,
   "defaultWeight": 200,
-  "emojiParsingEnabled": true,
+  "emojiParsingEnabled": false,
   "transformedURLLength": 23,
   "ranges": [
     {

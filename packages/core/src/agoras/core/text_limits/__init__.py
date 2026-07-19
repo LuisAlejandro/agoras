@@ -79,6 +79,10 @@ TEXT_LIMITS: Tuple[TextFieldLimit, ...] = (
     TextFieldLimit("facebook", "message", 63206, "chars"),
     TextFieldLimit("instagram", "caption", 2200, "chars"),
     TextFieldLimit("linkedin", "text", 3000, "chars"),
+    # Scraped Open Graph fields for LinkedIn article shares (conservative caps;
+    # LinkedIn share article title/description are commonly constrained near these).
+    TextFieldLimit("linkedin", "link_title", 200, "chars"),
+    TextFieldLimit("linkedin", "link_description", 256, "chars"),
     TextFieldLimit("threads", "text", 500, "threads"),
     TextFieldLimit("youtube", "title", 100, "chars"),
     TextFieldLimit("youtube", "description", 5000, "utf8_bytes"),
@@ -208,6 +212,10 @@ def weighted_x_length(text: str) -> int:
 
     URLs are replaced with transformedURLLength (23). Remaining text is NFC-normalized
     and weighted per v3 ranges (defaultWeight outside ranges).
+
+    Approximation: ``emojiParsingEnabled`` is false in twitter_text_v3.json — this
+    implementation weights each Unicode code point independently and does not cluster
+    ZWJ / multi-codepoint emoji sequences the way full twitter-text does.
     """
     config = _twitter_text_config()
     scale = int(config["scale"])
@@ -309,6 +317,7 @@ def validate_discord_embeds(embeds: Iterable[dict]) -> None:
 
     Each item may include optional keys: title, description.
     """
+    embed_total = lookup_limit("discord", "embed_total")
     total = 0
     for embed in embeds:
         title = embed.get("title") or ""
@@ -319,5 +328,7 @@ def validate_discord_embeds(embeds: Iterable[dict]) -> None:
         if description:
             validate_text("discord", "embed_description", description)
             total += len(description)
-    if total > 6000:
-        raise TextValidationError("discord", "embed_total", total, 6000, "chars")
+    if total > embed_total.limit:
+        raise TextValidationError(
+            "discord", "embed_total", total, embed_total.limit, embed_total.counting
+        )

@@ -291,10 +291,10 @@ class SocialNetwork(ABC):
             google_sheets_id, google_sheets_name, google_sheets_client_email, google_sheets_private_key
         )
 
-        # Process scheduled posts
+        # Process scheduled posts (selection only — not marked published yet)
         posts_to_create = await sheet.process_scheduled_posts(max_count)
 
-        # Create posts asynchronously; continue after per-item failures
+        # Create posts asynchronously; mark published only after success
         for index, post_data in enumerate(posts_to_create, start=1):
             try:
                 await self.post(
@@ -305,6 +305,9 @@ class SocialNetwork(ABC):
                     post_data["status_image_url_3"],
                     post_data["status_image_url_4"],
                 )
+                sheet_row = post_data.get("_sheet_row")
+                if sheet_row is not None:
+                    await sheet.mark_as_published(sheet_row)
             except Exception as exc:
                 print(f"Scheduled item failed ({index}): {exc}", file=sys.stderr)
 

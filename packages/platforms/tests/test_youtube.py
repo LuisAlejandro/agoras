@@ -516,9 +516,11 @@ async def test_youtube_schedule(mock_api_class):
             'youtube_video_url': 'http://scheduled.mp4',
             'youtube_category_id': '22',
             'youtube_privacy_status': 'unlisted',
-            'youtube_keywords': 'test'
+            'youtube_keywords': 'test',
+            '_sheet_row': 1,
         }]
         mock_sheet.process_scheduled_posts = AsyncMock(return_value=mock_videos)
+        mock_sheet.mark_as_published = AsyncMock()
         mock_create_sheet.return_value = mock_sheet
 
         await youtube.schedule('sheet_id', 'sheet_name', 'email', 'key', 10)
@@ -526,6 +528,94 @@ async def test_youtube_schedule(mock_api_class):
         mock_create_sheet.assert_called_once_with('sheet_id', 'sheet_name', 'email', 'key')
         mock_sheet.process_scheduled_posts.assert_called_once_with(10)
         mock_video.assert_called_once_with('Desc', 'http://scheduled.mp4', 'Scheduled Video')
+        mock_sheet.mark_as_published.assert_awaited_once_with(1)
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
+async def test_youtube_last_from_feed_continues_after_item_failure(mock_api_class):
+    """Failed middle video must not abort remaining feed items."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    youtube = YouTube(**YOUTUBE_KWARGS)
+    await youtube._initialize_client()
+
+    items = []
+    for title, url in [('ok-1', 'http://a.mp4'), ('bad', 'http://b.mp4'), ('ok-3', 'http://c.mp4')]:
+        item = MagicMock()
+        item.title = title
+        item.raw_item.enclosures = [MagicMock()]
+        item.raw_item.enclosures[0].url = url
+        items.append(item)
+
+    with patch.object(youtube, 'download_feed', new_callable=AsyncMock) as mock_download_feed, \
+            patch.object(youtube, 'video', new_callable=AsyncMock) as mock_video:
+        mock_feed = MagicMock()
+        mock_feed.get_items_since.return_value = items
+        mock_download_feed.return_value = mock_feed
+
+        async def flaky_video(desc, url, title):
+            if title == 'bad':
+                raise Exception('upload failed')
+            return 'vid'
+
+        mock_video.side_effect = flaky_video
+        await youtube.last_from_feed('http://feed.xml', 5, 3600)
+
+        titles = [c.args[2] for c in mock_video.await_args_list]
+        assert titles == ['ok-1', 'bad', 'ok-3']
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
+async def test_youtube_schedule_continues_and_skips_mark_on_failure(mock_api_class):
+    """Failed schedule item must not mark published; later items still run."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    youtube = YouTube(**YOUTUBE_KWARGS)
+    await youtube._initialize_client()
+
+    with patch.object(youtube, 'create_schedule_sheet', new_callable=AsyncMock) as mock_create_sheet, \
+            patch.object(youtube, 'video', new_callable=AsyncMock) as mock_video:
+        mock_sheet = MagicMock()
+        mock_videos = [
+            {
+                'youtube_title': 'ok-1',
+                'youtube_description': 'd',
+                'youtube_video_url': 'http://a.mp4',
+                '_sheet_row': 1,
+            },
+            {
+                'youtube_title': 'bad',
+                'youtube_description': 'd',
+                'youtube_video_url': 'http://b.mp4',
+                '_sheet_row': 2,
+            },
+            {
+                'youtube_title': 'ok-3',
+                'youtube_description': 'd',
+                'youtube_video_url': 'http://c.mp4',
+                '_sheet_row': 3,
+            },
+        ]
+        mock_sheet.process_scheduled_posts = AsyncMock(return_value=mock_videos)
+        mock_sheet.mark_as_published = AsyncMock()
+        mock_create_sheet.return_value = mock_sheet
+
+        async def flaky_video(desc, url, title):
+            if title == 'bad':
+                raise Exception('upload failed')
+            return 'vid'
+
+        mock_video.side_effect = flaky_video
+        await youtube.schedule('sheet_id', 'sheet_name', 'email', 'key', 10)
+
+        marked = [c.args[0] for c in mock_sheet.mark_as_published.await_args_list]
+        assert marked == [1, 3]
 
 
 @pytest.mark.asyncio

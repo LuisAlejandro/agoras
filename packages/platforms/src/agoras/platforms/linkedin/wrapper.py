@@ -193,6 +193,10 @@ class LinkedIn(SocialNetwork):
             status_link_description = scraped_data.get("description", "")
             status_link_image = scraped_data.get("image", "")
 
+            # Validate scraped article fields before media I/O / publish
+            validate_text("linkedin", "link_title", status_link_title or "")
+            validate_text("linkedin", "link_description", status_link_description or "")
+
             if status_link_image and not source_media:
                 source_media = [status_link_image]
 
