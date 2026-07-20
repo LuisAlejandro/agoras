@@ -573,7 +573,7 @@ def test_schedulesheet_has_required_methods():
 @pytest.mark.asyncio
 @patch('agoras.core.sheet.schedule.datetime')
 async def test_schedulesheet_process_posts_due_now(mock_datetime):
-    """Test ScheduleSheet processes posts due now."""
+    """Test ScheduleSheet processes posts due now without marking published."""
     # Mock current time
     mock_now = datetime.datetime(2024, 1, 15, 14, 0, 0)
     mock_datetime.datetime.now.return_value = mock_now
@@ -594,7 +594,9 @@ async def test_schedulesheet_process_posts_due_now(mock_datetime):
 
             assert len(posts) == 1
             assert posts[0]['status_text'] == 'Post text'
-            mock_write.assert_called_once()
+            assert posts[0]['_sheet_row'] == 1
+            # Selection must not mark published / rewrite sheet
+            mock_write.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -615,13 +617,12 @@ async def test_schedulesheet_respects_max_count():
         mock_datetime.datetime.now.return_value = mock_now
 
         with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
-            with patch.object(sheet, 'write_all', new_callable=AsyncMock):
-                mock_read.return_value = rows
+            mock_read.return_value = rows
 
-                posts = await sheet.process_scheduled_posts(max_count=3)
+            posts = await sheet.process_scheduled_posts(max_count=3)
 
-                # Should only process 3 posts
-                assert len(posts) == 3
+            # Should only process 3 posts
+            assert len(posts) == 3
 
 
 @pytest.mark.asyncio
@@ -639,13 +640,12 @@ async def test_schedulesheet_skips_published_posts():
         mock_datetime.datetime.now.return_value = mock_now
 
         with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
-            with patch.object(sheet, 'write_all', new_callable=AsyncMock):
-                mock_read.return_value = [row_data]
+            mock_read.return_value = [row_data]
 
-                posts = await sheet.process_scheduled_posts()
+            posts = await sheet.process_scheduled_posts()
 
-                # Should skip published post
-                assert len(posts) == 0
+            # Should skip published post
+            assert len(posts) == 0
 
 
 @pytest.mark.asyncio
@@ -657,13 +657,12 @@ async def test_schedulesheet_skips_insufficient_columns():
     row_data = SheetRow(['Post', 'http://link.com', '', '', ''])
 
     with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
-        with patch.object(sheet, 'write_all', new_callable=AsyncMock):
-            mock_read.return_value = [row_data]
+        mock_read.return_value = [row_data]
 
-            posts = await sheet.process_scheduled_posts()
+        posts = await sheet.process_scheduled_posts()
 
-            # Should skip row gracefully
-            assert len(posts) == 0
+        # Should skip row gracefully
+        assert len(posts) == 0
 
 
 @pytest.mark.asyncio
@@ -677,17 +676,46 @@ async def test_schedulesheet_handles_invalid_date():
     ])
 
     with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
-        with patch.object(sheet, 'write_all', new_callable=AsyncMock):
+        mock_read.return_value = [row_data]
+
+        # Should not raise exception
+        posts = await sheet.process_scheduled_posts()
+
+        # Should skip row with invalid date
+        assert len(posts) == 0
+
+
+@pytest.mark.asyncio
+async def test_schedulesheet_mark_as_published():
+    """Test mark_as_published updates state column only."""
+    sheet = ScheduleSheet('sheet-id', 'email@example.com', 'key')
+
+    with patch.object(sheet, 'update_cell', new_callable=AsyncMock) as mock_update:
+        await sheet.mark_as_published(3)
+        mock_update.assert_called_once_with(3, 9, 'published')
+
+
+@pytest.mark.asyncio
+@patch('agoras.core.sheet.schedule.datetime')
+async def test_schedulesheet_process_does_not_mark_published_on_select(mock_datetime):
+    """Selecting due posts must leave state unpublished (no ghost publish)."""
+    mock_now = datetime.datetime(2024, 1, 15, 14, 0, 0)
+    mock_datetime.datetime.now.return_value = mock_now
+
+    row_data = SheetRow([
+        'Post text', 'http://link.com', '', '', '', '',
+        '15-01-2024', '14', ''
+    ])
+
+    sheet = ScheduleSheet('sheet-id', 'email@example.com', 'key')
+
+    with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
+        with patch.object(sheet, 'update_cell', new_callable=AsyncMock) as mock_update:
             mock_read.return_value = [row_data]
-
-            # Should not raise exception
             posts = await sheet.process_scheduled_posts()
+            assert len(posts) == 1
+            mock_update.assert_not_called()
 
-            # Should skip row with invalid date
-            assert len(posts) == 0
-
-
-# SheetManager Tests
 
 def test_sheetmanager_instantiation():
     """Test SheetManager can be instantiated."""

@@ -184,6 +184,26 @@ def test_get_config_value_returns_none_when_missing():
     assert value is None
 
 
+@patch.dict(os.environ, {'STATUS_TEXT': 'from-env', 'TIKTOK_ALLOW_COMMENTS': 'true'})
+def test_get_config_value_preserves_explicit_false():
+    """Explicit False must not fall through to environment."""
+    network = ConcreteSocialNetwork(tiktok_allow_comments=False)
+
+    value = network._get_config_value('tiktok_allow_comments', 'TIKTOK_ALLOW_COMMENTS')
+
+    assert value is False
+
+
+@patch.dict(os.environ, {'STATUS_TEXT': 'from-env'})
+def test_get_config_value_file_mode_skips_payload_env():
+    """File-mode content must not inherit payload environment variables."""
+    network = ConcreteSocialNetwork(_content_source='file', status_text=None)
+
+    value = network._get_config_value('status_text', 'STATUS_TEXT')
+
+    assert value is None
+
+
 @patch('builtins.print')
 def test_output_status(mock_print):
     """Test _output_status prints JSON formatted status."""
@@ -725,7 +745,8 @@ async def test_schedule(mock_sheet_class):
             'status_image_url_1': 'img1.jpg',
             'status_image_url_2': None,
             'status_image_url_3': None,
-            'status_image_url_4': None
+            'status_image_url_4': None,
+            '_sheet_row': 1,
         },
         {
             'status_text': 'Scheduled 2',
@@ -733,7 +754,8 @@ async def test_schedule(mock_sheet_class):
             'status_image_url_1': None,
             'status_image_url_2': None,
             'status_image_url_3': None,
-            'status_image_url_4': None
+            'status_image_url_4': None,
+            '_sheet_row': 2,
         }
     ]
 
@@ -741,6 +763,7 @@ async def test_schedule(mock_sheet_class):
     mock_sheet.authenticate = AsyncMock()
     mock_sheet.get_worksheet = AsyncMock()
     mock_sheet.process_scheduled_posts = AsyncMock(return_value=post_data)
+    mock_sheet.mark_as_published = AsyncMock()
     mock_sheet_class.return_value = mock_sheet
 
     network = ConcreteSocialNetwork()
@@ -754,3 +777,101 @@ async def test_schedule(mock_sheet_class):
     assert len(network.posts_created) == 2
     assert network.posts_created[0]['text'] == 'Scheduled 1'
     assert network.posts_created[1]['text'] == 'Scheduled 2'
+    assert mock_sheet.mark_as_published.await_count == 2
+
+
+@pytest.mark.asyncio
+@patch('agoras.core.interfaces.ScheduleSheet')
+async def test_schedule_continues_after_item_failure(mock_sheet_class):
+    """Oversized/failed middle item must not abort remaining due posts."""
+    post_data = [
+        {
+            'status_text': 'ok-1',
+            'status_link': '',
+            'status_image_url_1': None,
+            'status_image_url_2': None,
+            'status_image_url_3': None,
+            'status_image_url_4': None,
+            '_sheet_row': 1,
+        },
+        {
+            'status_text': 'bad',
+            'status_link': '',
+            'status_image_url_1': None,
+            'status_image_url_2': None,
+            'status_image_url_3': None,
+            'status_image_url_4': None,
+            '_sheet_row': 2,
+        },
+        {
+            'status_text': 'ok-3',
+            'status_link': '',
+            'status_image_url_1': None,
+            'status_image_url_2': None,
+            'status_image_url_3': None,
+            'status_image_url_4': None,
+            '_sheet_row': 3,
+        },
+    ]
+
+    mock_sheet = MagicMock()
+    mock_sheet.authenticate = AsyncMock()
+    mock_sheet.get_worksheet = AsyncMock()
+    mock_sheet.process_scheduled_posts = AsyncMock(return_value=post_data)
+    mock_sheet.mark_as_published = AsyncMock()
+    mock_sheet_class.return_value = mock_sheet
+
+    network = ConcreteSocialNetwork()
+
+    async def flaky_post(status_text, status_link, *images):
+        if status_text == 'bad':
+            raise Exception('text too long')
+        return await ConcreteSocialNetwork.post(network, status_text, status_link, *images)
+
+    with patch.object(network, 'post', new=AsyncMock(side_effect=flaky_post)):
+        await network.schedule('sheet-id', 'Sheet1', 'email@example.com', 'key', max_count=5)
+
+    assert [p['text'] for p in network.posts_created] == ['ok-1', 'ok-3']
+    # Failed item must not be marked published (no ghost published)
+    marked_rows = [c.args[0] for c in mock_sheet.mark_as_published.await_args_list]
+    assert marked_rows == [1, 3]
+
+
+@pytest.mark.asyncio
+@patch('agoras.core.interfaces.Feed')
+async def test_last_from_feed_continues_after_item_failure(mock_feed_class):
+    """Failed middle feed item must not abort remaining items."""
+    mock_item1 = MagicMock()
+    mock_item1.link = 'http://item1.com'
+    mock_item1.title = 'ok-1'
+    mock_item1.image_url = None
+    mock_item1.get_timestamped_link = MagicMock(return_value='http://item1.com?t=1')
+
+    mock_item2 = MagicMock()
+    mock_item2.link = 'http://item2.com'
+    mock_item2.title = 'bad'
+    mock_item2.image_url = None
+    mock_item2.get_timestamped_link = MagicMock(return_value='http://item2.com?t=2')
+
+    mock_item3 = MagicMock()
+    mock_item3.link = 'http://item3.com'
+    mock_item3.title = 'ok-3'
+    mock_item3.image_url = None
+    mock_item3.get_timestamped_link = MagicMock(return_value='http://item3.com?t=3')
+
+    mock_feed = MagicMock()
+    mock_feed.download = AsyncMock()
+    mock_feed.get_items_since = MagicMock(return_value=[mock_item1, mock_item2, mock_item3])
+    mock_feed_class.return_value = mock_feed
+
+    network = ConcreteSocialNetwork()
+
+    async def flaky_post(status_text, status_link, *images):
+        if status_text == 'bad':
+            raise Exception('text too long')
+        return await ConcreteSocialNetwork.post(network, status_text, status_link, *images)
+
+    with patch.object(network, 'post', new=AsyncMock(side_effect=flaky_post)):
+        await network.last_from_feed('http://feed.rss', max_count=3, post_lookback=3600)
+
+    assert [p['text'] for p in network.posts_created] == ['ok-1', 'ok-3']

@@ -58,15 +58,15 @@ setup(
         'beautifulsoup4==4.15.0',
         # From agoras-media
         'filetype==1.2.0',
-        'opencv-python-headless==4.13.0.92',
+        'opencv-python-headless==5.0.0.93',
         'Pillow>=10.0.0',
         # From agoras-core
         'atoma==0.0.17',
         'gspread==6.2.1',
-        'google-auth==2.55.1',
+        'google-auth==2.56.0',
         'python-dateutil==2.9.0.post0',
         # From agoras-platforms
-        'tweepy==4.16.0',
+        'tweepy==4.17.0',
         'python-facebook-api==0.24.0',
         'linkedin-api-client==0.3.0',
         'discord.py==2.7.1',
@@ -79,6 +79,8 @@ setup(
         'authlib==1.7.2',
         'cryptography>=42.0.0',
         'python-telegram-bot>=22.1',
+        # From agoras
+        'PyYAML==6.0.3',
     ],
 
     # CLI Entry point

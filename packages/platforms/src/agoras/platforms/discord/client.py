@@ -18,7 +18,7 @@
 """agoras.platforms.discord.client module."""
 
 import asyncio
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 import discord
 
@@ -283,6 +283,104 @@ class DiscordAPIClient:
             return str(message.id)
         except Exception as e:
             error_msg = f"Discord send message failed: {str(e)}"
+            raise Exception(error_msg) from e
+
+    async def create_public_thread(
+        self,
+        message_id: str,
+        name: str,
+        auto_archive_duration: Optional[int] = None,
+    ) -> str:
+        """
+        Create a public thread from an existing channel message.
+
+        Args:
+            message_id (str): Starter message ID in the configured text channel
+            name (str): Thread name
+            auto_archive_duration (int, optional): Archive duration in minutes
+
+        Returns:
+            str: Created thread ID
+
+        Raises:
+            Exception: If thread creation fails
+        """
+        if not self._authenticated:
+            raise Exception("Discord client not authenticated")
+
+        if not self.client:
+            raise Exception("Discord client not available")
+
+        try:
+            channel = self._get_channel()
+            message = await channel.fetch_message(int(message_id))
+            kwargs: Dict[str, Any] = {
+                "name": name,
+                "message": message,
+            }
+            if auto_archive_duration is not None:
+                kwargs["auto_archive_duration"] = int(auto_archive_duration)
+
+            thread = await channel.create_thread(**kwargs)
+            return str(thread.id)
+        except Exception as e:
+            error_msg = f"Discord create public thread failed: {str(e)}"
+            raise Exception(error_msg) from e
+
+    async def send_message_to_thread(
+        self,
+        thread,
+        content: Optional[str] = None,
+        embeds: Optional[List[discord.Embed]] = None,
+        file: Optional[discord.File] = None,
+    ) -> str:
+        """
+        Send a message into an existing thread without mutating channel_name.
+
+        Args:
+            thread: Discord thread/channel object (or thread ID string/int)
+            content (str, optional): Text content of the message
+            embeds (list, optional): List of Discord embeds
+            file (discord.File, optional): File to attach
+
+        Returns:
+            str: Message ID
+
+        Raises:
+            Exception: If message sending fails
+        """
+        if not self._authenticated:
+            raise Exception("Discord client not authenticated")
+
+        if not self.client:
+            raise Exception("Discord client not available")
+
+        try:
+            target = thread
+            if isinstance(thread, (str, int)):
+                fetched = self.client.get_channel(int(thread))
+                if fetched is None:
+                    fetched = await self.client.fetch_channel(int(thread))
+                target = fetched
+
+            kwargs = {}
+            if content is not None:
+                kwargs["content"] = content
+            if embeds is not None:
+                kwargs["embeds"] = embeds
+            if file is not None:
+                kwargs["file"] = file
+
+            send = getattr(target, "send", None)
+            if send is None:
+                raise Exception("Discord target channel does not support send()")
+            if kwargs:
+                message = await send(**kwargs)
+            else:
+                message = await send()
+            return str(message.id)
+        except Exception as e:
+            error_msg = f"Discord send message to thread failed: {str(e)}"
             raise Exception(error_msg) from e
 
     async def add_reaction(self, message_id: str, emoji: str = "❤️") -> str:

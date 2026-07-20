@@ -174,3 +174,25 @@ def test_x_api_has_auth_manager(mock_auth_class):
     api = XAPI('consumer_key', 'consumer_secret', 'oauth_token', 'oauth_secret')
 
     assert api.auth_manager is not None
+
+
+@pytest.mark.asyncio
+async def test_x_api_post_with_reply_parent(x_api):
+    """Test XAPI post forwards in_reply_to_tweet_id."""
+    x_api.client.create_tweet = AsyncMock(return_value='tweet-reply')
+
+    result = await x_api.post('Hello', in_reply_to_tweet_id='parent-1')
+
+    assert result == 'tweet-reply'
+    x_api.client.create_tweet.assert_called_once_with(
+        'Hello', None, in_reply_to_tweet_id='parent-1'
+    )
+
+
+@pytest.mark.asyncio
+async def test_x_api_post_rejects_over_limit(x_api):
+    """Test XAPI post validates weighted length instead of truncating."""
+    from agoras.core.text_limits import TextValidationError
+
+    with pytest.raises(TextValidationError):
+        await x_api.post('A' * 400)

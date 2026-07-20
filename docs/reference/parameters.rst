@@ -36,7 +36,7 @@ X (formerly Twitter)
 * ``--consumer-key`` - X API consumer key (required)
 * ``--consumer-secret`` - X API consumer secret (required)
 
-**Action commands** (``post``, ``video``, ``like``, ``share``, ``delete``): no credential flags; use content/action parameters such as ``--text``, ``--post-id``, ``--video-url``.
+**Action commands** (``post``, ``video``, ``like``, ``share``, ``delete``, ``thread``, ``template``): no credential flags; use content/action parameters such as ``--text``, ``--post-id``, ``--video-url``, or ``--content``.
 
 .. deprecated:: 2.0
    The ``--twitter-*`` parameters in utils commands are deprecated. Use ``--x-*`` parameters instead.
@@ -198,6 +198,8 @@ Text and Links
 
 * ``--text`` - Text content of the post (replaces ``--status-text``)
 * ``--link`` - URL to include in post (replaces ``--status-link``)
+* ``--content`` - Path to a versioned YAML content file (mutually exclusive with
+  inline content flags). See :doc:`../content-files`.
 
 Images
 ------

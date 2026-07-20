@@ -37,6 +37,7 @@ setup(
     python_requires='>=3.10',
     install_requires=[
         f'agoras-platforms=={version}',
+        'PyYAML==6.0.3',
     ],
 
     entry_points={

@@ -25,7 +25,8 @@ from argparse import ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.discord.wrapper import main as discord_main
 
-from ..base import add_common_content_options, add_video_options
+from ..base import add_common_content_options, add_video_options, prepare_content_args
+from ..content import add_content_file_option
 from ..converter import ParameterConverter
 from ..validator import ActionValidator
 
@@ -59,6 +60,16 @@ def create_discord_parser(subparsers: _SubParsersAction) -> ArgumentParser:
         "video", help='Send a video to Discord channel. Requires prior authorization via "agoras discord authorize".'
     )
     _add_video_options(video)
+
+    # Thread action (YAML content file only)
+    thread = actions.add_parser(
+        "thread",
+        help=(
+            "Publish a Discord thread. Content must come from a YAML file via --content. "
+            'Requires prior authorization via "agoras discord authorize".'
+        ),
+    )
+    add_content_file_option(thread)
 
     # Delete action
     delete = actions.add_parser(
@@ -112,6 +123,7 @@ def _handle_discord_command(args: Namespace):
     """
     # Validate action
     ActionValidator.validate("discord", args.action)
+    prepare_content_args(args, "discord")
 
     # Convert new args to legacy format
     converter = ParameterConverter("discord")

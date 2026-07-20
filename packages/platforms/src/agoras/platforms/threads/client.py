@@ -22,6 +22,16 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
+# Bounded container readiness poll (~5 minutes at 5s intervals).
+VIDEO_POLL_INTERVAL_S = 5
+VIDEO_POLL_MAX_WAIT_S = 300
+CONTAINER_READY_STATUSES = frozenset({"FINISHED", "PUBLISHED"})
+CONTAINER_FAILED_STATUSES = frozenset({"ERROR", "EXPIRED"})
+
+
+class ThreadsContainerTimeoutError(Exception):
+    """Raised when container processing does not finish within the poll budget."""
+
 
 class ThreadsAPIClient:
     """
@@ -67,12 +77,50 @@ class ThreadsAPIClient:
         except Exception as e:
             raise Exception(f"Failed to get profile: {str(e)}")
 
+    def _wait_for_container_ready(self, creation_id: str) -> None:
+        """
+        Poll container status until ready, failed, or timeout.
+
+        Args:
+            creation_id (str): Container creation ID
+
+        Raises:
+            Exception: On terminal ERROR/EXPIRED status
+            ThreadsContainerTimeoutError: If readiness is not reached in time
+        """
+        deadline = time.monotonic() + VIDEO_POLL_MAX_WAIT_S
+        status = "IN_PROGRESS"
+        while status not in CONTAINER_READY_STATUSES:
+            if time.monotonic() >= deadline:
+                raise ThreadsContainerTimeoutError(
+                    f"Threads container {creation_id} not ready after {VIDEO_POLL_MAX_WAIT_S}s"
+                )
+            time.sleep(VIDEO_POLL_INTERVAL_S)
+            status_resp = requests.get(
+                f"{self.base_url}/{creation_id}",
+                params={"fields": "status", "access_token": self.access_token},
+                timeout=30,
+            )
+            self._check_response(status_resp)
+            status = status_resp.json().get("status", "")
+            if status in CONTAINER_FAILED_STATUSES:
+                raise Exception(f"Threads video processing failed with status {status}")
+
+    def _publish_container(self, creation_id: str) -> Dict[str, Any]:
+        """Publish a ready container and return the published media ID payload."""
+        publish_data = {"access_token": self.access_token, "creation_id": creation_id}
+        publish_resp = requests.post(f"{self.base_url}/{self.user_id}/threads_publish", data=publish_data, timeout=30)
+        self._check_response(publish_resp)
+        # Always return the published media id from the publish response — never the container id.
+        return {"id": publish_resp.json()["id"]}
+
     def create_post(
         self,
         post_text: str,
         files: Optional[List[str]] = None,
         file_captions: Optional[List[str]] = None,
         who_can_reply: str = "everyone",
+        reply_to_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Create a post on Threads using Meta's Graph API.
@@ -82,9 +130,10 @@ class ThreadsAPIClient:
             files (list, optional): List of file URLs to attach
             file_captions (list, optional): Captions for files
             who_can_reply (str): Who can reply to this post
+            reply_to_id (str, optional): Published media ID to reply to
 
         Returns:
-            dict: Post creation response
+            dict: Post creation response with published media id
 
         Raises:
             Exception: If post creation fails or not authenticated
@@ -101,6 +150,8 @@ class ThreadsAPIClient:
         try:
             # Determine post type and build container creation data
             container_data = {"access_token": self.access_token, "text": post_text, "reply_control": who_can_reply}
+            if reply_to_id:
+                container_data["reply_to_id"] = reply_to_id
 
             if len(files) == 0:
                 # Text-only post
@@ -115,13 +166,15 @@ class ThreadsAPIClient:
                 # Carousel post (2-4 images)
                 # First create individual carousel item containers
                 item_ids = []
-                for image_url in files:
+                for idx, image_url in enumerate(files):
                     item_data = {
                         "access_token": self.access_token,
                         "media_type": "IMAGE",
                         "image_url": image_url,
                         "is_carousel_item": True,
                     }
+                    if file_captions and idx < len(file_captions) and file_captions[idx]:
+                        item_data["alt_text"] = file_captions[idx]
                     resp = requests.post(f"{self.base_url}/me/threads", data=item_data, timeout=30)
                     self._check_response(resp)
                     item_ids.append(resp.json()["id"])
@@ -135,19 +188,13 @@ class ThreadsAPIClient:
             self._check_response(resp)
             creation_id = resp.json()["id"]
 
-            # Wait a bit for container to be ready (Meta recommends this)
-            time.sleep(2)
+            # Short bounded readiness wait for image/text containers
+            time.sleep(min(2, VIDEO_POLL_INTERVAL_S))
 
-            # Publish the container
-            publish_data = {"access_token": self.access_token, "creation_id": creation_id}
+            return self._publish_container(creation_id)
 
-            publish_resp = requests.post(
-                f"{self.base_url}/{self.user_id}/threads_publish", data=publish_data, timeout=30
-            )
-            self._check_response(publish_resp)
-
-            return {"id": publish_resp.json()["id"]}
-
+        except ThreadsContainerTimeoutError:
+            raise
         except Exception as e:
             raise Exception(f"Failed to create post: {str(e)}")
 
@@ -162,7 +209,13 @@ class ThreadsAPIClient:
                 pass
             raise Exception(f"HTTP {response.status_code}: {response.text}")
 
-    def create_video_post(self, post_text: str, video_url: str, who_can_reply: str = "everyone") -> Dict[str, Any]:
+    def create_video_post(
+        self,
+        post_text: str,
+        video_url: str,
+        who_can_reply: str = "everyone",
+        reply_to_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Create a video post on Threads using Meta's Graph API.
 
@@ -170,12 +223,14 @@ class ThreadsAPIClient:
             post_text (str): Text content / caption for the video
             video_url (str): Publicly accessible URL of the video
             who_can_reply (str): Who can reply to this post
+            reply_to_id (str, optional): Published media ID to reply to
 
         Returns:
-            dict: Post creation response
+            dict: Post creation response with published media id
 
         Raises:
             Exception: If video post creation fails or not authenticated
+            ThreadsContainerTimeoutError: If processing does not finish in time
         """
         if not self.access_token:
             raise Exception("No access token available")
@@ -194,34 +249,18 @@ class ThreadsAPIClient:
                 "media_type": "VIDEO",
                 "video_url": video_url,
             }
+            if reply_to_id:
+                container_data["reply_to_id"] = reply_to_id
 
             resp = requests.post(f"{self.base_url}/me/threads", data=container_data, timeout=30)
             self._check_response(resp)
             creation_id = resp.json()["id"]
 
-            # Video processing is asynchronous; poll until ready
-            status = "IN_PROGRESS"
-            while status not in ("FINISHED", "PUBLISHED"):
-                time.sleep(5)
-                status_resp = requests.get(
-                    f"{self.base_url}/{creation_id}",
-                    params={"fields": "status", "access_token": self.access_token},
-                    timeout=30,
-                )
-                self._check_response(status_resp)
-                status = status_resp.json().get("status", "")
-                if status == "ERROR":
-                    raise Exception("Threads video processing failed")
+            self._wait_for_container_ready(creation_id)
+            return self._publish_container(creation_id)
 
-            publish_data = {"access_token": self.access_token, "creation_id": creation_id}
-
-            publish_resp = requests.post(
-                f"{self.base_url}/{self.user_id}/threads_publish", data=publish_data, timeout=30
-            )
-            self._check_response(publish_resp)
-
-            return {"id": publish_resp.json()["id"]}
-
+        except ThreadsContainerTimeoutError:
+            raise
         except Exception as e:
             raise Exception(f"Failed to create video post: {str(e)}")
 

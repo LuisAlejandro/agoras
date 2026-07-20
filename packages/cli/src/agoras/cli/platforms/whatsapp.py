@@ -21,11 +21,12 @@ WhatsApp platform CLI parser.
 This module provides the WhatsApp command parser for the new CLI structure.
 """
 
-from argparse import ArgumentParser, Namespace, _SubParsersAction
+from argparse import SUPPRESS, ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.whatsapp.wrapper import main as whatsapp_main
 
-from ..base import add_common_content_options, add_video_options
+from ..base import add_common_content_options, add_video_options, prepare_content_args
+from ..content import add_content_file_option
 from ..converter import ParameterConverter
 from ..validator import ActionValidator
 
@@ -111,16 +112,30 @@ def _add_template_options(parser: ArgumentParser):
     """
     Add template-specific options.
 
+    ``--template-name`` is not argparse-required so --content can supply it;
+    the content contract enforces requiredness. ``--recipient`` stays required
+    as a control flag.
+
     Args:
         parser: ArgumentParser to add options to
     """
+    add_content_file_option(parser)
+
     template = parser.add_argument_group("Template Options")
-    template.add_argument("--template-name", required=True, metavar="<name>", help="Name of the pre-approved template")
     template.add_argument(
-        "--language-code", default="en", metavar="<code>", help="Language code (ISO 639-1 format, default: en)"
+        "--template-name", default=SUPPRESS, metavar="<name>", help="Name of the pre-approved template"
     )
     template.add_argument(
-        "--template-components", metavar="<json>", help="Template components as JSON string (optional)"
+        "--language-code",
+        default=SUPPRESS,
+        metavar="<code>",
+        help="Language code (ISO 639-1 format, default: en)",
+    )
+    template.add_argument(
+        "--template-components",
+        default=SUPPRESS,
+        metavar="<json>",
+        help="Template components as JSON string (optional)",
     )
 
 
@@ -136,6 +151,7 @@ def _handle_whatsapp_command(args: Namespace):
     """
     # Validate action
     ActionValidator.validate("whatsapp", args.action)
+    prepare_content_args(args, "whatsapp")
 
     # Convert new args to legacy format
     converter = ParameterConverter("whatsapp")

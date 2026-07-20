@@ -21,7 +21,7 @@ import asyncio
 import mimetypes
 import os
 import tempfile
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from tweepy import API, Client, OAuth1UserHandler
 
@@ -165,6 +165,27 @@ class XAPIClient:
 
         return await asyncio.to_thread(_sync_get_info)
 
+    async def get_subscription_type(self) -> Optional[str]:
+        """
+        Fetch authenticated user subscription_type via API v2.
+
+        Returns:
+            str | None: Basic, Premium, PremiumPlus, None, or None if unavailable
+        """
+        if not self.client_v2:
+            raise Exception("X v2 client not initialized")
+
+        def _sync_get_subscription():
+            if not self.client_v2:
+                raise Exception("X v2 client not initialized")
+            response = self.client_v2.get_me(user_fields=["subscription_type"])
+            data = getattr(response, "data", None)
+            if data is None:
+                return None
+            return getattr(data, "subscription_type", None)
+
+        return await asyncio.to_thread(_sync_get_subscription)
+
     async def upload_media(self, media_content: bytes, media_type: str) -> str:
         """
         Upload media using v1.1 API.
@@ -205,13 +226,19 @@ class XAPIClient:
         media_id = await asyncio.to_thread(_sync_upload)
         return str(media_id)
 
-    async def create_tweet(self, text: str, media_ids: Optional[List[str]] = None) -> str:
+    async def create_tweet(
+        self,
+        text: str,
+        media_ids: Optional[List[str]] = None,
+        in_reply_to_tweet_id: Optional[str] = None,
+    ) -> str:
         """
         Create a tweet using v2 API.
 
         Args:
             text (str): Tweet text content
             media_ids (list, optional): List of media IDs
+            in_reply_to_tweet_id (str, optional): Parent tweet ID for reply chains
 
         Returns:
             str: Tweet ID
@@ -224,11 +251,12 @@ class XAPIClient:
 
         def _sync_create_tweet():
             try:
-                # Use the correct method signature for Tweepy v2
+                kwargs: Dict[str, Any] = {"text": text}
                 if media_ids:
-                    response = self.client_v2.create_tweet(text=text, media_ids=media_ids)  # type: ignore
-                else:
-                    response = self.client_v2.create_tweet(text=text)  # type: ignore
+                    kwargs["media_ids"] = media_ids
+                if in_reply_to_tweet_id:
+                    kwargs["in_reply_to_tweet_id"] = in_reply_to_tweet_id
+                response = self.client_v2.create_tweet(**kwargs)  # type: ignore
 
                 # Handle Tweepy response object safely
                 response_data = getattr(response, "data", None)

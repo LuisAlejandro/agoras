@@ -25,6 +25,7 @@ The Threads platform supports the following actions:
 * ``authorize`` - Set up OAuth 2.0 authentication (required first step)
 * ``post`` - Create text and image posts
 * ``video`` - Upload videos
+* ``thread`` - Publish an ordered reply-chain thread from a YAML content file
 * ``share`` - Share/repost existing content
 * ``delete`` - Delete a Threads post
 
@@ -81,6 +82,31 @@ Upload a video to Threads::
 
 .. note::
    You must run ``agoras threads authorize`` first before using this command.
+
+Publish a Thread
+----------------
+
+.. versionadded:: 2.2
+
+``thread`` is YAML-only. Each entry may include text/link/images **or** one
+video URL. Replies chain on published media IDs. Tokens need
+``threads_manage_replies`` (re-authorize if an older token lacks it). See
+:doc:`content-files`.
+
+Example::
+
+    agoras threads thread --content thread.yaml
+
+``thread.yaml``::
+
+    version: 1
+    entries:
+      - text: Opening post
+      - text: Reply with image
+        images:
+          - https://cdn.example.com/a.jpg
+      - text: Closing reply
+        video_url: https://cdn.example.com/clip.mp4
 
 Sharing a Post
 ---------------

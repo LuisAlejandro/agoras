@@ -110,7 +110,7 @@ class ThreadsAuthManager(BaseAuthManager):
                 f"https://threads.net/oauth/authorize?"
                 f"client_id={self.app_id}&"
                 f"redirect_uri={redirect_uri}&"
-                f"scope=threads_basic,threads_content_publish,threads_delete&"
+                f"scope=threads_basic,threads_content_publish,threads_delete,threads_manage_replies&"
                 f"response_type=code&"
                 f"state={state}"
             )

@@ -21,6 +21,7 @@ from typing import List, Optional
 
 from agoras.core.api_base import BaseAPI
 from agoras.core.auth import raise_authentication_error_from_manager
+from agoras.core.text_limits import validate_text, x_mode_for_subscription
 
 from .auth import XAuthManager
 
@@ -147,13 +148,29 @@ class XAPI(BaseAPI):
             self._handle_api_error(e, "X media upload")
             raise
 
-    async def post(self, text: str, media_ids: Optional[List[str]] = None) -> str:
+    def _subscription_type(self) -> Optional[str]:
+        """Return stored X subscription type when available (fail closed to free)."""
+        user_info = self.user_info if isinstance(self.user_info, dict) else None
+        if user_info:
+            return user_info.get("subscription_type") or user_info.get("subscription_type_v2")
+        return None
+
+    async def post(
+        self,
+        text: str,
+        media_ids: Optional[List[str]] = None,
+        in_reply_to_tweet_id: Optional[str] = None,
+        *,
+        validate: bool = True,
+    ) -> str:
         """
         Create a tweet (post).
 
         Args:
             text (str): Tweet text content
             media_ids (list, optional): List of media IDs
+            in_reply_to_tweet_id (str, optional): Parent tweet ID for reply chains
+            validate (bool): When True, reject over-limit text via weighted limits
 
         Returns:
             str: Tweet ID
@@ -166,12 +183,12 @@ class XAPI(BaseAPI):
 
         await self._rate_limit_check("post", 1.0)
 
-        # X has a 280 character limit
-        if len(text) > 280:
-            text = text[:277] + "..."
+        if validate:
+            mode = x_mode_for_subscription(self._subscription_type())
+            validate_text("twitter", "text", text, mode=mode)
 
         try:
-            tweet_id = await self.client.create_tweet(text, media_ids)
+            tweet_id = await self.client.create_tweet(text, media_ids, in_reply_to_tweet_id=in_reply_to_tweet_id)
             return tweet_id
         except Exception as e:
             self._handle_api_error(e, "X tweet creation")
