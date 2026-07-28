@@ -34,4 +34,4 @@ twine==6.2.0
 bumpversion==0.6.0
 
 # CI/CD
-coveralls==4.0.2
+coveralls==4.1.0
