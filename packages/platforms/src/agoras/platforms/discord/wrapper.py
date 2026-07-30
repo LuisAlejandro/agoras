@@ -18,11 +18,46 @@
 """agoras.platforms.discord.wrapper module."""
 
 import asyncio
+from typing import Any, Dict, List, Optional
+
+import discord
 
 from agoras.common.utils import parse_metatags
 from agoras.core.interfaces import SocialNetwork
+from agoras.core.text_limits import validate_discord_embeds, validate_text
+from agoras.core.threading import (
+    ThreadPublishError,
+    ThreadResult,
+    partial_result,
+    success_result,
+)
 
 from .api import DiscordAPI
+
+_DISCORD_ARCHIVE_DURATIONS = frozenset({60, 1440, 4320, 10080})
+
+
+def _entry_images(entry: Dict[str, Any]) -> List[str]:
+    """Collect flattened image_1..image_4 URLs from a thread entry."""
+    return list(
+        filter(
+            None,
+            [
+                entry.get("image_1"),
+                entry.get("image_2"),
+                entry.get("image_3"),
+                entry.get("image_4"),
+            ],
+        )
+    )
+
+
+def _is_uncertain_publish_error(exc: BaseException) -> bool:
+    """Classify timeout/uncertain errors after a publish dispatch."""
+    if isinstance(exc, (TimeoutError, asyncio.TimeoutError)):
+        return True
+    message = str(exc).lower()
+    return any(token in message for token in ("timeout", "timed out", "temporarily unavailable"))
 
 
 class Discord(SocialNetwork):
@@ -162,12 +197,17 @@ class Discord(SocialNetwork):
         if not source_media and not status_text and not status_link:
             raise Exception("No status text, link, or images provided.")
 
+        validate_text("discord", "content", status_text or "")
+
         # Parse link metadata
         if status_link:
             scraped_data = parse_metatags(status_link)
             status_link_title = scraped_data.get("title", "")
             status_link_description = scraped_data.get("description", "")
             status_link_image = scraped_data.get("image", "")
+
+            # Validate scraped embed fields before media I/O / publish
+            validate_discord_embeds([{"title": status_link_title, "description": status_link_description}])
 
             # Create link embed
             link_embed = self.api.create_embed(
@@ -194,6 +234,217 @@ class Discord(SocialNetwork):
 
         self._output_status(message_id)
         return message_id
+
+    async def _append_custom_embeds(self, embeds: List[Any], custom_embeds: List[Any]) -> None:
+        if not self.api:
+            raise Exception("Discord API not initialized")
+        for embed_data in custom_embeds:
+            if not isinstance(embed_data, dict):
+                raise Exception("Each embed must be a mapping.")
+            embeds.append(
+                self.api.create_embed(
+                    title=embed_data.get("title"),
+                    description=embed_data.get("description"),
+                    url=embed_data.get("url"),
+                    image_url=embed_data.get("image_url"),
+                )
+            )
+
+    async def _append_link_embed(self, embeds: List[Any], link: str) -> None:
+        if not self.api:
+            raise Exception("Discord API not initialized")
+        scraped_data = parse_metatags(link)
+        embeds.append(
+            self.api.create_embed(
+                title=scraped_data.get("title", ""),
+                description=scraped_data.get("description", ""),
+                url=link,
+                image_url=scraped_data.get("image", ""),
+            )
+        )
+
+    async def _append_image_embeds(self, embeds: List[Any], images: List[str], cleanup_targets: List[Any]) -> None:
+        if not self.api:
+            raise Exception("Discord API not initialized")
+        downloaded = await self.download_images(images)
+        for image in downloaded:
+            try:
+                embeds.append(self.api.create_embed(image_url=image.url))
+            finally:
+                cleanup_targets.append(image)
+
+    async def _prepare_video_file(
+        self,
+        embeds: List[Any],
+        cleanup_targets: List[Any],
+        video_url: str,
+        video_title: str,
+        text: Optional[str],
+    ):
+        if not self.api:
+            raise Exception("Discord API not initialized")
+        video = await self.download_video(video_url)
+        cleanup_targets.append(video)
+        if not video.content or not video.file_type:
+            for item in cleanup_targets:
+                try:
+                    item.cleanup()
+                except Exception:
+                    pass
+            raise Exception("Failed to download or validate video")
+        content = text
+        if video_title or text:
+            embeds.append(self.api.create_embed(title=video_title or "Video", description=text or ""))
+            content = None
+        file_obj = video.get_file_like_object()
+        file_obj = discord.File(file_obj, filename=f"video.{video.file_type.extension}")
+        return content, file_obj
+
+    async def _build_entry_payload(self, entry: Dict[str, Any]):
+        """
+        Build Discord content/embeds/file payload for one entry (no printing).
+
+        Returns:
+            tuple: (content, embeds, file_handle_or_None, cleanup_callable)
+        """
+        if not self.api:
+            raise Exception("Discord API not initialized")
+
+        text = entry.get("text") or None
+        link = entry.get("link") or ""
+        images = _entry_images(entry)
+        video_url = entry.get("video_url")
+        video_title = entry.get("video_title") or ""
+        custom_embeds = entry.get("embeds") or []
+
+        if images and video_url:
+            raise Exception("Images and video_url are mutually exclusive in a thread entry.")
+
+        embeds: List[Any] = []
+        cleanup_targets: List[Any] = []
+
+        await self._append_custom_embeds(embeds, custom_embeds)
+        if link:
+            await self._append_link_embed(embeds, link)
+        if images:
+            await self._append_image_embeds(embeds, images, cleanup_targets)
+
+        file_obj = None
+        if video_url:
+            text, file_obj = await self._prepare_video_file(embeds, cleanup_targets, video_url, video_title, text)
+
+        def _cleanup():
+            for item in cleanup_targets:
+                try:
+                    item.cleanup()
+                except Exception:
+                    pass
+
+        return text, embeds if embeds else None, file_obj, _cleanup
+
+    def _prevalidate_entries(self, entries: List[Dict[str, Any]], thread_name: str) -> None:
+        """Validate thread_name and every entry before any network publish."""
+        validate_text("discord", "thread_name", thread_name)
+        for entry in entries:
+            if not isinstance(entry, dict):
+                raise Exception("Each thread entry must be a mapping.")
+            images = _entry_images(entry)
+            video_url = entry.get("video_url")
+            if images and video_url:
+                raise Exception("Images and video_url are mutually exclusive in a thread entry.")
+            text = entry.get("text")
+            if text:
+                validate_text("discord", "content", text)
+            embeds = entry.get("embeds") or []
+            if embeds:
+                validate_discord_embeds(embeds)
+            if not text and not entry.get("link") and not images and not video_url and not embeds:
+                raise Exception("Thread entry requires text, link, images, video_url, or embeds.")
+
+    async def thread(self, entries, **kwargs) -> ThreadResult:
+        """
+        Publish a public Discord text-channel thread from a starter message.
+
+        Args:
+            entries: Ordered entry mappings
+            **kwargs: thread_name (required), auto_archive_duration (optional)
+
+        Returns:
+            ThreadResult: Structured success result including thread_id
+
+        Raises:
+            ThreadPublishError: On partial or failed publish with structured result
+        """
+        if not self.api:
+            raise Exception("Discord API not initialized")
+
+        if not entries or not isinstance(entries, list):
+            raise Exception("Thread entries are required.")
+
+        thread_name = kwargs.get("thread_name")
+        if not thread_name:
+            raise Exception("thread_name is required for Discord thread publishing.")
+
+        auto_archive_duration = kwargs.get("auto_archive_duration")
+        if auto_archive_duration is not None:
+            auto_archive_duration = int(auto_archive_duration)
+            if auto_archive_duration not in _DISCORD_ARCHIVE_DURATIONS:
+                raise Exception(f"auto_archive_duration must be one of {sorted(_DISCORD_ARCHIVE_DURATIONS)} minutes.")
+
+        self._prevalidate_entries(entries, thread_name)
+
+        ids: List[str] = []
+        thread_id: Optional[str] = None
+
+        # First entry → channel starter message
+        cleanup = None
+        try:
+            content, embeds, file_obj, cleanup = await self._build_entry_payload(entries[0])
+            starter_id = await self.api.post(content=content, embeds=embeds, file=file_obj)
+            ids.append(str(starter_id))
+        except Exception as exc:
+            outcome = "unknown" if _is_uncertain_publish_error(exc) else "failed"
+            raise ThreadPublishError(partial_result(ids, failed_index=0, outcome=outcome, error=str(exc))) from exc
+        finally:
+            if cleanup:
+                cleanup()
+
+        # Create public thread from starter
+        try:
+            thread_id = await self.api.create_public_thread(
+                ids[0], thread_name, auto_archive_duration=auto_archive_duration
+            )
+        except Exception as exc:
+            outcome = "unknown" if _is_uncertain_publish_error(exc) else "failed"
+            raise ThreadPublishError(
+                partial_result(ids, failed_index=0, outcome=outcome, error=str(exc), thread_id=thread_id)
+            ) from exc
+
+        # Remaining entries → thread channel
+        for index, entry in enumerate(entries[1:], start=1):
+            cleanup = None
+            try:
+                content, embeds, file_obj, cleanup = await self._build_entry_payload(entry)
+                message_id = await self.api.send_message_to_thread(
+                    thread_id, content=content, embeds=embeds, file=file_obj
+                )
+                ids.append(str(message_id))
+            except Exception as exc:
+                outcome = "unknown" if _is_uncertain_publish_error(exc) else "failed"
+                raise ThreadPublishError(
+                    partial_result(
+                        ids,
+                        failed_index=index,
+                        outcome=outcome,
+                        error=str(exc),
+                        thread_id=thread_id,
+                    )
+                ) from exc
+            finally:
+                if cleanup:
+                    cleanup()
+
+        return success_result(ids, thread_id=thread_id)
 
     async def like(self, discord_post_id):
         """
@@ -265,6 +516,10 @@ class Discord(SocialNetwork):
         if not video_url:
             raise Exception("No Discord video URL provided.")
 
+        # Validate embed text before media I/O when title/description are known
+        if video_title or status_text:
+            validate_discord_embeds([{"title": video_title or "Video", "description": status_text or ""}])
+
         # Download and validate video using the Media system
         video = await self.download_video(video_url)
 
@@ -316,9 +571,10 @@ async def main_async(kwargs):
         success = await instance.authorize_credentials()
         return 0 if success else 1
 
-    # Execute other actions using the base class method
-    await instance.execute_action(action)
-    await instance.disconnect()
+    try:
+        await instance.execute_action(action)
+    finally:
+        await instance.disconnect()
 
 
 def main(kwargs):

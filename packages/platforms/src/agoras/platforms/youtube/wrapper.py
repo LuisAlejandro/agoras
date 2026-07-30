@@ -18,8 +18,10 @@
 """agoras.platforms.youtube.wrapper module."""
 
 import asyncio
+import sys
 
 from agoras.core.interfaces import SocialNetwork
+from agoras.core.text_limits import validate_text
 
 from .api import YouTubeAPI
 
@@ -216,6 +218,9 @@ class YouTube(SocialNetwork):
         if not video_title or not video_url:
             raise Exception("Video title and URL are required.")
 
+        validate_text("youtube", "title", video_title)
+        validate_text("youtube", "description", status_text or "")
+
         # Download and validate video using the Media system
         video = await self.download_video(video_url)
 
@@ -293,7 +298,10 @@ class YouTube(SocialNetwork):
 
             if video_url:
                 count += 1
-                await self.video(self.youtube_description or "", video_url, video_title)
+                try:
+                    await self.video(self.youtube_description or "", video_url, video_title)
+                except Exception as exc:
+                    print(f"Feed item failed ({count}): {exc}", file=sys.stderr)
 
     async def random_from_feed(self, feed_url, max_post_age):
         """
@@ -339,11 +347,11 @@ class YouTube(SocialNetwork):
             google_sheets_id, google_sheets_name, google_sheets_client_email, google_sheets_private_key
         )
 
-        # Process scheduled videos
+        # Process scheduled videos (selection only — not marked published yet)
         videos_to_upload = await sheet.process_scheduled_posts(max_count)
 
-        # Upload videos asynchronously
-        for video_data in videos_to_upload:
+        # Upload videos asynchronously; continue after per-item failures
+        for index, video_data in enumerate(videos_to_upload, start=1):
             # YouTube-specific columns
             title = video_data.get("youtube_title", "")
             description = video_data.get("youtube_description", "")
@@ -361,6 +369,11 @@ class YouTube(SocialNetwork):
 
                 try:
                     await self.video(description, video_url, title)
+                    sheet_row = video_data.get("_sheet_row")
+                    if sheet_row is not None:
+                        await sheet.mark_as_published(sheet_row)
+                except Exception as exc:
+                    print(f"Scheduled item failed ({index}): {exc}", file=sys.stderr)
                 finally:
                     # Restore original values
                     self.youtube_category_id = original_category

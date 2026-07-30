@@ -22,10 +22,12 @@ This module provides the YouTube command parser for the new CLI structure.
 Note: YouTube is a video-only platform, so no 'post' action is available.
 """
 
-from argparse import ArgumentParser, Namespace, _SubParsersAction
+from argparse import SUPPRESS, ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.youtube.wrapper import main as youtube_main
 
+from ..base import prepare_content_args
+from ..content import add_content_file_option
 from ..converter import ParameterConverter
 from ..media_help import video_url_help
 from ..validator import ActionValidator
@@ -93,22 +95,27 @@ def _add_video_options(parser: ArgumentParser):
     """
     Add video-specific options for YouTube.
 
+    Content fields use SUPPRESS so unspecified flags are absent from the Namespace
+    (required for --content XOR detection). Defaults come from the content contract.
+
     Args:
         parser: ArgumentParser to add options to
     """
+    add_content_file_option(parser)
+
     video = parser.add_argument_group("Video Options")
-    video.add_argument("--video-url", required=True, metavar="<url>", help=video_url_help("youtube"))
-    video.add_argument("--title", metavar="<title>", help="Video title")
-    video.add_argument("--description", metavar="<description>", help="Video description")
-    video.add_argument("--category-id", metavar="<id>", help="YouTube category ID")
+    video.add_argument("--video-url", default=SUPPRESS, metavar="<url>", help=video_url_help("youtube"))
+    video.add_argument("--title", default=SUPPRESS, metavar="<title>", help="Video title")
+    video.add_argument("--description", default=SUPPRESS, metavar="<description>", help="Video description")
+    video.add_argument("--category-id", default=SUPPRESS, metavar="<id>", help="YouTube category ID")
     video.add_argument(
         "--privacy",
         metavar="<status>",
-        default="private",
+        default=SUPPRESS,
         choices=["public", "private", "unlisted"],
         help="Video privacy status (default: private)",
     )
-    video.add_argument("--keywords", metavar="<keywords>", help="Video keywords separated by comma")
+    video.add_argument("--keywords", default=SUPPRESS, metavar="<keywords>", help="Video keywords separated by comma")
 
 
 def _add_video_id_option(parser: ArgumentParser):
@@ -133,6 +140,7 @@ def _handle_youtube_command(args: Namespace):
     """
     # Validate action
     ActionValidator.validate("youtube", args.action)
+    prepare_content_args(args, "youtube")
 
     # Convert new args to legacy format
     converter = ParameterConverter("youtube")

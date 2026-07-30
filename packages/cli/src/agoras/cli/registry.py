@@ -32,13 +32,13 @@ class PlatformRegistry:
         "x": {
             "name": "X",
             "description": "X (formerly Twitter) social network",
-            "actions": {"authorize", "post", "video", "like", "share", "delete"},
+            "actions": {"authorize", "post", "video", "thread", "like", "share", "delete"},
             "module": "agoras.cli.platforms.x",
         },
         "twitter": {
             "name": "Twitter",
             "description": "Twitter/X social network",
-            "actions": {"authorize", "post", "video", "like", "share", "delete"},
+            "actions": {"authorize", "post", "video", "thread", "like", "share", "delete"},
             "module": "agoras.cli.platforms.x",  # Phase 2 will add proper aliasing
         },
         "facebook": {
@@ -62,7 +62,7 @@ class PlatformRegistry:
         "discord": {
             "name": "Discord",
             "description": "Discord chat platform",
-            "actions": {"authorize", "post", "video", "delete"},
+            "actions": {"authorize", "post", "video", "thread", "delete"},
             "module": "agoras.cli.platforms.discord",
         },
         "youtube": {
@@ -80,7 +80,7 @@ class PlatformRegistry:
         "threads": {
             "name": "Threads",
             "description": "Threads (Meta) social network",
-            "actions": {"authorize", "post", "video", "share", "delete"},
+            "actions": {"authorize", "post", "video", "thread", "share", "delete"},
             "module": "agoras.cli.platforms.threads",
         },
         "telegram": {

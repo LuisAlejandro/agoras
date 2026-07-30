@@ -47,10 +47,11 @@ def test_get_supported_actions_x():
     assert 'authorize' in actions
     assert 'post' in actions
     assert 'video' in actions
+    assert 'thread' in actions
     assert 'like' in actions
     assert 'share' in actions
     assert 'delete' in actions
-    assert len(actions) == 6
+    assert len(actions) == 7
 
 
 def test_get_supported_actions_twitter_alias():
@@ -92,6 +93,7 @@ def test_get_supported_actions_threads():
     assert 'authorize' in actions
     assert 'post' in actions
     assert 'video' in actions
+    assert 'thread' in actions
     assert 'share' in actions
     assert 'delete' in actions
     assert 'like' not in actions

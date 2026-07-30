@@ -58,6 +58,7 @@ class XAuthManager(BaseAuthManager):
         self.consumer_secret = consumer_secret
         self.oauth_token = oauth_token
         self.oauth_secret = oauth_secret
+        self.subscription_type: Optional[str] = None
 
     async def authenticate(self) -> bool:
         """
@@ -99,11 +100,48 @@ class XAuthManager(BaseAuthManager):
 
         # If OAuth tokens are already provided, just save them
         if self.oauth_token and self.oauth_secret:
+            await self._refresh_and_store_subscription_type()
             self._save_credentials_to_storage()
-            return "Authorization successful. Credentials stored securely."
+            return self._authorize_success_message()
 
         # Interactive mode with callback server
         return await self._authorize_interactive()
+
+    def _authorize_success_message(self) -> str:
+        """Build authorize result message; warn when Premium tier was not detected."""
+        base = "Authorization successful. Credentials stored securely."
+        if self.subscription_type is None:
+            return (
+                f"{base} Warning: X Premium subscription was not detected; "
+                "free-tier (280) text limits will apply until subscription_type is stored."
+            )
+        return base
+
+    async def _refresh_and_store_subscription_type(self) -> None:
+        """Fetch subscription_type via API v2; keep prior stored tier on failure."""
+        previous = self.subscription_type
+        if previous is None:
+            previous = self.load_subscription_type_from_storage()
+        try:
+            client = self._create_client()
+            await client.authenticate()
+            self.subscription_type = await client.get_subscription_type()
+            client.disconnect()
+        except Exception as exc:
+            # Fail closed to free-tier limits when lookup fails and nothing was stored
+            print(f"Warning: could not fetch X subscription_type: {exc}", file=sys.stderr)
+            if previous:
+                print(
+                    f"Warning: keeping previously stored subscription_type={previous}",
+                    file=sys.stderr,
+                )
+                self.subscription_type = previous
+            else:
+                print(
+                    "Warning: Premium was not detected; free-tier (280) limits will apply.",
+                    file=sys.stderr,
+                )
+                self.subscription_type = None
 
     async def _authorize_interactive(self) -> Optional[str]:
         """Authorize using local callback server (interactive mode)."""
@@ -163,11 +201,12 @@ class XAuthManager(BaseAuthManager):
 
                 self.oauth_token = access_token["oauth_token"]
                 self.oauth_secret = access_token["oauth_token_secret"]
-                self._save_credentials_to_storage()
 
             await asyncio.to_thread(_sync_complete_oauth)
+            await self._refresh_and_store_subscription_type()
+            self._save_credentials_to_storage()
 
-            return "Authorization successful. Credentials stored securely."
+            return self._authorize_success_message()
 
         except Exception as e:
             error = str(e)
@@ -236,11 +275,46 @@ class XAuthManager(BaseAuthManager):
             "consumer_secret": self.consumer_secret,
             "oauth_token": self.oauth_token,
             "oauth_secret": self.oauth_secret,
+            "subscription_type": self.subscription_type,
         }
 
         self.token_storage.save_token(platform_name, identifier, token_data)
         # Also save as default so it becomes the primary credential loaded
         self.token_storage.save_token(platform_name, "default", token_data)
+
+    def load_subscription_type_from_storage(self) -> Optional[str]:
+        """Load stored subscription_type without requiring full re-auth."""
+        platform_name = self._get_platform_name()
+        identifier = self._get_token_identifier()
+        token_data = self.token_storage.load_token(platform_name, identifier)
+        if not token_data:
+            token_data = self.token_storage.load_token(platform_name, "default")
+        if not token_data:
+            return None
+        return token_data.get("subscription_type")
+
+    def load_subscription_type_for_active_oauth(self) -> Optional[str]:
+        """
+        Load subscription_type only when stored oauth matches this manager's tokens.
+
+        Never adopts an unrelated list_tokens entry for tier selection — mismatch
+        or missing bind fails closed to free (None).
+        """
+        if not self.oauth_token or not self.oauth_secret:
+            return None
+
+        platform_name = self._get_platform_name()
+        identifier = self._get_token_identifier()
+        token_data = self.token_storage.load_token(platform_name, identifier)
+        if not token_data:
+            token_data = self.token_storage.load_token(platform_name, "default")
+        if not token_data:
+            return None
+
+        if token_data.get("oauth_token") != self.oauth_token or token_data.get("oauth_secret") != self.oauth_secret:
+            return None
+
+        return token_data.get("subscription_type")
 
     def _load_credentials_from_storage(self) -> bool:
         """Load X credentials from secure storage."""
@@ -262,6 +336,7 @@ class XAuthManager(BaseAuthManager):
             self.consumer_secret = token_data.get("consumer_secret")
             self.oauth_token = token_data.get("oauth_token")
             self.oauth_secret = token_data.get("oauth_secret")
+            self.subscription_type = token_data.get("subscription_type")
             return bool(all([self.consumer_key, self.consumer_secret, self.oauth_token, self.oauth_secret]))
 
         return False

@@ -21,11 +21,12 @@ Instagram platform CLI parser.
 This module provides the Instagram command parser for the new CLI structure.
 """
 
-from argparse import ArgumentParser, Namespace, _SubParsersAction
+from argparse import SUPPRESS, ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.instagram.wrapper import main as instagram_main
 
-from ..base import add_common_content_options
+from ..base import add_common_content_options, prepare_content_args
+from ..content import add_content_file_option
 from ..converter import ParameterConverter
 from ..media_help import video_url_help
 from ..validator import ActionValidator
@@ -107,14 +108,20 @@ def _add_video_options(parser: ArgumentParser):
     """
     Add video-specific options for Instagram.
 
+    Content fields use SUPPRESS so --content can supply them without argparse
+    requiredness blocking file mode.
+
     Args:
         parser: ArgumentParser to add options to
     """
+    add_content_file_option(parser)
+
     video = parser.add_argument_group("Video Options")
-    video.add_argument("--video-url", required=True, metavar="<url>", help=video_url_help("instagram"))
-    video.add_argument("--video-caption", metavar="<caption>", help="Video caption")
+    video.add_argument("--video-url", default=SUPPRESS, metavar="<url>", help=video_url_help("instagram"))
+    video.add_argument("--video-caption", default=SUPPRESS, metavar="<caption>", help="Video caption")
     video.add_argument(
         "--video-type",
+        default=SUPPRESS,
         metavar="<type>",
         help="Video type: REELS (default) or STORIES (case-insensitive; reel/story also accepted)",
     )
@@ -132,6 +139,7 @@ def _handle_instagram_command(args: Namespace):
     """
     # Validate action
     ActionValidator.validate("instagram", args.action)
+    prepare_content_args(args, "instagram")
 
     # Convert new args to legacy format
     converter = ParameterConverter("instagram")

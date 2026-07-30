@@ -14,9 +14,15 @@ Agoras supports multiple social media platforms, each with different authenticat
 
 **Authorize Action and Credential Storage**
 
-All platforms support an ``authorize`` action that securely stores credentials for future use. After running ``agoras <platform> authorize`` with the required credentials, those credentials are stored securely and automatically loaded for subsequent actions. Supported actions vary by platform (post, video, like, share, delete, template, etc.) — see :doc:`action-support` for the full matrix.
+All platforms support an ``authorize`` action that securely stores credentials for future use. After running ``agoras <platform> authorize`` with the required credentials, those credentials are stored securely and automatically loaded for subsequent actions. Supported actions vary by platform (post, video, thread, like, share, delete, template, etc.) — see :doc:`action-support` for the full matrix.
 
 You can override stored credentials with environment variables on action and utils commands. Credential CLI flags are accepted only on ``authorize`` (and on legacy ``agoras publish`` until version 3.0). Google Sheets credentials for ``schedule-run`` remain on the utils CLI.
+
+.. note::
+
+   Publish actions also accept ``--content path.yaml`` instead of inline content
+   flags. See :doc:`../content-files`. When a content file supplies a payload
+   field, environment variables do not override that field.
 
 .. note::
 

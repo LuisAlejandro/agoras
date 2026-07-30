@@ -63,7 +63,7 @@ setup(
         # From agoras-core
         'atoma==0.0.17',
         'gspread==6.2.1',
-        'google-auth==2.56.0',
+        'google-auth==2.56.2',
         'python-dateutil==2.9.0.post0',
         # From agoras-platforms
         'tweepy==4.17.0',
@@ -75,10 +75,12 @@ setup(
         'google-auth-oauthlib>=1.2.0',
         'google-auth-httplib2==0.4.0',
         'oauth2client==4.1.3',
-        'platformdirs==4.10.0',
+        'platformdirs==4.10.1',
         'authlib==1.7.2',
         'cryptography>=42.0.0',
         'python-telegram-bot>=22.1',
+        # From agoras
+        'PyYAML==6.0.3',
     ],
 
     # CLI Entry point

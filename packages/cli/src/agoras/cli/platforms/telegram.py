@@ -25,7 +25,7 @@ from argparse import ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.telegram.wrapper import main as telegram_main
 
-from ..base import add_common_content_options, add_video_options
+from ..base import add_common_content_options, add_video_options, prepare_content_args
 from ..converter import ParameterConverter
 from ..validator import ActionValidator
 
@@ -90,6 +90,9 @@ def _add_telegram_action_options(parser: ArgumentParser):
     """
     Add Telegram action options (non-auth).
 
+    ``parse_mode`` is a CONTROL flag (not XOR content). Keep default=HTML so it
+    does not conflict with --content.
+
     Args:
         parser: ArgumentParser to add options to
     """
@@ -124,6 +127,7 @@ def _handle_telegram_command(args: Namespace):
     """
     # Validate action
     ActionValidator.validate("telegram", args.action)
+    prepare_content_args(args, "telegram")
 
     # Convert new args to legacy format
     converter = ParameterConverter("telegram")

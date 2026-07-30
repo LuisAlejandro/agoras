@@ -38,25 +38,30 @@ class ScheduleSheet(Sheet):
 
     async def process_scheduled_posts(self, max_count=None):
         """
-        Process scheduled posts and update the sheet.
+        Select due scheduled posts without marking them published.
+
+        Rows are left unpublished here so callers can mark published only
+        after a successful post (avoids ghost "published" on failure).
 
         Args:
-            max_count (int, optional): Maximum number of posts to process
+            max_count (int, optional): Maximum number of posts to select
 
         Returns:
-            list: List of posts ready for publishing
+            list: List of posts ready for publishing. Each dict includes
+                ``_sheet_row`` (1-indexed worksheet row) for mark_as_published.
         """
         all_rows = await self.read_all(has_headers=False)
         current_time = datetime.datetime.now()
 
         posts_to_publish = []
-        updated_rows = []
         count = 0
 
-        for row_data in all_rows:
+        for row_index, row_data in enumerate(all_rows):
+            if max_count and count >= max_count:
+                break
+
             if len(row_data.data) < 9:
                 # Skip rows that don't have enough columns
-                updated_rows.append(row_data.to_list())
                 continue
 
             (
@@ -71,27 +76,8 @@ class ScheduleSheet(Sheet):
                 state,
             ) = row_data.data[:9]
 
-            # Add row to updated list
-            updated_row = [
-                status_text,
-                status_link,
-                status_image_url_1,
-                status_image_url_2,
-                status_image_url_3,
-                status_image_url_4,
-                date,
-                hour,
-                state,
-            ]
-
-            # Check if we've reached the limit
-            if max_count and count >= max_count:
-                updated_rows.append(updated_row)
-                continue
-
             # Skip already published posts
             if state == "published":
-                updated_rows.append(updated_row)
                 continue
 
             try:
@@ -100,9 +86,8 @@ class ScheduleSheet(Sheet):
                 normalized_current = parser.parse(current_time.strftime("%d-%m-%Y"))
                 normalized_row = parser.parse(row_date.strftime("%d-%m-%Y"))
 
-                # Skip future dates
+                # Skip past dates (not due / expired relative to today)
                 if normalized_row < normalized_current:
-                    updated_rows.append(updated_row)
                     continue
 
                 # For today's posts, check the hour
@@ -110,10 +95,10 @@ class ScheduleSheet(Sheet):
                     current_time.strftime("%d-%m-%Y") == row_date.strftime("%d-%m-%Y")
                     and current_time.strftime("%H") != hour
                 ):
-                    updated_rows.append(updated_row)
                     continue
 
-                # This post should be published
+                # This post should be published (caller marks after success)
+                sheet_row = row_index + 1  # gspread update_cell is 1-indexed
                 post_data = {
                     "status_text": status_text,
                     "status_link": status_link,
@@ -121,19 +106,24 @@ class ScheduleSheet(Sheet):
                     "status_image_url_2": status_image_url_2,
                     "status_image_url_3": status_image_url_3,
                     "status_image_url_4": status_image_url_4,
+                    "_sheet_row": sheet_row,
                 }
 
                 posts_to_publish.append(post_data)
-                updated_row[-1] = "published"  # Mark as published
                 count += 1
 
             except Exception:
                 # Skip rows with invalid dates
-                pass
-
-            updated_rows.append(updated_row)
-
-        # Update the sheet with new states
-        await self.write_all(updated_rows, clear_first=True)
+                continue
 
         return posts_to_publish
+
+    async def mark_as_published(self, sheet_row):
+        """
+        Mark a schedule row as published after a successful post.
+
+        Args:
+            sheet_row (int): 1-indexed worksheet row number
+        """
+        # Column 9 is the state field (status_text…hour, state)
+        await self.update_cell(sheet_row, 9, "published")

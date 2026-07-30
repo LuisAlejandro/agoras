@@ -32,13 +32,15 @@ setup(
     long_description_content_type='text/x-rst',
     packages=find_namespace_packages(where='src'),
     package_dir={'': 'src'},
+    package_data={'agoras.core.text_limits': ['data/*.json']},
+    include_package_data=True,
     python_requires='>=3.10',
     install_requires=[
         f'agoras-common=={version}',
         f'agoras-media=={version}',
         'atoma==0.0.17',
         'gspread==6.2.1',
-        'google-auth==2.56.0',
+        'google-auth==2.56.2',
         'python-dateutil==2.9.0.post0',
     ],
 

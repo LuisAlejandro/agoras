@@ -5,17 +5,17 @@
 pytest==9.1.1
 pytest-asyncio==1.4.0
 pytest-cov==7.1.0
-coverage==7.15.1
+coverage==7.15.2
 
 # Code Quality
-ruff==0.15.20
+ruff==0.15.22
 pyright==1.1.400
 pydocstyle==6.3.0
 bandit==1.9.4
 
 # Build Tools
-build==1.4.0
-setuptools==82.0.1
+build==1.5.0
+setuptools==83.0.0
 wheel==0.47.0
 
 # Testing Orchestration
@@ -34,4 +34,4 @@ twine==6.2.0
 bumpversion==0.6.0
 
 # CI/CD
-coveralls==4.0.2
+coveralls==4.1.0

@@ -80,6 +80,7 @@ Getting Started
 
    installation
    usage
+   content-files
    migration/index
 
 Platform Guides

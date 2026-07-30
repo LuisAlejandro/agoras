@@ -522,6 +522,61 @@ async def test_discord_main_async_authorize(mock_discord_class):
 
 
 @pytest.mark.asyncio
+@patch('agoras.platforms.discord.wrapper.DiscordAPI')
+async def test_discord_thread_ordering(mock_api_class):
+    """Test Discord.thread posts starter, creates thread, then sends remaining."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.create_embed = MagicMock(side_effect=lambda **kwargs: kwargs)
+    mock_api.post = AsyncMock(return_value='starter-1')
+    mock_api.create_public_thread = AsyncMock(return_value='thread-1')
+    mock_api.send_message_to_thread = AsyncMock(side_effect=['msg-2', 'msg-3'])
+    mock_api_class.return_value = mock_api
+
+    discord_net = Discord(
+        discord_bot_token='token',
+        discord_server_name='Server',
+        discord_channel_name='general',
+    )
+    await discord_net._initialize_client()
+
+    result = await discord_net.thread(
+        [{'text': 'starter'}, {'text': 'two'}, {'text': 'three'}],
+        thread_name='Discussion',
+        auto_archive_duration=60,
+    )
+
+    assert result.complete is True
+    assert result.ids == ['starter-1', 'msg-2', 'msg-3']
+    assert result.thread_id == 'thread-1'
+    mock_api.post.assert_called_once()
+    mock_api.create_public_thread.assert_called_once_with(
+        'starter-1', 'Discussion', auto_archive_duration=60
+    )
+    assert mock_api.send_message_to_thread.call_count == 2
+    assert mock_api.send_message_to_thread.call_args_list[0][0][0] == 'thread-1'
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.discord.wrapper.DiscordAPI')
+async def test_discord_thread_requires_name(mock_api_class):
+    """Test Discord.thread requires thread_name."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    discord_net = Discord(
+        discord_bot_token='token',
+        discord_server_name='Server',
+        discord_channel_name='general',
+    )
+    await discord_net._initialize_client()
+
+    with pytest.raises(Exception, match='thread_name is required'):
+        await discord_net.thread([{'text': 'a'}, {'text': 'b'}])
+
+
+@pytest.mark.asyncio
 @patch('agoras.platforms.discord.wrapper.Discord')
 async def test_discord_main_async_execute_action(mock_discord_class):
     """Test Discord main_async with other actions."""
