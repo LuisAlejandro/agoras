@@ -8,7 +8,7 @@ pytest-cov==7.1.0
 coverage==7.15.2
 
 # Code Quality
-ruff==0.15.22
+ruff==0.16.1
 pyright==1.1.400
 pydocstyle==6.3.0
 bandit==1.9.4
