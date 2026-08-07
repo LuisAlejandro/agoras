@@ -37,7 +37,7 @@ def find_monorepo_packages():
 
 packages, package_dir = find_monorepo_packages()
 
-version = "2.0.5"
+version = "2.1.0"
 
 setup(
     name="agoras",
@@ -75,7 +75,7 @@ setup(
         'google-auth-oauthlib>=1.2.0',
         'google-auth-httplib2==0.4.0',
         'oauth2client==4.1.3',
-        'platformdirs==4.10.1',
+        'platformdirs==4.11.0',
         'authlib==1.7.2',
         'cryptography>=42.0.0',
         'python-telegram-bot>=22.1',
