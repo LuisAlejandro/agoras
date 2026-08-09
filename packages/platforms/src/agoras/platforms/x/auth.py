@@ -20,9 +20,10 @@
 import asyncio
 import sys
 import webbrowser
-from typing import Optional
+from typing import Optional, cast
 
 from authlib.integrations.requests_client import OAuth1Session
+from requests import Session
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
@@ -147,10 +148,12 @@ class XAuthManager(BaseAuthManager):
         """Authorize using local callback server (interactive mode)."""
         try:
             # Create OAuth session for authorization
-            self.oauth_session = OAuth1Session(client_id=self.consumer_key, client_secret=self.consumer_secret)
+            oauth_session = OAuth1Session(client_id=self.consumer_key, client_secret=self.consumer_secret)
             no_retries = HTTPAdapter(max_retries=Retry(total=0, connect=0, read=0))
-            self.oauth_session.mount("https://", no_retries)
-            self.oauth_session.mount("http://", no_retries)
+            session = cast(Session, oauth_session)
+            session.mount("https://", no_retries)
+            session.mount("http://", no_retries)
+            self.oauth_session = oauth_session
 
             callback_server = OAuthCallbackServer(oauth_version="1.0a", port=3456)
             redirect_uri = "https://localhost:3456/callback"
