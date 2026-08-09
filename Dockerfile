@@ -20,7 +20,6 @@ RUN EXISTGROUP=$(getent group | awk -F':' '$3 == '$GID' {print $1}') && \
 
 RUN groupadd -g "${GID}" agoras || true
 RUN useradd -u "${UID}" -g "${GID}" -ms /bin/bash agoras
-
 RUN echo "agoras ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/agoras
 
 USER agoras

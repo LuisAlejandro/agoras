@@ -2,19 +2,85 @@ Changelog
 ============
 
 
-2.1.0 (unreleased)
+2.1.0 (2026-08-07)
 ------------
 
-Breaking Changes
-~~~~~~~~~~~~~~~~
+Added
+~~~~~~~~~~~~
 
-* Platform action commands and utils automation commands (``agoras utils feed-publish``, ``agoras utils schedule-run``) no longer accept credential or identity CLI flags for social networks. Run ``agoras <platform> authorize`` first, or set the platform environment variables documented in :doc:`reference/platform-arguments-envvars`. ``schedule-run`` now requires ``--network`` (one platform per invocation). Legacy ``agoras publish`` still accepts prefixed credential flags until version 3.0. Google Sheets credentials remain on the utils CLI surface.
+* YAML content files and native threads. [Luis Alejandro Martínez Faneyth]
+
+* Document gitchangelog commit tags in MAINTAINER. [Luis Alejandro Martínez Faneyth]
+
+
+Fixed
+~~~~~~~~~~~~
+
+* Retry transient GitHub API errors in PR auto-merge. [Luis Alejandro Martínez Faneyth]
+
+* Use top-level getOctokit in pr-auto-merge updateBranch step. [Luis Alejandro Martínez Faneyth]
+
 
 Other
 ~~~~~~~~~~~~
 
-* Migration suggestions for platform actions omit auth parameters so ``agoras publish --show-migration`` no longer recommends invalid credential flags on action commands.
-* Utils automation now dispatches through an internal platform runner instead of the legacy ``publish`` command module (internal refactor only; user-facing breaks are listed above).
+* Fix(core): align google-auth with platforms bump to 2.56.2. [Cursor Agent]
+
+* Fix(x): drop duplicate tweet validation after rebase. [Luis Alejandro Martínez Faneyth]
+
+* Fix(tiktok): initialize tiktok_description in __init__ for text validation. [Cursor Agent]
+
+* Style: apply Ruff format to text_limits module. [Cursor Agent]
+
+* Fix: address QA review for text-limit rejection. [Luis Alejandro Martínez Faneyth]
+
+* Feat(core): reject posts that exceed platform text limits. [Luis Alejandro Martínez Faneyth]
+
+* Upgrade PR auto-merge to SHA-bound native-first controller. [Luis Alejandro Martínez Faneyth]
+
+* Fix(deps): align google-auth 2.56.0 across core and root packages. [Cursor Agent]
+
+* Fix(deps): sync google-auth 2.56.0 across platforms and root. [Cursor Agent]
+
+* Fix: replace deluser/delgroup with userdel/groupdel in Dockerfiles. [Luis Alejandro Martínez Faneyth]
+
+* Chore: apply rosey-maintainer fleet sync. [Luis Alejandro Martínez Faneyth]
+
+* Chore: update gitignore. [Luis Alejandro Martínez Faneyth]
+
+* Update. [Luis Alejandro Martínez Faneyth]
+
+* Fix(deps): pin sphinx by Python version for unit test matrix. [Cursor Agent]
+
+* Fix(core): align google-auth with platforms bump to 2.55.1. [Cursor Agent]
+
+* Fix(platforms): align google-auth 2.55.1 with core for Dependabot bump. [Cursor Agent]
+
+* Fix: propagate access_token to LinkedInAPI and update Instagram docs. [Luis Alejandro Martínez Faneyth]
+
+* Feat: support LinkedIn standard app access-token-only authorization. [Luis Alejandro Martínez Faneyth]
+
+* Test: update Telegram invalid-token test for AuthenticationError. [Cursor Agent]
+
+* Fix: skip auto-merge for draft pull requests. [Luis Alejandro Martínez Faneyth]
+
+* Fix: refresh and sync unattended test tokens after live runs. [Luis Alejandro Martínez Faneyth]
+
+* Fix: surface categorized auth failures on CLI authenticate path. [Luis Alejandro Martínez Faneyth]
+
+* Chore: maintainer sync follow-ups for docs and Makefile. [Luis Alejandro Martínez Faneyth]
+
+* Chore: sync maintainer ops from rosey-maintainer-sync. [Luis Alejandro Martínez Faneyth]
+
+* Chore: sync maintainer ops from fleet-wide rosey-maintainer-sync. [Luis Alejandro Martínez Faneyth]
+
+* Refactor: consolidate lint and format on Ruff. [Luis Alejandro Martínez Faneyth]
+
+* Chore: sync maintainer release preflight and ops tooling. [Luis Alejandro Martínez Faneyth]
+
+* Feat: 2.1.0 utils authorize-only and platform runner dispatch. [Luis Alejandro Martínez Faneyth]
+
+* Formatting nits. [Luis Alejandro Martínez Faneyth]
 
 
 2.0.5 (2026-06-24)
@@ -426,3 +492,4 @@ Other
 * Update requirements.txt. [Luis Alejandro]
 
 * Initial commit. [Luis Alejandro Martínez Faneyth]
+
