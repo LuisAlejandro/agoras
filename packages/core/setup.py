@@ -40,7 +40,7 @@ setup(
         f'agoras-media=={version}',
         'atoma==0.0.17',
         'gspread==6.2.1',
-        'google-auth==2.56.2',
+        'google-auth==2.56.3',
         'python-dateutil==2.9.0.post0',
     ],
 
