@@ -5,10 +5,10 @@
 pytest==9.1.1
 pytest-asyncio==1.4.0
 pytest-cov==7.1.0
-coverage==7.15.2
+coverage==7.15.4
 
 # Code Quality
-ruff==0.16.1
+ruff==0.16.2
 pyright==1.1.411
 pydocstyle==6.3.0
 bandit==1.9.4
