@@ -772,6 +772,139 @@ async def test_x_post_allows_premium_long_text(mock_api_class):
     mock_api.post.assert_called_once()
     assert len(mock_api.post.call_args[0][0]) == 1000
 
+
+_X_CREDS = {
+    'twitter_consumer_key': 'key',
+    'twitter_consumer_secret': 'secret',
+    'twitter_oauth_token': 'token',
+    'twitter_oauth_secret': 'secret',
+}
+
+
+def _x_api_with_live_subscription(mock_api_class, subscription_type=None, *, error=None):
+    """Build a mocked XAPI whose client.get_subscription_type is awaitable."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.post = AsyncMock(return_value='tweet-1')
+    mock_client = MagicMock()
+    if error is not None:
+        mock_client.get_subscription_type = AsyncMock(side_effect=error)
+    else:
+        mock_client.get_subscription_type = AsyncMock(return_value=subscription_type)
+    mock_api.client = mock_client
+    mock_api_class.return_value = mock_api
+    return mock_api
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('tier', ['Premium', 'Basic', 'PremiumPlus'])
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_post_live_premium_family_allows_long_text(mock_api_class, tier):
+    """Live get_me Premium-family tiers allow 1000-char posts and do not write storage."""
+    mock_api = _x_api_with_live_subscription(mock_api_class, tier)
+    x = X(**_X_CREDS)
+
+    with patch.object(XAuthManager, '_save_credentials_to_storage') as mock_save:
+        await x._initialize_client()
+        with patch.object(x, '_output_status'):
+            result = await x.post('A' * 1000, '')
+
+    assert result == 'tweet-1'
+    assert x._subscription_type == tier
+    mock_api.client.get_subscription_type.assert_awaited_once()
+    mock_save.assert_not_called()
+    mock_api.post.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_post_live_lookup_error_fail_closed(mock_api_class):
+    """get_me raise fail-closes to 280; auth already succeeded; short posts still work."""
+    from agoras.core.text_limits import TextValidationError
+
+    mock_api = _x_api_with_live_subscription(mock_api_class, error=Exception('403'))
+    x = X(**_X_CREDS)
+    await x._initialize_client()
+
+    mock_api.authenticate.assert_awaited_once()
+    assert x._subscription_type is None
+
+    with pytest.raises(TextValidationError, match='280'):
+        await x.post('A' * 281, '')
+    mock_api.post.assert_not_called()
+
+    with patch.object(x, '_output_status'):
+        result = await x.post('A' * 100, '')
+    assert result == 'tweet-1'
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('tier', [None, 'premium', 'Free'])
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_post_live_non_premium_fail_closed_to_280(mock_api_class, tier):
+    """None, lowercase premium, and Free fail-closed to 280."""
+    from agoras.core.text_limits import TextValidationError
+
+    mock_api = _x_api_with_live_subscription(mock_api_class, tier)
+    x = X(**_X_CREDS)
+    await x._initialize_client()
+
+    with pytest.raises(TextValidationError, match='280'):
+        await x.post('A' * 281, '')
+    mock_api.post.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_post_live_premium_wins_over_empty_storage(mock_api_class):
+    """Empty storage must not clobber a live Premium fetch back to 280."""
+    mock_api = _x_api_with_live_subscription(mock_api_class, 'Premium')
+    x = X(**_X_CREDS)
+
+    def clobber_from_storage():
+        x._subscription_type = None
+        return None
+
+    with patch.object(x, '_load_subscription_type', side_effect=clobber_from_storage) as mock_load:
+        await x._initialize_client()
+        with patch.object(x, '_output_status'):
+            result = await x.post('A' * 1000, '')
+
+    assert result == 'tweet-1'
+    assert x._subscription_type == 'Premium'
+    mock_load.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_thread_lookup_failed_rejects_over_280_before_create(mock_api_class):
+    """Thread entry over 280 with failed lookup rejects before any create_tweet."""
+    from agoras.core.text_limits import TextValidationError
+
+    mock_api = _x_api_with_live_subscription(mock_api_class, error=Exception('429'))
+    x = X(**_X_CREDS)
+    await x._initialize_client()
+
+    with pytest.raises(TextValidationError, match='280'):
+        await x.thread([{'text': 'A' * 281}, {'text': 'ok'}])
+    mock_api.post.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_initialize_fetches_subscription_on_existing_client(mock_api_class):
+    """Post-time fetch uses the authenticated client, not a second _create_client."""
+    mock_api = _x_api_with_live_subscription(mock_api_class, 'Premium')
+    x = X(**_X_CREDS)
+
+    with patch.object(XAuthManager, '_create_client') as mock_create:
+        await x._initialize_client()
+
+    mock_create.assert_not_called()
+    mock_api.client.get_subscription_type.assert_awaited_once()
+    assert x._subscription_type == 'Premium'
+
+
 @pytest.mark.asyncio
 async def test_x_handle_like_action_no_tweet_id():
     """Test X _handle_like_action raises when no tweet ID."""
