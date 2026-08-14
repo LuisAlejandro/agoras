@@ -402,3 +402,63 @@ class TestXAPIClient:
 
         assert result == "tweet123"
         client.client_v2.delete_tweet.assert_called_once_with("tweet123")
+
+    @pytest.mark.asyncio
+    async def test_x_client_get_subscription_type_no_client(self):
+        """get_subscription_type raises when v2 client is missing."""
+        client = XAPIClient("ck", "cs", "ot", "os")
+        client.client_v2 = None
+
+        with pytest.raises(Exception, match="X v2 client not initialized"):
+            await client.get_subscription_type()
+
+    @patch("asyncio.to_thread")
+    @pytest.mark.asyncio
+    async def test_x_client_get_subscription_type_premium(self, mock_to_thread):
+        """get_me subscription_type Premium is returned."""
+        mock_to_thread.side_effect = lambda func: func()
+        data = MagicMock()
+        data.subscription_type = "Premium"
+        response = MagicMock()
+        response.data = data
+
+        client = XAPIClient("ck", "cs", "ot", "os")
+        client.client_v2 = MagicMock()
+        client.client_v2.get_me.return_value = response
+
+        result = await client.get_subscription_type()
+
+        assert result == "Premium"
+        client.client_v2.get_me.assert_called_once_with(user_fields=["subscription_type"])
+
+    @patch("asyncio.to_thread")
+    @pytest.mark.asyncio
+    async def test_x_client_get_subscription_type_missing_data(self, mock_to_thread):
+        """get_me with no data returns None."""
+        mock_to_thread.side_effect = lambda func: func()
+        response = MagicMock()
+        response.data = None
+
+        client = XAPIClient("ck", "cs", "ot", "os")
+        client.client_v2 = MagicMock()
+        client.client_v2.get_me.return_value = response
+
+        assert await client.get_subscription_type() is None
+
+    @patch("asyncio.to_thread")
+    @pytest.mark.asyncio
+    async def test_x_client_get_subscription_type_missing_field(self, mock_to_thread):
+        """get_me user object without subscription_type returns None."""
+        mock_to_thread.side_effect = lambda func: func()
+
+        class _UserWithoutSubscription:
+            pass
+
+        response = MagicMock()
+        response.data = _UserWithoutSubscription()
+
+        client = XAPIClient("ck", "cs", "ot", "os")
+        client.client_v2 = MagicMock()
+        client.client_v2.get_me.return_value = response
+
+        assert await client.get_subscription_type() is None
