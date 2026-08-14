@@ -2,6 +2,33 @@ Changelog
 ============
 
 
+2.1.1 (2026-08-14)
+------------
+
+Fixed
+~~~~~~~~~~~~
+
+* Fetch X Premium tier live at post time. [Luis Alejandro Martínez Faneyth]
+
+* Cut release artifact retention to 30 days; add cache purge. [Luis Alejandro Martínez Faneyth]
+
+* Rename root dist to agoras-meta and ship text_limits data file. [Luis Alejandro Martínez Faneyth]
+
+
+Other
+~~~~~~~~~~~~
+
+* Chore(deps): sync Pillow>=12.3.0 across packages via sync_package_deps. [Cursor Agent]
+
+* Fix(deps): sync google-auth 2.56.3 across packages after core bump. [Cursor Agent]
+
+* Align google-auth to 2.56.3 across all packages. [Cursor Agent]
+
+* Fix(platforms): cast OAuth1Session for mount() under pyright 1.1.411. [Cursor Agent]
+
+* Chore(deps): align google-auth 2.56.2 across packages/platforms and root. [Cursor Agent]
+
+
 2.1.0 (2026-08-07)
 ------------
 
