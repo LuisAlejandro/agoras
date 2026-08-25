@@ -19,12 +19,28 @@
 
 import asyncio
 import json
+import os
 import sys
 
 from agoras.core.interfaces import SocialNetwork
 from agoras.core.text_limits import validate_text
 
 from .api import TikTokAPI
+from .composer import ComposerPayload, composer_from_creator_info, run_composer
+
+UNATTENDED_ACTIONS = frozenset({"last-from-feed", "random-from-feed", "schedule"})
+INTERACTIVE_ACTIONS = frozenset({"post", "video"})
+UNATTENDED_PRIVACY_ERROR = (
+    "Unattended TikTok publish only allows SELF_ONLY privacy. "
+    "Interactive `agoras tiktok post` and `agoras tiktok video` open a localhost "
+    "Share-to-TikTok composer for other visibility."
+)
+UNATTENDED_COMMERCIAL_ERROR = (
+    "Commercial disclosure (--brand-organic / --brand-content) is only available "
+    "in the interactive Share-to-TikTok composer."
+)
+PUBLISH_CANCELLED = "TikTok publish cancelled."
+CREATOR_TRY_LATER = "TikTok says this creator cannot post right now. Try again later."
 
 
 class TikTok(SocialNetwork):
@@ -98,8 +114,8 @@ class TikTok(SocialNetwork):
         self.tiktok_allow_stitch = self._get_config_value("tiktok_allow_stitch", "TIKTOK_ALLOW_STITCH")
         self.tiktok_auto_add_music = self._get_config_value("tiktok_auto_add_music", "TIKTOK_AUTO_ADD_MUSIC")
         self.tiktok_description = self._get_config_value("tiktok_description", "TIKTOK_DESCRIPTION") or ""
-        self.brand_organic = self._get_config_value("brand_organic", "TIKTOK_BRAND_ORGANIC")
-        self.brand_content = self._get_config_value("brand_content", "TIKTOK_BRAND_CONTENT")
+        self.brand_organic = self._first_config("tiktok_brand_organic", "brand_organic", env_key="TIKTOK_BRAND_ORGANIC")
+        self.brand_content = self._first_config("tiktok_brand_content", "brand_content", env_key="TIKTOK_BRAND_CONTENT")
 
         # Convert string booleans
         self.tiktok_allow_comments = self._convert_bool(self.tiktok_allow_comments, True)
@@ -169,6 +185,128 @@ class TikTok(SocialNetwork):
             return value.upper() in ["TRUE", "1", "YES", "ON"]
         return bool(value)
 
+    def _first_config(self, *keys, env_key):
+        """Return the first present config key, else the environment value."""
+        for key in keys:
+            if key in self.config:
+                return self.config[key]
+        return os.environ.get(env_key)
+
+    def _should_open_composer(self) -> bool:
+        """Return True for interactive post/video when stdin is a TTY and CI is unset."""
+        if self._convert_bool(os.environ.get("CI"), default=False):
+            return False
+        action = self._action or ""
+        if action in UNATTENDED_ACTIONS:
+            return False
+        if action not in INTERACTIVE_ACTIONS:
+            return False
+        return bool(sys.stdin.isatty())
+
+    def _enforce_unattended_policy(self):
+        """Fail closed for unattended public or commercial TikTok posts."""
+        if self.brand_organic or self.brand_content:
+            raise Exception(UNATTENDED_COMMERCIAL_ERROR)
+        privacy = self.tiktok_privacy_status or "SELF_ONLY"
+        if privacy != "SELF_ONLY":
+            raise Exception(UNATTENDED_PRIVACY_ERROR)
+
+    def _apply_composer_payload(self, payload: ComposerPayload):
+        """Use composer metadata as the source of truth after confirm."""
+        self.tiktok_title = payload.title
+        self.tiktok_privacy_status = payload.privacy_level
+        self.tiktok_allow_comments = payload.allow_comments
+        self.tiktok_allow_duet = payload.allow_duet
+        self.tiktok_allow_stitch = payload.allow_stitch
+        self.brand_organic = payload.brand_organic
+        self.brand_content = payload.brand_content
+
+    async def _require_fresh_creator_info(self):
+        """Re-query creator_info and abort when TikTok says the creator cannot post."""
+        if not self.api:
+            raise Exception("TikTok API not initialized")
+        try:
+            info = await self.api.refresh_creator_info()
+        except Exception as exc:
+            message = str(exc)
+            if "Username mismatch" in message:
+                raise
+            if "not authenticated" in message.lower():
+                raise
+            if "try again later" in message.lower():
+                raise
+            raise Exception(CREATOR_TRY_LATER) from exc
+        if not info:
+            raise Exception(CREATOR_TRY_LATER)
+        return info
+
+    def _check_video_duration(self, video, creator_info):
+        """Abort when duration exceeds TikTok's max. Treat 0/missing as unlimited."""
+        max_duration = creator_info.get("max_video_post_duration_sec")
+        if max_duration is None or max_duration == 0:
+            return
+        video_duration = video.get_duration()
+        if video_duration and video_duration > max_duration:
+            raise Exception(f"Video duration {video_duration}s exceeds max duration of {max_duration}s")
+
+    def _open_composer(self, creator_info, *, kind, title, preview_urls):
+        """Open the loopback Share-to-TikTok page and return the confirm payload."""
+        request = composer_from_creator_info(
+            creator_info,
+            title=title,
+            kind=kind,
+            preview_urls=preview_urls,
+            preview_ok=bool(preview_urls),
+        )
+        return run_composer(request)
+
+    async def _resolve_publish_metadata(self, creator_info, *, kind, title, preview_urls):
+        """Return composer payload for F1, or None for the unattended flag path."""
+        if not self._should_open_composer():
+            self._enforce_unattended_policy()
+            return None
+        payload = await asyncio.to_thread(
+            self._open_composer,
+            creator_info,
+            kind=kind,
+            title=title,
+            preview_urls=preview_urls,
+        )
+        if payload is None:
+            raise Exception(PUBLISH_CANCELLED)
+        self._apply_composer_payload(payload)
+        return payload
+
+    def _reject_branded_private(self):
+        """Reject branded content combined with private visibility."""
+        if self.brand_content and self.tiktok_privacy_status == "SELF_ONLY":
+            raise Exception("You cannot use brand content with SELF_ONLY privacy status")
+
+    def _validated_photo_urls(self, images):
+        """Validate downloaded images and return CLI media URLs."""
+        from agoras.media.constraints import image_limits
+        from agoras.media.errors import MediaValidationError
+        from agoras.media.preflight import preflight_url_for_platform
+
+        allowed = image_limits("tiktok").mime_types
+        validated_media = []
+        for image in images:
+            if not image.content or not image.file_type:
+                image.cleanup()
+                raise Exception(f"Failed to download or validate image: {image.url}")
+            if image.file_type.mime not in allowed:
+                image.cleanup()
+                raise MediaValidationError(
+                    "tiktok",
+                    "image",
+                    "mime_types",
+                    image.file_type.mime,
+                    sorted(allowed),
+                )
+            preflight_url_for_platform(image.url, "tiktok", kind="image")
+            validated_media.append(image.url)
+        return validated_media
+
     async def post(
         self,
         status_text,
@@ -219,43 +357,31 @@ class TikTok(SocialNetwork):
         validate_text("tiktok", "title", status_text, mode="photo")
         validate_text("tiktok", "description", str(self.tiktok_description or ""), mode="photo")
 
-        from agoras.media.constraints import image_limits
-        from agoras.media.errors import MediaValidationError
-        from agoras.media.preflight import preflight_url_for_platform
-
-        # Validate images using Media system
-        validated_media = []
         images = await self.download_images(source_media)
-        allowed_images = image_limits("tiktok").mime_types
 
         try:
-            for image in images:
-                if not image.content or not image.file_type:
-                    image.cleanup()
-                    raise Exception(f"Failed to download or validate image: {image.url}")
+            validated_media = self._validated_photo_urls(images)
 
-                allowed = allowed_images
-                if image.file_type.mime not in allowed:
-                    image.cleanup()
-                    raise MediaValidationError(
-                        "tiktok",
-                        "image",
-                        "mime_types",
-                        image.file_type.mime,
-                        sorted(allowed),
-                    )
-                preflight_url_for_platform(image.url, "tiktok", kind="image")
+            if not self._should_open_composer():
+                self._enforce_unattended_policy()
 
-                validated_media.append(image.url)
+            creator_info = await self._require_fresh_creator_info()
+            await self._resolve_publish_metadata(
+                creator_info,
+                kind="photo",
+                title=status_text,
+                preview_urls=validated_media,
+            )
+            if self._should_open_composer():
+                status_text = str(self.tiktok_title)
+                validate_text("tiktok", "title", status_text, mode="photo")
 
-            # Validate brand content settings
-            if self.brand_content and self.tiktok_privacy_status == "ONLY_ME":
-                raise Exception("You cannot use brand content with ONLY_ME privacy status")
+            self._reject_branded_private()
 
-            # Print brand content notices
-            self._print_brand_content_notices()
+            if not self._should_open_composer():
+                self._print_brand_content_notices()
 
-            # Create the post
+            # Create the post using CLI-validated media URLs, never form-supplied URLs.
             response = await self.api.upload_photo(
                 validated_media,
                 status_text,
@@ -326,23 +452,31 @@ class TikTok(SocialNetwork):
                     sorted(allowed),
                 )
 
-            # Check video duration against creator limits
-            if hasattr(self.api, "creator_info") and self.api.creator_info:
-                max_duration = self.api.creator_info.get("max_video_post_duration_sec", 0)
-                video_duration = video.get_duration()
-                if video_duration and video_duration > max_duration:
-                    raise Exception(f"Video duration {video_duration}s exceeds max duration of {max_duration}s")
+            if not self._should_open_composer():
+                self._enforce_unattended_policy()
 
-            # Validate brand content settings
-            if self.brand_content and self.tiktok_privacy_status == "ONLY_ME":
-                raise Exception("You cannot use brand content with ONLY_ME privacy status")
+            # Check video duration against live creator limits
+            creator_info = await self._require_fresh_creator_info()
+            self._check_video_duration(video, creator_info)
 
-            # Print brand content notices
-            self._print_brand_content_notices()
+            await self._resolve_publish_metadata(
+                creator_info,
+                kind="video",
+                title=title,
+                preview_urls=[video_url],
+            )
+            if self._should_open_composer():
+                title = str(self.tiktok_title)
+                validate_text("tiktok", "title", title, mode="video")
+
+            self._reject_branded_private()
+
+            if not self._should_open_composer():
+                self._print_brand_content_notices()
 
             print(f"Uploading video to @{self.tiktok_username}...", file=sys.stderr)
 
-            # Upload the video
+            # Upload the video using the CLI-validated URL, never a form-supplied URL.
             response = await self.api.upload_video(
                 video_url,
                 title,

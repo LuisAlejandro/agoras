@@ -58,13 +58,14 @@ def create_tiktok_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     # Post action (photo slideshow)
     post = actions.add_parser(
         "post",
-        help='Create a photo slideshow post on TikTok. Requires prior authorization via "agoras tiktok authorize".',
+        help="Create a photo slideshow. Interactive runs open a localhost Share-to-TikTok page before publish.",
     )
     _add_post_options(post)
 
     # Video action
     video = actions.add_parser(
-        "video", help="Upload a video to TikTok. Requires Production app approval and prior authorization."
+        "video",
+        help="Upload a video. Interactive runs open a localhost Share-to-TikTok page before publish.",
     )
     _add_video_options(video)
 
@@ -105,7 +106,7 @@ def _add_post_options(parser: ArgumentParser):
         metavar="<status>",
         default=SUPPRESS,
         choices=["PUBLIC_TO_EVERYONE", "MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR", "SELF_ONLY"],
-        help="Post privacy status (default: SELF_ONLY)",
+        help="Privacy for unattended SELF_ONLY posts. Interactive post/video open a localhost composer instead.",
     )
     post_opts.add_argument(
         "--allow-comments", action="store_true", default=None, help="Allow comments on the post (default: true)"
@@ -120,13 +121,13 @@ def _add_post_options(parser: ArgumentParser):
         "--brand-organic",
         action="store_true",
         default=None,
-        help='Mark content as promotional (displays "Promotional content" label)',
+        help="Mark as promotional. Unattended publish rejects this; set it in the interactive composer.",
     )
     post_opts.add_argument(
         "--brand-content",
         action="store_true",
         default=None,
-        help='Mark content as paid partnership (displays "Paid partnership" label)',
+        help="Mark as paid partnership. Unattended publish rejects this; set it in the interactive composer.",
     )
     post_opts.add_argument(
         "--description",
@@ -156,7 +157,7 @@ def _add_video_options(parser: ArgumentParser):
         metavar="<status>",
         default=SUPPRESS,
         choices=["PUBLIC_TO_EVERYONE", "MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR", "SELF_ONLY"],
-        help="Video privacy status (default: SELF_ONLY)",
+        help="Privacy for unattended SELF_ONLY posts. Interactive video opens a localhost composer instead.",
     )
     video.add_argument(
         "--allow-comments", action="store_true", default=None, help="Allow comments on the video (default: true)"
@@ -177,13 +178,13 @@ def _add_video_options(parser: ArgumentParser):
         "--brand-organic",
         action="store_true",
         default=None,
-        help='Mark content as promotional (displays "Promotional content" label)',
+        help="Mark as promotional. Unattended publish rejects this; set it in the interactive composer.",
     )
     video.add_argument(
         "--brand-content",
         action="store_true",
         default=None,
-        help='Mark content as paid partnership (displays "Paid partnership" label)',
+        help="Mark as paid partnership. Unattended publish rejects this; set it in the interactive composer.",
     )
 
 

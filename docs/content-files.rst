@@ -98,6 +98,8 @@ TikTok photo post (booleans are preserved exactly)::
     allow_comments: false
     brand_organic: false
 
+Unattended TikTok content files must use ``privacy: SELF_ONLY`` (the default). Public privacy and commercial flags fail closed; use interactive ``agoras tiktok post`` / ``video`` so the localhost composer can collect them.
+
 XOR errors
 ----------
 

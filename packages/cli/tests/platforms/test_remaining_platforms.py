@@ -188,6 +188,20 @@ def test_tiktok_privacy_options():
     assert args.privacy == 'PUBLIC_TO_EVERYONE'
 
 
+def test_tiktok_help_describes_composer_not_silent_public():
+    """Interactive TikTok help mentions the localhost composer."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_tiktok_parser(subparsers)
+    tiktok_parser = subparsers.choices['tiktok']
+    choices = tiktok_parser._subparsers._group_actions[0].choices
+    post_help = choices['post'].format_help()
+    video_help = choices['video'].format_help()
+    assert 'localhost' in post_help
+    assert 'localhost' in video_help
+    assert 'composer' in video_help.lower()
+
+
 def test_threads_parser_creation():
     """Test Threads parser creation."""
     root_parser = ArgumentParser()

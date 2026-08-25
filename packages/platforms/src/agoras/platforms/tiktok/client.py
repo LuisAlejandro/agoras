@@ -70,21 +70,55 @@ class TikTokAPIClient:
             },
             timeout=30,
         )
-        result = response.json()
+        return self._parse_creator_info_response(response)
 
-        if "error" in result:
-            error_data = result.get("error", {})
-            # TikTok API returns 'error' key even on success with code 'ok'
-            if isinstance(error_data, dict) and error_data.get("code") == "ok":
-                pass  # Not an error
+    @staticmethod
+    def _parse_creator_info_response(response) -> Dict[str, Any]:
+        """Parse a creator_info HTTP response or raise a publish-gate error."""
+        if response.status_code == 429:
+            raise Exception("TikTok is rate limiting this account. Try again later.")
+
+        try:
+            result = response.json()
+        except ValueError as exc:
+            raise Exception(f"Failed to get creator info: HTTP {response.status_code}") from exc
+
+        error_data = result.get("error", {})
+        if isinstance(error_data, dict):
+            code = error_data.get("code")
+            message = error_data.get("message") or ""
+            if code == "ok":
+                pass
+            elif TikTokAPIClient._is_try_later_error(code):
+                raise Exception(f"TikTok cannot complete this publish right now ({code}). Try again later.")
             else:
-                raise Exception(f"Failed to get creator info: {result.get('message', 'Unknown error')}")
+                raise Exception(f"Failed to get creator info: [{code}] {message}")
+        elif "error" in result:
+            raise Exception(f"Failed to get creator info: {result.get('message', 'Unknown error')}")
 
         creator_data = result.get("data")
         if not creator_data:
-            raise Exception("No creator data in response")
+            raise Exception("TikTok says this creator cannot post right now. Try again later.")
+
+        if creator_data.get("creator_can_post") is False:
+            raise Exception("TikTok says this creator cannot post right now. Try again later.")
 
         return creator_data
+
+    @staticmethod
+    def _is_try_later_error(code: Optional[str]) -> bool:
+        """Return True when TikTok is asking the creator to retry later."""
+        if not code:
+            return False
+        try_later = {
+            "rate_limit_exceeded",
+            "spam_risk_too_many_posts",
+            "spam_risk_user_banned_from_posting",
+            "spam_risk_too_many_pending_share",
+            "reached_active_user_cap",
+        }
+        lowered = code.lower()
+        return lowered in try_later or "rate_limit" in lowered
 
     def upload_video(
         self,
