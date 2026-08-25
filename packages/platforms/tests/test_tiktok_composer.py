@@ -80,7 +80,8 @@ def test_composer_html_has_editable_title_and_empty_privacy():
     assert 'value="Seeded title"' in html
     assert "Posting as Ada" in html
     assert '<option value="" selected>Select privacy</option>' in html
-    assert 'value="SELF_ONLY"' in html
+    assert "SELF_ONLY" in html
+    assert "Only me" in html
     assert "selected>Only me" not in html
     assert "Allow comments" in html
     assert "Allow Duet" in html

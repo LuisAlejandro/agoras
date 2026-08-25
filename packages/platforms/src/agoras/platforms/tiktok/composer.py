@@ -152,6 +152,23 @@ def consent_copy(*, brand_content: bool) -> str:
     return MUSIC_USAGE_CONSENT
 
 
+def _validate_interaction_flags(
+    request: ComposerRequest,
+    allow_comments: bool,
+    allow_duet: bool,
+    allow_stitch: bool,
+) -> None:
+    """Reject interaction flags the creator_info snapshot would not allow."""
+    if request.kind == "photo" and (allow_duet or allow_stitch):
+        raise ComposerValidationError("Duet and Stitch are not available for photo posts.")
+    if request.comment_disabled and allow_comments:
+        raise ComposerValidationError("Comments are disabled for this creator.")
+    if request.duet_disabled and allow_duet:
+        raise ComposerValidationError("Duet is disabled for this creator.")
+    if request.stitch_disabled and allow_stitch:
+        raise ComposerValidationError("Stitch is disabled for this creator.")
+
+
 def validate_confirm(form: Dict[str, str], request: ComposerRequest, csrf_token: str) -> ComposerPayload:
     """
     Validate a composer POST and return the confirm payload.
@@ -181,15 +198,7 @@ def validate_confirm(form: Dict[str, str], request: ComposerRequest, csrf_token:
     if privacy_level not in request.privacy_options:
         raise ComposerValidationError("That privacy setting is not available for this account.")
 
-    if request.kind == "photo" and (allow_duet or allow_stitch):
-        raise ComposerValidationError("Duet and Stitch are not available for photo posts.")
-
-    if request.comment_disabled and allow_comments:
-        raise ComposerValidationError("Comments are disabled for this creator.")
-    if request.duet_disabled and allow_duet:
-        raise ComposerValidationError("Duet is disabled for this creator.")
-    if request.stitch_disabled and allow_stitch:
-        raise ComposerValidationError("Stitch is disabled for this creator.")
+    _validate_interaction_flags(request, allow_comments, allow_duet, allow_stitch)
 
     if commercial_on and not brand_organic and not brand_content:
         raise ComposerValidationError(COMMERCIAL_HELPER)
@@ -207,9 +216,7 @@ def validate_confirm(form: Dict[str, str], request: ComposerRequest, csrf_token:
     try:
         validate_text("tiktok", "title", title, mode=title_mode)
     except TextValidationError as exc:
-        raise ComposerValidationError(
-            f"Title exceeds the {exc.limit}-character TikTok {title_mode} limit."
-        ) from exc
+        raise ComposerValidationError(f"Title exceeds the {exc.limit}-character TikTok {title_mode} limit.") from exc
 
     return ComposerPayload(
         title=title,
@@ -230,10 +237,11 @@ def render_composer_html(request: ComposerRequest, csrf_token: str, error_messag
     if error_message:
         error_block = f'<p class="error" role="alert">{html.escape(error_message)}</p>'
 
-    privacy_options = ['<option value="" selected>Select privacy</option>']
-    for option in request.privacy_options:
-        label = PRIVACY_LABELS.get(option, option)
-        privacy_options.append(f'<option value="{html.escape(option)}">{html.escape(label)}</option>')
+    privacy_options_data = [
+        {"value": option, "label": PRIVACY_LABELS.get(option, option)} for option in request.privacy_options
+    ]
+    privacy_options_json = json.dumps(privacy_options_data)
+    preview_urls_json = json.dumps(list(request.preview_urls))
 
     preview_block = _render_preview(request)
     interaction_block = _render_interactions(request)
@@ -289,7 +297,7 @@ def render_composer_html(request: ComposerRequest, csrf_token: str, error_messag
       <div class="preview">{preview_block}</div>
       <label for="privacy_level">Who can watch this</label>
       <select id="privacy_level" name="privacy_level" required>
-        {"".join(privacy_options)}
+        <option value="" selected>Select privacy</option>
       </select>
       <p id="branded-private-helper" class="helper">{html.escape(BRANDED_PRIVATE_HELPER)}</p>
       {interaction_block}
@@ -324,9 +332,12 @@ def render_composer_html(request: ComposerRequest, csrf_token: str, error_messag
   <script>
     const previewOk = {preview_ok_json};
     const isPhoto = {photo_json};
+    const previewUrls = {preview_urls_json};
+    const privacyOptionsData = {privacy_options_json};
     const musicConsent = {json.dumps(MUSIC_USAGE_CONSENT)};
     const brandedConsent = {json.dumps(BRANDED_CONTENT_CONSENT)};
     const privacy = document.getElementById('privacy_level');
+    const previewEl = document.querySelector('.preview');
     const commercial = document.getElementById('commercial');
     const brandOrganic = document.getElementById('brand_organic');
     const brandContent = document.getElementById('brand_content');
@@ -336,8 +347,48 @@ def render_composer_html(request: ComposerRequest, csrf_token: str, error_messag
     const commercialFields = document.getElementById('commercial-fields');
     const brandedHelper = document.getElementById('branded-private-helper');
     const commercialHelper = document.getElementById('commercial-helper');
-    const onlyMeOption = Array.from(privacy.options).find(o => o.value === 'SELF_ONLY');
+    for (const opt of privacyOptionsData) {{
+      const option = document.createElement('option');
+      option.value = opt.value;
+      option.textContent = opt.label;
+      privacy.appendChild(option);
+    }}
+    let onlyMeOption = Array.from(privacy.options).find(o => o.value === 'SELF_ONLY');
     let previewFailed = !previewOk;
+
+    function attachPreviewError(el) {{
+      el.addEventListener('error', () => {{
+        previewFailed = true;
+        publish.disabled = true;
+        const err = document.createElement('p');
+        err.className = 'error';
+        err.setAttribute('role', 'alert');
+        err.textContent = 'Preview failed to load. Publish is disabled.';
+        el.replaceWith(err);
+        update();
+      }});
+    }}
+
+    if (previewOk && previewUrls.length && !previewEl.querySelector('.error')) {{
+      if (isPhoto) {{
+        const photos = document.createElement('div');
+        photos.className = 'photos';
+        for (const url of previewUrls) {{
+          const img = document.createElement('img');
+          img.src = url;
+          img.alt = 'Photo preview';
+          attachPreviewError(img);
+          photos.appendChild(img);
+        }}
+        previewEl.appendChild(photos);
+      }} else {{
+        const video = document.createElement('video');
+        video.controls = true;
+        video.src = previewUrls[0];
+        attachPreviewError(video);
+        previewEl.appendChild(video);
+      }}
+    }}
 
     function update() {{
       if (!commercial.checked) {{
@@ -368,19 +419,6 @@ def render_composer_html(request: ComposerRequest, csrf_token: str, error_messag
         && !commercialIncomplete;
       publish.disabled = !canPublish;
     }}
-
-    document.querySelectorAll('video, img').forEach((el) => {{
-      el.addEventListener('error', () => {{
-        previewFailed = true;
-        publish.disabled = true;
-        const err = document.createElement('p');
-        err.className = 'error';
-        err.setAttribute('role', 'alert');
-        err.textContent = 'Preview failed to load. Publish is disabled.';
-        el.replaceWith(err);
-        update();
-      }});
-    }});
 
     ['change', 'input'].forEach((evt) => {{
       document.getElementById('compose').addEventListener(evt, update);
@@ -435,17 +473,10 @@ def render_cancelled_html() -> str:
 
 
 def _render_preview(request: ComposerRequest) -> str:
-    """Render video or photo preview markup from CLI-validated URLs."""
+    """Render preview error markup when preview cannot load; media is built in JS."""
     if not request.preview_ok or not request.preview_urls:
         return '<p class="error" role="alert">Preview failed to load. Publish is disabled.</p>'
-    if request.kind == "video":
-        src = html.escape(request.preview_urls[0], quote=True)
-        return f'<video controls src="{src}"></video>'
-    images = []
-    for url in request.preview_urls:
-        src = html.escape(url, quote=True)
-        images.append(f'<img src="{src}" alt="Photo preview">')
-    return f'<div class="photos">{"".join(images)}</div>'
+    return ""
 
 
 def _render_interactions(request: ComposerRequest) -> str:

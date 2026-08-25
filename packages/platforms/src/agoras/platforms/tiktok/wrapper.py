@@ -373,7 +373,7 @@ class TikTok(SocialNetwork):
                 preview_urls=validated_media,
             )
             if self._should_open_composer():
-                status_text = self.tiktok_title
+                status_text = str(self.tiktok_title)
                 validate_text("tiktok", "title", status_text, mode="photo")
 
             self._reject_branded_private()
@@ -466,7 +466,7 @@ class TikTok(SocialNetwork):
                 preview_urls=[video_url],
             )
             if self._should_open_composer():
-                title = self.tiktok_title
+                title = str(self.tiktok_title)
                 validate_text("tiktok", "title", title, mode="video")
 
             self._reject_branded_private()
