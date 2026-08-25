@@ -269,6 +269,41 @@ def test_tiktok_auth_class_exists():
     assert TikTokAuthManager is not None
 
 
+@patch('agoras.core.auth.base.SecureTokenStorage')
+def test_tiktok_auth_requests_video_publish_scope(mock_storage_class):
+    """Authorize session asks for Content Posting API scopes, not only user.info.basic."""
+    mock_storage_class.return_value = MagicMock()
+    auth = TikTokAuthManager('user', 'key', 'secret')
+    raw = auth.oauth_session.scope
+    scopes = raw.split() if isinstance(raw, str) else list(raw)
+    assert 'video.publish' in scopes
+    assert 'video.upload' in scopes
+    assert 'user.info.basic' in scopes
+
+
+@pytest.mark.asyncio
+@patch('agoras.core.auth.base.SecureTokenStorage')
+async def test_tiktok_auth_authorize_url_includes_video_publish(mock_storage_class):
+    """Authorize URL includes video.publish so a new token can publish."""
+    mock_storage_class.return_value = MagicMock()
+    auth = TikTokAuthManager('user', 'key', 'secret')
+    captured = {}
+
+    with patch('agoras.platforms.tiktok.auth.OAuthCallbackServer') as mock_callback_class:
+        mock_callback_server = MagicMock()
+        mock_callback_server.start_and_wait = AsyncMock(side_effect=Exception('stop'))
+        mock_callback_class.return_value = mock_callback_server
+
+        def _capture(url):
+            captured['url'] = url
+
+        with patch('agoras.platforms.tiktok.auth.webbrowser.open', side_effect=_capture):
+            await auth._authorize_interactive()
+
+    assert 'video.publish' in captured['url']
+    assert 'user.info.basic' in captured['url']
+
+
 # TikTok Client Tests
 
 def test_tiktok_client_class_exists():
@@ -316,6 +351,30 @@ async def test_tiktok_video(mock_api_class):
 
     assert result == 'video-456'
     mock_api.upload_video.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.tiktok.wrapper.TikTokAPI')
+async def test_tiktok_video_requires_url_and_title(mock_api_class):
+    """Video action still fails closed without title or video-url."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    tiktok = TikTok(
+        tiktok_client_key='key',
+        tiktok_client_secret='secret',
+        tiktok_access_token='token',
+        tiktok_username='testuser',
+        tiktok_refresh_token='refresh'
+    )
+    await tiktok._initialize_client()
+
+    with pytest.raises(Exception, match="Video URL is required"):
+        await tiktok.video('Title', '', 'Title')
+
+    with pytest.raises(Exception, match="Video title is required"):
+        await tiktok.video('', 'http://video.mp4', '')
 
 
 @pytest.mark.asyncio

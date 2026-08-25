@@ -139,6 +139,8 @@ This will:
 
 This is a one-time process. The refresh token will be stored securely and used for subsequent requests. Credentials are automatically refreshed when needed.
 
+The authorize session requests ``user.info.basic``, ``video.upload``, and ``video.publish``. A refresh token issued with only ``user.info.basic`` cannot be upgraded; re-authorize locally and **replace** the CI refresh secret.
+
 CI/CD Setup (Unattended Execution)
 -----------------------------------
 
