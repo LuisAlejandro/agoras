@@ -97,6 +97,7 @@ class X(SocialNetwork):
         self.tweet_id = None
         self.api = None
         self._subscription_type = None
+        self._subscription_resolved = False
 
     def _load_subscription_type(self):
         """Load stored X subscription_type bound to active oauth tokens (no network)."""
@@ -112,10 +113,25 @@ class X(SocialNetwork):
         self._subscription_type = auth_manager.load_subscription_type_for_active_oauth()
         return self._subscription_type
 
+    async def _fetch_live_subscription_type(self) -> None:
+        """Fetch subscription_type from the authenticated client. Fail closed. No storage write."""
+        client = getattr(self.api, "client", None) if self.api else None
+        getter = getattr(client, "get_subscription_type", None) if client is not None else None
+        if getter is None:
+            self._subscription_type = None
+            self._subscription_resolved = True
+            return
+        try:
+            self._subscription_type = await getter()
+        except Exception:
+            self._subscription_type = None
+        self._subscription_resolved = True
+
     def _validate_tweet_text(self, tweet_text: str) -> None:
-        """Reject oversized tweet text using stored entitlement (fail closed to free)."""
-        if self._subscription_type is None:
+        """Reject oversized tweet text using live entitlement (fail closed to free)."""
+        if not self._subscription_resolved:
             self._load_subscription_type()
+            self._subscription_resolved = True
         mode = x_mode_for_subscription(self._subscription_type)
         validate_text("twitter", "text", tweet_text, mode=mode)
 
@@ -174,9 +190,9 @@ class X(SocialNetwork):
             self.twitter_consumer_key, self.twitter_consumer_secret, self.twitter_oauth_token, self.twitter_oauth_secret
         )
 
-        # Authenticate with provided credentials
+        # Authenticate with provided credentials, then ask X for the live tier.
         await self.api.authenticate()
-        self._load_subscription_type()
+        await self._fetch_live_subscription_type()
 
     async def authorize_credentials(self):
         """

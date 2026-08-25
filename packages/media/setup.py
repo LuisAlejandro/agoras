@@ -19,7 +19,7 @@
 
 from setuptools import find_namespace_packages, setup
 
-version = '2.0.5'
+version = '2.1.1'
 
 setup(
     name='agoras-media',
@@ -37,7 +37,7 @@ setup(
         f'agoras-common=={version}',
         'filetype==1.2.0',
         'opencv-python-headless==5.0.0.93',
-        'Pillow>=10.0.0',
+        'Pillow>=12.3.0',
     ],
 
     classifiers=[

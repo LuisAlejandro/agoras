@@ -19,7 +19,7 @@
 
 from setuptools import find_namespace_packages, setup
 
-version = '2.0.5'
+version = '2.1.1'
 
 setup(
     name='agoras-platforms',
@@ -40,14 +40,14 @@ setup(
         'linkedin-api-client==0.3.0',
         'discord.py==2.7.1',
         'google-api-python-client==2.198.0',
-        'google-api-core>=2.0.0',
-        'google-auth==2.56.0',
-        'google-auth-oauthlib>=1.2.0',
-        'google-auth-httplib2==0.4.0',
+        'google-api-core>=2.34.0',
+        'google-auth==2.56.3',
+        'google-auth-oauthlib>=1.4.0',
+        'google-auth-httplib2==0.4.1',
         'oauth2client==4.1.3',
-        'platformdirs==4.10.0',
+        'platformdirs==4.11.1',
         'authlib==1.7.2',
-        'cryptography>=42.0.0',
+        'cryptography>=50.0.0',
         'python-telegram-bot>=22.1',
     ],
 

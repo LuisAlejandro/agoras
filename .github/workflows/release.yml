@@ -19,7 +19,7 @@ jobs:
           ref: ${{ github.event.release.tag_name }}
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
 
@@ -53,7 +53,7 @@ jobs:
           ref: ${{ github.event.release.tag_name }}
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
 
@@ -76,7 +76,7 @@ jobs:
         with:
           name: dist-${{ matrix.package }}
           path: packages/${{ matrix.package }}/dist/*
-          retention-days: 90
+          retention-days: 7
 
   publish-to-pypi:
     name: Publish to PyPI

@@ -49,6 +49,8 @@ Auto-merge behavior
 ~~~~~~~~~~~~~~~~~~~
 
 - Binds mutations to ``workflow_run.head_sha``. Stale events exit with a notice.
+- Retries transient GitHub API errors (HTTP 429/5xx, network) on PR reads and
+  ``updateBranch`` with exponential backoff before failing the mutate job.
 - Behind base: arms native auto-merge, updates the branch with
   ``REPO_PERSONAL_ACCESS_TOKEN`` + ``expected_head_sha``, then waits for fresh CI.
 - Current head: native auto-merge + bot approval via ``GITHUB_TOKEN``. If already
@@ -66,5 +68,10 @@ One-time GitHub setup
 
 - ``develop`` — PR + checks from ``pr.yml``.
 - ``master`` — restrict pushes.
-- ``release/*`` — ``push.yml`` lists ``release/**`` and ends with **Release Gate** (manual patch).
+- ``release/*`` — ``push.yml`` lists ``release/**``; release tooling waits for the whole **Push** workflow at the exact branch SHA.
 - Tags — restrict creation to maintainers.
+
+For Tetra cutovers, run ``rosey-maintain protect-github --repo <repo> --trust-preflight``,
+open the check window with ``--window open --apply``, then close it after a probe with
+one ``--observed-check <context>`` per live check-run name. Rollback cancels matching
+Push, Publish Release, and Artifacts runs, waits for terminal state, then deletes refs.
