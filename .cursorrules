@@ -3,8 +3,10 @@
 Agoras is a single product: a Python CLI (`agoras`) that publishes/manages posts across
 social networks. It is organized as a monorepo of five editable namespace packages under
 `packages/` (`common` -> `media` -> `core` -> `platforms` -> `cli`, in dependency order).
-There is no server, database, cache, or queue; the only network port the product ever uses
-is `3456` (the transient local OAuth callback server, started on demand during `authorize`).
+There is no server, database, cache, or queue. The product binds two transient loopback ports:
+`3456` (HTTPS OAuth callback during `authorize`) and an ephemeral HTTP port on `127.0.0.1`
+(Share-to-TikTok composer during interactive `tiktok post` / `tiktok video`). Do not put the
+composer on 3456.
 
 ## Environment layout (already set up by the update script)
 

@@ -162,6 +162,10 @@ For CI/CD environments where interactive browser authorization isn't possible, y
 
 4. Run Agoras actions directly without running ``authorize``. All credentials will be loaded from environment variables.
 
+Unattended TikTok publish is private only (``SELF_ONLY``). Public, friends, and followers require the interactive localhost composer (TTY stdin, ``CI`` unset). ``--brand-organic`` / ``--brand-content`` are rejected on the unattended path.
+
+Authorize always uses ``https://localhost:3456/callback``. The Share-to-TikTok composer uses a different loopback HTTP port.
+
 **Note**: For unattended execution, you must provide all required credentials. The refresh token alone is not sufficient - you also need username, client key, and client secret as shown in the :doc:`../reference/platform-arguments-envvars` documentation.
 
 Development vs Production

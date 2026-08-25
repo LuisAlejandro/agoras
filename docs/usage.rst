@@ -319,12 +319,11 @@ First, authorize Agoras to access your TikTok account::
       --client-secret "$TIKTOK_CLIENT_SECRET" \
       --username "$TIKTOK_USERNAME"
 
-Then upload a video::
+Then upload a video. Interactive runs open a localhost Share-to-TikTok page before publish::
 
     agoras tiktok video \
       --video-url "https://example.com/video.mp4" \
-      --privacy "PUBLIC_TO_EVERYONE" \
-      --text "My TikTok video"
+      --title "My TikTok video"
 
 Threads
 ~~~~~~~
