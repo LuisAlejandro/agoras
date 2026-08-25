@@ -2,6 +2,21 @@ Changelog
 ============
 
 
+2.1.2 (2026-08-25)
+------------
+
+Added
+~~~~~~~~~~~~
+
+* Share-to-TikTok composer for interactive posts. [Luis Alejandro Martínez Faneyth]
+
+
+Other
+~~~~~~~~~~~~
+
+* Fix TikTok composer lint, Semgrep, and Pyright for PR CI. [Cursor Agent]
+
+
 2.1.1 (2026-08-14)
 ------------
 
