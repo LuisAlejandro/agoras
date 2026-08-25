@@ -37,7 +37,7 @@ def find_monorepo_packages():
 
 packages, package_dir = find_monorepo_packages()
 
-version = "2.1.1"
+version = "2.1.2"
 
 setup(
     name="agoras-meta",
