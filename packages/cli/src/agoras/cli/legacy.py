@@ -171,7 +171,7 @@ def add_tiktok_options(parser):
         default="SELF_ONLY",
         metavar="<name>",
         choices=["PUBLIC_TO_EVERYONE", "MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR", "SELF_ONLY"],
-        help=("TikTok video privacy status."),
+        help=("TikTok privacy for unattended SELF_ONLY posts. Interactive publish uses the localhost composer."),
     )
     parser.add_argument("-tv", "--tiktok-video-url", metavar="<video url>", help=("TikTok video file URL."))
     parser.add_argument("-tt", "--tiktok-title", metavar="<title>", help=("TikTok video title."))

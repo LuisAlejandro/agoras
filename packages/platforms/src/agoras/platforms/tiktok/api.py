@@ -106,7 +106,9 @@ class TikTokAPI(BaseAPI):
 
     async def get_creator_info(self) -> Dict[str, Any]:
         """
-        Get creator information from TikTok API.
+        Get live creator information from TikTok API.
+
+        Re-queries ``creator_info`` rather than returning the login cache.
 
         Returns:
             dict: Creator information
@@ -114,18 +116,46 @@ class TikTokAPI(BaseAPI):
         Raises:
             Exception: If API call fails
         """
+        return await self.refresh_creator_info()
+
+    async def refresh_creator_info(self) -> Dict[str, Any]:
+        """
+        Re-query TikTok creator_info and refresh the auth cache.
+
+        Returns:
+            dict: Fresh creator information
+
+        Raises:
+            Exception: If the query fails, the creator cannot post, or usernames mismatch
+        """
+        self.auth_manager.ensure_authenticated()
+
         if not self.access_token:
             raise Exception("TikTok API not authenticated")
 
-        def _sync_get_creator_info():
-            return self.creator_info
+        if not self.client:
+            raise Exception("TikTok client not available")
+
+        def _sync_refresh():
+            if not self.client:
+                raise Exception("TikTok client not available")
+            user_data = self.client.get_user_info()
+            username = user_data.get("creator_username")
+            expected = self.auth_manager.username
+            if username != expected:
+                raise Exception(f"Username mismatch: {username} != {expected}")
+            return user_data
 
         try:
-            creator_info = await asyncio.to_thread(_sync_get_creator_info)
+            creator_info = await asyncio.to_thread(_sync_refresh)
             if not creator_info:
-                raise Exception("Failed to get creator info")
+                raise Exception("TikTok says this creator cannot post right now. Try again later.")
+            self.auth_manager.user_info = creator_info
             return creator_info
         except Exception as e:
+            message = str(e)
+            if "Username mismatch" in message or "not authenticated" in message.lower():
+                raise
             self._handle_api_error(e, "TikTok get creator info")
             raise
 

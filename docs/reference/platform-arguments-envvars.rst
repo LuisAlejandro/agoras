@@ -531,7 +531,7 @@ Post Action
 - ``--image-3`` (CLI) / ``STATUS_IMAGE_URL_3`` (ENVVAR) - Third image URL
 - ``--image-4`` (CLI) / ``STATUS_IMAGE_URL_4`` (ENVVAR) - Fourth image URL
 - ``--title`` (CLI) / ``TIKTOK_TITLE`` (ENVVAR) - Post title/caption
-- ``--privacy`` (CLI) / ``TIKTOK_PRIVACY_STATUS`` (ENVVAR) - Privacy status: ``PUBLIC_TO_EVERYONE``, ``MUTUAL_FOLLOW_FRIENDS``, ``FOLLOWER_OF_CREATOR``, or ``SELF_ONLY`` (default: ``SELF_ONLY``)
+- ``--privacy`` (CLI) / ``TIKTOK_PRIVACY_STATUS`` (ENVVAR) - Unattended privacy (``SELF_ONLY`` only). Interactive post/video open a localhost composer instead of applying this flag.
 - ``--allow-comments`` (CLI) / ``TIKTOK_ALLOW_COMMENTS`` (ENVVAR) - Allow comments on the post (default: true)
 - ``--auto-add-music`` (CLI) / ``TIKTOK_AUTO_ADD_MUSIC`` (ENVVAR) - Automatically add music to the slideshow (default: false)
 - ``--brand-organic`` (CLI) / ``TIKTOK_BRAND_ORGANIC`` (ENVVAR) - Mark content as promotional (displays "Promotional content" label)
@@ -547,7 +547,7 @@ Video Action
 **Optional Arguments**:
 
 - ``--title`` (CLI) / ``TIKTOK_TITLE`` (ENVVAR) - Video title/caption
-- ``--privacy`` (CLI) / ``TIKTOK_PRIVACY_STATUS`` (ENVVAR) - Privacy status: ``PUBLIC_TO_EVERYONE``, ``MUTUAL_FOLLOW_FRIENDS``, ``FOLLOWER_OF_CREATOR``, or ``SELF_ONLY`` (default: ``SELF_ONLY``)
+- ``--privacy`` (CLI) / ``TIKTOK_PRIVACY_STATUS`` (ENVVAR) - Unattended privacy (``SELF_ONLY`` only). Interactive post/video open a localhost composer instead of applying this flag.
 - ``--allow-comments`` (CLI) / ``TIKTOK_ALLOW_COMMENTS`` (ENVVAR) - Allow comments on the video (default: true)
 - ``--allow-duet`` (CLI) / ``TIKTOK_ALLOW_DUET`` (ENVVAR) - Allow other users to duet with your video (default: true)
 - ``--allow-stitch`` (CLI) / ``TIKTOK_ALLOW_STITCH`` (ENVVAR) - Allow other users to stitch your video (default: true)

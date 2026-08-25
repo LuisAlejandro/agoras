@@ -247,12 +247,10 @@ New (v2.0+)::
       --client-secret "$SECRET" \
       --username "$USERNAME"
 
-    # Then upload (no tokens needed)
+    # Then upload (no tokens needed; --username is authorize-only)
     agoras tiktok video \
-      --username "$USERNAME" \
       --video-url "video.mp4" \
-      --title "My TikTok" \
-      --privacy "PUBLIC_TO_EVERYONE"
+      --title "My TikTok"
 
 Threads
 -------
