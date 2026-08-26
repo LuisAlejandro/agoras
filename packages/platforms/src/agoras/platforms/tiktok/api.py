@@ -226,6 +226,72 @@ class TikTokAPI(BaseAPI):
             self._handle_api_error(e, "TikTok video upload")
             raise
 
+    async def upload_video_file(
+        self,
+        file_content: bytes,
+        title: str,
+        privacy_status: str,
+        allow_comments: bool = True,
+        allow_duet: bool = True,
+        allow_stitch: bool = True,
+        is_brand_organic: bool = False,
+        is_brand_content: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Upload a local video file to TikTok via FILE_UPLOAD.
+
+        Args:
+            file_content (bytes): Raw video bytes
+            title (str): Video title
+            privacy_status (str): Privacy level (PUBLIC_TO_EVERYONE, SELF_ONLY, etc.)
+            allow_comments (bool): Whether to allow comments
+            allow_duet (bool): Whether to allow duets
+            allow_stitch (bool): Whether to allow stitches
+            is_brand_organic (bool): Whether this is brand organic content
+            is_brand_content (bool): Whether this is brand content
+
+        Returns:
+            dict: Upload response with publish ID
+
+        Raises:
+            Exception: If upload fails
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.access_token:
+            raise Exception("TikTok API not authenticated")
+
+        if not self.client:
+            raise Exception("TikTok client not available")
+
+        await self._rate_limit_check("upload_video_file", 2.0)
+
+        def _sync_upload():
+            if not self.client:
+                raise Exception("TikTok client not available")
+            return self.client.upload_video_file(
+                file_content=file_content,
+                title=title,
+                privacy_status=privacy_status,
+                allow_comments=allow_comments,
+                allow_duet=allow_duet,
+                allow_stitch=allow_stitch,
+                is_brand_organic=is_brand_organic,
+                is_brand_content=is_brand_content,
+            )
+
+        try:
+            response = await asyncio.to_thread(_sync_upload)
+
+            publish_id = response.get("data", {}).get("publish_id")
+
+            await self._wait_for_publish_completion(publish_id)
+
+            return {"publish_id": publish_id}
+        except Exception as e:
+            self._handle_api_error(e, "TikTok video file upload")
+            raise
+
     async def upload_photo(
         self,
         photo_images: List[str],

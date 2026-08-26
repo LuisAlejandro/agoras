@@ -150,7 +150,7 @@ def _add_video_options(parser: ArgumentParser):
     add_content_file_option(parser)
 
     video = parser.add_argument_group("Video Options")
-    video.add_argument("--video-url", default=SUPPRESS, metavar="<url>", help=video_url_help("tiktok"))
+    video.add_argument("--video-url", default=SUPPRESS, metavar="<media>", help=video_url_help("tiktok"))
     video.add_argument("--title", default=SUPPRESS, metavar="<title>", help="Video title/caption")
     video.add_argument(
         "--privacy",

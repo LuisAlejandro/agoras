@@ -34,6 +34,7 @@ from agoras.platforms.tiktok.composer import (
     ComposerRequest,
     ComposerValidationError,
     bind_composer_server,
+    bind_preview_assets,
     composer_from_creator_info,
     flatten_form,
     is_allowed_origin,
@@ -307,6 +308,64 @@ def test_flatten_form_takes_last_value():
     assert flatten_form({"title": ["a", "b"]}) == {"title": "b"}
 
 
+def test_bind_preview_assets_rewrites_local_and_keeps_http(tmp_path):
+    """Local paths become loopback /preview/N; HTTP URLs stay unchanged."""
+    clip = tmp_path / "clip.mp4"
+    clip.write_bytes(b"video-bytes")
+    urls, files = bind_preview_assets(
+        (str(clip), "https://example.com/v.mp4", "file://" + str(clip)),
+        9999,
+    )
+    assert urls[0] == "http://127.0.0.1:9999/preview/0"
+    assert urls[1] == "https://example.com/v.mp4"
+    assert urls[2] == "http://127.0.0.1:9999/preview/2"
+    assert files[0] == str(clip.resolve())
+    assert files[1] is None
+    assert files[2] == str(clip.resolve())
+
+
+def test_composer_serves_local_preview_bytes(tmp_path):
+    """Loopback GET /preview/0 returns the allowlisted file; Range and Host are enforced."""
+    clip = tmp_path / "clip.mp4"
+    clip.write_bytes(b"abcdefghij")
+    server = bind_composer_server()
+    urls, files = bind_preview_assets((str(clip),), server.server_port)
+    server.composer_request = _request(preview_urls=urls)
+    server.preview_files = files
+    server.timeout = 0.5
+    thread = threading.Thread(target=_serve_until_done, args=(server,), daemon=True)
+    thread.start()
+    port = server.server_port
+    try:
+        html = _http_get(port, "/", host="127.0.0.1")
+        assert f"http://127.0.0.1:{port}/preview/0" in html
+
+        status, headers, body = _http_get_raw(port, "/preview/0", host="127.0.0.1")
+        assert status == 200
+        assert body == b"abcdefghij"
+        assert "video/mp4" in headers.get("content-type", "")
+
+        range_status, range_headers, range_body = _http_get_raw(
+            port,
+            "/preview/0",
+            host="127.0.0.1",
+            extra_headers={"Range": "bytes=2-5"},
+        )
+        assert range_status == 206
+        assert range_body == b"cdef"
+        assert range_headers.get("content-range") == "bytes 2-5/10"
+
+        forbidden = _http_get(port, "/preview/0", host="evil.example", expect_status=403)
+        assert "Forbidden" in forbidden
+
+        missing = _http_get(port, "/preview/9", host="127.0.0.1", expect_status=404)
+        assert "Not found" in missing
+    finally:
+        server.cancelled = True
+        server.server_close()
+        thread.join(timeout=2)
+
+
 def test_composer_http_csrf_and_cancel_and_path_traversal():
     """HTTP: confirm returns payload, replay/cancel/traversal do not publish."""
     server = bind_composer_server()
@@ -374,13 +433,23 @@ def _serve_until_done(server):
 
 def _http_get(port, path, host, expect_status=200):
     """GET via http.client so urllib blocking does not apply."""
+    _status, _headers, body = _http_get_raw(port, path, host, expect_status=expect_status)
+    return body.decode("utf-8")
+
+
+def _http_get_raw(port, path, host, expect_status=None, extra_headers=None):
+    """GET bytes and headers via http.client."""
     conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
     try:
-        conn.request("GET", path, headers={"Host": f"{host}:{port}"})
+        headers = {"Host": f"{host}:{port}"}
+        if extra_headers:
+            headers.update(extra_headers)
+        conn.request("GET", path, headers=headers)
         response = conn.getresponse()
-        body = response.read().decode("utf-8")
-        assert response.status == expect_status
-        return body
+        body = response.read()
+        if expect_status is not None:
+            assert response.status == expect_status
+        return response.status, {key.lower(): value for key, value in response.getheaders()}, body
     finally:
         conn.close()
 

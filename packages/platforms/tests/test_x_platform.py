@@ -370,6 +370,39 @@ async def test_x_post_with_image_urls(mock_api_class):
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_post_with_local_image_path(mock_api_class):
+    """X post uploads bytes from a local image path."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.upload_media = AsyncMock(return_value='media-local')
+    mock_api.post = AsyncMock(return_value='tweet-local')
+    mock_api_class.return_value = mock_api
+
+    mock_media = MagicMock()
+    mock_media.content = b'local_jpeg'
+    mock_media.file_type.mime = 'image/jpeg'
+    mock_media.cleanup = MagicMock()
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret'
+    )
+
+    await x._initialize_client()
+
+    with patch.object(x, 'download_images', return_value=[mock_media]), \
+         patch.object(x, '_output_status'):
+        result = await x.post('Hello', '', '/tmp/local.jpg')
+
+    assert result == 'tweet-local'
+    mock_api.upload_media.assert_called_once_with(b'local_jpeg', 'image/jpeg')
+    mock_api.post.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
 async def test_x_post_media_upload_exception_continues(mock_api_class):
     """Test X post continues when media upload fails."""
     mock_api = MagicMock()

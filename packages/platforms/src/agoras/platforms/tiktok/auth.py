@@ -31,6 +31,10 @@ from agoras.core.auth.callback_server import OAuthCallbackServer
 
 from .client import TikTokAPIClient
 
+# Content Posting API scopes. Refresh cannot upgrade these; re-authorize and
+# replace the CI refresh secret after changing this list.
+TIKTOK_OAUTH_SCOPES = ["user.info.basic", "video.upload", "video.publish"]
+
 
 def tiktok_compliance_fix(session):
     """
@@ -63,12 +67,12 @@ class TikTokAuthManager(BaseAuthManager):
         self.client_secret = client_secret
         self.refresh_token = refresh_token or self._load_refresh_token_from_storage()
 
-        # Authlib OAuth2Session configuration for TikTok with PKCE
-        # Note: video.upload and video.publish require Production app approval
+        # Authlib OAuth2Session configuration for TikTok with PKCE.
+        # video.upload / video.publish need a production Content Posting API app.
         self.oauth_session = OAuth2Session(
             client_id=self.client_key,
             client_secret=self.client_secret,
-            scope=["user.info.basic"],  # Only basic scope available in Sandbox mode
+            scope=list(TIKTOK_OAUTH_SCOPES),
             redirect_uri="https://localhost:3456/callback",
             code_challenge_method="S256",
         )

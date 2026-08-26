@@ -24,6 +24,7 @@ import sys
 
 from agoras.core.interfaces import SocialNetwork
 from agoras.core.text_limits import validate_text
+from agoras.media.paths import is_local_media_source, media_is_local
 
 from .api import TikTokAPI
 from .composer import ComposerPayload, composer_from_creator_info, run_composer
@@ -357,6 +358,13 @@ class TikTok(SocialNetwork):
         validate_text("tiktok", "title", status_text, mode="photo")
         validate_text("tiktok", "description", str(self.tiktok_description or ""), mode="photo")
 
+        for image_url in source_media:
+            if is_local_media_source(image_url):
+                raise Exception(
+                    "TikTok photo publishing does not support local file uploads; "
+                    "a verified public HTTP(s) URL is required."
+                )
+
         images = await self.download_images(source_media)
 
         try:
@@ -476,17 +484,37 @@ class TikTok(SocialNetwork):
 
             print(f"Uploading video to @{self.tiktok_username}...", file=sys.stderr)
 
-            # Upload the video using the CLI-validated URL, never a form-supplied URL.
-            response = await self.api.upload_video(
-                video_url,
-                title,
-                str(self.tiktok_privacy_status),
-                bool(self.tiktok_allow_comments),
-                bool(self.tiktok_allow_duet),
-                bool(self.tiktok_allow_stitch),
-                bool(self.brand_organic),
-                bool(self.brand_content),
-            )
+            privacy = str(self.tiktok_privacy_status)
+            allow_comments = bool(self.tiktok_allow_comments)
+            allow_duet = bool(self.tiktok_allow_duet)
+            allow_stitch = bool(self.tiktok_allow_stitch)
+            brand_organic = bool(self.brand_organic)
+            brand_content = bool(self.brand_content)
+
+            is_local = media_is_local(video, video_url)
+
+            if is_local:
+                response = await self.api.upload_video_file(
+                    video.content,
+                    title,
+                    privacy,
+                    allow_comments,
+                    allow_duet,
+                    allow_stitch,
+                    brand_organic,
+                    brand_content,
+                )
+            else:
+                response = await self.api.upload_video(
+                    video_url,
+                    title,
+                    privacy,
+                    allow_comments,
+                    allow_duet,
+                    allow_stitch,
+                    brand_organic,
+                    brand_content,
+                )
 
             post_id = response.get("publish_id")
             self._output_status(post_id)

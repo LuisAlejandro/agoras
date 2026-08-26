@@ -242,6 +242,7 @@ class DiscordAPIClient:
         content: Optional[str] = None,
         embeds: Optional[List[discord.Embed]] = None,
         file: Optional[discord.File] = None,
+        files: Optional[List[discord.File]] = None,
     ) -> str:
         """
         Send a message to the configured Discord channel.
@@ -249,7 +250,8 @@ class DiscordAPIClient:
         Args:
             content (str, optional): Text content of the message
             embeds (list, optional): List of Discord embeds
-            file (discord.File, optional): File to attach
+            file (discord.File, optional): Single file to attach
+            files (list, optional): Multiple files to attach
 
         Returns:
             str: Message ID
@@ -271,7 +273,9 @@ class DiscordAPIClient:
                 kwargs["content"] = content
             if embeds is not None:
                 kwargs["embeds"] = embeds
-            if file is not None:
+            if files is not None:
+                kwargs["files"] = files
+            elif file is not None:
                 kwargs["file"] = file
 
             # Send message with appropriate parameters
@@ -333,6 +337,7 @@ class DiscordAPIClient:
         content: Optional[str] = None,
         embeds: Optional[List[discord.Embed]] = None,
         file: Optional[discord.File] = None,
+        files: Optional[List[discord.File]] = None,
     ) -> str:
         """
         Send a message into an existing thread without mutating channel_name.
@@ -341,7 +346,8 @@ class DiscordAPIClient:
             thread: Discord thread/channel object (or thread ID string/int)
             content (str, optional): Text content of the message
             embeds (list, optional): List of Discord embeds
-            file (discord.File, optional): File to attach
+            file (discord.File, optional): Single file to attach
+            files (list, optional): Multiple files to attach
 
         Returns:
             str: Message ID
@@ -368,7 +374,9 @@ class DiscordAPIClient:
                 kwargs["content"] = content
             if embeds is not None:
                 kwargs["embeds"] = embeds
-            if file is not None:
+            if files is not None:
+                kwargs["files"] = files
+            elif file is not None:
                 kwargs["file"] = file
 
             send = getattr(target, "send", None)

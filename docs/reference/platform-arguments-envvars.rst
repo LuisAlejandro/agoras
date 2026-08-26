@@ -26,6 +26,15 @@ You can override stored credentials with environment variables on action and uti
 
 .. note::
 
+   ``--video-url`` and ``--image-1`` through ``--image-4`` accept an HTTP(s) URL,
+   a local filesystem path, or a ``file://`` URI on upload-capable platforms.
+   CLI relative paths resolve against the process working directory; YAML
+   relative paths resolve against the content file directory. TikTok photo
+   posts, Instagram stills and videos, and Threads require public HTTP(s) URLs
+   and reject local paths.
+
+.. note::
+
    **Utils commands** (``agoras utils feed-publish``, ``agoras utils schedule-run``) use the same auth model as platform actions: run ``agoras <platform> authorize`` or set platform environment variables. ``schedule-run`` requires ``--network`` (one platform per run). Google Sheets parameters use ``--sheets-*`` CLI flags; legacy ``agoras publish`` also accepts ``GOOGLE_SHEETS_ID``, ``GOOGLE_SHEETS_NAME``, ``GOOGLE_SHEETS_CLIENT_EMAIL``, and ``GOOGLE_SHEETS_PRIVATE_KEY`` from the environment. Prefer env vars over inline keys in CI so values are not expanded into process argv or logs.
 
 Google Sheets (schedule-run)

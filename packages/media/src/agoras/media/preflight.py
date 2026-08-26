@@ -22,6 +22,7 @@ from urllib.request import Request, urlopen
 
 from .constraints import MediaConstraints, resolve_platform
 from .errors import MediaValidationError
+from .paths import is_local_media_source
 
 
 def preflight_url(url: str, limits: MediaConstraints, *, platform: str = "generic", kind: str = "image") -> None:
@@ -61,6 +62,8 @@ def preflight_url_for_platform(
     from .constraints import image_limits, video_limits
 
     platform_key = resolve_platform(platform)
+    if is_local_media_source(url):
+        return
     if limits is None:
         limits = image_limits(platform_key) if kind == "image" else video_limits(platform_key)
     preflight_url(url, limits, platform=platform_key, kind=kind)

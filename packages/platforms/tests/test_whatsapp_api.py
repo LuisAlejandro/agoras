@@ -96,7 +96,9 @@ async def test_whatsapp_api_send_image(whatsapp_api):
     result = await whatsapp_api.send_image('+1234567890', 'http://image.jpg', caption='Image caption')
 
     assert result == 'msg-124'
-    whatsapp_api.client.send_image.assert_called_once_with('+1234567890', 'http://image.jpg', caption='Image caption')
+    whatsapp_api.client.send_image.assert_called_once_with(
+        '+1234567890', image_url='http://image.jpg', caption='Image caption', image_id=None
+    )
 
 
 @pytest.mark.asyncio
@@ -105,7 +107,9 @@ async def test_whatsapp_api_send_video(whatsapp_api):
     result = await whatsapp_api.send_video('+1234567890', 'http://video.mp4', caption='Video caption')
 
     assert result == 'msg-125'
-    whatsapp_api.client.send_video.assert_called_once_with('+1234567890', 'http://video.mp4', caption='Video caption')
+    whatsapp_api.client.send_video.assert_called_once_with(
+        '+1234567890', video_url='http://video.mp4', caption='Video caption', video_id=None
+    )
 
 
 @pytest.mark.asyncio

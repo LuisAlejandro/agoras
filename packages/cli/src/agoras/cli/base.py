@@ -46,7 +46,12 @@ def add_common_content_options(parser: ArgumentParser, images: int = 0, *, with_
 
     if images > 0:
         for i in range(1, images + 1):
-            content.add_argument(f"--image-{i}", default=SUPPRESS, help=f"Image URL #{i}")
+            content.add_argument(
+                f"--image-{i}",
+                default=SUPPRESS,
+                metavar="<media>",
+                help=f"HTTP(s) URL, local path, or file:// URI #{i}",
+            )
 
 
 def add_video_options(parser: ArgumentParser, platform: Optional[str] = None, *, with_content_file: bool = True):
@@ -59,12 +64,12 @@ def add_video_options(parser: ArgumentParser, platform: Optional[str] = None, *,
     if with_content_file:
         add_content_file_option(parser)
 
-    help_text = video_url_help(platform) if platform else "URL of video file to upload"
+    help_text = video_url_help(platform) if platform else "HTTP(s) URL, local path, or file:// URI of video file"
     video = parser.add_argument_group("Video Options")
     video.add_argument(
         "--video-url",
         default=SUPPRESS,
-        metavar="<url>",
+        metavar="<media>",
         help=help_text,
     )
     video.add_argument(

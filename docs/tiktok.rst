@@ -54,7 +54,7 @@ Share to TikTok (interactive post and video)
 
 Interactive ``agoras tiktok post`` and ``agoras tiktok video`` (TTY stdin, ``CI`` unset) open a localhost Share-to-TikTok page **before** Direct Post ``init/``. Authorize still uses ``https://localhost:3456/callback`` (HTTPS). The composer binds HTTP on ``127.0.0.1`` with a different ephemeral port and always prints the URL.
 
-On that page you choose privacy (no default), interactions, and commercial disclosure, then confirm. Media URLs stay on the CLI (``PULL_FROM_URL``); they are not taken from the form.
+On that page you choose privacy (no default), interactions, and commercial disclosure, then confirm. Media URLs stay on the CLI (``PULL_FROM_URL`` or local ``FILE_UPLOAD``); they are not taken from the form. Local video files are previewed from the composer loopback server so Publish can stay enabled.
 
 ::
 

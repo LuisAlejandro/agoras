@@ -213,6 +213,38 @@ async def test_youtube_video(mock_api_class):
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
+async def test_youtube_video_local_path(mock_api_class):
+    """YouTube video uploads a local file path through download_video."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.upload_video = AsyncMock(return_value={'id': 'video-local'})
+    mock_api_class.return_value = mock_api
+
+    youtube = YouTube(**YOUTUBE_KWARGS)
+
+    await youtube._initialize_client()
+
+    with patch.object(youtube, 'download_video', new_callable=AsyncMock) as mock_download:
+        mock_video = MagicMock()
+        mock_video.content = b'video_content'
+        mock_video.temp_file = '/tmp/local.mp4'
+        mock_file_type = MagicMock()
+        mock_file_type.mime = 'video/mp4'
+        mock_video.file_type = mock_file_type
+        mock_video.cleanup = MagicMock()
+        mock_download.return_value = mock_video
+
+        with patch.object(youtube, '_output_status'):
+            result = await youtube.video('Video text', '/tmp/local.mp4', 'Video Title')
+
+    assert result == 'video-local'
+    mock_download.assert_called_once_with('/tmp/local.mp4')
+    mock_api.upload_video.assert_called_once()
+    assert mock_api.upload_video.call_args.kwargs['video_file_path'] == '/tmp/local.mp4'
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
 async def test_youtube_disconnect(mock_api_class):
     """Test YouTube disconnect method."""
     mock_api = MagicMock()

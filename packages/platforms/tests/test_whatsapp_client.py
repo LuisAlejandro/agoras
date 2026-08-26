@@ -464,3 +464,35 @@ def test_whatsapp_client_send_image_api_error(mock_requests_post):
 
     with pytest.raises(Exception, match='WhatsApp API error'):
         client.send_image('+1234567890', 'http://image.jpg')
+
+
+@patch('requests.post')
+def test_whatsapp_client_upload_media_success(mock_requests_post):
+    """Test WhatsAppAPIClient upload_media returns media id."""
+    mock_response = MagicMock()
+    mock_response.json.return_value = {'id': 'media-abc'}
+    mock_response.raise_for_status.return_value = None
+    mock_requests_post.return_value = mock_response
+
+    client = WhatsAppAPIClient('access_token', 'phone_number_id')
+    media_id = client.upload_media(b'png-bytes', 'image/png', filename='image.png')
+
+    assert media_id == 'media-abc'
+    mock_requests_post.assert_called_once()
+    call_kwargs = mock_requests_post.call_args.kwargs
+    assert call_kwargs['files']['file'] == ('image.png', b'png-bytes', 'image/png')
+    assert call_kwargs['data']['messaging_product'] == 'whatsapp'
+
+
+@patch('requests.post')
+def test_whatsapp_client_upload_media_missing_id(mock_requests_post):
+    """Test WhatsAppAPIClient upload_media raises when id is absent."""
+    mock_response = MagicMock()
+    mock_response.json.return_value = {}
+    mock_response.text = '{}'
+    mock_response.raise_for_status.return_value = None
+    mock_requests_post.return_value = mock_response
+
+    client = WhatsAppAPIClient('access_token', 'phone_number_id')
+    with pytest.raises(Exception, match='missing id'):
+        client.upload_media(b'png-bytes', 'image/png')

@@ -21,20 +21,26 @@ from __future__ import annotations
 
 import html
 import json
+import mimetypes
+import os
+import re
 import secrets
 import sys
 import time
 import webbrowser
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Any, Dict, List, Optional, Sequence, cast
+from typing import Any, Dict, List, Optional, Sequence, Tuple, cast
 from urllib.parse import parse_qs
 
 from agoras.core.text_limits import TextValidationError, validate_text
+from agoras.media.paths import is_local_media_source, normalize_media_path
 
 # OAuth callback stays on this port. The composer must never bind it.
 OAUTH_CALLBACK_PORT = 3456
 COMPOSER_IDLE_TIMEOUT_SEC = 15 * 60
+_PREVIEW_PATH = re.compile(r"^/preview/(\d+)$")
+_BYTE_RANGE = re.compile(r"bytes=(\d*)-(\d*)\Z")
 
 MUSIC_USAGE_URL = "https://www.tiktok.com/legal/page/global/music-usage-confirmation/en"
 BRANDED_CONTENT_POLICY_URL = "https://www.tiktok.com/legal/page/global/bc-policy/en"
@@ -98,6 +104,7 @@ class ComposerHTTPServer(HTTPServer):
     payload: Optional[ComposerPayload]
     cancelled: bool
     error_message: Optional[str]
+    preview_files: Tuple[Optional[str], ...]
 
     def __init__(self, server_address, RequestHandlerClass):
         """Initialize composer session fields."""
@@ -116,6 +123,49 @@ class ComposerHTTPServer(HTTPServer):
         self.payload = None
         self.cancelled = False
         self.error_message = None
+        self.preview_files = ()
+
+
+def bind_preview_assets(sources: Sequence[str], port: int) -> Tuple[Tuple[str, ...], Tuple[Optional[str], ...]]:
+    """Rewrite local preview sources to loopback /preview/N URLs.
+
+    HTTP(s) URLs stay unchanged. Local paths and file:// URIs are served from
+    the composer process so the browser can load them.
+    """
+    urls: List[str] = []
+    files: List[Optional[str]] = []
+    for index, source in enumerate(sources):
+        if source and is_local_media_source(source):
+            urls.append(f"http://127.0.0.1:{port}/preview/{index}")
+            files.append(normalize_media_path(source))
+        else:
+            urls.append(source)
+            files.append(None)
+    return tuple(urls), tuple(files)
+
+
+def _parse_byte_range(header: Optional[str], file_size: int) -> Optional[Tuple[int, int]]:
+    """Return inclusive (start, end) for a single bytes Range, or None for full file."""
+    if not header:
+        return None
+    match = _BYTE_RANGE.match(header.strip())
+    if not match:
+        return None
+    start_s, end_s = match.groups()
+    if start_s == "" and end_s == "":
+        return None
+    if start_s == "":
+        suffix = int(end_s)
+        if suffix <= 0:
+            return None
+        start = max(file_size - suffix, 0)
+        end = file_size - 1
+    else:
+        start = int(start_s)
+        end = int(end_s) if end_s else file_size - 1
+    if start < 0 or start >= file_size or end < start:
+        return None
+    return start, min(end, file_size - 1)
 
 
 def is_loopback_host(host_header: Optional[str]) -> bool:
@@ -513,7 +563,7 @@ class ComposerHandler(BaseHTTPRequestHandler):
         """Suppress default HTTP server logging so tokens never hit logs."""
 
     def do_GET(self):
-        """Serve the composer page or cancel."""
+        """Serve the composer page, local preview bytes, or cancel."""
         server = cast(ComposerHTTPServer, self.server)
         if not is_loopback_host(self.headers.get("Host")):
             self._send_plain(403, "Forbidden")
@@ -522,6 +572,10 @@ class ComposerHandler(BaseHTTPRequestHandler):
         if path == "/cancel":
             server.cancelled = True
             self._send_html(200, render_cancelled_html())
+            return
+        preview_match = _PREVIEW_PATH.fullmatch(path)
+        if preview_match:
+            self._serve_preview(server, int(preview_match.group(1)))
             return
         if path != "/":
             self._send_plain(404, "Not found")
@@ -557,6 +611,51 @@ class ComposerHandler(BaseHTTPRequestHandler):
         server.csrf_token = ""
         self._send_html(200, render_processing_html())
         server.payload = payload
+
+    def _serve_preview(self, server: ComposerHTTPServer, index: int) -> None:
+        """Serve an allowlisted local preview file (loopback Host already checked)."""
+        if index < 0 or index >= len(server.preview_files):
+            self._send_plain(404, "Not found")
+            return
+        filepath = server.preview_files[index]
+        if not filepath or not os.path.isfile(filepath):
+            self._send_plain(404, "Not found")
+            return
+        file_size = os.path.getsize(filepath)
+        byte_range = _parse_byte_range(self.headers.get("Range"), file_size)
+        if self.headers.get("Range") and byte_range is None:
+            self.send_response(416)
+            self.send_header("Content-Range", f"bytes */{file_size}")
+            self.send_header("Content-Length", "0")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            return
+        if byte_range is None:
+            start, end, status = 0, file_size - 1, 200
+        else:
+            start, end, status = byte_range[0], byte_range[1], 206
+        length = max(end - start + 1, 0) if file_size else 0
+        content_type = mimetypes.guess_type(filepath)[0] or "application/octet-stream"
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(length))
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Connection", "close")
+        if status == 206:
+            self.send_header("Content-Range", f"bytes {start}-{end}/{file_size}")
+        self.end_headers()
+        if length == 0:
+            return
+        with open(filepath, "rb") as handle:
+            handle.seek(start)
+            remaining = length
+            while remaining > 0:
+                chunk = handle.read(min(65536, remaining))
+                if not chunk:
+                    break
+                self.wfile.write(chunk)
+                remaining -= len(chunk)
 
     def _send_html(self, status: int, body: str):
         """Send an HTML response."""
@@ -602,7 +701,9 @@ def run_composer(
         ComposerPayload on confirm, None on cancel or idle timeout.
     """
     server = bind_composer_server()
-    server.composer_request = request
+    preview_urls, preview_files = bind_preview_assets(request.preview_urls, server.server_port)
+    server.composer_request = replace(request, preview_urls=preview_urls)
+    server.preview_files = preview_files
     server.csrf_token = secrets.token_urlsafe(32)
     server.payload = None
     server.cancelled = False

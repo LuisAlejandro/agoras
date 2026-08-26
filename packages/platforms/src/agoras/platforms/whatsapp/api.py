@@ -201,7 +201,43 @@ class WhatsAppAPI(BaseAPI):
             self._handle_api_error(e, "WhatsApp send_message")
             raise
 
-    async def send_image(self, to: str, image_url: str, caption: Optional[str] = None) -> str:
+    async def upload_media(self, file_bytes: bytes, mime_type: str, filename: str = "media") -> str:
+        """
+        Upload media bytes to WhatsApp and return a media ID.
+
+        Args:
+            file_bytes (bytes): Raw media content
+            mime_type (str): MIME type
+            filename (str): Multipart filename
+
+        Returns:
+            str: Uploaded media ID
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("WhatsApp API not authenticated")
+
+        client = self.client
+        await self._rate_limit_check("upload_media", 1.0)
+
+        try:
+
+            def _sync_upload():
+                return client.upload_media(file_bytes, mime_type, filename=filename)
+
+            return await asyncio.to_thread(_sync_upload)
+        except Exception as e:
+            self._handle_api_error(e, "WhatsApp upload_media")
+            raise
+
+    async def send_image(
+        self,
+        to: str,
+        image_url: Optional[str] = None,
+        caption: Optional[str] = None,
+        image_id: Optional[str] = None,
+    ) -> str:
         """
         Send an image message via WhatsApp.
 
@@ -227,7 +263,7 @@ class WhatsAppAPI(BaseAPI):
         try:
 
             def _sync_send():
-                response = client.send_image(to, image_url, caption=caption)
+                response = client.send_image(to, image_url=image_url, caption=caption, image_id=image_id)
                 return response["message_id"]
 
             return await asyncio.to_thread(_sync_send)
@@ -235,7 +271,13 @@ class WhatsAppAPI(BaseAPI):
             self._handle_api_error(e, "WhatsApp send_image")
             raise
 
-    async def send_video(self, to: str, video_url: str, caption: Optional[str] = None) -> str:
+    async def send_video(
+        self,
+        to: str,
+        video_url: Optional[str] = None,
+        caption: Optional[str] = None,
+        video_id: Optional[str] = None,
+    ) -> str:
         """
         Send a video message via WhatsApp.
 
@@ -261,7 +303,7 @@ class WhatsAppAPI(BaseAPI):
         try:
 
             def _sync_send():
-                response = client.send_video(to, video_url, caption=caption)
+                response = client.send_video(to, video_url=video_url, caption=caption, video_id=video_id)
                 return response["message_id"]
 
             return await asyncio.to_thread(_sync_send)

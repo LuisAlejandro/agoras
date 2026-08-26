@@ -22,6 +22,7 @@ import sys
 
 from agoras.core.interfaces import SocialNetwork
 from agoras.core.text_limits import validate_text
+from agoras.media.paths import is_local_media_source, media_is_local
 
 from .api import FacebookAPI
 
@@ -236,6 +237,98 @@ class Facebook(SocialNetwork):
         if self.api:
             await self.api.disconnect()
 
+    @staticmethod
+    def _is_local_image(image) -> bool:
+        return media_is_local(image)
+
+    def _split_local_remote_images(self, images):
+        local_images = [image for image in images if image.content and image.file_type and self._is_local_image(image)]
+        remote_images = [
+            image for image in images if image.content and image.file_type and not self._is_local_image(image)
+        ]
+        return local_images, remote_images
+
+    async def _post_page_local_images_only(self, local_images, status_text):
+        if not self.api or not self.facebook_object_id:
+            raise Exception("Facebook API not initialized")
+        attached_media = []
+        for image in local_images:
+            filename = f"image.{image.file_type.extension}"
+            media_response = await self.api.upload_photo_file(
+                self.facebook_object_id,
+                image.content,
+                published=False,
+                filename=filename,
+                mime_type=image.file_type.mime,
+            )
+            if media_response and "id" in media_response:
+                attached_media.append({"media_fbid": media_response["id"]})
+        if not attached_media:
+            raise Exception("Facebook photo upload missing media id")
+        return await self.api.post(
+            self.facebook_object_id,
+            message=status_text,
+            link=None,
+            attached_media=attached_media,
+        )
+
+    async def _post_page_mixed_images(self, local_images, remote_images, status_text, status_link):
+        if not self.api or not self.facebook_object_id:
+            raise Exception("Facebook API not initialized")
+        attached_media = []
+        link_to_use = status_link
+        if remote_images and not link_to_use:
+            link_to_use = remote_images[0].url
+
+        for image in local_images:
+            filename = f"image.{image.file_type.extension}"
+            media_response = await self.api.upload_photo_file(
+                self.facebook_object_id,
+                image.content,
+                published=False,
+                filename=filename,
+                mime_type=image.file_type.mime,
+            )
+            if media_response and "id" in media_response:
+                attached_media.append({"media_fbid": media_response["id"]})
+
+        return await self.api.post(
+            self.facebook_object_id,
+            message=status_text,
+            link=link_to_use,
+            attached_media=attached_media if attached_media else None,
+        )
+
+    async def _post_profile_images(self, images, status_text, status_link):
+        if not self.api or not self.facebook_object_id:
+            raise Exception("Facebook API not initialized")
+        attached_media = []
+        for image in images:
+            if not image.content or not image.file_type:
+                raise Exception(f"Failed to validate image: {image.url}")
+
+            if self._is_local_image(image):
+                filename = f"image.{image.file_type.extension}"
+                media_response = await self.api.upload_photo_file(
+                    self.facebook_object_id,
+                    image.content,
+                    published=False,
+                    filename=filename,
+                    mime_type=image.file_type.mime,
+                )
+            else:
+                media_response = await self.api.upload_media(self.facebook_object_id, image.url, published=True)
+
+            if media_response and "id" in media_response:
+                attached_media.append({"media_fbid": media_response["id"]})
+
+        return await self.api.post(
+            self.facebook_object_id,
+            message=status_text,
+            link=status_link,
+            attached_media=attached_media if attached_media else None,
+        )
+
     async def post(
         self,
         status_text,
@@ -278,37 +371,33 @@ class Facebook(SocialNetwork):
         # Handle posting differently for pages vs profiles
         is_page_target = getattr(self, "_is_page_target", False)
 
-        if is_page_target:
-            # For Facebook Pages: Post directly with image URLs
-            # Pages support posting images via URLs in the feed
-            if source_media:
-                # Use the first image URL as the link parameter
-                link_to_use = status_link or source_media[0]
-            else:
-                link_to_use = status_link
+        if source_media:
+            images = await self.download_images(source_media)
+            try:
+                for image in images:
+                    if not image.content or not image.file_type:
+                        raise Exception(f"Failed to validate image: {image.url}")
+                local_images, remote_images = self._split_local_remote_images(images)
+                if source_media and not local_images and not remote_images:
+                    raise Exception("Failed to download or validate images")
 
+                if is_page_target and local_images and not remote_images:
+                    post_id = await self._post_page_local_images_only(local_images, status_text)
+                elif is_page_target:
+                    post_id = await self._post_page_mixed_images(local_images, remote_images, status_text, status_link)
+                else:
+                    post_id = await self._post_profile_images(images, status_text, status_link)
+            finally:
+                for image in images:
+                    image.cleanup()
+        elif is_page_target:
             post_id = await self.api.post(
                 self.facebook_object_id,
                 message=status_text,
-                link=link_to_use,
-                attached_media=None,  # Pages don't use attached_media for images
+                link=status_link,
+                attached_media=None,
             )
         else:
-            # For Facebook Profiles: Upload media first, then attach
-            # Download and validate images using the Media system
-            if source_media:
-                images = await self.download_images(source_media)
-                for image in images:
-                    try:
-                        # Upload media to Facebook
-                        media_response = await self.api.upload_media(self.facebook_object_id, image.url, published=True)
-                        if media_response and "id" in media_response:
-                            attached_media.append({"media_fbid": media_response["id"]})
-                    finally:
-                        # Clean up temporary files
-                        image.cleanup()
-
-            # Create the post
             post_id = await self.api.post(
                 self.facebook_object_id,
                 message=status_text,
@@ -478,6 +567,12 @@ class Facebook(SocialNetwork):
         # Get video type from config
         video_type = self._get_config_value("facebook_video_type", "FACEBOOK_VIDEO_TYPE") or ""
 
+        if video_type in ["reel", "story"] and is_local_media_source(video_url):
+            raise Exception(
+                "Facebook reel/story publishing does not support local file uploads; "
+                "a publicly accessible HTTP(s) URL is required."
+            )
+
         # Download and validate video using the Media system
         video = await self.download_video(video_url)
 
@@ -502,6 +597,11 @@ class Facebook(SocialNetwork):
         try:
             # Handle different video types
             if video_type in ["reel", "story"]:
+                if media_is_local(video, video_url):
+                    raise Exception(
+                        "Facebook reel/story publishing does not support local file uploads; "
+                        "a publicly accessible HTTP(s) URL is required."
+                    )
                 post_id = await self._upload_reel_or_story(video_type, status_text, video_url)
             else:
                 post_id = await self._upload_regular_video(video, status_text, video_title, video_url)

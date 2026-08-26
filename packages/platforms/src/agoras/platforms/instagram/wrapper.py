@@ -21,6 +21,7 @@ import asyncio
 
 from agoras.core.interfaces import SocialNetwork
 from agoras.core.text_limits import validate_text
+from agoras.media.paths import is_local_media_source
 
 from .api import InstagramAPI
 
@@ -203,6 +204,13 @@ class Instagram(SocialNetwork):
 
         is_carousel_item = len(source_media) > 1
 
+        for image_url in source_media:
+            if is_local_media_source(image_url):
+                raise Exception(
+                    "Instagram publishing does not support local file uploads; "
+                    "a publicly accessible HTTP(s) URL is required."
+                )
+
         # Download and validate images using the Media system
         if source_media:
             images = await self.download_images(source_media)
@@ -301,6 +309,12 @@ class Instagram(SocialNetwork):
         validate_text("instagram", "caption", status_text or "")
 
         video_type = self.instagram_video_type or ""
+
+        if is_local_media_source(video_url):
+            raise Exception(
+                "Instagram publishing does not support local file uploads; "
+                "a publicly accessible HTTP(s) URL is required."
+            )
 
         # Download and validate video using the Media system
         video = await self.download_video(video_url)
