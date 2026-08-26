@@ -21,7 +21,16 @@ import asyncio
 import time
 from typing import Any, Dict, List, Optional
 
+import requests
 from pyfacebook import GraphAPI
+
+from agoras.common import __version__
+
+
+def _resumable_upload_timeout(video_file_size: int) -> int:
+    """Scale rupload POST timeout with file size, capped at 10 minutes."""
+    megabytes = max(0, video_file_size) // (1024 * 1024)
+    return max(30, min(600, megabytes * 2 or 30))
 
 
 class InstagramAPIClient:
@@ -44,6 +53,8 @@ class InstagramAPIClient:
         self.graph_api: Optional[GraphAPI] = None
         self.api_version = "21.0"
         self._authenticated = False
+        self._RUPLOAD_RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
+        self._RUPLOAD_MAX_ATTEMPTS = 3
 
     async def authenticate(self) -> bool:
         """
@@ -207,6 +218,82 @@ class InstagramAPIClient:
         media_id = await asyncio.to_thread(_sync_create_media)
         await self.wait_for_media_container(media_id)
         return media_id
+
+    def _rupload_url(self, container_id: str, uri: Optional[str] = None) -> str:
+        """Return the rupload endpoint, preferring Meta's uri when it is on rupload.facebook.com."""
+        if uri and uri.startswith("https://rupload.facebook.com/"):
+            return uri
+        return f"https://rupload.facebook.com/ig-api-upload/v{self.api_version}/{container_id}"
+
+    def upload_resumable_video(
+        self, container_id: str, video_content: bytes, upload_uri: Optional[str] = None
+    ) -> None:
+        """POST local video bytes to rupload.facebook.com for a resumable container."""
+        if not video_content:
+            raise Exception("Video file is empty")
+
+        url = self._rupload_url(container_id, upload_uri)
+        headers = {
+            "Authorization": f"OAuth {self.access_token}",
+            "offset": "0",
+            "file_size": str(len(video_content)),
+            "User-Agent": f"Agoras/{__version__}",
+        }
+        timeout = _resumable_upload_timeout(len(video_content))
+        last_status = None
+        for attempt in range(1, self._RUPLOAD_MAX_ATTEMPTS + 1):
+            response = requests.post(url, headers=headers, data=video_content, timeout=timeout)
+            last_status = response.status_code
+            if last_status in (200, 201):
+                return
+            retryable = last_status in self._RUPLOAD_RETRY_STATUSES
+            if not retryable or attempt == self._RUPLOAD_MAX_ATTEMPTS:
+                raise Exception(f"Instagram resumable video upload failed: HTTP {last_status}")
+            time.sleep(min(2 ** (attempt - 1), 4))
+
+    async def create_resumable_video(
+        self,
+        object_id: str,
+        video_content: bytes,
+        caption: Optional[str] = None,
+        media_type: Optional[str] = None,
+    ) -> str:
+        """
+        Create a resumable Instagram video container and upload local bytes.
+
+        Args:
+            object_id (str): Instagram object ID
+            video_content (bytes): Raw video file bytes
+            caption (str, optional): Video caption
+            media_type (str, optional): REELS or STORIES
+
+        Returns:
+            str: Media container ID ready to publish
+
+        Raises:
+            Exception: If container creation or rupload fails
+        """
+        if not video_content:
+            raise Exception("Video file is empty")
+
+        def _sync_create_resumable():
+            data: Dict[str, Any] = {
+                "upload_type": "resumable",
+                "media_type": media_type or "REELS",
+            }
+            if caption:
+                data["caption"] = caption
+
+            response = self.post_object(object_id=object_id, connection="media", data=data)
+            container_id = response.get("id")
+            if not container_id:
+                raise Exception("Instagram resumable upload did not return a container id")
+            self.upload_resumable_video(container_id, video_content, response.get("uri"))
+            return container_id
+
+        container_id = await asyncio.to_thread(_sync_create_resumable)
+        await self.wait_for_media_container(container_id)
+        return container_id
 
     async def create_carousel(self, object_id: str, media_ids: List[str], caption: Optional[str] = None) -> str:
         """

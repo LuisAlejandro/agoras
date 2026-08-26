@@ -212,8 +212,9 @@ Images
 
 .. note::
    Not all platforms support 4 images. Check platform-specific documentation.
-   TikTok photo posts, Instagram stills/videos, and Threads reject local paths
-   (those APIs pull media from public URLs). Discord YAML ``embeds[].image_url``
+   TikTok photo posts, Instagram stills, and Threads reject local paths
+   (those APIs pull media from public URLs). Instagram **videos** upload local
+   files via resumable rupload. Discord YAML ``embeds[].image_url``
    remains HTTP(s)-only; ``--image-N`` / YAML ``images`` become attachments.
 
 Video

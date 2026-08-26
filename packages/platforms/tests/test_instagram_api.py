@@ -81,6 +81,24 @@ async def test_instagram_api_create_media(instagram_api):
 
 
 @pytest.mark.asyncio
+async def test_instagram_api_create_resumable_video(instagram_api):
+    """Test InstagramAPI create_resumable_video delegates to the client."""
+    instagram_api.client.create_resumable_video = AsyncMock(return_value="container-local")
+
+    result = await instagram_api.create_resumable_video(
+        "user_id", b"video-bytes", caption="Caption", media_type="REELS"
+    )
+
+    assert result == "container-local"
+    instagram_api.client.create_resumable_video.assert_called_once_with(
+        object_id="user_id",
+        video_content=b"video-bytes",
+        caption="Caption",
+        media_type="REELS",
+    )
+
+
+@pytest.mark.asyncio
 async def test_instagram_api_publish_media(instagram_api):
     """Test InstagramAPI publish_media method."""
     result = await instagram_api.publish_media('user_id', 'container-123')

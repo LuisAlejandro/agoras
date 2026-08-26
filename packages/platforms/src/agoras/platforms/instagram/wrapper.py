@@ -21,7 +21,7 @@ import asyncio
 
 from agoras.core.interfaces import SocialNetwork
 from agoras.core.text_limits import validate_text
-from agoras.media.paths import is_local_media_source
+from agoras.media.paths import is_local_media_source, media_is_local
 
 from .api import InstagramAPI
 
@@ -310,12 +310,6 @@ class Instagram(SocialNetwork):
 
         video_type = self.instagram_video_type or ""
 
-        if is_local_media_source(video_url):
-            raise Exception(
-                "Instagram publishing does not support local file uploads; "
-                "a publicly accessible HTTP(s) URL is required."
-            )
-
         # Download and validate video using the Media system
         video = await self.download_video(video_url)
 
@@ -340,14 +334,21 @@ class Instagram(SocialNetwork):
         try:
             media_type = _instagram_video_media_type(video_type)
 
-            # Create media for video
-            creation_id = await self.api.create_media(
-                self.instagram_object_id,
-                video_url=video_url,
-                caption=status_text,
-                is_carousel_item=False,
-                media_type=media_type,
-            )
+            if media_is_local(video, video_url):
+                creation_id = await self.api.create_resumable_video(
+                    self.instagram_object_id,
+                    video.content,
+                    caption=status_text,
+                    media_type=media_type,
+                )
+            else:
+                creation_id = await self.api.create_media(
+                    self.instagram_object_id,
+                    video_url=video_url,
+                    caption=status_text,
+                    is_carousel_item=False,
+                    media_type=media_type,
+                )
 
             # Publish the video
             post_id = await self.api.publish_media(self.instagram_object_id, creation_id)

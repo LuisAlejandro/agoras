@@ -204,26 +204,42 @@ async def test_instagram_post_rejects_local_image(mock_auth_manager_class, mock_
 @pytest.mark.asyncio
 @patch("agoras.platforms.instagram.wrapper.InstagramAPI")
 @patch("agoras.platforms.instagram.auth.InstagramAuthManager")
-async def test_instagram_video_rejects_local_video(mock_auth_manager_class, mock_api_class):
-    """Local video paths are rejected before download or Instagram API calls."""
+async def test_instagram_video_local_file_uses_resumable_upload(mock_auth_manager_class, mock_api_class):
+    """Local video paths use resumable rupload instead of video_url pull."""
     configure_instagram_auth_mock(mock_auth_manager_class)
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
+    mock_api.create_resumable_video = AsyncMock(return_value="container-local")
+    mock_api.publish_media = AsyncMock(return_value="post-local")
     mock_api_class.return_value = mock_api
 
     instagram = Instagram(**INSTAGRAM_KWARGS)
 
     await instagram._initialize_client()
 
+    local_path = "/tmp/clip.mp4"
     with patch.object(instagram, "download_video", new_callable=AsyncMock) as mock_download:
-        with pytest.raises(
-            Exception,
-            match="Instagram publishing does not support local file uploads",
-        ):
-            await instagram.video("Video text", "/tmp/clip.mp4", "Video Title")
+        mock_video = MagicMock()
+        mock_video.content = b"video_content"
+        mock_file_type = MagicMock()
+        mock_file_type.mime = "video/mp4"
+        mock_video.file_type = mock_file_type
+        mock_video.url = local_path
+        mock_video._is_local = True
+        mock_video.cleanup = MagicMock()
+        mock_download.return_value = mock_video
 
-    mock_download.assert_not_called()
+        with patch.object(instagram, "_output_status"):
+            result = await instagram.video("Video text", local_path, "Video Title")
+
+    assert result == "post-local"
+    mock_api.create_resumable_video.assert_called_once()
     mock_api.create_media.assert_not_called()
+    call_args = mock_api.create_resumable_video.call_args
+    assert call_args.args[0] == instagram.instagram_object_id
+    assert call_args.args[1] == b"video_content"
+    assert call_args.kwargs["media_type"] == "REELS"
+    mock_api.publish_media.assert_called_once_with(instagram.instagram_object_id, "container-local")
 
 
 @pytest.mark.asyncio
