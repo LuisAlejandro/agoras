@@ -1,7 +1,7 @@
 name: Pull Request
 
 on:
-  pull_request_target:
+  pull_request:
     types:
       - opened
       - ready_for_review
@@ -10,87 +10,236 @@ on:
     branches:
       - develop
 
+concurrency:
+  group: pull-request-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  unit:
-    name: Unit tests
-    runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        include:
-          - python-version: "3.9"
-            toxenv: "py39"
-          - python-version: "3.10"
-            toxenv: "py310"
-          - python-version: "3.11"
-            toxenv: "py311"
+  filter:
+    name: Filter
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.filter.outputs.run }}
+      sphinx: ${{ steps.filter.outputs.sphinx }}
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4.7.0
+      - name: Detect non-docs changes
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          is_docs_path() {
+            local f="$1"
+            [[ "$f" == README.md || "$f" == README.rst ]] && return 0
+            [[ "$f" =~ ^LICENSE ]] && return 0
+            [[ "$f" =~ ^(HISTORY|CHANGELOG) ]] && return 0
+            [[ "$f" == docs || "$f" =~ ^docs/ ]] && return 0
+            [[ "$f" =~ ^\.github/ISSUE_TEMPLATE(/|$) ]] && return 0
+            [[ "$f" == ".github/PULL_REQUEST_TEMPLATE.md" ]] && return 0
+            return 1
+          }
+          if ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            git fetch --no-tags origin "${BASE_SHA}"
+          fi
+          if ! git cat-file -e "${HEAD_SHA}^{commit}" 2>/dev/null; then
+            git fetch --no-tags origin "${HEAD_SHA}"
+          fi
+          files="$(git diff --name-status "${BASE_SHA}...${HEAD_SHA}" || true)"
+          run=false
+          sphinx=false
+          if [ -z "${files}" ]; then
+            run=true
+          else
+            while IFS=$'\t' read -r status p1 p2; do
+              [ -z "${status}" ] && continue
+              for f in "${p1}" "${p2}"; do
+                [ -z "${f}" ] && continue
+                [[ "$f" == docs || "$f" =~ ^docs/ ]] && sphinx=true
+                if is_docs_path "${f}"; then
+                  continue
+                fi
+                run=true
+                break 2
+              done
+            done <<< "${files}"
+          fi
+          echo "run=${run}" >> "${GITHUB_OUTPUT}"
+          echo "sphinx=${sphinx}" >> "${GITHUB_OUTPUT}"
+  lint:
+    name: Linting
+    needs: [filter]
+    if: github.event.pull_request.draft == false && needs.filter.outputs.run == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
 
       - name: Installing dependencies
         run: |
-          sudo apt-get install libxml2-dev libxslt-dev
           python3 -m pip install -r requirements-dev.txt
-          python3 -m pip install -r requirements.txt
 
-      - name: Measuring coverage
-        env:
-          TOXENV: ${{ matrix.toxenv }}
-          PYTHON_VERSION: ${{ matrix.python-version }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Running linter
         run: |
-          tox -e ${TOXENV}
+          tox -e lint
 
-      - name: Coveralls Parallel
-        uses: coverallsapp/github-action@master
+  lint-skip:
+    name: Linting
+    needs: [filter]
+    if: github.event.pull_request.draft == false && needs.filter.outputs.run != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Skip docs-only changes
+        run: echo "Docs-only PR; skipping expensive checks."
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    needs: [filter, lint]
+    if: github.event.pull_request.draft == false && needs.filter.outputs.run == 'true'
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install all packages
+        run: |
+          cd packages
+          python3 -m pip install -r ../requirements-dev.txt
+          python3 -m pip install -e common/
+          python3 -m pip install -e media/
+          python3 -m pip install -e core/
+          python3 -m pip install -e platforms/
+          python3 -m pip install -e cli/
+
+      - name: Run integration tests
+        run: |
+          cd packages
+          pytest cli/tests/test_integration.py -v
+
+      - name: Test CLI entry point
+        run: |
+          agoras --version
+          agoras --help
+
+      - name: Run E2E tests
+        run: |
+          cd packages
+          pytest cli/tests/test_e2e_integration.py -v
+
+      - name: Measuring coverage (all packages)
+        env:
+          PYTHON_VERSION: "3.13"
+        run: |
+          tox -e coverage
+
+      - name: Coveralls
+        uses: coverallsapp/github-action@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          flag-name: run-py${{ matrix.python-version }}
           path-to-lcov: ./.lcov
-          parallel: true
 
-  finish:
-    name: Finish
-    runs-on: ubuntu-22.04
-    needs: unit
+  tests-skip:
+    name: Tests
+    needs: [filter]
+    if: github.event.pull_request.draft == false && needs.filter.outputs.run != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
-      - name: Coveralls Finished
-        uses: coverallsapp/github-action@master
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          parallel-finished: true
+      - name: Skip docs-only changes
+        run: echo "Docs-only PR; skipping expensive checks."
 
-  approve:
-    name: Approve pull request
-    runs-on: ubuntu-22.04
-    needs: finish
-    if: github.actor == github.repository_owner || github.actor == 'dependabot[bot]'
+  docs:
+    name: Documentation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: [filter]
+    if: github.event.pull_request.draft == false && (needs.filter.outputs.run == 'true' || needs.filter.outputs.sphinx == 'true')
     steps:
-      - name: Approve
-        uses: hmarr/auto-approve-action@v3.2.1
-        with:
-          github-token: "${{ github.actor == 'LuisAlejandro' && secrets.GITHUB_TOKEN || secrets.REPO_PERSONAL_ACCESS_TOKEN }}"
+      - name: Checkout repo
+        uses: actions/checkout@v7
 
-  merge:
-    name: Merge pull request
-    runs-on: ubuntu-22.04
-    needs: approve
-    if: github.actor == github.repository_owner || github.actor == 'dependabot[bot]'
-    steps:
-      - name: Merge
-        uses: actions/github-script@v6
+      - name: Set up Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
-          github-token: "${{ github.actor == github.repository_owner && secrets.GITHUB_TOKEN || secrets.REPO_PERSONAL_ACCESS_TOKEN }}"
-          script: |
-            await github.rest.pulls.merge({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.payload.pull_request.number
-            })
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: docs/requirements.txt
+
+      - name: Install documentation dependencies
+        run: |
+          python3 -m pip install --upgrade pip setuptools
+          python3 -m pip install -r docs/requirements.txt
+
+      - name: Build documentation
+        run: |
+          cd docs
+          python3 -m sphinx -T -b html -d _build/doctrees -D language=en . _build/html
+
+  docs-skip:
+    name: Documentation
+    needs: [filter]
+    if: github.event.pull_request.draft == false && needs.filter.outputs.run != 'true' && needs.filter.outputs.sphinx != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Skip docs-only changes
+        run: echo "Docs-only PR with no Sphinx path changes; skipping."
+
+  # >>> rosey-maintainer:ci-quality BEGIN
+  code-quality:
+    name: Code Quality
+    needs: [filter]
+    if: github.event.pull_request.draft == false && needs.filter.outputs.run == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container:
+      image: semgrep/semgrep
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Semgrep scan
+        run: |
+          BASELINE="${{ github.event.pull_request.base.sha }}"
+          semgrep scan \
+            --config p/ci \
+            --config p/python \
+            --baseline-commit "${BASELINE}" \
+            --metrics=off \
+            --error
+  # <<< rosey-maintainer:ci-quality END
+
+  code-quality-skip:
+    name: Code Quality
+    needs: [filter]
+    if: github.event.pull_request.draft == false && needs.filter.outputs.run != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Skip docs-only changes
+        run: echo "Docs-only PR; skipping expensive checks."

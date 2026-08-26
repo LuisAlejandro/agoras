@@ -3,26 +3,77 @@ Usage for Instagram
 
 Instagram is a social network that allows you to share photos and videos with your friends and followers. Agoras uses a popular `Facebook Graph API client <https://github.com/sns-sdks/python-facebook>`_ to publish posts. Only publishing is allowed by the API, so you can't like, share or delete posts.
 
-Actions
-~~~~~~~
+Required Credentials
+--------------------
+
+Before using Agoras with Instagram, you'll need to manually extract the following credentials from your Facebook App in the Meta Developer Console. Instagram uses Facebook OAuth, so you'll need a Facebook App connected to your Instagram business account.
+
+- **Client ID** (``INSTAGRAM_CLIENT_ID``): Your Facebook App ID, used as the OAuth client identifier
+- **Client Secret** (``INSTAGRAM_CLIENT_SECRET``): Your Facebook App Secret, used for OAuth authentication
+- **Object ID** (``INSTAGRAM_OBJECT_ID``): The Instagram Business Account ID
+
+See :doc:`credentials/instagram` for detailed instructions on how to create a Facebook App, connect it to your Instagram account, and obtain these credentials.
+
+Available Actions
+~~~~~~~~~~~~~~~~~
+
+* ``authorize`` - Set up OAuth 2.0 authentication (required first step)
+* ``post`` - Create Instagram posts with images
+* ``video`` - Upload videos to Instagram
+
+Authorization
+-------------
+
+.. versionadded:: 2.0
+   OAuth 2.0 "authorize first" workflow
+
+Before performing any actions, you must authorize Agoras to access your Instagram account::
+
+    agoras instagram authorize \
+      --client-id "${INSTAGRAM_CLIENT_ID}" \
+      --client-secret "${INSTAGRAM_CLIENT_SECRET}" \
+      --object-id "${INSTAGRAM_OBJECT_ID}"
+
+This will:
+
+1. Open your browser to the Facebook OAuth authorization page (Instagram uses Facebook OAuth)
+2. Prompt you to grant permissions to Agoras
+3. Automatically capture the authorization code
+4. Store encrypted credentials in ``~/.agoras/tokens/``
+
+After authorization, you can perform actions without providing tokens. Credentials are automatically refreshed when needed.
+
+For CI/CD environments, see :doc:`credentials/instagram` for unattended execution setup.
 
 Publish a Instagram post
 ------------------------
 
-This command will publish a post on the ``--instagram-object-id`` (read about how to get the id of an account :ref:`here <how-to-get-instagram-account-id>`), which must be authorized by ``--instagram-access-token`` (read about how to get an access token :doc:`here <credentials/instagram>`). ``--status-text`` is the text of your post (URLs won't be transformed into clickable links). A instagram post can have a maximum of 2200 characters, so be careful not to exceed it. You can also add up to 4 images in your post using ``--status-image-url-1``, ``--status-image-url-2``, ``--status-image-url-3`` and ``--status-image-url-4``, which must be URLs that point to downloadable images.
-::
-  
-      agoras publish \
-            --network "instagram" \
-            --action "post" \
-            --instagram-access-token "${INSTAGRAM_ACCESS_TOKEN}" \
-            --instagram-object-id "${INSTAGRAM_OBJECT_ID}" \
-            --status-text "${STATUS_TEXT}" \
-            --status-image-url-1 "${STATUS_IMAGE_URL_1}" \
-            --status-image-url-2 "${STATUS_IMAGE_URL_2}" \
-            --status-image-url-3 "${STATUS_IMAGE_URL_3}" \
-            --status-image-url-4 "${STATUS_IMAGE_URL_4}"
+This command will publish a post on the ``--object-id`` (read about how to get the id of an account :ref:`here <how-to-get-instagram-account-id>`). ``--text`` is the text of your post (URLs won't be transformed into clickable links). A instagram post can have a maximum of 2200 characters, so be careful not to exceed it. You can also add up to 4 images in your post using ``--image-1``, ``--image-2``, ``--image-3`` and ``--image-4``, which must be public HTTP(s) URLs. Instagram stills are pull-only and reject local paths.
 
+.. note::
+   You must run ``agoras instagram authorize`` first before using this command.
+
+**New format**::
+
+    agoras instagram post \
+      --object-id "${INSTAGRAM_OBJECT_ID}" \
+      --text "${STATUS_TEXT}" \
+      --image-1 "${IMAGE_URL_1}" \
+      --image-2 "${IMAGE_URL_2}" \
+      --image-3 "${IMAGE_URL_3}" \
+      --image-4 "${IMAGE_URL_4}"
+
+Publish an Instagram video (Reels or Stories)
+---------------------------------------------
+
+``agoras instagram video`` publishes a Reel by default (``--video-type story`` for Stories). ``--video-url`` accepts a public HTTP(s) URL (Instagram pulls it) or a local path / ``file://`` URI (Agoras uploads bytes via Meta's resumable rupload protocol).
+
+::
+
+    agoras instagram video \
+      --object-id "${INSTAGRAM_OBJECT_ID}" \
+      --video-url ./clip.mp4 \
+      --text "${STATUS_TEXT}"
 
 
 Like a Instagram post
@@ -43,16 +94,17 @@ Action not supported by Instagram Graph API.
 Post the last URL from an RSS feed into Instagram
 --------------------------------------------------
 
-This command will parse an RSS feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published on ``--instagram-object-id`` (read about how to get the id of an account :ref:`here <how-to-get-instagram-account-id>`), which must be authorized by ``--instagram-access-token`` (read about how to get an access token :doc:`here <credentials/instagram>`).
+This command will parse an RSS feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published on ``--instagram-object-id`` (read about how to get the id of an account :ref:`here <how-to-get-instagram-account-id>`).
+
+.. note::
+   You must run ``agoras instagram authorize`` first before using this command.
 
 Please read about how the RSS feed should be structured in the :doc:`RSS feed section <rss>`. This ensures that the feed is correctly parsed and that the post content is properly formatted.
 ::
-  
-      agoras publish \
+
+      agoras utils feed-publish \
             --network "instagram" \
-            --action "last-from-feed" \
-            --instagram-access-token "${INSTAGRAM_ACCESS_TOKEN}" \
-            --instagram-object-id "${INSTAGRAM_OBJECT_ID}" \
+            --mode "last" \
             --feed-url "${FEED_URL}" \
             --max-count "${MAX_COUNT}" \
             --post-lookback "${POST_LOOKBACK}"
@@ -62,52 +114,71 @@ Please read about how the RSS feed should be structured in the :doc:`RSS feed se
 Post a random URL from an RSS feed into Instagram
 --------------------------------------------------
 
-This command will parse an RSS feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published on ``--instagram-object-id`` (read about how to get the id of an account :ref:`here <how-to-get-instagram-account-id>`), which must be authorized by ``--instagram-access-token`` (read about how to get an access token :doc:`here <credentials/instagram>`).
+This command will parse an RSS feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published on ``--instagram-object-id`` (read about how to get the id of an account :ref:`here <how-to-get-instagram-account-id>`).
+
+.. note::
+   You must run ``agoras instagram authorize`` first before using this command.
 
 Please read about how the RSS feed should be structured in the :doc:`RSS feed section <rss>`. This ensures that the feed is correctly parsed and that the post content is properly formatted.
 ::
-  
-      agoras publish \
+
+      agoras utils feed-publish \
             --network "instagram" \
-            --action "random-from-feed" \
-            --instagram-access-token "${INSTAGRAM_ACCESS_TOKEN}" \
-            --instagram-object-id "${INSTAGRAM_OBJECT_ID}" \
+            --mode "random" \
             --feed-url "${FEED_URL}" \
             --max-post-age "${MAX_POST_AGE}"
 
 
 
-Schedule a Instagram post
--------------------------
+Google Sheets Scheduling
+------------------------
 
-This command will scan a sheet ``--google-sheets-name`` of a google spreadsheet of id ``--google-sheets-id``, thats authorized by ``--google-sheets-client-email`` and ``--google-sheets-private-key``. The post will be published on ``--instagram-object-id`` (read about how to get the id of an account :ref:`here <how-to-get-instagram-account-id>`), which must be authorized by ``--instagram-access-token`` (read about how to get an access token :doc:`here <credentials/instagram>`).
+Agoras can schedule Instagram posts using Google Sheets. This allows you to plan and automate post publishing.
 
-The order of the columns of the spreadsheet is crucial to the correct functioning of the command. Here's how the information should be organized:
+Run Scheduled Messages
+~~~~~~~~~~~~~~~~~~~~~~
 
-+--------------------+--------------------+---------------------------+---------------------------+---------------------------+---------------------------+-------------------------+-------------------+------------------------------+
-| ``--status-text``  | ``--status-link``  | ``--status-image-url-1``  | ``--status-image-url-2``  | ``--status-image-url-3``  | ``--status-image-url-4``  | date (%d-%m-%Y format)  | time (%H format)  | status (draft or published)  |
-+--------------------+--------------------+---------------------------+---------------------------+---------------------------+---------------------------+-------------------------+-------------------+------------------------------+
+Process scheduled messages from a Google Sheet:
 
-As you can see, the first 6 columns correspond to the parameters of the "post" command, the date and time columns correspond to the specific time that you want to publish this post, and the status column tells the script if this post is ready to be published (draft status) or if it was already published and should be skipped (published status). Let's see an example of a working schedule:
-
-+-------------------------------+-------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+-------------+-----+--------+
-| This is a test facebook post  | https://agoras.readthedocs.io/en/latest/  | https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg  | https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg  | https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg  | https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg  | 21-11-2022  | 17  | draft  |
-+-------------------------------+-------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+---------------------------------------------------------+-------------+-----+--------+
-
-This schedule entry would be published at 17:00h of 21-11-2022 with text "This is a test instagram post" and 4 images pointed by those URLs.
-
-For this command to work, it should be executed hourly by a cron script.
 ::
-  
-      agoras publish \
-            --network "instagram" \
-            --action "schedule" \
-            --instagram-access-token "${INSTAGRAM_ACCESS_TOKEN}" \
-            --instagram-object-id "${INSTAGRAM_OBJECT_ID}" \
-            --google-sheets-id "${GOOGLE_SHEETS_ID}" \
-            --google-sheets-name "${GOOGLE_SHEETS_NAME}" \
-            --google-sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-            --google-sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
+
+    agoras utils schedule-run \
+      --network instagram \
+      --sheets-id "${GOOGLE_SHEETS_ID}" \
+      --sheets-name "Instagram" \
+      --sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
+      --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
+
+.. note::
+   You must run ``agoras instagram authorize`` first before using this command.
+
+Sheet Format
+~~~~~~~~~~~~
+
+Your Google Sheet should have the following columns:
+
+- ``status_text``: Post text content
+- ``status_link``: URL to include in post
+- ``status_image_url_1`` through ``status_image_url_4``: Image URLs (optional)
+- ``date``: Scheduled date (format: DD-MM-YYYY)
+- ``hour``: Scheduled hour (format: HH, 24-hour format)
+- ``state``: Post state (``pending``, ``published``, ``error``)
+
+**Example sheet row**:
+
+::
+
+    status_text,status_link,status_image_url_1,status_image_url_2,status_image_url_3,status_image_url_4,date,hour,state
+    "This is a test instagram post","https://agoras.luisalejandro.org/en/latest/","https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg","https://pbs.twimg.com/media/Ej3d42zXsAEfDCr?format=jpg","","","21-11-2022","17","pending"
+
+Scheduling Logic
+~~~~~~~~~~~~~~~~
+
+- Posts with ``state="pending"`` and scheduled time in the past are processed
+- Posts are created at the scheduled date and hour
+- Sheet state is updated to ``published`` after successful posting
+- If posting fails, state is updated to ``error``
+- Use ``--network instagram`` to process Instagram posts from the sheet (required since 2.1.0; one platform per run)
 
 
 .. _how-to-get-instagram-account-id:
@@ -115,19 +186,25 @@ For this command to work, it should be executed hourly by a cron script.
 How to get ``--instagram-object-id`` parameter
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-With Agoras you can use the Instagram network to create posts. You're going to need the ID of the instagram account, for that we're going to need the id of the facebook page that's associated with the instagram account. Replace ``{page_id}`` in the following URL, then put it on your browser and hit enter::
+With Agoras you can use the Instagram network to create posts. You're going to need the ID of the instagram account, for that we're going to need the id of the facebook page that's associated with the instagram account.
 
-      https://developers.facebook.com/tools/explorer/?method=GET&path={page_id}%3Ffields%3Dconnected_instagram_account
+You can find all your pages and their connected Instagram accounts by using this URL in the Graph API Explorer::
+
+      https://developers.facebook.com/tools/explorer/?method=GET&path=me/accounts%3Ffields%3Dname,instagram_business_account
+
+Alternatively, if you already know your Facebook page ID, replace ``{page_id}`` in the following URL, then put it on your browser and hit enter::
+
+      https://developers.facebook.com/tools/explorer/?method=GET&path={page_id}%3Ffields%3Dinstagram_business_account
 
 Then click on submit and you'll see a response like this::
 
       {
-            "connected_instagram_account": {
+            "instagram_business_account": {
                   "id": "ZZZZZZZ"
             },
             "id": "YYYYYYY"
       }
 
-"ZZZZZZZ" is your Instagram aacount ID.
+"ZZZZZZZ" is your Instagram account ID.
 
 .. image:: credentials/images/instagram-2.png

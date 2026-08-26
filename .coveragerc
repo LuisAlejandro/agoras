@@ -1,2 +1,37 @@
 [run]
-source = agoras
+# agoras is a PEP 420 namespace package across packages/*/src/agoras
+source =
+    packages/common/src/agoras
+    packages/media/src/agoras
+    packages/core/src/agoras
+    packages/platforms/src/agoras
+    packages/cli/src/agoras
+omit =
+    */tests/*
+    */__pycache__/*
+    */site-packages/*
+    */virtualenv/*
+    */venv/*
+    agoras/*
+
+[paths]
+source =
+    */packages/*/src/agoras
+    */packages/*/src/agoras
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    def __str__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    @abstractmethod
+
+[html]
+directory = htmlcov
+
+[lcov]
+output = coverage.lcov

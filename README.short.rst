@@ -2,7 +2,7 @@
 
 ..
 
-    A command line python utility to manage your social networks (Twitter, Facebook, LinkedIn and Instagram)
+    A command line python utility to manage your social networks (X, Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, Threads, Telegram, and WhatsApp)
 
 .. image:: https://img.shields.io/pypi/v/agoras.svg
    :target: https://pypi.org/project/agoras/
@@ -16,8 +16,8 @@
    :target: https://github.com/LuisAlejandro/agoras/issues?q=is%3Aopen
    :alt: Github Issues
 
-.. image:: https://github.com/LuisAlejandro/agoras/workflows/Push/badge.svg
-   :target: https://github.com/LuisAlejandro/agoras/actions?query=workflow%3APush
+.. image:: https://img.shields.io/github/actions/workflow/status/LuisAlejandro/agoras/push.yml?branch=master
+   :target: https://github.com/LuisAlejandro/agoras/actions/workflows/push.yml
    :alt: Push
 
 .. image:: https://coveralls.io/repos/github/LuisAlejandro/agoras/badge.svg?branch=develop
@@ -40,12 +40,12 @@
 |
 
 .. _GitHub actions: https://github.com/LuisAlejandro/agoras-actions
-.. _full documentation: https://agoras.readthedocs.org
+.. _full documentation: https://agoras.luisalejandro.org
 
-Current version: 1.1.5
+Current version: 2.2.0
 
-Agoras is a python utility that helps publish and delete posts on the most 
-popular social networks (twitter, facebook, instagram and linkedin).
+Agoras is a python utility that helps publish and delete posts on the most
+popular social networks (X, Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, Threads, Telegram, and WhatsApp).
 
 This repository stores the application. There's also `GitHub actions`_
 that you can incorporate into your workflows.

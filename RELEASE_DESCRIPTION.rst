@@ -1,0 +1,1 @@
+Agoras is a modular Python command-line utility for publishing, managing, and automating posts across 10 major social networks including X, Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, Threads, Telegram, and WhatsApp. Version 2.0 features a modular architecture, a platform-first CLI, and automatic OAuth callback servers.

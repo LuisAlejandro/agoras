@@ -35,80 +35,115 @@ Implement Features
 Look through the GitHub issues for features. Anything tagged with "feature"
 is open to whoever wants to implement it.
 
-Write Documentation
-~~~~~~~~~~~~~~~~~~~
+Improve Documentation
+~~~~~~~~~~~~~~~~~~~~~
 
-agoras could always use more documentation, whether as part of the
-official agoras docs, in docstrings, or even on the web in blog posts,
+Agoras could always use more documentation, whether as part of the
+official Agoras docs, in docstrings, or even on the web in blog posts,
 articles, and such.
+
+Suggest Features
+~~~~~~~~~~~~~~~~
+
+The best way to suggest a feature is to file an issue at
+https://github.com/LuisAlejandro/agoras/issues.
+
+If you are proposing a feature:
+
+* Explain the problem you are trying to solve.
+* Describe the behavior you want and any alternatives you considered.
+* Keep the scope as narrow as possible, to make it easier to implement.
 
 Submit Feedback
 ~~~~~~~~~~~~~~~
 
-The best way to send feedback is to file an issue at https://github.com/LuisAlejandro/agoras/issues.
+The best way to send other feedback is to file an issue at
+https://github.com/LuisAlejandro/agoras/issues.
 
-If you are proposing a feature:
+Local Development
+-----------------
 
-* Explain in detail how it would work.
-* Keep the scope as narrow as possible, to make it easier to implement.
-* Remember that this is a volunteer-driven project, and that contributions
-  are welcome :)
+Ready to contribute? Here's how to set up ``agoras`` for local development.
 
-Get Started!
-------------
-
-Ready to contribute? Here's how to set up `agoras` for local development.
-
-1. Fork the `agoras` repo on GitHub.
+1. Fork the ``agoras`` repo on GitHub.
 2. Clone your fork locally::
 
     $ git clone git@github.com:your_name_here/agoras.git
+    $ cd agoras
 
-3. Install your local copy into a virtualenv. Assuming you have virtualenvwrapper installed, this is how you set up your fork for local development::
+3. Create a branch from ``develop``::
 
-    $ mkvirtualenv agoras
-    $ cd agoras/
-    $ python setup.py develop
-
-4. Create a branch for local development::
-
+    $ git checkout develop
     $ git checkout -b name-of-your-bugfix-or-feature
 
-   Now you can make your changes locally.
+4. Copy environment placeholders when you need platform credentials::
 
-5. When you're done making changes, check that your changes pass flake8 and the tests, including testing other Python versions with tox::
+    $ cp .env.example .env
 
-    $ flake8 agoras
-    $ python3 -m unittest -v -f
-    $ tox
+5. Start the Docker development environment::
 
-   To get flake8 and tox, just pip install them into your virtualenv.
+    $ make image
+    $ make start
+    $ make console
 
-6. Commit your changes and push your branch to GitHub::
+   Use ``make console`` for an interactive shell inside the project container.
 
-    $ git add .
-    $ git commit -m "Your detailed description of your changes."
-    $ git push origin name-of-your-bugfix-or-feature
+   Without Docker, run ``make virtualenv`` (installs ``requirements-dev.txt`` and
+   editable installs of ``packages/common`` → ``media`` → ``core`` → ``platforms``
+   → ``cli``), then activate ``./virtualenv/bin/activate``.
 
-7. Submit a pull request through the GitHub website.
+   After changing ``requirements-dev.txt`` or the ``Dockerfile``, rebuild with
+   ``make image`` so the container picks up new tools.
+
+Monorepo layout (v2.0)
+----------------------
+
+Agoras is five namespace packages under ``packages/`` (dependency order)::
+
+    common → media → core → platforms → cli
+
+Put changes in ``packages/<pkg>/src/agoras/<pkg>/`` and tests in
+``packages/<pkg>/tests/``. Do not import upward against that chain.
+More detail lives in the docs under ``docs/migration/``.
+
+Quality Checks
+--------------
+
+The lint stack is **Ruff** (format + lint), **pydocstyle**, **bandit**, and
+**Pyright**, configured in ``pyproject.toml`` and run via tox. ``make test``
+runs the **coverage** tox env (not the full multi-Python matrix).
+
+Before opening a pull request, run::
+
+    $ make format
+    $ make lint
+    $ make test
+
+Or on the host after ``make virtualenv``::
+
+    $ ./virtualenv/bin/tox -e format
+    $ ./virtualenv/bin/tox -e lint
+    $ ./virtualenv/bin/tox -e coverage
+
+To exercise all supported Python versions via tox::
+
+    $ make test-all
 
 Pull Request Guidelines
 -----------------------
 
 Before you submit a pull request, check that it meets these guidelines:
 
-1. The pull request should include tests.
-2. If the pull request adds functionality, the docs should be updated. Put
-   your new functionality into a function with a docstring, and add the
-   feature to the list in README.rst.
-3. Check https://github.com/LuisAlejandro/agoras/actions
-   and make sure that the tests pass for all supported Python versions.
+1. The pull request should include tests for behavior changes.
+2. If the pull request adds functionality, update the docs when user-facing
+   behavior changes.
+3. Keep the scope focused and link related issues.
+4. Check https://github.com/LuisAlejandro/agoras/actions and make sure CI passes.
 
-Tips
-----
+Maintainer Notes
+----------------
 
-To run a subset of tests::
-
-
-    $ python -m unittest tests.test_core_logger
-    $ python -m unittest tests.test_core_utils
+Releases are handled by maintainers (``make release-patch``,
+``make release-minor``, ``make release-major``, and ``make release-preflight``).
+Use ``make undo-release VERSION=x.y.z`` to roll back a botched release.
+Contributors should not publish packages or push release tags.

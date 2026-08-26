@@ -1,0 +1,500 @@
+# -*- coding: utf-8 -*-
+#
+# Please refer to AUTHORS.md for a complete list of Copyright holders.
+# Copyright (C) 2022-2026, Agoras Developers.
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.threads.api module."""
+
+import asyncio
+from typing import Any, Dict, List, Optional, Tuple
+
+from agoras.core.api_base import BaseAPI
+from agoras.core.auth import raise_authentication_error_from_manager
+from agoras.media import MediaFactory
+from agoras.media.errors import MediaValidationError
+from agoras.media.paths import is_local_media_source
+
+from .auth import ThreadsAuthManager
+
+
+class ThreadsAPI(BaseAPI):
+    """
+    Threads API handler that centralizes Threads operations.
+
+    Provides methods for Threads authentication, post creation, replies,
+    reposts, and all Threads API operations.
+    """
+
+    def __init__(self, app_id: str, app_secret: str, refresh_token: Optional[str] = None):
+        """
+        Initialize Threads API instance.
+
+        Args:
+            app_id (str): Threads app ID
+            app_secret (str): Threads app secret
+            refresh_token (str, optional): Threads refresh token
+        """
+        super().__init__(app_id=app_id, app_secret=app_secret, refresh_token=refresh_token)
+
+        # Initialize the authentication manager
+        self.auth_manager = ThreadsAuthManager(app_id=app_id, app_secret=app_secret, refresh_token=refresh_token)
+
+    @property
+    def access_token(self):
+        """Get the Threads access token from the auth manager."""
+        return self.auth_manager.access_token if self.auth_manager else None
+
+    @property
+    def user_id(self):
+        """Get the Threads user ID from the auth manager."""
+        return self.auth_manager.user_id if self.auth_manager else None
+
+    @property
+    def user_info(self):
+        """Get the Threads user info from the auth manager."""
+        return self.auth_manager.user_info if self.auth_manager else None
+
+    async def authenticate(self):
+        """
+        Authenticate with Threads API using the auth manager.
+
+        Returns:
+            ThreadsAPI: Self for method chaining
+
+        Raises:
+            Exception: If authentication fails
+        """
+        if self._authenticated:
+            return self
+
+        success = await self.auth_manager.authenticate()
+        if not success:
+            raise_authentication_error_from_manager(self.auth_manager)
+
+        self.client = self.auth_manager.client
+        self._authenticated = True
+        return self
+
+    async def disconnect(self):
+        """
+        Disconnect from Threads API and clean up resources.
+        """
+        # Clear BaseAPI client
+        self.client = None
+        self._authenticated = False
+
+    @staticmethod
+    def _cleanup_downloaded_images(images: List[Any]) -> None:
+        """Release temporary image resources after validation failure."""
+        for image in images:
+            try:
+                image.cleanup()
+            except Exception:
+                pass
+
+    @staticmethod
+    def _validate_downloaded_image(
+        image: Any,
+        idx: int,
+        file_captions: Optional[List[str]],
+        allowed_images: frozenset,
+        validated_files: List[str],
+        validated_captions: List[str],
+    ) -> None:
+        """Validate one downloaded image and append to output lists."""
+        if not image.content or not image.file_type:
+            raise Exception(f"Failed to download or validate image: {image.url}")
+
+        if image.file_type.mime not in allowed_images:
+            raise MediaValidationError(
+                "threads",
+                "image",
+                "mime_types",
+                image.file_type.mime,
+                sorted(allowed_images),
+            )
+
+        from agoras.media.preflight import preflight_url_for_platform
+
+        preflight_url_for_platform(image.url, "threads", kind="image")
+        validated_files.append(image.url)
+
+        if file_captions and idx < len(file_captions):
+            validated_captions.append(file_captions[idx])
+
+    async def _validate_and_download_images(
+        self, files: List[str], file_captions: Optional[List[str]]
+    ) -> Tuple[List[str], List[str], List[Any]]:
+        """
+        Download and validate images using Media system.
+
+        Args:
+            files: List of file URLs to download and validate
+            file_captions: Optional list of captions for files
+
+        Returns:
+            tuple: (validated_files, validated_captions, images)
+
+        Raises:
+            Exception: If validation or download fails
+        """
+        validated_files = []
+        validated_captions = []
+        images = []
+
+        # Filter out None/empty values
+        valid_file_urls = [f for f in files if f]
+
+        if not valid_file_urls:
+            raise Exception("Files list contains no valid URLs")
+
+        from agoras.media.constraints import image_limits
+
+        allowed_images = image_limits("threads").mime_types
+
+        try:
+            images = await MediaFactory.download_images(
+                valid_file_urls,
+                platform="threads",
+            )
+
+            for idx, image in enumerate(images):
+                self._validate_downloaded_image(
+                    image,
+                    idx,
+                    file_captions,
+                    allowed_images,
+                    validated_files,
+                    validated_captions,
+                )
+
+            return validated_files, validated_captions, images
+
+        except MediaValidationError:
+            self._cleanup_downloaded_images(images)
+            raise
+        except Exception as e:
+            self._cleanup_downloaded_images(images)
+            error_msg = str(e)
+            if not error_msg.startswith("Media validation failed"):
+                raise Exception(f"Media validation failed: {error_msg}")
+            raise
+
+    async def get_profile(self) -> Dict[str, Any]:
+        """
+        Get user profile information from Threads API.
+
+        Returns:
+            dict: User profile information
+
+        Raises:
+            Exception: If API call fails
+        """
+        if not self.access_token:
+            raise Exception("Threads API not authenticated")
+
+        def _sync_get_profile():
+            if not self.client:
+                raise Exception("Threads client not available")
+            return self.client.get_profile()
+
+        try:
+            profile_info = await asyncio.to_thread(_sync_get_profile)
+            return profile_info
+        except Exception as e:
+            self._handle_api_error(e, "Threads get profile")
+            raise
+
+    async def create_post(
+        self,
+        post_text: str,
+        files: Optional[List[str]] = None,
+        file_captions: Optional[List[str]] = None,
+        who_can_reply: str = "everyone",
+        reply_to_id: Optional[str] = None,
+    ) -> str:
+        """
+        Create a post on Threads.
+
+        Args:
+            post_text (str): Text content of the post
+            files (list, optional): List of file URLs to attach
+            file_captions (list, optional): Captions for files (must align with files array)
+            who_can_reply (str): Who can reply to this post
+            reply_to_id (str, optional): Published media ID to reply to
+
+        Returns:
+            str: Published post ID
+
+        Raises:
+            Exception: If post creation fails
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.access_token:
+            raise Exception("Threads API not authenticated")
+
+        if not self.client:
+            raise Exception("Threads client not available")
+
+        await self._rate_limit_check("create_post", 2.0)
+
+        # Validate file_captions length matches files if both provided
+        if file_captions and files and len(file_captions) != len(files):
+            raise Exception(f"File captions count ({len(file_captions)}) must match files count ({len(files)})")
+
+        # Download and validate images using Media system if files are provided
+        validated_files = []
+        validated_captions = []
+        images = []
+
+        if files:
+            for file_url in files:
+                if file_url and is_local_media_source(file_url):
+                    raise Exception(
+                        "Threads API does not support local file uploads; "
+                        "a publicly accessible HTTP(s) URL is required."
+                    )
+            validated_files, validated_captions, images = await self._validate_and_download_images(files, file_captions)
+
+        def _sync_create_post():
+            if not self.client:
+                raise Exception("Threads client not available")
+            return self.client.create_post(
+                post_text=post_text,
+                files=validated_files if validated_files else None,
+                file_captions=validated_captions if validated_captions else None,
+                who_can_reply=who_can_reply,
+                reply_to_id=reply_to_id,
+            )
+
+        try:
+            response = await asyncio.to_thread(_sync_create_post)
+
+            # Extract published media ID from response (never container id)
+            post_id = response.get("id") or response.get("post_id") or str(response)
+            return post_id
+        except Exception as e:
+            self._handle_api_error(e, "Threads post creation")
+            raise
+        finally:
+            # Clean up all downloaded images
+            for image in images:
+                try:
+                    image.cleanup()
+                except Exception:
+                    pass
+
+    async def create_video_post(
+        self,
+        post_text: str,
+        video_url: str,
+        who_can_reply: str = "everyone",
+        reply_to_id: Optional[str] = None,
+    ) -> str:
+        """
+        Create a video post on Threads.
+
+        Args:
+            post_text (str): Text content / caption for the video
+            video_url (str): Publicly accessible URL of the video
+            who_can_reply (str): Who can reply to this post
+            reply_to_id (str, optional): Published media ID to reply to
+
+        Returns:
+            str: Published post ID
+
+        Raises:
+            Exception: If video post creation fails
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.access_token:
+            raise Exception("Threads API not authenticated")
+
+        if not self.client:
+            raise Exception("Threads client not available")
+
+        if not video_url:
+            raise Exception("Video URL is required")
+
+        if is_local_media_source(video_url):
+            raise Exception(
+                "Threads API does not support local file uploads; a publicly accessible HTTP(s) URL is required."
+            )
+
+        await self._rate_limit_check("create_video_post", 2.0)
+
+        video = None
+        try:
+            video = MediaFactory.create_video(video_url, platform="threads")
+            await video.download()
+
+            if not video.content or not video.file_type:
+                raise Exception(f"Failed to download or validate video: {video.url}")
+
+            from agoras.media.constraints import video_limits
+
+            allowed = video_limits("threads").mime_types
+            if video.file_type.mime not in allowed:
+                raise MediaValidationError(
+                    "threads",
+                    "video",
+                    "mime_types",
+                    video.file_type.mime,
+                    sorted(allowed),
+                )
+
+            def _sync_create_video_post():
+                if not self.client:
+                    raise Exception("Threads client not available")
+                return self.client.create_video_post(
+                    post_text=post_text,
+                    video_url=video_url,
+                    who_can_reply=who_can_reply,
+                    reply_to_id=reply_to_id,
+                )
+
+            response = await asyncio.to_thread(_sync_create_video_post)
+            post_id = response.get("id") or response.get("post_id") or str(response)
+            return post_id
+        except MediaValidationError:
+            raise
+        except Exception as e:
+            self._handle_api_error(e, "Threads video post creation")
+            raise
+        finally:
+            if video:
+                try:
+                    video.cleanup()
+                except Exception:
+                    pass
+
+    async def repost_post(self, post_id: str) -> str:
+        """
+        Repost an existing post.
+
+        Args:
+            post_id (str): ID of the post to repost
+
+        Returns:
+            str: Repost ID
+
+        Raises:
+            Exception: If repost fails
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.access_token:
+            raise Exception("Threads API not authenticated")
+
+        if not self.client:
+            raise Exception("Threads client not available")
+
+        await self._rate_limit_check("repost_post", 2.0)
+
+        def _sync_repost():
+            if not self.client:
+                raise Exception("Threads client not available")
+            return self.client.repost_post(post_id=post_id)
+
+        try:
+            response = await asyncio.to_thread(_sync_repost)
+
+            # Extract repost ID from response
+            repost_id = response.get("id") or response.get("repost_id") or str(response)
+            return repost_id
+        except Exception as e:
+            self._handle_api_error(e, "Threads repost")
+            raise
+
+    # BaseAPI abstract method implementations
+    async def post(
+        self, post_text: str, files: Optional[List[str]] = None, file_captions: Optional[List[str]] = None
+    ) -> str:
+        """
+        Create a post on Threads (BaseAPI interface implementation).
+
+        Args:
+            post_text (str): Text content of the post
+            files (list, optional): List of file URLs to attach
+            file_captions (list, optional): Captions for files
+
+        Returns:
+            str: Post ID
+        """
+        return await self.create_post(post_text, files, file_captions)
+
+    async def like(self, post_id: str) -> str:
+        """
+        Like a Threads post (not supported via API).
+
+        Args:
+            post_id (str): Post ID to like
+
+        Raises:
+            Exception: Like not supported for Threads
+        """
+        raise Exception("Like not supported for Threads")
+
+    async def delete(self, post_id: str) -> str:
+        """
+        Delete a Threads post.
+
+        Args:
+            post_id (str): Post ID to delete
+
+        Returns:
+            str: Deleted post ID
+
+        Raises:
+            Exception: If deletion fails
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.access_token:
+            raise Exception("Threads API not authenticated")
+
+        if not self.client:
+            raise Exception("Threads client not available")
+
+        if not post_id:
+            raise Exception("Post ID is required for delete action.")
+
+        await self._rate_limit_check("delete_post", 1.0)
+
+        def _sync_delete():
+            if not self.client:
+                raise Exception("Threads client not available")
+            return self.client.delete_post(post_id=post_id)
+
+        try:
+            response = await asyncio.to_thread(_sync_delete)
+            return response.get("id", post_id)
+        except Exception as e:
+            self._handle_api_error(e, "Threads post deletion")
+            raise
+
+    async def share(self, post_id: str) -> str:
+        """
+        Share/repost a Threads post.
+
+        Args:
+            post_id (str): Post ID to share
+
+        Returns:
+            str: Share/Repost ID
+        """
+        return await self.repost_post(post_id)

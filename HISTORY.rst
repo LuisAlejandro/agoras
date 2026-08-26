@@ -2,6 +2,316 @@ Changelog
 ============
 
 
+2.2.0 (2026-08-26)
+------------
+
+Added
+~~~~~~~~~~~~
+
+* Instagram local video via rupload. [Luis Alejandro Martínez Faneyth]
+
+* Share-to-TikTok composer for interactive posts. [Luis Alejandro Martínez Faneyth]
+
+* Local file and file:// media support. [Luis Alejandro Martínez Faneyth]
+
+* YAML content files and native threads. [Luis Alejandro Martínez Faneyth]
+
+* Document gitchangelog commit tags in MAINTAINER. [Luis Alejandro Martínez Faneyth]
+
+
+Changed
+~~~~~~~~~~~~
+
+* Request TikTok video.publish OAuth scopes. [Luis Alejandro Martínez Faneyth]
+
+
+Fixed
+~~~~~~~~~~~~
+
+* Fetch X Premium tier live at post time. [Luis Alejandro Martínez Faneyth]
+
+* Cut release artifact retention to 30 days; add cache purge. [Luis Alejandro Martínez Faneyth]
+
+* Rename root dist to agoras-meta and ship text_limits data file. [Luis Alejandro Martínez Faneyth]
+
+* Retry transient GitHub API errors in PR auto-merge. [Luis Alejandro Martínez Faneyth]
+
+* Use top-level getOctokit in pr-auto-merge updateBranch step. [Luis Alejandro Martínez Faneyth]
+
+
+Other
+~~~~~~~~~~~~
+
+* Fix: ruff format upload_resumable_video signature. [Cursor Agent]
+
+* Fix(ci): satisfy Ruff format and Bandit B113 on local media upload paths. [Cursor Agent]
+
+* Fix TikTok composer lint, Semgrep, and Pyright for PR CI. [Cursor Agent]
+
+* Merge develop into feature/local-media-support. [Luis Alejandro Martínez Faneyth]
+
+* Chore(deps): sync Pillow>=12.3.0 across packages via sync_package_deps. [Cursor Agent]
+
+* Fix(deps): sync google-auth 2.56.3 across packages after core bump. [Cursor Agent]
+
+* Align google-auth to 2.56.3 across all packages. [Cursor Agent]
+
+* Fix(platforms): cast OAuth1Session for mount() under pyright 1.1.411. [Cursor Agent]
+
+* Chore(deps): align google-auth 2.56.2 across packages/platforms and root. [Cursor Agent]
+
+* Fix(core): align google-auth with platforms bump to 2.56.2. [Cursor Agent]
+
+* Update. [Luis Alejandro Martínez Faneyth]
+
+* Fix(x): drop duplicate tweet validation after rebase. [Luis Alejandro Martínez Faneyth]
+
+* Fix(tiktok): initialize tiktok_description in __init__ for text validation. [Cursor Agent]
+
+* Style: apply Ruff format to text_limits module. [Cursor Agent]
+
+* Fix: address QA review for text-limit rejection. [Luis Alejandro Martínez Faneyth]
+
+* Feat(core): reject posts that exceed platform text limits. [Luis Alejandro Martínez Faneyth]
+
+* Upgrade PR auto-merge to SHA-bound native-first controller. [Luis Alejandro Martínez Faneyth]
+
+* Fix(deps): align google-auth 2.56.0 across core and root packages. [Cursor Agent]
+
+* Fix(deps): sync google-auth 2.56.0 across platforms and root. [Cursor Agent]
+
+* Fix: replace deluser/delgroup with userdel/groupdel in Dockerfiles. [Luis Alejandro Martínez Faneyth]
+
+* Chore: apply rosey-maintainer fleet sync. [Luis Alejandro Martínez Faneyth]
+
+* Chore: update gitignore. [Luis Alejandro Martínez Faneyth]
+
+* Fix(deps): pin sphinx by Python version for unit test matrix. [Cursor Agent]
+
+* Fix(core): align google-auth with platforms bump to 2.55.1. [Cursor Agent]
+
+* Fix(platforms): align google-auth 2.55.1 with core for Dependabot bump. [Cursor Agent]
+
+* Fix: propagate access_token to LinkedInAPI and update Instagram docs. [Luis Alejandro Martínez Faneyth]
+
+* Feat: support LinkedIn standard app access-token-only authorization. [Luis Alejandro Martínez Faneyth]
+
+* Test: update Telegram invalid-token test for AuthenticationError. [Cursor Agent]
+
+* Fix: skip auto-merge for draft pull requests. [Luis Alejandro Martínez Faneyth]
+
+* Fix: refresh and sync unattended test tokens after live runs. [Luis Alejandro Martínez Faneyth]
+
+* Fix: surface categorized auth failures on CLI authenticate path. [Luis Alejandro Martínez Faneyth]
+
+* Chore: maintainer sync follow-ups for docs and Makefile. [Luis Alejandro Martínez Faneyth]
+
+* Chore: sync maintainer ops from rosey-maintainer-sync. [Luis Alejandro Martínez Faneyth]
+
+* Chore: sync maintainer ops from fleet-wide rosey-maintainer-sync. [Luis Alejandro Martínez Faneyth]
+
+* Refactor: consolidate lint and format on Ruff. [Luis Alejandro Martínez Faneyth]
+
+* Chore: sync maintainer release preflight and ops tooling. [Luis Alejandro Martínez Faneyth]
+
+* Feat: 2.1.0 utils authorize-only and platform runner dispatch. [Luis Alejandro Martínez Faneyth]
+
+* Formatting nits. [Luis Alejandro Martínez Faneyth]
+
+* Updating readthedocs generation. [Luis Alejandro Martínez Faneyth]
+
+* Updating readthedocs generation. [Luis Alejandro Martínez Faneyth]
+
+* Chore: export BASH_ENV in Makefile for bash recipe env. [Luis Alejandro Martínez Faneyth]
+
+* Solving bumpversion multiline issue. [Luis Alejandro Martínez Faneyth]
+
+* Chore: sync maintainer ops and inline post_bump_commands parser. [Luis Alejandro Martínez Faneyth]
+
+* Test(common): ignore pytest logging handlers in logger tests. [Cursor Agent]
+
+* Chore: sync maintainer release scripts and CI workflows. [Luis Alejandro Martínez Faneyth]
+
+* Chore(deps-dev): bump pytest-asyncio to 1.4.0 for pytest 9.x compatibility. [Cursor Agent]
+
+* Improving dependency resolution robustness. [Luis Alejandro Martínez Faneyth]
+
+* Chore: sync MAINTAINER CI notes and lib.sh manifest to 0.4.3. [Luis Alejandro Martínez Faneyth]
+
+* Chore: maintainer sync toolkit 0.4.3. [Luis Alejandro Martínez Faneyth]
+
+* Chore: maintainer sync toolkit 0.4.2 — PR CI + auto-merge. [Luis Alejandro Martínez Faneyth]
+
+* Fix(core): align google-auth with platforms bump to 2.55.0. [Cursor Agent]
+
+* Chore: remove CI probe v10 marker from MAINTAINER. [Luis Alejandro Martínez Faneyth]
+
+* Fix(ci): safe.directory for Semgrep dispatch git fetch in container. [Luis Alejandro Martínez Faneyth]
+
+* Chore: retrigger PR CI after probe fix. [Cursor Agent]
+
+* Fix(ci): remove intentional probe test failure (v6) [Cursor Agent]
+
+* Fix(ci): repair pr-auto-merge actor gate YAML folding. [Luis Alejandro Martínez Faneyth]
+
+* Simplify PR CI: embed Semgrep in pr.yml, drop code-quality workflow. [Luis Alejandro Martínez Faneyth]
+
+* Test: remove CI auto-merge probe v4 (fix intentional failure) [Cursor Agent]
+
+* Test: CI auto-merge probe v4 (intentional unit test failure) [Luis Alejandro Martínez Faneyth]
+
+* Chore: retrigger PR CI after #657 merge. [Luis Alejandro Martínez Faneyth]
+
+* Fix(ci): mark workspace safe for git in Semgrep container. [Cursor Agent]
+
+* Fix(ci): run PR workflows on feature branch push. [Luis Alejandro Martínez Faneyth]
+
+* Test: remove CI auto-merge probe v3 (fix intentional failure) [Cursor Agent]
+
+* Test: re-break probe v3 for Cursor fix → auto-merge validation. [Luis Alejandro Martínez Faneyth]
+
+* Test: remove CI auto-merge probe v3 (fix intentional failure) [Cursor Agent]
+
+* Test: CI auto-merge probe v3 (intentional unit test failure) [Luis Alejandro Martínez Faneyth]
+
+* Chore: retrigger PR CI after probe fix. [Luis Alejandro Martínez Faneyth]
+
+* Test: remove CI auto-merge probe v2 (fix intentional failure) [Luis Alejandro Martínez Faneyth]
+
+* Test: CI auto-merge probe v2 (cleanup + failing unit test) [Luis Alejandro Martínez Faneyth]
+
+* Add .cursorrules with Cursor Cloud dev environment instructions. [Cursor Agent]
+
+* Test: make lint probe fail flake8 F841. [Luis Alejandro Martínez Faneyth]
+
+* Test: intentional lint failure for CI auto-merge probe. [Luis Alejandro Martínez Faneyth]
+
+* Docs: verify Semgrep fleet migration. [Luis Alejandro Martínez Faneyth]
+
+* Chore: sync PR auto-merge, CodeQL PR gate, and maintainer files from rosey-maintain. [Luis Alejandro Martínez Faneyth]
+
+* Fixing tests. [Luis Alejandro Martínez Faneyth]
+
+* Improving maintainer files. [Luis Alejandro Martínez Faneyth]
+
+* Chore: fleet release parity — gates, dependabot, hotfix removal. [Luis Alejandro Martínez Faneyth]
+
+* Improving release documentation and maintainer scripts. [Luis Alejandro Martínez Faneyth]
+
+* Updating documentation. [Luis Alejandro Martínez Faneyth]
+
+* Fixing release scripts. [Luis Alejandro Martínez Faneyth]
+
+* Preparing release. [Luis Alejandro Martínez Faneyth]
+
+* Improving test scripts. [Luis Alejandro Martínez Faneyth]
+
+* Apply rosey maintainer fleet sync. [Luis Alejandro Martínez Faneyth]
+
+* Apply rosey maintainer fleet sync. [Luis Alejandro Martínez Faneyth]
+
+* Improving. [Luis Alejandro Martínez Faneyth]
+
+* Improving e2e tests. [Luis Alejandro Martínez Faneyth]
+
+* Improving architecture. [Luis Alejandro Martínez Faneyth]
+
+* Improving e2e tests. [Luis Alejandro Martínez Faneyth]
+
+* Fixing tiktok error recognition. [Luis Alejandro Martínez Faneyth]
+
+
+1.1.6 (2026-01-25)
+------------
+
+Added
+~~~~~~~~~~~~
+
+* Adding future plans. [Luis Alejandro Martínez Faneyth]
+
+* Starting the threads implementation plan (Phase 1) [Luis Alejandro Martínez Faneyth]
+
+
+Changed
+~~~~~~~~~~~~
+
+* Improving architechture consistency and planning next features. [Luis Alejandro Martínez Faneyth]
+
+* Implementing object-oriented programming. [Luis Alejandro Martínez Faneyth]
+
+* Adding tiktok, discord and youtube social networks. [Luis Alejandro Martínez Faneyth]
+
+
+Fixed
+~~~~~~~~~~~~
+
+* Fixing pipeline. [Luis Alejandro Martínez Faneyth]
+
+* Fixing readthedocs building. [Luis Alejandro Martínez Faneyth]
+
+* Fixing problem with coveralls action. [Luis Alejandro Martínez Faneyth]
+
+
+Other
+~~~~~~~~~~~~
+
+* Preparing version for bumpversion. [Luis Alejandro Martínez Faneyth]
+
+* Adding setup.py top level file to be able to install it via pip as monorepo. [Luis Alejandro Martínez Faneyth]
+
+* Fixing tests. [Luis Alejandro Martínez Faneyth]
+
+* Fixing tests. [Luis Alejandro Martínez Faneyth]
+
+* Improving documentation on tiktok. [Luis Alejandro Martínez Faneyth]
+
+* Setting default credentials. [Luis Alejandro Martínez Faneyth]
+
+* Increasing coverage. [Luis Alejandro Martínez Faneyth]
+
+* Fixing tests. [Luis Alejandro Martínez Faneyth]
+
+* Fixinf lint errors. [Luis Alejandro Martínez Faneyth]
+
+* Fixing several usage bugs. [Luis Alejandro Martínez Faneyth]
+
+* Adding support to python 3.13 and 3.14. Removing Python 3.9. [Luis Alejandro Martínez Faneyth]
+
+* Update requirements-dev.txt. [Luis Alejandro]
+
+* Update requirements-dev.txt. [Luis Alejandro]
+
+* Fixing more dependency conflicts. [Luis Alejandro Martínez Faneyth]
+
+* Fixing dependency conflict. [Luis Alejandro Martínez Faneyth]
+
+* Fixing dependency conflict. [Luis Alejandro Martínez Faneyth]
+
+* Fixing jinja2 version. [Luis Alejandro Martínez Faneyth]
+
+* Adding RTD building and trigger. [Luis Alejandro Martínez Faneyth]
+
+* Fixing coverage report. [Luis Alejandro Martínez Faneyth]
+
+* Fixing lint errors. [Luis Alejandro Martínez Faneyth]
+
+* Improving test coverage and updating documentation. [Luis Alejandro Martínez Faneyth]
+
+* Final cleanup: Remove migration working docs (Week 3.5 Day 6) [Luis Alejandro Martínez Faneyth]
+
+* Update documentation for v2.0 modular package structure (Week 3.5 Day 5) [Luis Alejandro Martínez Faneyth]
+
+* Update integration test scripts for v2.0 CLI structure (Week 3.5 Day 4) [Luis Alejandro Martínez Faneyth]
+
+* Update root configuration for modular package structure (Week 3.5 Day 3) [Luis Alejandro Martínez Faneyth]
+
+* Remove old monolithic codebase (Week 3.5 Day 2) [Luis Alejandro Martínez Faneyth]
+
+* Refactoring command line interface. [Luis Alejandro Martínez Faneyth]
+
+* Update keepalive.yml. [Luis Alejandro]
+
+
 1.1.5 (2026-01-20)
 ------------
 

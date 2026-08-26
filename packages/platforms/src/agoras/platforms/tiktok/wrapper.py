@@ -1,0 +1,683 @@
+# -*- coding: utf-8 -*-
+#
+# Please refer to AUTHORS.md for a complete list of Copyright holders.
+# Copyright (C) 2022-2026, Agoras Developers.
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.tiktok.wrapper module."""
+
+import asyncio
+import json
+import os
+import sys
+
+from agoras.core.interfaces import SocialNetwork
+from agoras.core.text_limits import validate_text
+from agoras.media.paths import is_local_media_source, media_is_local
+
+from .api import TikTokAPI
+from .composer import ComposerPayload, composer_from_creator_info, run_composer
+
+UNATTENDED_ACTIONS = frozenset({"last-from-feed", "random-from-feed", "schedule"})
+INTERACTIVE_ACTIONS = frozenset({"post", "video"})
+UNATTENDED_PRIVACY_ERROR = (
+    "Unattended TikTok publish only allows SELF_ONLY privacy. "
+    "Interactive `agoras tiktok post` and `agoras tiktok video` open a localhost "
+    "Share-to-TikTok composer for other visibility."
+)
+UNATTENDED_COMMERCIAL_ERROR = (
+    "Commercial disclosure (--brand-organic / --brand-content) is only available "
+    "in the interactive Share-to-TikTok composer."
+)
+PUBLISH_CANCELLED = "TikTok publish cancelled."
+CREATOR_TRY_LATER = "TikTok says this creator cannot post right now. Try again later."
+
+
+class TikTok(SocialNetwork):
+    """
+    TikTok social network implementation.
+
+    This class provides TikTok-specific functionality for posting videos and photos,
+    and managing TikTok interactions asynchronously.
+    """
+
+    def _output_status(self, post_id):
+        """Emit publish_id JSON on stdout for CLI piping."""
+        status = {"publish_id": post_id}
+        print(json.dumps(status, separators=(",", ":")))
+
+    def __init__(self, **kwargs):
+        """
+        Initialize TikTok instance.
+
+        Args:
+            **kwargs: Configuration parameters including:
+                - tiktok_username: TikTok username
+                - tiktok_client_key: TikTok client key
+                - tiktok_client_secret: TikTok client secret
+                - tiktok_refresh_token: TikTok refresh token
+                - tiktok_title: Title for posts
+                - tiktok_privacy_status: Privacy status (SELF_ONLY, PUBLIC_TO_EVERYONE, etc.)
+                - tiktok_allow_comments: Whether to allow comments
+                - tiktok_allow_duet: Whether to allow duets
+                - tiktok_allow_stitch: Whether to allow stitches
+                - tiktok_auto_add_music: Whether to auto-add music for photos
+                - brand_organic: Whether content is brand organic
+                - brand_content: Whether content is brand content
+        """
+        super().__init__(**kwargs)
+        self.tiktok_username = None
+        self.tiktok_client_key = None
+        self.tiktok_client_secret = None
+        self.tiktok_refresh_token = None
+        self.tiktok_title = None
+        self.tiktok_description = None
+        self.tiktok_privacy_status = None
+        self.tiktok_allow_comments = None
+        self.tiktok_allow_duet = None
+        self.tiktok_allow_stitch = None
+        self.tiktok_auto_add_music = None
+        self.brand_organic = None
+        self.brand_content = None
+        self.api = None
+        # Store action to determine appropriate defaults
+        self._action = kwargs.get("action", "")
+
+    async def _initialize_client(self):
+        """
+        Initialize TikTok API client.
+
+        Tries to load credentials from CLI params, environment variables, or storage.
+        """
+        # Try params/environment first
+        self.tiktok_username = self._get_config_value("tiktok_username", "TIKTOK_USERNAME")
+        self.tiktok_client_key = self._get_config_value("tiktok_client_key", "TIKTOK_CLIENT_KEY")
+        self.tiktok_client_secret = self._get_config_value("tiktok_client_secret", "TIKTOK_CLIENT_SECRET")
+        self.tiktok_refresh_token = self._get_config_value("tiktok_refresh_token", "TIKTOK_REFRESH_TOKEN")
+        # Configuration options
+        self.tiktok_title = self._get_config_value("tiktok_title", "TIKTOK_TITLE") or ""
+        self.tiktok_privacy_status = (
+            self._get_config_value("tiktok_privacy_status", "TIKTOK_PRIVACY_STATUS") or "SELF_ONLY"
+        )
+        self.tiktok_allow_comments = self._get_config_value("tiktok_allow_comments", "TIKTOK_ALLOW_COMMENTS")
+        self.tiktok_allow_duet = self._get_config_value("tiktok_allow_duet", "TIKTOK_ALLOW_DUET")
+        self.tiktok_allow_stitch = self._get_config_value("tiktok_allow_stitch", "TIKTOK_ALLOW_STITCH")
+        self.tiktok_auto_add_music = self._get_config_value("tiktok_auto_add_music", "TIKTOK_AUTO_ADD_MUSIC")
+        self.tiktok_description = self._get_config_value("tiktok_description", "TIKTOK_DESCRIPTION") or ""
+        self.brand_organic = self._first_config("tiktok_brand_organic", "brand_organic", env_key="TIKTOK_BRAND_ORGANIC")
+        self.brand_content = self._first_config("tiktok_brand_content", "brand_content", env_key="TIKTOK_BRAND_CONTENT")
+
+        # Convert string booleans
+        self.tiktok_allow_comments = self._convert_bool(self.tiktok_allow_comments, True)
+        # Set defaults for duet/stitch based on action:
+        # - True for video action (duets/stitches are supported)
+        # - False for post action (duets/stitches are not supported for photos)
+        duet_default = True if self._action == "video" else False
+        stitch_default = True if self._action == "video" else False
+        self.tiktok_allow_duet = self._convert_bool(self.tiktok_allow_duet, duet_default)
+        self.tiktok_allow_stitch = self._convert_bool(self.tiktok_allow_stitch, stitch_default)
+        self.tiktok_auto_add_music = self._convert_bool(self.tiktok_auto_add_music, False)
+        self.brand_organic = self._convert_bool(self.brand_organic, False)
+        self.brand_content = self._convert_bool(self.brand_content, False)
+
+        # If credentials not provided, try loading from storage
+        # TikTok needs username, client_key, client_secret, and refresh_token to authenticate
+        if not all(
+            [self.tiktok_username, self.tiktok_client_key, self.tiktok_client_secret, self.tiktok_refresh_token]
+        ):
+            from .auth import TikTokAuthManager
+
+            auth_manager = TikTokAuthManager(
+                username=self.tiktok_username or "",
+                client_key=self.tiktok_client_key or "",
+                client_secret=self.tiktok_client_secret or "",
+            )
+
+            if auth_manager._load_credentials_from_storage():
+                # Fill in missing credentials from storage
+                if not self.tiktok_username:
+                    self.tiktok_username = auth_manager.username
+                if not self.tiktok_client_key:
+                    self.tiktok_client_key = auth_manager.client_key
+                if not self.tiktok_client_secret:
+                    self.tiktok_client_secret = auth_manager.client_secret
+                if not self.tiktok_refresh_token:
+                    self.tiktok_refresh_token = auth_manager.refresh_token
+
+        # Validate all credentials are now available
+        if not all(
+            [self.tiktok_username, self.tiktok_client_key, self.tiktok_client_secret, self.tiktok_refresh_token]
+        ):
+            raise Exception("Not authenticated. Please run 'agoras tiktok authorize' first.")
+
+        # Initialize TikTok API
+        self.api = TikTokAPI(
+            self.tiktok_username, self.tiktok_client_key, self.tiktok_client_secret, self.tiktok_refresh_token
+        )
+
+        # Authenticate with provided credentials
+        await self.api.authenticate()
+
+    async def disconnect(self):
+        """
+        Disconnect from TikTok API and clean up resources.
+        """
+        if self.api:
+            await self.api.disconnect()
+
+    def _convert_bool(self, value, default=False):
+        """Convert various boolean representations to bool."""
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.upper() in ["TRUE", "1", "YES", "ON"]
+        return bool(value)
+
+    def _first_config(self, *keys, env_key):
+        """Return the first present config key, else the environment value."""
+        for key in keys:
+            if key in self.config:
+                return self.config[key]
+        return os.environ.get(env_key)
+
+    def _should_open_composer(self) -> bool:
+        """Return True for interactive post/video when stdin is a TTY and CI is unset."""
+        if self._convert_bool(os.environ.get("CI"), default=False):
+            return False
+        action = self._action or ""
+        if action in UNATTENDED_ACTIONS:
+            return False
+        if action not in INTERACTIVE_ACTIONS:
+            return False
+        return bool(sys.stdin.isatty())
+
+    def _enforce_unattended_policy(self):
+        """Fail closed for unattended public or commercial TikTok posts."""
+        if self.brand_organic or self.brand_content:
+            raise Exception(UNATTENDED_COMMERCIAL_ERROR)
+        privacy = self.tiktok_privacy_status or "SELF_ONLY"
+        if privacy != "SELF_ONLY":
+            raise Exception(UNATTENDED_PRIVACY_ERROR)
+
+    def _apply_composer_payload(self, payload: ComposerPayload):
+        """Use composer metadata as the source of truth after confirm."""
+        self.tiktok_title = payload.title
+        self.tiktok_privacy_status = payload.privacy_level
+        self.tiktok_allow_comments = payload.allow_comments
+        self.tiktok_allow_duet = payload.allow_duet
+        self.tiktok_allow_stitch = payload.allow_stitch
+        self.brand_organic = payload.brand_organic
+        self.brand_content = payload.brand_content
+
+    async def _require_fresh_creator_info(self):
+        """Re-query creator_info and abort when TikTok says the creator cannot post."""
+        if not self.api:
+            raise Exception("TikTok API not initialized")
+        try:
+            info = await self.api.refresh_creator_info()
+        except Exception as exc:
+            message = str(exc)
+            if "Username mismatch" in message:
+                raise
+            if "not authenticated" in message.lower():
+                raise
+            if "try again later" in message.lower():
+                raise
+            raise Exception(CREATOR_TRY_LATER) from exc
+        if not info:
+            raise Exception(CREATOR_TRY_LATER)
+        return info
+
+    def _check_video_duration(self, video, creator_info):
+        """Abort when duration exceeds TikTok's max. Treat 0/missing as unlimited."""
+        max_duration = creator_info.get("max_video_post_duration_sec")
+        if max_duration is None or max_duration == 0:
+            return
+        video_duration = video.get_duration()
+        if video_duration and video_duration > max_duration:
+            raise Exception(f"Video duration {video_duration}s exceeds max duration of {max_duration}s")
+
+    def _open_composer(self, creator_info, *, kind, title, preview_urls):
+        """Open the loopback Share-to-TikTok page and return the confirm payload."""
+        request = composer_from_creator_info(
+            creator_info,
+            title=title,
+            kind=kind,
+            preview_urls=preview_urls,
+            preview_ok=bool(preview_urls),
+        )
+        return run_composer(request)
+
+    async def _resolve_publish_metadata(self, creator_info, *, kind, title, preview_urls):
+        """Return composer payload for F1, or None for the unattended flag path."""
+        if not self._should_open_composer():
+            self._enforce_unattended_policy()
+            return None
+        payload = await asyncio.to_thread(
+            self._open_composer,
+            creator_info,
+            kind=kind,
+            title=title,
+            preview_urls=preview_urls,
+        )
+        if payload is None:
+            raise Exception(PUBLISH_CANCELLED)
+        self._apply_composer_payload(payload)
+        return payload
+
+    def _reject_branded_private(self):
+        """Reject branded content combined with private visibility."""
+        if self.brand_content and self.tiktok_privacy_status == "SELF_ONLY":
+            raise Exception("You cannot use brand content with SELF_ONLY privacy status")
+
+    def _validated_photo_urls(self, images):
+        """Validate downloaded images and return CLI media URLs."""
+        from agoras.media.constraints import image_limits
+        from agoras.media.errors import MediaValidationError
+        from agoras.media.preflight import preflight_url_for_platform
+
+        allowed = image_limits("tiktok").mime_types
+        validated_media = []
+        for image in images:
+            if not image.content or not image.file_type:
+                image.cleanup()
+                raise Exception(f"Failed to download or validate image: {image.url}")
+            if image.file_type.mime not in allowed:
+                image.cleanup()
+                raise MediaValidationError(
+                    "tiktok",
+                    "image",
+                    "mime_types",
+                    image.file_type.mime,
+                    sorted(allowed),
+                )
+            preflight_url_for_platform(image.url, "tiktok", kind="image")
+            validated_media.append(image.url)
+        return validated_media
+
+    async def post(
+        self,
+        status_text,
+        status_link,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+    ):
+        """
+        Create a photo post on TikTok.
+
+        Args:
+            status_text (str): Text content of the post (title)
+            status_link (str): Not used for TikTok
+            status_image_url_1 (str, optional): First image URL
+            status_image_url_2 (str, optional): Second image URL
+            status_image_url_3 (str, optional): Third image URL
+            status_image_url_4 (str, optional): Fourth image URL
+
+        Returns:
+            str: Post ID
+
+        Raises:
+            Exception: If post creation fails or duet/stitch not supported for photos
+        """
+        if not self.api:
+            raise Exception("TikTok API not initialized")
+
+        # Validate settings for photo posts
+        if self.tiktok_allow_duet:
+            raise Exception("--allow-duet is not supported for photo posts.")
+
+        if self.tiktok_allow_stitch:
+            raise Exception("--allow-stitch is not supported for photo posts.")
+
+        # Collect source media
+        source_media = list(
+            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        )
+
+        if not source_media:
+            raise Exception("At least one image is required for TikTok photo posts.")
+
+        if not status_text:
+            status_text = self.tiktok_title or ""
+
+        validate_text("tiktok", "title", status_text, mode="photo")
+        validate_text("tiktok", "description", str(self.tiktok_description or ""), mode="photo")
+
+        for image_url in source_media:
+            if is_local_media_source(image_url):
+                raise Exception(
+                    "TikTok photo publishing does not support local file uploads; "
+                    "a verified public HTTP(s) URL is required."
+                )
+
+        images = await self.download_images(source_media)
+
+        try:
+            validated_media = self._validated_photo_urls(images)
+
+            if not self._should_open_composer():
+                self._enforce_unattended_policy()
+
+            creator_info = await self._require_fresh_creator_info()
+            await self._resolve_publish_metadata(
+                creator_info,
+                kind="photo",
+                title=status_text,
+                preview_urls=validated_media,
+            )
+            if self._should_open_composer():
+                status_text = str(self.tiktok_title)
+                validate_text("tiktok", "title", status_text, mode="photo")
+
+            self._reject_branded_private()
+
+            if not self._should_open_composer():
+                self._print_brand_content_notices()
+
+            # Create the post using CLI-validated media URLs, never form-supplied URLs.
+            response = await self.api.upload_photo(
+                validated_media,
+                status_text,
+                str(self.tiktok_privacy_status),
+                bool(self.tiktok_allow_comments),
+                bool(self.brand_organic),
+                bool(self.brand_content),
+                bool(self.tiktok_auto_add_music),
+                str(self.tiktok_description),
+            )
+
+            post_id = response.get("publish_id")
+            if not post_id:
+                raise Exception("Failed to get publish_id from TikTok API response")
+            self._output_status(post_id)
+            return post_id
+
+        finally:
+            # Clean up all downloaded images
+            for image in images:
+                image.cleanup()
+
+    async def video(self, status_text, video_url, video_title):
+        """
+        Post a video to TikTok.
+
+        Args:
+            status_text (str): Text content to accompany the video (used as title if video_title not provided)
+            video_url (str): URL of the video to post
+            video_title (str): Title of the video (optional, status_text used if not provided)
+
+        Returns:
+            str: Post ID
+        """
+        if not self.api:
+            raise Exception("TikTok API not initialized")
+
+        if not video_url:
+            raise Exception("Video URL is required.")
+
+        title = video_title or status_text or self.tiktok_title or ""
+        if not title:
+            raise Exception("Video title is required.")
+
+        validate_text("tiktok", "title", title, mode="video")
+
+        # Validate settings for video posts
+        if self.tiktok_auto_add_music:
+            raise Exception("Auto-add music is not supported for video posts.")
+
+        # Download and validate video using Media system
+        video = await self.download_video(video_url)
+
+        try:
+            if not video.content or not video.file_type:
+                raise Exception("Failed to download or validate video")
+
+            from agoras.media.constraints import video_limits
+            from agoras.media.errors import MediaValidationError
+
+            allowed = video_limits("tiktok").mime_types
+            if video.file_type.mime not in allowed:
+                raise MediaValidationError(
+                    "tiktok",
+                    "video",
+                    "mime_types",
+                    video.file_type.mime,
+                    sorted(allowed),
+                )
+
+            if not self._should_open_composer():
+                self._enforce_unattended_policy()
+
+            # Check video duration against live creator limits
+            creator_info = await self._require_fresh_creator_info()
+            self._check_video_duration(video, creator_info)
+
+            await self._resolve_publish_metadata(
+                creator_info,
+                kind="video",
+                title=title,
+                preview_urls=[video_url],
+            )
+            if self._should_open_composer():
+                title = str(self.tiktok_title)
+                validate_text("tiktok", "title", title, mode="video")
+
+            self._reject_branded_private()
+
+            if not self._should_open_composer():
+                self._print_brand_content_notices()
+
+            print(f"Uploading video to @{self.tiktok_username}...", file=sys.stderr)
+
+            privacy = str(self.tiktok_privacy_status)
+            allow_comments = bool(self.tiktok_allow_comments)
+            allow_duet = bool(self.tiktok_allow_duet)
+            allow_stitch = bool(self.tiktok_allow_stitch)
+            brand_organic = bool(self.brand_organic)
+            brand_content = bool(self.brand_content)
+
+            is_local = media_is_local(video, video_url)
+
+            if is_local:
+                response = await self.api.upload_video_file(
+                    video.content,
+                    title,
+                    privacy,
+                    allow_comments,
+                    allow_duet,
+                    allow_stitch,
+                    brand_organic,
+                    brand_content,
+                )
+            else:
+                response = await self.api.upload_video(
+                    video_url,
+                    title,
+                    privacy,
+                    allow_comments,
+                    allow_duet,
+                    allow_stitch,
+                    brand_organic,
+                    brand_content,
+                )
+
+            post_id = response.get("publish_id")
+            self._output_status(post_id)
+            return post_id
+
+        finally:
+            # Clean up downloaded video
+            video.cleanup()
+
+    async def like(self, post_id):
+        """
+        Like a TikTok post.
+
+        TikTok API doesn't support liking posts through the API.
+
+        Args:
+            post_id (str): ID of the post to like
+
+        Raises:
+            Exception: Always, as like is not supported
+        """
+        raise Exception("Like not supported for TikTok")
+
+    async def delete(self, post_id):
+        """
+        Delete a TikTok post.
+
+        TikTok API doesn't support deleting posts through the API.
+
+        Args:
+            post_id (str): ID of the post to delete
+
+        Raises:
+            Exception: Always, as delete is not supported
+        """
+        raise Exception("Delete not supported for TikTok")
+
+    async def share(self, post_id):
+        """
+        Share a TikTok post.
+
+        TikTok API doesn't support sharing posts through the API.
+
+        Args:
+            post_id (str): ID of the post to share
+
+        Raises:
+            Exception: Always, as share is not supported
+        """
+        raise Exception("Share not supported for TikTok")
+
+    def _print_brand_content_notices(self):
+        """Print brand content compliance notices."""
+        if self.brand_organic and self.brand_content:
+            print("Your photo/video will be labeled as 'Paid partnership'", file=sys.stderr)
+            print(
+                "By posting, you agree to TikTok's Branded Content Policy "
+                "(https://www.tiktok.com/legal/page/global/bc-policy/en) "
+                "and Music Usage Confirmation "
+                "(https://www.tiktok.com/legal/page/global/music-usage-confirmation/en).",
+                file=sys.stderr,
+            )
+        elif self.brand_organic:
+            print("Your photo/video will be labeled as 'Promotional content'", file=sys.stderr)
+            print(
+                "By posting, you agree to TikTok's Music Usage Confirmation "
+                "(https://www.tiktok.com/legal/page/global/music-usage-confirmation/en).",
+                file=sys.stderr,
+            )
+        elif self.brand_content:
+            print("Your photo/video will be labeled as 'Paid partnership'", file=sys.stderr)
+            print(
+                "By posting, you agree to TikTok's Branded Content Policy "
+                "(https://www.tiktok.com/legal/page/global/bc-policy/en) "
+                "and Music Usage Confirmation "
+                "(https://www.tiktok.com/legal/page/global/music-usage-confirmation/en).",
+                file=sys.stderr,
+            )
+
+    # Override action handlers to use TikTok-specific parameter names
+    async def _handle_post_action(self):
+        """Handle post action with TikTok-specific parameter extraction."""
+        status_image_url_1 = self._get_config_value("status_image_url_1", "STATUS_IMAGE_URL_1")
+        status_image_url_2 = self._get_config_value("status_image_url_2", "STATUS_IMAGE_URL_2")
+        status_image_url_3 = self._get_config_value("status_image_url_3", "STATUS_IMAGE_URL_3")
+        status_image_url_4 = self._get_config_value("status_image_url_4", "STATUS_IMAGE_URL_4")
+
+        await self.post("", "", status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4)
+
+    async def _handle_video_action(self):
+        """Handle video action with TikTok-specific parameter extraction."""
+        video_url = self._get_config_value("tiktok_video_url", "TIKTOK_VIDEO_URL")
+        video_title = self.tiktok_title or ""
+
+        if not video_url:
+            raise Exception("TikTok video URL is required for video action.")
+
+        await self.video(video_title, video_url, video_title)
+
+    async def _handle_like_action(self):
+        """Handle like action - not supported for TikTok."""
+        await self.like(None)
+
+    async def _handle_share_action(self):
+        """Handle share action - not supported for TikTok."""
+        await self.share(None)
+
+    async def _handle_delete_action(self):
+        """Handle delete action - not supported for TikTok."""
+        await self.delete(None)
+
+    async def authorize_credentials(self):
+        """
+        Authorize and store TikTok credentials for future use.
+
+        Returns:
+            bool: True if authorization successful
+        """
+        from .auth import TikTokAuthManager
+
+        username = self._get_config_value("tiktok_username", "TIKTOK_USERNAME")
+        client_key = self._get_config_value("tiktok_client_key", "TIKTOK_CLIENT_KEY")
+        client_secret = self._get_config_value("tiktok_client_secret", "TIKTOK_CLIENT_SECRET")
+
+        auth_manager = TikTokAuthManager(username=username, client_key=client_key, client_secret=client_secret)
+
+        result = await auth_manager.authorize()
+        if result:
+            print(result)
+            return True
+        return False
+
+
+async def main_async(kwargs):
+    """
+    Async main function to execute TikTok actions.
+
+    Args:
+        kwargs (dict): Configuration arguments
+    """
+    action = kwargs.get("action", "")
+
+    if action == "":
+        raise Exception("Action is a required argument.")
+
+    # Create TikTok instance with configuration
+    instance = TikTok(**kwargs)
+
+    # Handle authorize action separately (doesn't need client initialization)
+    if action == "authorize":
+        success = await instance.authorize_credentials()
+        return 0 if success else 1
+
+    # Execute other actions using the base class method
+    await instance.execute_action(action)
+    await instance.disconnect()
+
+
+def main(kwargs):
+    """
+    Main function to execute TikTok actions.
+
+    Args:
+        kwargs (dict): Configuration arguments
+    """
+    asyncio.run(main_async(kwargs))

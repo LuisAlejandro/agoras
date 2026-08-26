@@ -14,8 +14,8 @@
    :target: https://github.com/LuisAlejandro/agoras/issues?q=is%3Aopen
    :alt: Github Issues
 
-.. image:: https://github.com/LuisAlejandro/agoras/workflows/Push/badge.svg
-   :target: https://github.com/LuisAlejandro/agoras/actions?query=workflow%3APush
+.. image:: https://img.shields.io/github/actions/workflow/status/LuisAlejandro/agoras/push.yml?branch=master
+   :target: https://github.com/LuisAlejandro/agoras/actions/workflows/push.yml
    :alt: Push
 
 .. image:: https://coveralls.io/repos/github/LuisAlejandro/agoras/badge.svg?branch=develop
@@ -35,35 +35,114 @@
    :alt: Discord Channel
 
 .. _GitHub actions: https://github.com/LuisAlejandro/agoras-actions
-.. _full documentation: https://agoras.readthedocs.org
+.. _full documentation: https://agoras.luisalejandro.org
 
-Agoras is a python utility that helps publish and delete posts on the most 
-popular social networks (twitter, facebook, instagram and linkedin).
+Agoras is a python utility that helps publish and delete posts on the most
+popular social networks (X (formerly Twitter), Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, Threads, Telegram, and WhatsApp).
 
 This repository stores the application. There's also `GitHub actions`_
 that you can incorporate into your workflows.
 
 For more information, please read the `full documentation`_.
 
+Architecture
+============
+
+Agoras uses a modular five-package structure. Install only the components you need, or ``pip install agoras`` for the full CLI.
+
+**Package structure:**
+
+.. code-block:: text
+
+   agoras (CLI)
+   └── agoras-platforms
+       └── agoras-core
+           ├── agoras-media
+           └── agoras-common
+
+**Capabilities:**
+
+- **Modular packages**: ``agoras-common``, ``agoras-media``, ``agoras-core``, ``agoras-platforms``, ``agoras``
+- **10 platforms**: X, Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, Threads, Telegram, WhatsApp
+- **OAuth callback server**: Easier browser-based authentication on supported networks
+- **Platform-first CLI**: ``agoras x post`` instead of ``agoras publish --network x --action post``
+
+Upgrading from Agoras 1.x? See :doc:`migration/index`.
+
 Table of Contents
 -----------------
 
+Getting Started
+~~~~~~~~~~~~~~~
+
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    installation
    usage
-   twitter
+   content-files
+   migration/index
+
+Platform Guides
+~~~~~~~~~~~~~~~
+
+.. toctree::
+   :maxdepth: 1
+
+   x
    facebook
    instagram
    linkedin
-   credentials/twitter
+   discord
+   youtube
+   tiktok
+   threads
+   telegram
+   whatsapp
+
+Getting Credentials
+~~~~~~~~~~~~~~~~~~~
+
+.. toctree::
+   :maxdepth: 1
+
+   credentials/x
    credentials/facebook
    credentials/instagram
    credentials/linkedin
+   credentials/discord
+   credentials/youtube
+   credentials/tiktok
+   credentials/threads
+   credentials/telegram
+   credentials/whatsapp
    credentials/google
+
+Reference
+~~~~~~~~~
+
+.. toctree::
+   :maxdepth: 1
+
+   reference/action-support
+   reference/parameters
+   reference/platform-arguments-envvars
+
+Advanced Topics
+~~~~~~~~~~~~~~~
+
+.. toctree::
+   :maxdepth: 1
+
    rss
    api
+
+Developer Documentation
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. toctree::
+   :maxdepth: 1
+
    contributing
    authors
    history

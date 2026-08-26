@@ -2,13 +2,18 @@
 # -*- makefile -*-
 
 SHELL = bash -e
-all_ps_hashes = $(shell docker ps -q)
+export BASH_ENV := $(HOME)/.bash_env
+
+PROJECT_NAME ?= agoras
+VERSION_TYPE ?= patch
+APP_NAME ?= Agoras
+
 img_hash = $(shell docker images -q luisalejandro/agoras:latest)
+all_ps_hashes = $(shell docker ps -q)
 exec_on_docker = docker compose \
 	-p agoras -f docker-compose.yml exec \
 	--user agoras app
 
-.PHONY: clean-pyc clean-build docs clean
 define BROWSER_PYSCRIPT
 import os, webbrowser, sys
 try:
@@ -26,13 +31,14 @@ help:
 	@echo "clean-build - remove build artifacts"
 	@echo "clean-pyc - remove Python file artifacts"
 	@echo "clean-test - remove test and coverage artifacts"
-	@echo "lint - check style with flake8"
-	@echo "test - run tests quickly with the default Python"
+	@echo "lint - check style with tox -e lint (Ruff, pydocstyle, bandit, Pyright)"
+	@echo "format - format Python code with tox -e format (Ruff)"
+	@echo "lint-and-format - format then lint all production source"
+	@echo "test - run coverage tests with tox"
 	@echo "test-all - run tests on every Python version with tox"
 	@echo "coverage - check code coverage quickly with the default Python"
 	@echo "docs - generate Sphinx HTML documentation, including API docs"
-	@echo "release - package and upload a release"
-	@echo "dist - package"
+	@echo "build - build PyPI sdist/wheel packages for all namespace packages"
 	@echo "install - install the package to the active Python's site-packages"
 
 clean: clean-build clean-pyc clean-test clean-docs
@@ -58,25 +64,41 @@ clean-test:
 clean-docs:
 	rm -rf docs/_build
 
+dependencies:
+	@:
+
+build: start
+	@$(exec_on_docker) bash -c '\
+		set -e; \
+		for pkg in common media core platforms cli; do \
+			( cd packages/$$pkg && python3 -m build && twine check dist/* ); \
+		done'
+
 lint: start
-	@$(exec_on_docker) flake8 agoras
+	@$(exec_on_docker) tox -e lint
+
+format: start
+	@$(exec_on_docker) tox -e format
+
+lint-and-format: start
+	@$(exec_on_docker) tox -e format
+	@$(exec_on_docker) tox -e lint
 
 test: start
-	@$(exec_on_docker) python3 -m unittest -v -f
+	@$(exec_on_docker) tox -e coverage
 
 test-all: start
-	@$(exec_on_docker) tox
+	@$(exec_on_docker) tox -e all
 
 functional-test: start
-	@$(exec_on_docker) bash test.sh twitter
-	@$(exec_on_docker) bash test.sh facebook
-	@$(exec_on_docker) bash test.sh linkedin
-	@$(exec_on_docker) bash test.sh instagram
+	# @$(exec_on_docker) bash test.sh twitter
+	# @$(exec_on_docker) bash test.sh facebook
+	# @$(exec_on_docker) bash test.sh linkedin
+	# @$(exec_on_docker) bash test.sh instagram
+	@$(exec_on_docker) bash test.sh discord
 
 coverage: start
-	@$(exec_on_docker) coverage run --source agoras -m unittest -v -f
-	@$(exec_on_docker) coverage report -m
-	@$(exec_on_docker) coverage html
+	@$(exec_on_docker) tox -e coverage
 	@$(BROWSER) htmlcov/index.html
 
 docs:
@@ -87,18 +109,11 @@ docs:
 servedocs: docs start
 	@$(exec_on_docker) watchmedo shell-command -p '*.rst' -c 'make -C docs html' -R -D .
 
-release: clean start dist
-	@twine upload dist/*
-
-dist: clean start
-	@$(exec_on_docker) python3 -m build
-	@ls -l dist
-
 install: clean start
 	@$(exec_on_docker) pip3 install .
 
 image:
-	@docker compose -p agoras -f docker-compose.yml build \
+	@docker compose -p $(PROJECT_NAME) -f docker-compose.yml build \
 		--build-arg UID=$(shell id -u) \
 		--build-arg GID=$(shell id -g)
 
@@ -106,24 +121,14 @@ start:
 	@if [ -z "$(img_hash)" ]; then\
 		make image;\
 	fi
-	@docker compose -p agoras -f docker-compose.yml up \
+	@docker compose -p $(PROJECT_NAME) -f docker-compose.yml up \
 		--remove-orphans --no-build --detach
 
-console: start
-	@$(exec_on_docker) bash
-
-virtualenv: start
-	@python3 -m venv --clear ./virtualenv
-	@./virtualenv/bin/python3 -m pip install --upgrade pip
-	@./virtualenv/bin/python3 -m pip install --upgrade setuptools
-	@./virtualenv/bin/python3 -m pip install --upgrade wheel
-	@./virtualenv/bin/python3 -m pip install -r requirements.txt -r requirements-dev.txt
-
 stop:
-	@docker-compose -p agoras -f docker-compose.yml stop app
+	@docker compose -p $(PROJECT_NAME) -f docker-compose.yml stop
 
 down:
-	@docker-compose -p agoras -f docker-compose.yml down \
+	@docker compose -p $(PROJECT_NAME) -f docker-compose.yml down \
 		--remove-orphans
 
 destroy:
@@ -132,7 +137,7 @@ destroy:
 	@echo "This will stop and delete all containers, images and volumes related to this project."
 	@echo
 	@read -p "Press ctrl+c to abort or enter to continue." -n 1 -r
-	@docker compose -p agoras -f docker-compose.yml down \
+	@docker compose -p $(PROJECT_NAME) -f docker-compose.yml down \
 		--rmi all --remove-orphans --volumes
 
 cataplum:
@@ -144,6 +149,51 @@ cataplum:
 	@if [ -n "$(all_ps_hashes)" ]; then\
 		docker kill $(shell docker ps -q);\
 	fi
-	@docker compose -p agoras -f docker-compose.yml down \
+	@docker compose -p $(PROJECT_NAME) -f docker-compose.yml down \
 		--rmi all --remove-orphans --volumes
 	@docker system prune -a -f --volumes
+
+console: start
+	@$(exec_on_docker) bash
+
+virtualenv: start
+	@python3 -m venv --clear --copies ./virtualenv
+	@./virtualenv/bin/python3 -m pip install --upgrade pip
+	@./virtualenv/bin/python3 -m pip install --upgrade setuptools
+	@./virtualenv/bin/python3 -m pip install --upgrade wheel
+	@./virtualenv/bin/python3 -m pip install -r requirements-dev.txt
+	@./virtualenv/bin/python3 -m pip install -e packages/common
+	@./virtualenv/bin/python3 -m pip install -e packages/media
+	@./virtualenv/bin/python3 -m pip install -e packages/core
+	@./virtualenv/bin/python3 -m pip install -e packages/platforms
+	@./virtualenv/bin/python3 -m pip install -e packages/cli
+
+release:
+	@./scripts/release.sh $${VERSION_TYPE}
+
+release-patch:
+	@./scripts/release.sh patch $${APP_NAME}
+
+release-minor:
+	@./scripts/release.sh minor $${APP_NAME}
+
+release-major:
+	@./scripts/release.sh major $${APP_NAME}
+
+release-preflight:
+	@make image
+	@make dependencies
+	@make build
+	@make format
+	@make lint
+	@make test
+
+undo-release:
+	@: "$${VERSION:?Set VERSION=x.y.z before running make undo-release}"
+	@VERSION=$${VERSION} ./scripts/rollback.sh release
+
+.PHONY: clean clean-pyc clean-build clean-test clean-docs \
+	help lint format lint-and-format test test-all functional-test coverage \
+	docs servedocs build dependencies install console virtualenv \
+	image start stop down destroy cataplum \
+	release release-patch release-minor release-major release-preflight undo-release

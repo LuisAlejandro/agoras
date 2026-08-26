@@ -9,5 +9,8 @@ include requirements-dev.txt
 
 recursive-include docs *
 recursive-include tests *
+recursive-include packages *
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
+recursive-exclude * *.deprecated
+recursive-exclude * *.deprecated.note

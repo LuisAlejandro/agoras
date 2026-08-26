@@ -2,125 +2,76 @@
 Maintainer Guide
 ================
 
-If you are reading this, you probably forgot how to release a new version. Keep
-reading.
+Quick reminders for Agoras.
 
-Making a new release
---------------------
+Feature work
+------------
 
-1. Start your project with a cookiecutter template.
+1. Plan and implement on a feature branch (``feature/*`` → ``develop``).
+2. Run QA, lint/build, open or update a PR to ``develop``.
 
-2. Start your git flow workflow.
-::
+Repeat until ready to ship.
 
-    git flow init
+Commit messages
+---------------
 
-3. Create a new milestone in GitHub. Plan the features of your new release. Assign
-existing bugs to your new milestone.
+Subjects feed ``HISTORY.rst`` via gitchangelog, then GitHub release notes on ``make release-*``.
 
-4. Start a new feature.
-::
+- ``[ADD]`` — Added (new user-facing capability)
+- ``[FIX]`` — Fixed (bug or broken behavior)
+- ``[REF]`` — Changed (behavior change that is not a new feature)
+- ``[DEL]`` — Removed
 
-    git flow feature start <feature name>
+Format: ``[TAG] Imperative user-facing summary.`` Non-user-facing work (deps, lint, sync, CI): append ``!cosmetic`` / ``!refactor`` / ``!wip``, or use a ``CI:`` prefix, so it is omitted from HISTORY. PR titles may stay Conventional-style; only commit subjects use these tags.
 
-5. Code, code and code. More coding. Mess it up several times. Push to feature
-branch. Watch Travis go red. Write unit tests. Watch Travis go red again. Don't
-leave uncommitted changes.
+Release
+-------
 
-6. Finish your feature.
-::
+From **clean** ``develop``:
 
-    git flow feature finish <feature name>
+- **Preflight** — ``make release-preflight``.
+- **Publish** — ``make release-patch`` (or ``release-minor`` / ``release-major``).
+- **Rollback** — ``VERSION=<version> make undo-release``.
 
-7. Repeat 4-6 for every other feature you have planned for this release.
+Preflight: ``make image``, ``make dependencies``, ``make build``, ``make format``, ``make lint``, ``make test`` (``test`` = coverage).
+Release flow: ``scripts/release.sh`` (via Makefile ``release-*`` targets).
+Post-bump hooks: ``.bumpversion.cfg`` → ``[rosey-maintainer]``.
 
-8. When you're done with the features and ready to publish, start a new release.
-::
+PR CI (pointers)
+----------------
 
-    git flow release start <release number>
+- **Pull Request** — ``.github/workflows/pr.yml`` on PRs to ``develop``.
+- **Auto-merge** — ``pr-auto-merge.yml`` after that workflow succeeds; head
+  ``feature/**`` or ``dependabot/**`` only. Actor allowlist: ``dependabot[bot]``,
+  ``cursor[bot]``, ``LuisAlejandro``, repository owner.
 
-9. Bump your version (check everything before next step).
-::
+Auto-merge behavior
+~~~~~~~~~~~~~~~~~~~
 
-    bumpversion --no-commit <major, minor or patch>
+- Binds mutations to ``workflow_run.head_sha``. Stale events exit with a notice.
+- Retries transient GitHub API errors (HTTP 429/5xx, network) on PR reads and
+  ``updateBranch`` with exponential backoff before failing the mutate job.
+- Behind base: arms native auto-merge, updates the branch with
+  ``REPO_PERSONAL_ACCESS_TOKEN`` + ``expected_head_sha``, then waits for fresh CI.
+- Current head: native auto-merge + bot approval via ``GITHUB_TOKEN``. If already
+  approved and REST+GraphQL report clean, uses SHA-guarded REST merge fallback.
+- Token boundary: PAT only on the ``Update behind branch`` step.
 
-10. Update your changelog (edit HISTORY.rst after to customize).
-::
+Before ``make release-*``
+-------------------------
 
-    gitchangelog > HISTORY.rst
+- Tools: ``git``, git-flow, Docker (running), ``make``, ``gh``, bumpversion, GPG (``user.signingkey``).
+- Clean working tree (release stops if format mutates files).
 
-11. Commit your changes to version files and changelog.
-::
+One-time GitHub setup
+---------------------
 
-    git commit -aS -m "Updating Changelog and version."
+- ``develop`` — PR + checks from ``pr.yml``.
+- ``master`` — restrict pushes.
+- ``release/*`` — ``push.yml`` lists ``release/**``; release tooling waits for the whole **Push** workflow at the exact branch SHA.
+- Tags — restrict creation to maintainers.
 
-12. Delete the tag made by bumpversion.
-::
-
-    git tag -d <release number>
-
-13. Finish your release.
-::
-
-    git flow release finish -s -p <release number>
-
-15. Draft a new release in GitHub (based on the new version tag) and include
-a description. Also pick a codename because it makes you cool.
-
-16. Close the milestone in GitHub.
-
-17. Publish your new version to PyPI.
-::
-
-    make release
-
-18. Write about your new version in your blog. Tweet it, post it on facebook.
-
-Making a new hotfix
--------------------
-
-1. Create a new milestone in GitHub. Assign existing bugs to your new milestone.
-
-2. Start a new hotfix.
-::
-
-    git flow hotfix start <new version>
-
-3. Code your hotfix.
-
-4. Bump your version (check everything before next step).
-::
-
-    bumpversion --no-commit <major, minor or patch>
-
-5. Update your changelog (edit HISTORY.rst after to customize).
-::
-
-    gitchangelog > HISTORY.rst
-
-6. Commit your changes to version files and changelog.
-::
-
-    git commit -aS -m "Updating Changelog and version."
-
-7. Delete the tag made by bumpversion.
-::
-
-    git tag -d <new version>
-
-8. Finish your hotfix.
-::
-
-    git flow hotfix finish -s -p <new version>
-
-10. Draft a new release in GitHub (based on the new version tag) and include
-a description. Don't change the codename if it is a hotfix.
-
-11. Close the milestone in GitHub.
-
-12. Publish your new version to PyPI.
-::
-
-    make release
-
-13. Write about your new version in your blog. Tweet it, post it on facebook.
+For Tetra cutovers, run ``rosey-maintain protect-github --repo <repo> --trust-preflight``,
+open the check window with ``--window open --apply``, then close it after a probe with
+one ``--observed-check <context>`` per live check-run name. Rollback cancels matching
+Push, Publish Release, and Artifacts runs, waits for terminal state, then deletes refs.

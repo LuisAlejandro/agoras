@@ -1,0 +1,441 @@
+# -*- coding: utf-8 -*-
+#
+# Please refer to AUTHORS.md for a complete list of Copyright holders.
+# Copyright (C) 2022-2026, Agoras Developers.
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""agoras.platforms.tiktok.client module."""
+
+import json
+import time
+from typing import Any, Dict, List, Optional
+
+import requests
+
+from agoras.common import __version__
+
+
+class TikTokAPIClient:
+    """
+    TikTok API client for making HTTP requests to TikTok endpoints.
+
+    Centralizes all TikTok API calls including authentication, content publishing,
+    and status checking operations.
+    """
+
+    _FILE_UPLOAD_CHUNK_SIZE = 10 * 1024 * 1024
+    _FILE_UPLOAD_SINGLE_CHUNK_MAX = 64 * 1024 * 1024
+    _FILE_UPLOAD_PUT_RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
+    _FILE_UPLOAD_PUT_MAX_ATTEMPTS = 3
+
+    # TikTok API URLs
+    CREATOR_INFO_URL = "https://open.tiktokapis.com/v2/post/publish/creator_info/query/"
+    VIDEO_POST_URL = "https://open.tiktokapis.com/v2/post/publish/video/init/"
+    CONTENT_POST_URL = "https://open.tiktokapis.com/v2/post/publish/content/init/"
+    GET_VIDEO_STATUS_URL = "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
+
+    def __init__(self, access_token: Optional[str] = None):
+        """
+        Initialize TikTok API client.
+
+        Args:
+            access_token (str, optional): TikTok access token for authenticated requests
+        """
+        self.access_token = access_token
+
+    def get_user_info(self) -> Dict[str, Any]:
+        """
+        Get creator information from TikTok API.
+
+        Returns:
+            dict: Creator information
+
+        Raises:
+            Exception: If API call fails or not authenticated
+        """
+        if not self.access_token:
+            raise Exception("No access token available")
+
+        response = requests.post(
+            self.CREATOR_INFO_URL,
+            headers={
+                "Authorization": f"Bearer {self.access_token}",
+                "Content-Type": "application/json; charset=UTF-8",
+                "User-Agent": f"Agoras/{__version__}",
+            },
+            timeout=30,
+        )
+        return self._parse_creator_info_response(response)
+
+    @staticmethod
+    def _parse_creator_info_response(response) -> Dict[str, Any]:
+        """Parse a creator_info HTTP response or raise a publish-gate error."""
+        if response.status_code == 429:
+            raise Exception("TikTok is rate limiting this account. Try again later.")
+
+        try:
+            result = response.json()
+        except ValueError as exc:
+            raise Exception(f"Failed to get creator info: HTTP {response.status_code}") from exc
+
+        error_data = result.get("error", {})
+        if isinstance(error_data, dict):
+            code = error_data.get("code")
+            message = error_data.get("message") or ""
+            if code == "ok":
+                pass
+            elif TikTokAPIClient._is_try_later_error(code):
+                raise Exception(f"TikTok cannot complete this publish right now ({code}). Try again later.")
+            else:
+                raise Exception(f"Failed to get creator info: [{code}] {message}")
+        elif "error" in result:
+            raise Exception(f"Failed to get creator info: {result.get('message', 'Unknown error')}")
+
+        creator_data = result.get("data")
+        if not creator_data:
+            raise Exception("TikTok says this creator cannot post right now. Try again later.")
+
+        if creator_data.get("creator_can_post") is False:
+            raise Exception("TikTok says this creator cannot post right now. Try again later.")
+
+        return creator_data
+
+    @staticmethod
+    def _is_try_later_error(code: Optional[str]) -> bool:
+        """Return True when TikTok is asking the creator to retry later."""
+        if not code:
+            return False
+        try_later = {
+            "rate_limit_exceeded",
+            "spam_risk_too_many_posts",
+            "spam_risk_user_banned_from_posting",
+            "spam_risk_too_many_pending_share",
+            "reached_active_user_cap",
+        }
+        lowered = code.lower()
+        return lowered in try_later or "rate_limit" in lowered
+
+    def upload_video(
+        self,
+        video_url: str,
+        title: str,
+        privacy_status: str,
+        allow_comments: bool = True,
+        allow_duet: bool = True,
+        allow_stitch: bool = True,
+        is_brand_organic: bool = False,
+        is_brand_content: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Upload a video to TikTok.
+
+        Args:
+            video_url (str): URL of the video to upload
+            title (str): Video title
+            privacy_status (str): Privacy level
+            allow_comments (bool): Whether to allow comments
+            allow_duet (bool): Whether to allow duets
+            allow_stitch (bool): Whether to allow stitches
+            is_brand_organic (bool): Whether this is brand organic content
+            is_brand_content (bool): Whether this is brand content
+
+        Returns:
+            dict: Upload response
+
+        Raises:
+            Exception: If upload fails or not authenticated
+        """
+        if not self.access_token:
+            raise Exception("No access token available")
+
+        data = {
+            "post_info": {
+                "title": title,
+                "privacy_level": privacy_status,
+                "disable_duet": not allow_duet,
+                "disable_comment": not allow_comments,
+                "disable_stitch": not allow_stitch,
+                "video_cover_timestamp_ms": 0,
+                "brand_content_toggle": is_brand_content,
+                "brand_organic_toggle": is_brand_organic,
+            },
+            "source_info": {
+                "source": "PULL_FROM_URL",
+                "video_url": video_url,
+            },
+        }
+
+        response = requests.post(
+            self.VIDEO_POST_URL,
+            headers={
+                "Authorization": f"Bearer {self.access_token}",
+                "Content-Type": "application/json; charset=UTF-8",
+                "User-Agent": f"Agoras/{__version__}",
+            },
+            data=json.dumps(data),
+            timeout=30,
+        )
+
+        result = response.json()
+
+        if "error" in result:
+            error_data = result.get("error", {})
+            # TikTok API returns 'error' key even on success with code 'ok'
+            if isinstance(error_data, dict) and error_data.get("code") == "ok":
+                pass  # Not an error
+            else:
+                post_error_code = result.get("error", {}).get("code")
+                post_error_message = result.get("error", {}).get("message")
+                raise Exception(f"Error uploading video: [{post_error_code}] {post_error_message}")
+
+        return result
+
+    @classmethod
+    def _file_upload_chunk_params(cls, video_size: int) -> tuple[int, int]:
+        """Return (chunk_size, total_chunk_count) for FILE_UPLOAD init."""
+        if video_size <= cls._FILE_UPLOAD_SINGLE_CHUNK_MAX:
+            return video_size, 1
+        chunk_size = cls._FILE_UPLOAD_CHUNK_SIZE
+        total_chunk_count = max(1, (video_size + chunk_size - 1) // chunk_size)
+        return chunk_size, total_chunk_count
+
+    @staticmethod
+    def _iter_file_upload_chunks(file_content: bytes, chunk_size: int, total_chunk_count: int):
+        """Yield (start, end, chunk) for each FILE_UPLOAD PUT without copying slices."""
+        view = memoryview(file_content)
+        video_size = len(file_content)
+        offset = 0
+        for index in range(total_chunk_count):
+            if index == total_chunk_count - 1:
+                end = video_size - 1
+            else:
+                end = offset + chunk_size - 1
+            yield offset, end, view[offset : end + 1]
+            offset = end + 1
+
+    def _put_file_upload_chunk(self, upload_url: str, start: int, end: int, chunk, video_size: int) -> None:
+        """PUT one FILE_UPLOAD chunk, retrying transient 5xx/429 responses."""
+        last_status = None
+        for attempt in range(1, self._FILE_UPLOAD_PUT_MAX_ATTEMPTS + 1):
+            chunk_response = requests.put(
+                upload_url,
+                headers={
+                    "Content-Range": f"bytes {start}-{end}/{video_size}",
+                    "Content-Type": "video/mp4",
+                    "Content-Length": str(len(chunk)),
+                },
+                data=chunk,
+                timeout=120,
+            )
+            last_status = chunk_response.status_code
+            if last_status in (200, 201, 206):
+                return
+            retryable = last_status in self._FILE_UPLOAD_PUT_RETRY_STATUSES
+            if not retryable or attempt == self._FILE_UPLOAD_PUT_MAX_ATTEMPTS:
+                raise Exception(f"Error uploading video chunk: HTTP {last_status} (bytes {start}-{end}/{video_size})")
+            time.sleep(min(2 ** (attempt - 1), 4))
+
+    def upload_video_file(
+        self,
+        file_content: bytes,
+        title: str,
+        privacy_status: str,
+        allow_comments: bool = True,
+        allow_duet: bool = True,
+        allow_stitch: bool = True,
+        is_brand_organic: bool = False,
+        is_brand_content: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Upload a local video file to TikTok via FILE_UPLOAD chunked PUT.
+
+        Args:
+            file_content (bytes): Raw video bytes
+            title (str): Video title
+            privacy_status (str): Privacy level
+            allow_comments (bool): Whether to allow comments
+            allow_duet (bool): Whether to allow duets
+            allow_stitch (bool): Whether to allow stitches
+            is_brand_organic (bool): Whether this is brand organic content
+            is_brand_content (bool): Whether this is brand content
+
+        Returns:
+            dict: Upload init response including publish_id and upload_url
+
+        Raises:
+            Exception: If upload fails or not authenticated
+        """
+        if not self.access_token:
+            raise Exception("No access token available")
+
+        video_size = len(file_content)
+        if video_size == 0:
+            raise Exception("Video file is empty")
+
+        chunk_size, total_chunk_count = self._file_upload_chunk_params(video_size)
+
+        data = {
+            "post_info": {
+                "title": title,
+                "privacy_level": privacy_status,
+                "disable_duet": not allow_duet,
+                "disable_comment": not allow_comments,
+                "disable_stitch": not allow_stitch,
+                "video_cover_timestamp_ms": 0,
+                "brand_content_toggle": is_brand_content,
+                "brand_organic_toggle": is_brand_organic,
+            },
+            "source_info": {
+                "source": "FILE_UPLOAD",
+                "video_size": video_size,
+                "chunk_size": chunk_size,
+                "total_chunk_count": total_chunk_count,
+            },
+        }
+
+        response = requests.post(
+            self.VIDEO_POST_URL,
+            headers={
+                "Authorization": f"Bearer {self.access_token}",
+                "Content-Type": "application/json; charset=UTF-8",
+                "User-Agent": f"Agoras/{__version__}",
+            },
+            data=json.dumps(data),
+            timeout=30,
+        )
+
+        result = response.json()
+
+        if "error" in result:
+            error_data = result.get("error", {})
+            if isinstance(error_data, dict) and error_data.get("code") == "ok":
+                pass
+            else:
+                post_error_code = result.get("error", {}).get("code")
+                post_error_message = result.get("error", {}).get("message")
+                raise Exception(f"Error uploading video: [{post_error_code}] {post_error_message}")
+
+        upload_url = result.get("data", {}).get("upload_url")
+        if not upload_url:
+            raise Exception("TikTok FILE_UPLOAD init did not return upload_url")
+
+        for start, end, chunk in self._iter_file_upload_chunks(file_content, chunk_size, total_chunk_count):
+            self._put_file_upload_chunk(upload_url, start, end, chunk, video_size)
+
+        return result
+
+    def upload_photo(
+        self,
+        photo_images: List[str],
+        title: str,
+        privacy_status: str,
+        allow_comments: bool = True,
+        is_brand_organic: bool = False,
+        is_brand_content: bool = False,
+        auto_add_music: bool = False,
+        description: str = "",
+    ) -> Dict[str, Any]:
+        """
+        Upload photos to TikTok.
+
+        Args:
+            photo_images (list): List of photo URLs (up to 35 images)
+            title (str): Post title (max 90 UTF-16 runes)
+            privacy_status (str): Privacy level
+            allow_comments (bool): Whether to allow comments
+            is_brand_organic (bool): Whether this is brand organic content
+            is_brand_content (bool): Whether this is brand content
+            auto_add_music (bool): Whether to auto-add music
+            description (str): Post description (max 4000 UTF-16 runes, optional)
+
+        Returns:
+            dict: Upload response with publish_id in data.publish_id
+
+        Raises:
+            Exception: If upload fails or not authenticated
+        """
+        if not self.access_token:
+            raise Exception("No access token available")
+
+        data = {
+            "media_type": "PHOTO",
+            "post_mode": "DIRECT_POST",
+            "post_info": {
+                "title": title,
+                "description": description or "",  # Use provided description or empty string
+                "privacy_level": privacy_status,
+                "disable_comment": not allow_comments,
+                "auto_add_music": auto_add_music,
+                "brand_content_toggle": is_brand_content,
+                "brand_organic_toggle": is_brand_organic,
+            },
+            "source_info": {
+                "source": "PULL_FROM_URL",
+                "photo_cover_index": 0,
+                "photo_images": photo_images,
+            },
+        }
+
+        response = requests.post(
+            self.CONTENT_POST_URL,  # Use content endpoint for photos
+            headers={
+                "Authorization": f"Bearer {self.access_token}",
+                "Content-Type": "application/json; charset=UTF-8",  # Add charset
+                "User-Agent": f"Agoras/{__version__}",
+            },
+            data=json.dumps(data),
+            timeout=30,
+        )
+
+        result = response.json()
+
+        if "error" in result:
+            error_data = result.get("error", {})
+            # TikTok API returns 'error' key even on success with code 'ok'
+            if isinstance(error_data, dict) and error_data.get("code") == "ok":
+                pass  # Not an error
+            else:
+                post_error_code = result.get("error", {}).get("code")
+                post_error_message = result.get("error", {}).get("message")
+                raise Exception(f"Error uploading photo: [{post_error_code}] {post_error_message}")
+
+        return result
+
+    def get_publish_status(self, publish_id: str) -> Dict[str, Any]:
+        """
+        Get the status of a published post.
+
+        Args:
+            publish_id (str): Publish ID to check status for
+
+        Returns:
+            dict: Status response
+
+        Raises:
+            Exception: If status check fails or not authenticated
+        """
+        if not self.access_token:
+            raise Exception("No access token available")
+
+        response = requests.post(
+            self.GET_VIDEO_STATUS_URL,
+            headers={
+                "Authorization": f"Bearer {self.access_token}",
+                "Content-Type": "application/json; charset=UTF-8",
+                "User-Agent": f"Agoras/{__version__}",
+            },
+            data=json.dumps({"publish_id": publish_id}),
+            timeout=30,
+        )
+        return response.json()

@@ -4,58 +4,179 @@ on:
   push:
     branches:
       - master
-      - develop
+      - "release/**"
 
 jobs:
-  build:
-    name: Build
-    runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        include:
-          - python-version: "3.9"
-            toxenv: "py39"
-          - python-version: "3.10"
-            toxenv: "py310"
-          - python-version: "3.11"
-            toxenv: "py311"
+  lint:
+    name: Linting
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4.7.0
+      - name: Set up Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
 
       - name: Installing dependencies
         run: |
-          sudo apt-get install libxml2-dev libxslt-dev
-          sudo pip install -r requirements.txt -r requirements-dev.txt
+          python3 -m pip install -r requirements-dev.txt
 
-      - name: Measuring coverage
+      - name: Running linter
+        run: |
+          tox -e lint
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install all packages
+        run: |
+          cd packages
+          python3 -m pip install -r ../requirements-dev.txt
+          python3 -m pip install -e common/
+          python3 -m pip install -e media/
+          python3 -m pip install -e core/
+          python3 -m pip install -e platforms/
+          python3 -m pip install -e cli/
+
+      - name: Run integration tests
+        run: |
+          cd packages
+          pytest cli/tests/test_integration.py -v
+
+      - name: Test CLI entry point
+        run: |
+          agoras --version
+          agoras --help
+
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install all packages
+        run: |
+          cd packages
+          python3 -m pip install -r ../requirements-dev.txt
+          python3 -m pip install -e common/
+          python3 -m pip install -e media/
+          python3 -m pip install -e core/
+          python3 -m pip install -e platforms/
+          python3 -m pip install -e cli/
+
+      - name: Run E2E tests
+        run: |
+          cd packages
+          pytest cli/tests/test_e2e_integration.py -v
+
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    needs: [lint, integration, e2e]
+    strategy:
+      matrix:
+        python-version: ["3.13", "3.14"]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Installing dependencies
+        run: |
+          python3 -m pip install -r requirements-dev.txt
+
+      - name: Measuring coverage (all packages)
         env:
-          TOXENV: ${{ matrix.toxenv }}
           PYTHON_VERSION: ${{ matrix.python-version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          tox -e ${TOXENV}
+          tox -e coverage
 
       - name: Coveralls Parallel
-        uses: coverallsapp/github-action@master
+        uses: coverallsapp/github-action@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           flag-name: run-py${{ matrix.python-version }}
           path-to-lcov: ./.lcov
           parallel: true
 
+  docs:
+    name: Documentation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: [unit]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: docs/requirements.txt
+
+      - name: Install documentation dependencies
+        run: |
+          python3 -m pip install --upgrade pip setuptools
+          python3 -m pip install -r docs/requirements.txt
+
+      - name: Build documentation
+        run: |
+          cd docs
+          python3 -m sphinx -T -b html -d _build/doctrees -D language=en . _build/html
+
   finish:
     name: Finish
-    runs-on: ubuntu-22.04
-    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: [docs]
     steps:
       - name: Coveralls Finished
-        uses: coverallsapp/github-action@master
+        uses: coverallsapp/github-action@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           parallel-finished: true
+
+  release-gate:
+    name: Release Gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: [finish]
+    steps:
+      - name: Confirm all release checks passed
+        run: |
+          echo "Release gate passed for ${{ github.ref_name }}"

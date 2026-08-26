@@ -3,14 +3,71 @@ updates:
 - package-ecosystem: pip
   directory: "/"
   schedule:
-    interval: weekly
+    interval: monthly
     day: tuesday
     time: "01:00"
-  ignore:
-    - dependency-name: coverage
+  cooldown:
+    default-days: 14
+
+- package-ecosystem: pip
+  directory: "/packages/cli"
+  schedule:
+    interval: monthly
+    day: tuesday
+    time: "01:00"
+  cooldown:
+    default-days: 14
+
+- package-ecosystem: pip
+  directory: "/packages/common"
+  schedule:
+    interval: monthly
+    day: tuesday
+    time: "01:00"
+  cooldown:
+    default-days: 14
+
+- package-ecosystem: pip
+  directory: "/packages/core"
+  schedule:
+    interval: monthly
+    day: tuesday
+    time: "01:00"
+  cooldown:
+    default-days: 14
+
+- package-ecosystem: pip
+  directory: "/packages/media"
+  schedule:
+    interval: monthly
+    day: tuesday
+    time: "01:00"
+  cooldown:
+    default-days: 14
+
+- package-ecosystem: pip
+  directory: "/packages/platforms"
+  schedule:
+    interval: monthly
+    day: tuesday
+    time: "01:00"
+  cooldown:
+    default-days: 14
+
+- package-ecosystem: pip
+  directory: "/docs"
+  schedule:
+    interval: monthly
+    day: tuesday
+    time: "01:00"
+  cooldown:
+    default-days: 14
+
 - package-ecosystem: github-actions
   directory: "/"
   schedule:
-    interval: weekly
+    interval: monthly
     day: tuesday
     time: "01:00"
+  cooldown:
+    default-days: 14
