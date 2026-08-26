@@ -182,6 +182,46 @@ class InstagramAPI(BaseAPI):
             self._handle_api_error(e, "Instagram media creation")
             raise
 
+    async def create_resumable_video(
+        self,
+        object_id: str,
+        video_content: bytes,
+        caption: Optional[str] = None,
+        media_type: Optional[str] = None,
+    ) -> str:
+        """
+        Upload a local video via Instagram's resumable rupload protocol.
+
+        Args:
+            object_id (str): Instagram object ID
+            video_content (bytes): Raw video file bytes
+            caption (str, optional): Video caption
+            media_type (str, optional): REELS or STORIES
+
+        Returns:
+            str: Media container ID
+
+        Raises:
+            Exception: If upload fails
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("Instagram API not authenticated")
+
+        await self._rate_limit_check("create_resumable_video", 1.0)
+
+        try:
+            return await self.client.create_resumable_video(
+                object_id=object_id,
+                video_content=video_content,
+                caption=caption,
+                media_type=media_type,
+            )
+        except Exception as e:
+            self._handle_api_error(e, "Instagram resumable video upload")
+            raise
+
     async def create_carousel(self, object_id: str, media_ids: List[str], caption: Optional[str] = None) -> str:
         """
         Create carousel media for Instagram.

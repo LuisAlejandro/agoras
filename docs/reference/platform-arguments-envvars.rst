@@ -30,8 +30,8 @@ You can override stored credentials with environment variables on action and uti
    a local filesystem path, or a ``file://`` URI on upload-capable platforms.
    CLI relative paths resolve against the process working directory; YAML
    relative paths resolve against the content file directory. TikTok photo
-   posts, Instagram stills and videos, and Threads require public HTTP(s) URLs
-   and reject local paths.
+   posts, Instagram stills, and Threads require public HTTP(s) URLs
+   and reject local paths. Instagram videos accept local files (resumable upload).
 
 .. note::
 
