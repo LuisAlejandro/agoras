@@ -243,9 +243,7 @@ class TikTokAPIClient:
                 return
             retryable = last_status in self._FILE_UPLOAD_PUT_RETRY_STATUSES
             if not retryable or attempt == self._FILE_UPLOAD_PUT_MAX_ATTEMPTS:
-                raise Exception(
-                    f"Error uploading video chunk: HTTP {last_status} (bytes {start}-{end}/{video_size})"
-                )
+                raise Exception(f"Error uploading video chunk: HTTP {last_status} (bytes {start}-{end}/{video_size})")
             time.sleep(min(2 ** (attempt - 1), 4))
 
     def upload_video_file(

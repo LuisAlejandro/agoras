@@ -519,6 +519,7 @@ class FacebookAPIClient:
                 raise Exception("Failed to create upload session")
 
             # Upload video file
+            upload_timeout = _regular_video_upload_timeout(video_file_size)
             upload_data_response = requests.post(
                 f"https://graph.facebook.com/v21.0/{upload_session_id}",
                 headers={
@@ -528,7 +529,7 @@ class FacebookAPIClient:
                     "User-Agent": f"Agoras/{__version__}",
                 },
                 data=video_content,
-                timeout=_regular_video_upload_timeout(video_file_size),
+                timeout=upload_timeout,
             )
             upload_data_response.raise_for_status()
             file_handle = upload_data_response.json().get("h")

@@ -64,9 +64,7 @@ def add_video_options(parser: ArgumentParser, platform: Optional[str] = None, *,
     if with_content_file:
         add_content_file_option(parser)
 
-    help_text = (
-        video_url_help(platform) if platform else "HTTP(s) URL, local path, or file:// URI of video file"
-    )
+    help_text = video_url_help(platform) if platform else "HTTP(s) URL, local path, or file:// URI of video file"
     video = parser.add_argument_group("Video Options")
     video.add_argument(
         "--video-url",
