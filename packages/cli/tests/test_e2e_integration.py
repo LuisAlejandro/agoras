@@ -161,3 +161,57 @@ def test_invalid_feed_url_handling(mock_init_client, mock_feed_class):
             feed_url='invalid://feed',
             max_count=1
         )
+
+
+@patch('agoras.cli.platforms.x.x_main')
+def test_cli_x_post_local_image_reaches_platform(mock_x_main, tmp_path, monkeypatch):
+    """agoras x post --image-1 ./test.jpg resolves cwd and reaches the platform wrapper."""
+    from agoras.cli.main import main as cli_main
+
+    monkeypatch.chdir(tmp_path)
+    image = tmp_path / "test.jpg"
+    image.write_bytes(b"jpeg")
+    mock_x_main.return_value = 0
+
+    status = cli_main(
+        [
+            "x",
+            "post",
+            "--text",
+            "Hello",
+            "--image-1",
+            "./test.jpg",
+        ]
+    )
+
+    assert status == 0
+    mock_x_main.assert_called_once()
+    legacy = mock_x_main.call_args[0][0]
+    assert legacy["status_image_url_1"] == str(image.resolve())
+
+
+@patch('agoras.cli.platforms.youtube.youtube_main')
+def test_cli_youtube_video_local_path_reaches_platform(mock_youtube_main, tmp_path, monkeypatch):
+    """agoras youtube video --video-url ./clip.mp4 resolves cwd and reaches the wrapper."""
+    from agoras.cli.main import main as cli_main
+
+    monkeypatch.chdir(tmp_path)
+    video = tmp_path / "clip.mp4"
+    video.write_bytes(b"video")
+    mock_youtube_main.return_value = 0
+
+    status = cli_main(
+        [
+            "youtube",
+            "video",
+            "--title",
+            "Clip",
+            "--video-url",
+            "./clip.mp4",
+        ]
+    )
+
+    assert status == 0
+    mock_youtube_main.assert_called_once()
+    legacy = mock_youtube_main.call_args[0][0]
+    assert legacy["youtube_video_url"] == str(video.resolve())

@@ -91,6 +91,61 @@ async def test_telegram_post(mock_api_class):
 
 @pytest.mark.asyncio
 @patch("agoras.platforms.telegram.wrapper.TelegramAPI")
+async def test_telegram_post_with_local_image_path(mock_api_class):
+    """Telegram image posts download a local path before send_photo."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.send_photo = AsyncMock(return_value="photo-local")
+    mock_api_class.return_value = mock_api
+
+    mock_image = MagicMock()
+    mock_image.content = b"local_jpeg"
+    mock_image.file_type = MagicMock()
+    mock_image.url = "/tmp/local.jpg"
+    mock_image.cleanup = MagicMock()
+
+    telegram = Telegram(telegram_bot_token="token", telegram_chat_id="123")
+
+    await telegram._initialize_client()
+
+    with patch.object(telegram, "download_images", new_callable=AsyncMock, return_value=[mock_image]):
+        with patch.object(telegram, "_output_status"):
+            result = await telegram.post("Hello", "", status_image_url_1="/tmp/local.jpg")
+
+    assert result == "photo-local"
+    mock_api.send_photo.assert_called_once()
+    assert mock_api.send_photo.call_args.kwargs["photo_url"] == "/tmp/local.jpg"
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.telegram.wrapper.TelegramAPI")
+async def test_telegram_video_with_local_path(mock_api_class):
+    """Telegram video uploads local file bytes."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.send_video = AsyncMock(return_value="video-local")
+    mock_api_class.return_value = mock_api
+
+    mock_video = MagicMock()
+    mock_video.content = b"video-bytes"
+    mock_video.file_type = MagicMock()
+    mock_video.cleanup = MagicMock()
+
+    telegram = Telegram(telegram_bot_token="token", telegram_chat_id="123")
+
+    await telegram._initialize_client()
+
+    with patch.object(telegram, "download_video", new_callable=AsyncMock, return_value=mock_video):
+        with patch.object(telegram, "_output_status"):
+            result = await telegram.video("Caption", "/tmp/local.mp4", "Title")
+
+    assert result == "video-local"
+    mock_api.send_video.assert_called_once()
+    assert mock_api.send_video.call_args.kwargs["video_content"] == b"video-bytes"
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.telegram.wrapper.TelegramAPI")
 async def test_telegram_disconnect(mock_api_class):
     """Test Telegram disconnect method."""
     mock_api = MagicMock()

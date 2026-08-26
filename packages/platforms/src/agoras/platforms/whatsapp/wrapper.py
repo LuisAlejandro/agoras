@@ -24,6 +24,7 @@ from typing import List, Optional
 
 from agoras.core.interfaces import SocialNetwork
 from agoras.core.text_limits import validate_text
+from agoras.media.paths import media_is_local
 
 from .api import WhatsAppAPI
 
@@ -174,10 +175,19 @@ class WhatsApp(SocialNetwork):
                     if image.content and image.file_type:
                         # First image gets the full caption, others get minimal caption
                         caption = message_text if i == 0 else f"Image {i + 1}"
+                        filename = f"image.{image.file_type.extension}"
 
-                        message_id = await self.api.send_image(
-                            to=self._require_recipient(), image_url=image.url, caption=caption
-                        )
+                        if media_is_local(image):
+                            media_id = await self.api.upload_media(
+                                image.content, image.file_type.mime, filename=filename
+                            )
+                            message_id = await self.api.send_image(
+                                to=self._require_recipient(), image_id=media_id, caption=caption
+                            )
+                        else:
+                            message_id = await self.api.send_image(
+                                to=self._require_recipient(), image_url=image.url, caption=caption
+                            )
                         message_ids.append(message_id)
                     else:
                         raise Exception(f"Failed to validate image: {image.url}")
@@ -279,10 +289,16 @@ class WhatsApp(SocialNetwork):
             )
 
         try:
-            # Send video with caption (status_text)
-            message_id = await self.api.send_video(
-                to=self._require_recipient(), video_url=video.url, caption=status_text
-            )
+            filename = f"video.{video.file_type.extension}" if video.file_type else "video.mp4"
+            if media_is_local(video):
+                media_id = await self.api.upload_media(video.content, video.file_type.mime, filename=filename)
+                message_id = await self.api.send_video(
+                    to=self._require_recipient(), video_id=media_id, caption=status_text
+                )
+            else:
+                message_id = await self.api.send_video(
+                    to=self._require_recipient(), video_url=video.url, caption=status_text
+                )
         finally:
             # Clean up using Media system
             video.cleanup()

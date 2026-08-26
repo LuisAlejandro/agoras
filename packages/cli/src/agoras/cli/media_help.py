@@ -33,7 +33,8 @@ def video_url_help(platform: str) -> str:
     key = resolve_platform(platform)
     limits, mode = constraints_summary(key, "video")
     parts = [
-        f"URL of video file (max {format_bytes(limits.max_bytes)}, {_mime_short_names(limits.mime_types)})",
+        "HTTP(s) URL, local path, or file:// URI of video "
+        f"(max {format_bytes(limits.max_bytes)}, {_mime_short_names(limits.mime_types)})",
     ]
     if limits.max_duration_s is not None:
         parts.append(f"max {int(limits.max_duration_s)}s")

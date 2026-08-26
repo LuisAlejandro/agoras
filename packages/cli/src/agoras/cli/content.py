@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Sequence, Set
 from urllib.parse import urlparse
@@ -27,6 +28,8 @@ from urllib.parse import urlparse
 import yaml
 from yaml.constructor import ConstructorError
 from yaml.nodes import MappingNode
+
+from agoras.media.paths import is_local_media_source, normalize_media_path
 
 from .content_specs import (
     ALL_CONTENT_KEYS,
@@ -156,11 +159,29 @@ def _validate_http_url(value: str, path: str) -> None:
         raise ContentError(f"{path} must be an absolute http(s) URL (got {value!r})")
 
 
+def _validate_media_source_field(value: str, path: str) -> None:
+    if not value or not isinstance(value, str):
+        raise ContentError(f"{path} must be a non-empty string")
+    if _is_http_url(value) or is_local_media_source(value):
+        return
+    raise ContentError(f"{path} must be an absolute http(s) URL or local media path (got {value!r})")
+
+
+def _resolve_media_value(value: str, base_dir: Optional[str] = None) -> str:
+    if _is_http_url(value):
+        return value
+    if is_local_media_source(value):
+        return normalize_media_path(value, base_dir=base_dir)
+    return value
+
+
 def _validate_str_field(field: FieldSpec, value: Any, path: str) -> str:
     if type(value) is not str:
         raise ContentError(f"{path} must be a string (got {_exact_type_name(value)})")
     if field.http_url:
         _validate_http_url(value, path)
+    elif field.media_source:
+        _validate_media_source_field(value, path)
     if field.max_length is not None and len(value) > field.max_length:
         raise ContentError(f"{path} exceeds max length {field.max_length}")
     if field.choices is not None and value not in field.choices:
@@ -191,6 +212,8 @@ def _validate_str_list_field(field: FieldSpec, value: Any, path: str) -> list:
             raise ContentError(f"{item_path} must be a string (got {_exact_type_name(item)})")
         if field.http_url:
             _validate_http_url(item, item_path)
+        elif field.media_source:
+            _validate_media_source_field(item, item_path)
         result.append(item)
     return result
 
@@ -379,7 +402,30 @@ def flatten_images(images: Optional[Sequence[str]]) -> Dict[str, str]:
     return result
 
 
-def normalize_to_cli_namespace(validated: Mapping[str, Any], platform: str, action: str) -> Dict[str, Any]:
+def _resolve_media_paths_in_mapping(
+    data: MutableMapping[str, Any],
+    base_dir: Optional[str],
+    fields: Sequence[FieldSpec],
+) -> None:
+    for field in fields:
+        if not field.media_source:
+            continue
+        value = data.get(field.name)
+        if field.kind == "str" and isinstance(value, str):
+            data[field.name] = _resolve_media_value(value, base_dir)
+        elif field.kind == "str_list" and isinstance(value, list):
+            data[field.name] = [
+                _resolve_media_value(item, base_dir) if isinstance(item, str) else item for item in value
+            ]
+
+
+def normalize_to_cli_namespace(
+    validated: Mapping[str, Any],
+    platform: str,
+    action: str,
+    *,
+    base_dir: Optional[str] = None,
+) -> Dict[str, Any]:
     """
     Flatten validated YAML into argparse-style destinations for ParameterConverter.
 
@@ -388,12 +434,15 @@ def normalize_to_cli_namespace(validated: Mapping[str, Any], platform: str, acti
     """
     payload: Dict[str, Any] = {}
     keys_present: Set[str] = set()
+    working = dict(validated)
+    spec = get_action_spec(platform, action)
+    _resolve_media_paths_in_mapping(working, base_dir, spec.fields)
 
     def set_field(name: str, value: Any) -> None:
         payload[name] = value
         keys_present.add(name)
 
-    for key, value in validated.items():
+    for key, value in working.items():
         if key == "version":
             continue
         if key == "images":
@@ -411,12 +460,12 @@ def normalize_to_cli_namespace(validated: Mapping[str, Any], platform: str, acti
         if key == "entries":
             normalized_entries = []
             for entry in value:
-                entry_payload: Dict[str, Any] = {}
-                for entry_key, entry_value in entry.items():
+                entry_payload: Dict[str, Any] = dict(entry)
+                _resolve_media_paths_in_mapping(entry_payload, base_dir, spec.entry_fields)
+                for entry_key, entry_value in list(entry_payload.items()):
                     if entry_key == "images":
                         entry_payload.update(flatten_images(entry_value))
-                    else:
-                        entry_payload[entry_key] = entry_value
+                        entry_payload.pop("images", None)
                 normalized_entries.append(entry_payload)
             set_field("entries", normalized_entries)
             continue
@@ -473,7 +522,8 @@ def load_content_file(path: str | Path, platform: str, action: str) -> Dict[str,
         raise ContentError(f"Content root must be a mapping (got {_exact_type_name(raw)})")
 
     validated = validate_document(raw, platform, action)
-    return normalize_to_cli_namespace(validated, platform, action)
+    base_dir = str(file_path.parent.resolve())
+    return normalize_to_cli_namespace(validated, platform, action, base_dir=base_dir)
 
 
 def detect_explicit_inline_content(args: argparse.Namespace) -> List[str]:
@@ -560,6 +610,24 @@ def _apply_inline_defaults(args: argparse.Namespace, spec: ActionSpec) -> None:
             setattr(args, field.name, field.default)
 
 
+def _apply_media_source_arg(args: argparse.Namespace, name: str, base_dir: str) -> None:
+    value = getattr(args, name, None)
+    if value:
+        _validate_media_source_field(value, name)
+        setattr(args, name, _resolve_media_value(value, base_dir))
+
+
+def _resolve_inline_media_args(args: argparse.Namespace, spec: ActionSpec) -> None:
+    base_dir = os.getcwd()
+    for field in spec.fields:
+        if field.name == "images":
+            for index in range(1, 5):
+                _apply_media_source_arg(args, f"image_{index}", base_dir)
+            continue
+        if field.media_source and field.kind == "str":
+            _apply_media_source_arg(args, field.name, base_dir)
+
+
 def ensure_content_source_xor(args: argparse.Namespace, platform: str, action: str) -> None:
     """
     Enforce file XOR inline content after argparse.
@@ -584,6 +652,7 @@ def ensure_content_source_xor(args: argparse.Namespace, platform: str, action: s
         return
     spec = get_action_spec(platform, action)
     _enforce_inline_required(args, spec)
+    _resolve_inline_media_args(args, spec)
     _apply_inline_defaults(args, spec)
 
 
@@ -593,7 +662,10 @@ def add_content_file_option(parser: argparse.ArgumentParser) -> None:
     group.add_argument(
         "--content",
         metavar="<file.yaml>",
-        help="YAML content file (mutually exclusive with inline content options)",
+        help=(
+            "YAML content file (mutually exclusive with inline content options). "
+            "Relative video_url and images paths resolve against the YAML file directory, not cwd."
+        ),
     )
 
 

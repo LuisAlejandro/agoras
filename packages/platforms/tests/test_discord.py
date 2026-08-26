@@ -16,8 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import io
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import discord as discord_py
 import pytest
 
 from agoras.platforms.discord import Discord
@@ -592,3 +594,105 @@ async def test_discord_main_async_execute_action(mock_discord_class):
     assert result is None
     mock_discord.execute_action.assert_called_once_with('video')
     mock_discord.disconnect.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.discord.wrapper.discord.File')
+@patch('agoras.platforms.discord.wrapper.parse_metatags')
+@patch('agoras.platforms.discord.wrapper.DiscordAPI')
+async def test_discord_post_local_images_use_files(mock_api_class, mock_parse, mock_discord_file):
+    """Local Discord images attach as files instead of embed URLs."""
+    mock_parse.return_value = {}
+    mock_discord_file.side_effect = lambda fp, filename: MagicMock(name=filename)
+
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.create_embed = MagicMock()
+    mock_api.post = AsyncMock(return_value='message-123')
+    mock_api_class.return_value = mock_api
+
+    discord = Discord(
+        discord_bot_token='token',
+        discord_server_name='Server',
+        discord_channel_name='Channel',
+    )
+    await discord._initialize_client()
+
+    mock_image_one = MagicMock()
+    mock_image_one.url = '/tmp/pic1.png'
+    mock_image_one.file_type = MagicMock(extension='png')
+    mock_image_one._is_local = True
+    mock_image_one.get_file_like_object = MagicMock(return_value=io.BytesIO(b"one"))
+    mock_image_one.cleanup = MagicMock()
+
+    mock_image_two = MagicMock()
+    mock_image_two.url = '/tmp/pic2.png'
+    mock_image_two.file_type = MagicMock(extension='png')
+    mock_image_two._is_local = True
+    mock_image_two.get_file_like_object = MagicMock(return_value=io.BytesIO(b"two"))
+    mock_image_two.cleanup = MagicMock()
+
+    with patch.object(
+        discord,
+        'download_images',
+        new_callable=AsyncMock,
+        return_value=[mock_image_one, mock_image_two],
+    ):
+        with patch.object(discord, '_output_status'):
+            result = await discord.post(
+                'Hello Discord',
+                '',
+                status_image_url_1='/tmp/pic1.png',
+                status_image_url_2='/tmp/pic2.png',
+            )
+
+    assert result == 'message-123'
+    mock_api.create_embed.assert_not_called()
+    files_arg = mock_api.post.call_args.kwargs['files']
+    assert len(files_arg) == 2
+    assert mock_discord_file.call_count == 2
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.discord.wrapper.DiscordAPI')
+async def test_discord_thread_local_images_use_files(mock_api_class):
+    """Thread entries attach local images via files, not embed URLs."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.create_embed = MagicMock()
+    mock_api.post = AsyncMock(return_value='starter-1')
+    mock_api.create_public_thread = AsyncMock(return_value='thread-1')
+    mock_api.send_message_to_thread = AsyncMock(return_value='msg-2')
+    mock_api_class.return_value = mock_api
+
+    discord_net = Discord(
+        discord_bot_token='token',
+        discord_server_name='Server',
+        discord_channel_name='general',
+    )
+    await discord_net._initialize_client()
+
+    mock_image = MagicMock()
+    mock_image.url = '/tmp/pic.png'
+    mock_image.file_type = MagicMock(extension='png')
+    mock_image._is_local = True
+    mock_image.get_file_like_object = MagicMock(return_value=io.BytesIO(b"png"))
+    mock_image.cleanup = MagicMock()
+
+    with patch.object(discord_net, 'download_images', new_callable=AsyncMock, return_value=[mock_image]):
+        result = await discord_net.thread(
+            [
+                {'text': 'starter', 'image_1': '/tmp/pic.png'},
+                {'text': 'reply', 'image_1': '/tmp/pic.png'},
+            ],
+            thread_name='Discussion',
+        )
+
+    assert result.complete is True
+    starter_files = mock_api.post.call_args.kwargs['files']
+    reply_files = mock_api.send_message_to_thread.call_args.kwargs['files']
+    assert len(starter_files) == 1
+    assert len(reply_files) == 1
+    assert isinstance(starter_files[0], discord_py.File)
+    assert isinstance(reply_files[0], discord_py.File)
+    mock_api.create_embed.assert_not_called()

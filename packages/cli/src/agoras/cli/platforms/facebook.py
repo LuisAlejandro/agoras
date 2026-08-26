@@ -144,7 +144,7 @@ def _add_video_options(parser: ArgumentParser):
     add_content_file_option(parser)
 
     video = parser.add_argument_group("Video Options")
-    video.add_argument("--video-url", default=SUPPRESS, metavar="<url>", help=video_url_help("facebook"))
+    video.add_argument("--video-url", default=SUPPRESS, metavar="<media>", help=video_url_help("facebook"))
     video.add_argument("--video-title", default=SUPPRESS, metavar="<title>", help="Video title")
     video.add_argument("--video-description", default=SUPPRESS, metavar="<description>", help="Video description")
     video.add_argument("--video-type", default=SUPPRESS, metavar="<type>", help="Video type")

@@ -31,6 +31,7 @@ from agoras.core.threading import (
     partial_result,
     success_result,
 )
+from agoras.media.paths import media_is_local
 
 from .api import DiscordAPI
 
@@ -218,19 +219,23 @@ class Discord(SocialNetwork):
             )
             embeds.append(link_embed)
 
-        # Download and validate images using the Media system
-        if source_media:
-            images = await self.download_images(source_media)
-            for image in images:
-                try:
-                    image_embed = self.api.create_embed(image_url=image.url)
-                    embeds.append(image_embed)
-                finally:
-                    # Clean up temporary files
-                    image.cleanup()
+        attachment_files: List[discord.File] = []
+        cleanup_targets: List[Any] = []
+        try:
+            if source_media:
+                await self._append_image_embeds(embeds, source_media, cleanup_targets, attachment_files)
 
-        # Post message using Discord API
-        message_id = await self.api.post(content=status_text or None, embeds=embeds if embeds else None)
+            message_id = await self.api.post(
+                content=status_text or None,
+                embeds=embeds if embeds else None,
+                files=attachment_files if attachment_files else None,
+            )
+        finally:
+            for item in cleanup_targets:
+                try:
+                    item.cleanup()
+                except Exception:
+                    pass
 
         self._output_status(message_id)
         return message_id
@@ -263,13 +268,23 @@ class Discord(SocialNetwork):
             )
         )
 
-    async def _append_image_embeds(self, embeds: List[Any], images: List[str], cleanup_targets: List[Any]) -> None:
+    async def _append_image_embeds(
+        self,
+        embeds: List[Any],
+        images: List[str],
+        cleanup_targets: List[Any],
+        attachment_files: List[discord.File],
+    ) -> None:
         if not self.api:
             raise Exception("Discord API not initialized")
         downloaded = await self.download_images(images)
         for image in downloaded:
             try:
-                embeds.append(self.api.create_embed(image_url=image.url))
+                if media_is_local(image):
+                    extension = image.file_type.extension if image.file_type else "bin"
+                    attachment_files.append(discord.File(image.get_file_like_object(), filename=f"image.{extension}"))
+                else:
+                    embeds.append(self.api.create_embed(image_url=image.url))
             finally:
                 cleanup_targets.append(image)
 
@@ -305,7 +320,7 @@ class Discord(SocialNetwork):
         Build Discord content/embeds/file payload for one entry (no printing).
 
         Returns:
-            tuple: (content, embeds, file_handle_or_None, cleanup_callable)
+            tuple: (content, embeds, attachment_files, cleanup_callable)
         """
         if not self.api:
             raise Exception("Discord API not initialized")
@@ -322,16 +337,18 @@ class Discord(SocialNetwork):
 
         embeds: List[Any] = []
         cleanup_targets: List[Any] = []
+        attachment_files: List[discord.File] = []
 
         await self._append_custom_embeds(embeds, custom_embeds)
         if link:
             await self._append_link_embed(embeds, link)
         if images:
-            await self._append_image_embeds(embeds, images, cleanup_targets)
+            await self._append_image_embeds(embeds, images, cleanup_targets, attachment_files)
 
-        file_obj = None
         if video_url:
             text, file_obj = await self._prepare_video_file(embeds, cleanup_targets, video_url, video_title, text)
+            if file_obj is not None:
+                attachment_files.append(file_obj)
 
         def _cleanup():
             for item in cleanup_targets:
@@ -340,7 +357,7 @@ class Discord(SocialNetwork):
                 except Exception:
                     pass
 
-        return text, embeds if embeds else None, file_obj, _cleanup
+        return text, embeds if embeds else None, attachment_files, _cleanup
 
     def _prevalidate_entries(self, entries: List[Dict[str, Any]], thread_name: str) -> None:
         """Validate thread_name and every entry before any network publish."""
@@ -399,8 +416,12 @@ class Discord(SocialNetwork):
         # First entry → channel starter message
         cleanup = None
         try:
-            content, embeds, file_obj, cleanup = await self._build_entry_payload(entries[0])
-            starter_id = await self.api.post(content=content, embeds=embeds, file=file_obj)
+            content, embeds, attachment_files, cleanup = await self._build_entry_payload(entries[0])
+            starter_id = await self.api.post(
+                content=content,
+                embeds=embeds,
+                files=attachment_files if attachment_files else None,
+            )
             ids.append(str(starter_id))
         except Exception as exc:
             outcome = "unknown" if _is_uncertain_publish_error(exc) else "failed"
@@ -424,9 +445,12 @@ class Discord(SocialNetwork):
         for index, entry in enumerate(entries[1:], start=1):
             cleanup = None
             try:
-                content, embeds, file_obj, cleanup = await self._build_entry_payload(entry)
+                content, embeds, attachment_files, cleanup = await self._build_entry_payload(entry)
                 message_id = await self.api.send_message_to_thread(
-                    thread_id, content=content, embeds=embeds, file=file_obj
+                    thread_id,
+                    content=content,
+                    embeds=embeds,
+                    files=attachment_files if attachment_files else None,
                 )
                 ids.append(str(message_id))
             except Exception as exc:

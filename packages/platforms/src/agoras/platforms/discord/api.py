@@ -107,14 +107,15 @@ class DiscordAPI(BaseAPI):
         self.client = None
         self._authenticated = False
 
-    async def post(self, content=None, embeds=None, file=None):
+    async def post(self, content=None, embeds=None, file=None, files=None):
         """
         Post a message to the configured Discord channel.
 
         Args:
             content (str, optional): Text content of the message
             embeds (list, optional): List of Discord embeds
-            file (discord.File, optional): File to attach
+            file (discord.File, optional): Single file to attach
+            files (list, optional): Multiple files to attach
 
         Returns:
             str: Message ID
@@ -129,7 +130,7 @@ class DiscordAPI(BaseAPI):
             raise Exception("Discord client not available")
 
         await self._rate_limit_check("post", 1.0)
-        return await self.client.send_message(content=content, embeds=embeds, file=file)
+        return await self.client.send_message(content=content, embeds=embeds, file=file, files=files)
 
     async def create_public_thread(self, message_id, name, auto_archive_duration=None):
         """
@@ -152,7 +153,7 @@ class DiscordAPI(BaseAPI):
         await self._rate_limit_check("create_public_thread", 1.0)
         return await self.client.create_public_thread(message_id, name, auto_archive_duration)
 
-    async def send_message_to_thread(self, thread, content=None, embeds=None, file=None):
+    async def send_message_to_thread(self, thread, content=None, embeds=None, file=None, files=None):
         """
         Send a message into an existing Discord thread.
 
@@ -160,7 +161,8 @@ class DiscordAPI(BaseAPI):
             thread: Thread object or thread ID
             content (str, optional): Text content
             embeds (list, optional): Embeds
-            file: Optional file attachment
+            file: Optional single file attachment
+            files: Optional multiple file attachments
 
         Returns:
             str: Message ID
@@ -172,7 +174,7 @@ class DiscordAPI(BaseAPI):
             raise Exception("Discord client not available")
 
         await self._rate_limit_check("send_message_to_thread", 1.0)
-        return await self.client.send_message_to_thread(thread, content=content, embeds=embeds, file=file)
+        return await self.client.send_message_to_thread(thread, content=content, embeds=embeds, file=file, files=files)
 
     async def like(self, message_id, emoji="❤️"):
         """

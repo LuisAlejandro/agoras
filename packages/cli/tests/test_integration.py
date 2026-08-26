@@ -99,6 +99,36 @@ def test_youtube_video_complete_flow():
     assert args.privacy == 'public'
 
 
+def test_inline_local_video_path_resolved_against_cwd(tmp_path, monkeypatch):
+    """Inline --video-url relative paths resolve against process cwd (R19/CLI)."""
+    from argparse import Namespace
+
+    from agoras.cli.base import prepare_content_args
+
+    monkeypatch.chdir(tmp_path)
+    media = tmp_path / "clip.mp4"
+    media.write_bytes(b"video")
+
+    args = Namespace(action="video", video_url="./clip.mp4", title="Test")
+    prepare_content_args(args, "youtube")
+    assert args.video_url == str(media.resolve())
+
+
+def test_inline_local_image_path_resolved_against_cwd(tmp_path, monkeypatch):
+    """Inline --image-1 relative paths resolve against process cwd."""
+    from argparse import Namespace
+
+    from agoras.cli.base import prepare_content_args
+
+    monkeypatch.chdir(tmp_path)
+    media = tmp_path / "pic.jpg"
+    media.write_bytes(b"jpeg")
+
+    args = Namespace(action="post", image_1="./pic.jpg", text="hi")
+    prepare_content_args(args, "x")
+    assert args.image_1 == str(media.resolve())
+
+
 def test_utils_feed_publish_complete_flow():
     """Test complete utils feed-publish command parsing."""
     parser, args = commandline([

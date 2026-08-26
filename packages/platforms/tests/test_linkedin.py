@@ -193,6 +193,35 @@ async def test_linkedin_post(mock_auth_manager_class, mock_api_class):
 @pytest.mark.asyncio
 @patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
 @patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
+async def test_linkedin_post_with_local_image_path(mock_auth_manager_class, mock_api_class):
+    """LinkedIn post uploads bytes from a local image path."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.upload_image = AsyncMock(return_value="urn:li:image:local")
+    mock_api.post = AsyncMock(return_value="post-local")
+    mock_api_class.return_value = mock_api
+
+    mock_media = MagicMock()
+    mock_media.content = b"local_jpeg"
+    mock_media.url = "/tmp/local.jpg"
+    mock_media.cleanup = MagicMock()
+
+    linkedin = LinkedIn(**LINKEDIN_KWARGS)
+
+    await linkedin._initialize_client()
+
+    with patch.object(linkedin, "download_images", new_callable=AsyncMock, return_value=[mock_media]):
+        with patch.object(linkedin, "_output_status"):
+            result = await linkedin.post("Hello LinkedIn", "", status_image_url_1="/tmp/local.jpg")
+
+    assert result == "post-local"
+    mock_api.upload_image.assert_called_once_with(b"local_jpeg")
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
 async def test_linkedin_like(mock_auth_manager_class, mock_api_class):
     """Test LinkedIn like method."""
     configure_linkedin_auth_mock(mock_auth_manager_class)

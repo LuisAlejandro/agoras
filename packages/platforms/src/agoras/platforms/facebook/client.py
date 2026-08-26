@@ -27,6 +27,12 @@ from pyfacebook import GraphAPI
 from agoras.common import __version__
 
 
+def _regular_video_upload_timeout(video_file_size: int) -> int:
+    """Scale Graph video-byte PUT timeout with file size, capped at 10 minutes."""
+    megabytes = max(0, video_file_size) // (1024 * 1024)
+    return max(30, min(600, megabytes * 2 or 30))
+
+
 def _is_video_file_processing_error(error: requests.HTTPError) -> bool:
     """Return whether Facebook rejected a resumable video handle during publish."""
     response = error.response
@@ -286,6 +292,52 @@ class FacebookAPIClient:
 
         return await asyncio.to_thread(_sync_upload_media)
 
+    async def upload_photo_file(
+        self,
+        object_id: str,
+        file_content: bytes,
+        published: bool = True,
+        filename: str = "photo.jpg",
+        mime_type: str = "image/jpeg",
+        message: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Upload a photo file to Facebook using multipart source upload.
+
+        Args:
+            object_id (str): Facebook object ID
+            file_content (bytes): Raw image bytes
+            published (bool): Whether to publish immediately
+            filename (str): Multipart filename
+            mime_type (str): Image MIME type
+            message (str, optional): Caption/message for published photos
+
+        Returns:
+            dict: Photo upload response
+
+        Raises:
+            Exception: If photo upload fails
+        """
+
+        def _sync_upload_photo_file():
+            response = requests.post(
+                f"https://graph.facebook.com/v21.0/{object_id}/photos",
+                headers={
+                    "Authorization": f"OAuth {self.access_token}",
+                    "User-Agent": f"Agoras/{__version__}",
+                },
+                files={"source": (filename, file_content, mime_type)},
+                data={
+                    "published": str(published).lower(),
+                    **({"message": message} if message else {}),
+                },
+                timeout=30,
+            )
+            response.raise_for_status()
+            return response.json()
+
+        return await asyncio.to_thread(_sync_upload_photo_file)
+
     async def like_post(self, object_id: str, post_id: str) -> str:
         """
         Like a Facebook post.
@@ -476,7 +528,7 @@ class FacebookAPIClient:
                     "User-Agent": f"Agoras/{__version__}",
                 },
                 data=video_content,
-                timeout=30,
+                timeout=_regular_video_upload_timeout(video_file_size),
             )
             upload_data_response.raise_for_status()
             file_handle = upload_data_response.json().get("h")

@@ -204,18 +204,25 @@ Text and Links
 Images
 ------
 
-* ``--image-1`` - First image URL (replaces ``--status-image-url-1``)
-* ``--image-2`` - Second image URL (replaces ``--status-image-url-2``)
-* ``--image-3`` - Third image URL (replaces ``--status-image-url-3``)
-* ``--image-4`` - Fourth image URL (replaces ``--status-image-url-4``)
+* ``--image-1`` - First image HTTP(s) URL, local path, or ``file://`` URI
+  (replaces ``--status-image-url-1``)
+* ``--image-2`` - Second image HTTP(s) URL, local path, or ``file://`` URI
+* ``--image-3`` - Third image HTTP(s) URL, local path, or ``file://`` URI
+* ``--image-4`` - Fourth image HTTP(s) URL, local path, or ``file://`` URI
 
 .. note::
    Not all platforms support 4 images. Check platform-specific documentation.
+   TikTok photo posts, Instagram stills/videos, and Threads reject local paths
+   (those APIs pull media from public URLs). Discord YAML ``embeds[].image_url``
+   remains HTTP(s)-only; ``--image-N`` / YAML ``images`` become attachments.
 
 Video
 -----
 
-* ``--video-url`` - URL of video file to upload (required for video actions)
+* ``--video-url`` - HTTP(s) URL, local path, or ``file://`` URI of the video
+  (required for video actions). CLI relative paths resolve against the process
+  working directory; YAML relative paths resolve against the content file
+  directory.
 * ``--video-title`` - Video title or caption
 * ``--video-description`` - Video description (YouTube, Facebook)
 * ``--video-caption`` - Video caption (Instagram)

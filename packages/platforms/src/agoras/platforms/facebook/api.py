@@ -206,6 +206,49 @@ class FacebookAPI(BaseAPI):
             self._handle_api_error(e, "Facebook media upload")
             raise
 
+    async def upload_photo_file(
+        self,
+        object_id: str,
+        file_content: bytes,
+        published: bool = True,
+        filename: str = "photo.jpg",
+        mime_type: str = "image/jpeg",
+        message: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Upload a local photo file to Facebook.
+
+        Args:
+            object_id (str): Facebook object ID
+            file_content (bytes): Raw image bytes
+            published (bool): Whether to publish immediately
+            filename (str): Multipart filename
+            mime_type (str): Image MIME type
+            message (str, optional): Caption/message for published photos
+
+        Returns:
+            dict: Photo upload response
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("Facebook API not authenticated")
+
+        await self._rate_limit_check("upload_photo_file", 1.0)
+
+        try:
+            return await self.client.upload_photo_file(
+                object_id,
+                file_content,
+                published=published,
+                filename=filename,
+                mime_type=mime_type,
+                message=message,
+            )
+        except Exception as e:
+            self._handle_api_error(e, "Facebook photo file upload")
+            raise
+
     async def like(self, object_id: str, post_id: str) -> str:
         """
         Like a Facebook post.

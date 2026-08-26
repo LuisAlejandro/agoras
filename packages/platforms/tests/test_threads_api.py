@@ -112,6 +112,34 @@ async def test_threads_api_create_post_with_images(
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.threads.api.MediaFactory')
+async def test_threads_api_create_post_rejects_local_image(mock_media_factory, threads_api):
+    """Local image paths are rejected before download or Threads API calls."""
+    with pytest.raises(
+        Exception,
+        match='Threads API does not support local file uploads',
+    ):
+        await threads_api.create_post('Test post', files=['/tmp/cat.jpg'])
+
+    mock_media_factory.download_images.assert_not_called()
+    threads_api.client.create_post.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.threads.api.MediaFactory')
+async def test_threads_api_create_video_post_rejects_local_video(mock_media_factory, threads_api):
+    """Local video paths are rejected before download or Threads API calls."""
+    with pytest.raises(
+        Exception,
+        match='Threads API does not support local file uploads',
+    ):
+        await threads_api.create_video_post('Video caption', '/tmp/clip.mp4')
+
+    mock_media_factory.create_video.assert_not_called()
+    threads_api.client.create_video_post.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.threads.api.MediaFactory')
 async def test_threads_api_post_wrapper(mock_media_factory, threads_api):
     """Test ThreadsAPI post wrapper method."""
     result = await threads_api.post('Test post text')

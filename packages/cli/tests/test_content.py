@@ -49,32 +49,93 @@ def test_reject_json_extension(tmp_path):
         load_content_file(path, "x", "post")
 
 
-def test_reject_local_path_media(tmp_path):
+def test_accept_local_path_media_resolved_against_yaml_dir(tmp_path):
+    media_dir = tmp_path / "videos"
+    media_dir.mkdir()
+    media_file = media_dir / "demo.mp4"
+    media_file.write_bytes(b"video")
+
+    posts_dir = tmp_path / "posts"
+    posts_dir.mkdir()
+    path = _write(
+        posts_dir,
+        "post.yaml",
+        """
+        version: 1
+        video_url: ../videos/demo.mp4
+        video_title: Clip
+        """,
+    )
+    payload = load_content_file(path, "x", "video")
+    assert payload["video_url"] == str(media_file.resolve())
+
+
+def test_thread_entry_relative_images_resolved_against_yaml_dir(tmp_path):
+    media_dir = tmp_path / "media"
+    media_dir.mkdir()
+    image_file = media_dir / "a.jpg"
+    image_file.write_bytes(b"jpeg")
+
+    posts_dir = tmp_path / "posts"
+    posts_dir.mkdir()
+    path = _write(
+        posts_dir,
+        "thread.yaml",
+        """
+        version: 1
+        entries:
+          - text: one
+          - images:
+              - ../media/a.jpg
+        """,
+    )
+    payload = load_content_file(path, "x", "thread")
+    assert payload["entries"][1]["image_1"] == str(image_file.resolve())
+
+
+def test_accept_file_scheme_resolved(tmp_path):
+    media_file = tmp_path / "a.jpg"
+    media_file.write_bytes(b"jpeg")
+    path = _write(
+        tmp_path,
+        "post.yaml",
+        f"""
+        version: 1
+        images:
+          - file://{media_file}
+        """,
+    )
+    payload = load_content_file(path, "instagram", "post")
+    assert payload["image_1"] == str(media_file.resolve())
+
+
+def test_reject_local_link(tmp_path):
     path = _write(
         tmp_path,
         "post.yaml",
         """
         version: 1
-        images:
-          - ./local.jpg
+        link: ./local.html
+        text: hi
         """,
     )
     with pytest.raises(ContentError, match="http\\(s\\) URL"):
         load_content_file(path, "x", "post")
 
 
-def test_reject_file_scheme(tmp_path):
+def test_reject_local_embed_image_url(tmp_path):
     path = _write(
         tmp_path,
         "post.yaml",
         """
         version: 1
-        images:
-          - file:///tmp/a.jpg
+        embeds:
+          - image_url: ./thumb.png
+        text: hi
         """,
     )
-    with pytest.raises(ContentError, match="http\\(s\\) URL"):
-        load_content_file(path, "instagram", "post")
+    with pytest.raises(ContentError, match="embeds\\[0\\]\\.image_url must be an absolute http\\(s\\) URL"):
+        load_content_file(path, "discord", "post")
 
 
 def test_reject_duplicate_keys():

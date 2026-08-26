@@ -557,3 +557,30 @@ async def test_facebook_client_upload_regular_video_falls_back_to_file_url(mock_
     assert fallback_call[1]["data"]["file_url"] == "https://example.com/video.mp4"
     assert fallback_call[1]["data"]["title"] == "Video Title"
     assert fallback_call[1]["data"]["description"] == "Video description"
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.facebook.client.requests.post")
+async def test_facebook_client_upload_photo_file(mock_requests_post):
+    """Test FacebookAPIClient upload_photo_file multipart source upload."""
+    mock_response = MagicMock()
+    mock_response.raise_for_status.return_value = None
+    mock_response.json.return_value = {"id": "photo-1", "post_id": "post-123"}
+    mock_requests_post.return_value = mock_response
+
+    client = FacebookAPIClient("page-token")
+    result = await client.upload_photo_file(
+        object_id="page123",
+        file_content=b"jpeg-bytes",
+        published=True,
+        filename="photo.jpg",
+        mime_type="image/jpeg",
+        message="caption",
+    )
+
+    assert result["id"] == "photo-1"
+    mock_requests_post.assert_called_once()
+    call_kwargs = mock_requests_post.call_args.kwargs
+    assert call_kwargs["files"]["source"] == ("photo.jpg", b"jpeg-bytes", "image/jpeg")
+    assert call_kwargs["data"]["published"] == "true"
+    assert call_kwargs["data"]["message"] == "caption"

@@ -175,6 +175,60 @@ async def test_instagram_post(mock_auth_manager_class, mock_api_class):
 @pytest.mark.asyncio
 @patch("agoras.platforms.instagram.wrapper.InstagramAPI")
 @patch("agoras.platforms.instagram.auth.InstagramAuthManager")
+async def test_instagram_post_rejects_local_image(mock_auth_manager_class, mock_api_class):
+    """Local image paths are rejected before download or Instagram API calls."""
+    configure_instagram_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    instagram = Instagram(**INSTAGRAM_KWARGS)
+
+    await instagram._initialize_client()
+
+    with patch.object(instagram, "download_images", new_callable=AsyncMock) as mock_download:
+        with pytest.raises(
+            Exception,
+            match="Instagram publishing does not support local file uploads",
+        ):
+            await instagram.post(
+                "Hello Instagram",
+                "http://link.com",
+                status_image_url_1="/tmp/cat.jpg",
+            )
+
+    mock_download.assert_not_called()
+    mock_api.create_media.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
+async def test_instagram_video_rejects_local_video(mock_auth_manager_class, mock_api_class):
+    """Local video paths are rejected before download or Instagram API calls."""
+    configure_instagram_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    instagram = Instagram(**INSTAGRAM_KWARGS)
+
+    await instagram._initialize_client()
+
+    with patch.object(instagram, "download_video", new_callable=AsyncMock) as mock_download:
+        with pytest.raises(
+            Exception,
+            match="Instagram publishing does not support local file uploads",
+        ):
+            await instagram.video("Video text", "/tmp/clip.mp4", "Video Title")
+
+    mock_download.assert_not_called()
+    mock_api.create_media.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
 async def test_instagram_like_not_supported(mock_auth_manager_class, mock_api_class):
     """Test Instagram like is not supported."""
     configure_instagram_auth_mock(mock_auth_manager_class)
@@ -414,7 +468,7 @@ async def test_instagram_video_invalid_mime(mock_auth_manager_class, mock_api_cl
         from agoras.media.errors import MediaValidationError
 
         with pytest.raises(MediaValidationError, match="instagram"):
-            await instagram.video("text", "url", "title")
+            await instagram.video("text", "http://video.example/clip.avi", "title")
 
 
 @pytest.mark.parametrize(

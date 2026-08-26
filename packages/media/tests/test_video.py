@@ -111,7 +111,7 @@ def test_get_duration_before_download():
 def test_get_duration_valid_video(mock_capture):
     """Test get_duration with valid video."""
     mock_cap = MagicMock()
-    mock_cap.get.side_effect = [30.0, 900.0]  # fps=30, frame_count=900
+    mock_cap.get.side_effect = [30.0, 900.0, 640, 480]  # fps, frames, width, height
     mock_capture.return_value = mock_cap
 
     video = Video('https://example.com/video.mp4')
@@ -128,7 +128,7 @@ def test_get_duration_valid_video(mock_capture):
 def test_get_duration_zero_fps(mock_capture):
     """Test get_duration with zero fps returns None."""
     mock_cap = MagicMock()
-    mock_cap.get.side_effect = [0.0, 900.0]  # fps=0, frame_count=900
+    mock_cap.get.side_effect = [0.0, 900.0, 640, 480]  # fps=0, frame_count=900
     mock_capture.return_value = mock_cap
 
     video = Video('https://example.com/video.mp4')
@@ -172,7 +172,7 @@ def test_get_duration_no_temp_file(mock_capture):
 def test_validate_content_exceeds_max_duration(mock_capture, mock_cleanup):
     """Test _validate_content rejects videos over platform max duration."""
     mock_cap = MagicMock()
-    mock_cap.get.side_effect = [30.0, 30.0 * 700]
+    mock_cap.get.side_effect = [30.0, 30.0 * 700, 640, 480]
     mock_capture.return_value = mock_cap
 
     video = MediaFactory.create_video('https://example.com/video.mp4', 'tiktok')
@@ -191,7 +191,7 @@ def test_validate_content_exceeds_max_duration(mock_capture, mock_cleanup):
 def test_validate_content_below_min_duration(mock_capture, mock_cleanup):
     """Test _validate_content rejects videos under platform min duration."""
     mock_cap = MagicMock()
-    mock_cap.get.side_effect = [30.0, 60.0]
+    mock_cap.get.side_effect = [30.0, 60.0, 640, 480]
     mock_capture.return_value = mock_cap
 
     video = MediaFactory.create_video('https://example.com/video.mp4', 'tiktok')

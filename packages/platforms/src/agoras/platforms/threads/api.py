@@ -24,6 +24,7 @@ from agoras.core.api_base import BaseAPI
 from agoras.core.auth import raise_authentication_error_from_manager
 from agoras.media import MediaFactory
 from agoras.media.errors import MediaValidationError
+from agoras.media.paths import is_local_media_source
 
 from .auth import ThreadsAuthManager
 
@@ -260,6 +261,12 @@ class ThreadsAPI(BaseAPI):
         images = []
 
         if files:
+            for file_url in files:
+                if file_url and is_local_media_source(file_url):
+                    raise Exception(
+                        "Threads API does not support local file uploads; "
+                        "a publicly accessible HTTP(s) URL is required."
+                    )
             validated_files, validated_captions, images = await self._validate_and_download_images(files, file_captions)
 
         def _sync_create_post():
@@ -322,6 +329,11 @@ class ThreadsAPI(BaseAPI):
 
         if not video_url:
             raise Exception("Video URL is required")
+
+        if is_local_media_source(video_url):
+            raise Exception(
+                "Threads API does not support local file uploads; a publicly accessible HTTP(s) URL is required."
+            )
 
         await self._rate_limit_check("create_video_post", 2.0)
 

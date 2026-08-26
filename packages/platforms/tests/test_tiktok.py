@@ -229,6 +229,41 @@ async def test_tiktok_post(mock_api_class, mock_preflight):
 
 
 @pytest.mark.asyncio
+@patch("agoras.platforms.tiktok.wrapper.TikTokAPI")
+async def test_tiktok_post_rejects_local_image(mock_api_class):
+    """Local image paths are rejected before download or TikTok API calls."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    tiktok = TikTok(
+        tiktok_client_key="key",
+        tiktok_client_secret="secret",
+        tiktok_access_token="token",
+        tiktok_username="testuser",
+        tiktok_refresh_token="refresh",
+    )
+
+    await tiktok._initialize_client()
+    tiktok.tiktok_allow_duet = False
+    tiktok.tiktok_allow_stitch = False
+
+    with patch.object(tiktok, "download_images", new_callable=AsyncMock) as mock_download:
+        with pytest.raises(
+            Exception,
+            match="TikTok photo publishing does not support local file uploads",
+        ):
+            await tiktok.post(
+                "Hello TikTok",
+                "http://link.com",
+                status_image_url_1="/tmp/cat.jpg",
+            )
+
+    mock_download.assert_not_called()
+    mock_api.upload_photo.assert_not_called()
+
+
+@pytest.mark.asyncio
 @patch("agoras.media.preflight.preflight_url_for_platform")
 @patch("agoras.platforms.tiktok.wrapper.TikTokAPI")
 async def test_tiktok_post_with_description(mock_api_class, mock_preflight):
@@ -395,6 +430,7 @@ async def test_tiktok_video(mock_api_class):
         mock_file_type.mime = "video/mp4"
         mock_video.file_type = mock_file_type
         mock_video.url = "http://video.mp4"
+        mock_video._is_local = False
         mock_video.cleanup = MagicMock()
         mock_video.get_duration = MagicMock(return_value=None)  # Skip duration check
         mock_download.return_value = mock_video
@@ -405,6 +441,94 @@ async def test_tiktok_video(mock_api_class):
 
     assert result == "video-456"
     mock_api.upload_video.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.tiktok.wrapper.TikTokAPI")
+async def test_tiktok_video_local_file_uses_file_upload(mock_api_class):
+    """Local video paths use FILE_UPLOAD instead of PULL_FROM_URL."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.upload_video_file = AsyncMock(return_value={"publish_id": "video-local"})
+    mock_api_class.return_value = mock_api
+
+    tiktok = TikTok(
+        tiktok_client_key="key",
+        tiktok_client_secret="secret",
+        tiktok_access_token="token",
+        tiktok_username="testuser",
+        tiktok_refresh_token="refresh",
+    )
+
+    await tiktok._initialize_client()
+    _wire_creator_info(mock_api)
+
+    local_path = "/tmp/test.mp4"
+    with patch.object(tiktok, "download_video", new_callable=AsyncMock) as mock_download:
+        mock_video = MagicMock()
+        mock_video.content = b"video_content"
+        mock_file_type = MagicMock()
+        mock_file_type.mime = "video/mp4"
+        mock_video.file_type = mock_file_type
+        mock_video.url = local_path
+        mock_video._is_local = True
+        mock_video.cleanup = MagicMock()
+        mock_video.get_duration = MagicMock(return_value=None)
+        mock_download.return_value = mock_video
+
+        with patch.object(tiktok, "_output_status"):
+            with patch("builtins.print"):
+                result = await tiktok.video("Video description", local_path, "Video Title")
+
+    assert result == "video-local"
+    mock_api.upload_video_file.assert_called_once()
+    mock_api.upload_video.assert_not_called()
+    call_args = mock_api.upload_video_file.call_args[0]
+    assert call_args[0] == b"video_content"
+    assert call_args[1] == "Video Title"
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.tiktok.wrapper.TikTokAPI")
+async def test_tiktok_video_http_url_uses_pull_from_url(mock_api_class):
+    """Remote HTTP URLs still use PULL_FROM_URL upload_video."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.upload_video = AsyncMock(return_value={"publish_id": "video-remote"})
+    mock_api_class.return_value = mock_api
+
+    tiktok = TikTok(
+        tiktok_client_key="key",
+        tiktok_client_secret="secret",
+        tiktok_access_token="token",
+        tiktok_username="testuser",
+        tiktok_refresh_token="refresh",
+    )
+
+    await tiktok._initialize_client()
+    _wire_creator_info(mock_api)
+
+    remote_url = "https://example.com/test.mp4"
+    with patch.object(tiktok, "download_video", new_callable=AsyncMock) as mock_download:
+        mock_video = MagicMock()
+        mock_video.content = b"video_content"
+        mock_file_type = MagicMock()
+        mock_file_type.mime = "video/mp4"
+        mock_video.file_type = mock_file_type
+        mock_video.url = remote_url
+        mock_video._is_local = False
+        mock_video.cleanup = MagicMock()
+        mock_video.get_duration = MagicMock(return_value=None)
+        mock_download.return_value = mock_video
+
+        with patch.object(tiktok, "_output_status"):
+            with patch("builtins.print"):
+                result = await tiktok.video("Video description", remote_url, "Video Title")
+
+    assert result == "video-remote"
+    mock_api.upload_video.assert_called_once()
+    mock_api.upload_video_file.assert_not_called()
+    assert mock_api.upload_video.call_args[0][0] == remote_url
 
 
 @pytest.mark.asyncio
@@ -450,24 +574,35 @@ async def test_tiktok_video_with_privacy_settings(mock_api_class):
         tiktok_privacy_status="PUBLIC_TO_EVERYONE",
         tiktok_allow_duet=True,
         tiktok_allow_stitch=True,
+        action="video",
     )
 
     await tiktok._initialize_client()
+    _wire_creator_info(mock_api)
+    payload = _composer_payload(
+        title="Title",
+        privacy_level="PUBLIC_TO_EVERYONE",
+        allow_duet=True,
+        allow_stitch=True,
+    )
 
-    with patch.object(tiktok, "download_video", new_callable=AsyncMock) as mock_download:
-        mock_video = MagicMock()
-        mock_video.content = b"video_content"
-        mock_file_type = MagicMock()
-        mock_file_type.mime = "video/mp4"
-        mock_video.file_type = mock_file_type
-        mock_video.url = "http://video.mp4"
-        mock_video.cleanup = MagicMock()
-        mock_video.get_duration = MagicMock(return_value=None)
-        mock_download.return_value = mock_video
+    with patch.object(tiktok, "_should_open_composer", return_value=True):
+        with patch.object(tiktok, "_open_composer", return_value=payload):
+            with patch.object(tiktok, "download_video", new_callable=AsyncMock) as mock_download:
+                mock_video = MagicMock()
+                mock_video.content = b"video_content"
+                mock_file_type = MagicMock()
+                mock_file_type.mime = "video/mp4"
+                mock_video.file_type = mock_file_type
+                mock_video.url = "http://video.mp4"
+                mock_video._is_local = False
+                mock_video.cleanup = MagicMock()
+                mock_video.get_duration = MagicMock(return_value=None)
+                mock_download.return_value = mock_video
 
-        with patch.object(tiktok, "_output_status"):
-            with patch("builtins.print"):
-                result = await tiktok.video("Description", "http://video.mp4", "Title")
+                with patch.object(tiktok, "_output_status"):
+                    with patch("builtins.print"):
+                        result = await tiktok.video("Description", "http://video.mp4", "Title")
 
     assert result == "video-456"
     call_args = mock_api.upload_video.call_args
@@ -508,6 +643,7 @@ async def test_tiktok_unattended_public_privacy_fail_closed(mock_api_class):
         mock_file_type.mime = "video/mp4"
         mock_video.file_type = mock_file_type
         mock_video.url = "http://video.mp4"
+        mock_video._is_local = False
         mock_video.cleanup = MagicMock()
         mock_video.get_duration = MagicMock(return_value=None)
         mock_download.return_value = mock_video
@@ -840,6 +976,7 @@ def _mock_downloaded_video():
     mock_video.content = b"video_content"
     mock_video.file_type = MagicMock(mime="video/mp4")
     mock_video.url = "http://video.mp4"
+    mock_video._is_local = False
     mock_video.cleanup = MagicMock()
     mock_video.get_duration = MagicMock(return_value=10)
     return mock_video
