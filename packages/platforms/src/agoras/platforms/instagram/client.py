@@ -225,9 +225,7 @@ class InstagramAPIClient:
             return uri
         return f"https://rupload.facebook.com/ig-api-upload/v{self.api_version}/{container_id}"
 
-    def upload_resumable_video(
-        self, container_id: str, video_content: bytes, upload_uri: Optional[str] = None
-    ) -> None:
+    def upload_resumable_video(self, container_id: str, video_content: bytes, upload_uri: Optional[str] = None) -> None:
         """POST local video bytes to rupload.facebook.com for a resumable container."""
         if not video_content:
             raise Exception("Video file is empty")
