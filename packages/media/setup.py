@@ -19,7 +19,7 @@
 
 from setuptools import find_namespace_packages, setup
 
-version = '2.1.2'
+version = '2.2.0'
 
 setup(
     name='agoras-media',

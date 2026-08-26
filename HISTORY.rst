@@ -2,23 +2,28 @@ Changelog
 ============
 
 
-2.1.2 (2026-08-25)
+2.2.0 (2026-08-26)
 ------------
 
 Added
 ~~~~~~~~~~~~
 
+* Instagram local video via rupload. [Luis Alejandro Martínez Faneyth]
+
 * Share-to-TikTok composer for interactive posts. [Luis Alejandro Martínez Faneyth]
 
+* Local file and file:// media support. [Luis Alejandro Martínez Faneyth]
 
-Other
+* YAML content files and native threads. [Luis Alejandro Martínez Faneyth]
+
+* Document gitchangelog commit tags in MAINTAINER. [Luis Alejandro Martínez Faneyth]
+
+
+Changed
 ~~~~~~~~~~~~
 
-* Fix TikTok composer lint, Semgrep, and Pyright for PR CI. [Cursor Agent]
+* Request TikTok video.publish OAuth scopes. [Luis Alejandro Martínez Faneyth]
 
-
-2.1.1 (2026-08-14)
-------------
 
 Fixed
 ~~~~~~~~~~~~
@@ -29,9 +34,21 @@ Fixed
 
 * Rename root dist to agoras-meta and ship text_limits data file. [Luis Alejandro Martínez Faneyth]
 
+* Retry transient GitHub API errors in PR auto-merge. [Luis Alejandro Martínez Faneyth]
+
+* Use top-level getOctokit in pr-auto-merge updateBranch step. [Luis Alejandro Martínez Faneyth]
+
 
 Other
 ~~~~~~~~~~~~
+
+* Fix: ruff format upload_resumable_video signature. [Cursor Agent]
+
+* Fix(ci): satisfy Ruff format and Bandit B113 on local media upload paths. [Cursor Agent]
+
+* Fix TikTok composer lint, Semgrep, and Pyright for PR CI. [Cursor Agent]
+
+* Merge develop into feature/local-media-support. [Luis Alejandro Martínez Faneyth]
 
 * Chore(deps): sync Pillow>=12.3.0 across packages via sync_package_deps. [Cursor Agent]
 
@@ -43,30 +60,9 @@ Other
 
 * Chore(deps): align google-auth 2.56.2 across packages/platforms and root. [Cursor Agent]
 
-
-2.1.0 (2026-08-07)
-------------
-
-Added
-~~~~~~~~~~~~
-
-* YAML content files and native threads. [Luis Alejandro Martínez Faneyth]
-
-* Document gitchangelog commit tags in MAINTAINER. [Luis Alejandro Martínez Faneyth]
-
-
-Fixed
-~~~~~~~~~~~~
-
-* Retry transient GitHub API errors in PR auto-merge. [Luis Alejandro Martínez Faneyth]
-
-* Use top-level getOctokit in pr-auto-merge updateBranch step. [Luis Alejandro Martínez Faneyth]
-
-
-Other
-~~~~~~~~~~~~
-
 * Fix(core): align google-auth with platforms bump to 2.56.2. [Cursor Agent]
+
+* Update. [Luis Alejandro Martínez Faneyth]
 
 * Fix(x): drop duplicate tweet validation after rebase. [Luis Alejandro Martínez Faneyth]
 
@@ -89,8 +85,6 @@ Other
 * Chore: apply rosey-maintainer fleet sync. [Luis Alejandro Martínez Faneyth]
 
 * Chore: update gitignore. [Luis Alejandro Martínez Faneyth]
-
-* Update. [Luis Alejandro Martínez Faneyth]
 
 * Fix(deps): pin sphinx by Python version for unit test matrix. [Cursor Agent]
 
@@ -124,30 +118,9 @@ Other
 
 * Formatting nits. [Luis Alejandro Martínez Faneyth]
 
-
-2.0.5 (2026-06-24)
-------------
-
-Other
-~~~~~~~~~~~~
-
 * Updating readthedocs generation. [Luis Alejandro Martínez Faneyth]
 
-
-2.0.4 (2026-06-24)
-------------
-
-Other
-~~~~~~~~~~~~
-
 * Updating readthedocs generation. [Luis Alejandro Martínez Faneyth]
-
-
-2.0.3 (2026-06-23)
-------------
-
-Other
-~~~~~~~~~~~~
 
 * Chore: export BASH_ENV in Makefile for bash recipe env. [Luis Alejandro Martínez Faneyth]
 
@@ -162,13 +135,6 @@ Other
 * Chore(deps-dev): bump pytest-asyncio to 1.4.0 for pytest 9.x compatibility. [Cursor Agent]
 
 * Improving dependency resolution robustness. [Luis Alejandro Martínez Faneyth]
-
-
-2.0.2 (2026-06-23)
-------------
-
-Other
-~~~~~~~~~~~~
 
 * Chore: sync MAINTAINER CI notes and lib.sh manifest to 0.4.3. [Luis Alejandro Martínez Faneyth]
 
@@ -232,21 +198,7 @@ Other
 
 * Improving release documentation and maintainer scripts. [Luis Alejandro Martínez Faneyth]
 
-
-2.0.1 (2026-06-15)
-------------
-
-Other
-~~~~~~~~~~~~
-
 * Updating documentation. [Luis Alejandro Martínez Faneyth]
-
-
-2.0.0 (2026-06-15)
-------------
-
-Other
-~~~~~~~~~~~~
 
 * Fixing release scripts. [Luis Alejandro Martínez Faneyth]
 
