@@ -50,6 +50,10 @@ class Facebook(SocialNetwork):
                 - facebook_profile_id: Facebook profile ID
                 - facebook_app_id: Facebook app ID
         """
+        # Map platform-specific key to generic key for core interface compatibility
+        if "facebook_post_id" in kwargs:
+            kwargs["post_id"] = kwargs["facebook_post_id"]
+
         super().__init__(**kwargs)
         self.facebook_access_token = None
         self.facebook_client_id = None
@@ -407,6 +411,57 @@ class Facebook(SocialNetwork):
 
         self._output_status(post_id)
         return post_id
+
+    async def reply(
+        self,
+        post_id,
+        text,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+        video_url=None,
+    ):
+        """
+        Comment on a Facebook post with optional single image.
+
+        Args:
+            post_id (str): ID of the Facebook post to comment on
+            text (str): Comment text
+            status_image_url_1 (str, optional): First image URL
+            status_image_url_2 (str, optional): Second image URL
+            status_image_url_3 (str, optional): Third image URL
+            status_image_url_4 (str, optional): Fourth image URL
+            video_url (str, optional): URL of a video to attach. Facebook
+                comments do not support video; providing one raises.
+
+        Returns:
+            str: Comment ID
+        """
+        if not self.api:
+            raise Exception("Facebook API not initialized")
+
+        if not post_id:
+            raise Exception("Facebook post ID is required for reply action.")
+
+        if video_url:
+            raise Exception("Video not supported in Facebook comments.")
+
+        source_media = list(
+            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        )
+
+        if not source_media and not text:
+            raise Exception("No reply text or media provided.")
+
+        validate_text("facebook", "message", text or "")
+
+        # Facebook comments support a single image; use the first and ignore the rest.
+        image_url = source_media[0] if source_media else None
+
+        result = await self.api.reply(post_id, text, image_url=image_url)
+        self._output_status(result)
+        return result
 
     async def like(self, facebook_post_id=None):
         """

@@ -77,6 +77,14 @@ def create_discord_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     )
     _add_post_id_option(delete)
 
+    # Reply action
+    reply = actions.add_parser(
+        "reply", help='Reply to a Discord message. Requires prior authorization via "agoras discord authorize".'
+    )
+    _add_post_id_option(reply)
+    add_common_content_options(reply, images=4)
+    add_video_options(reply, platform="discord", with_content_file=False)
+
     # Set handler
     parser.set_defaults(command=_handle_discord_command)
 

@@ -120,6 +120,30 @@ class FacebookAPIClient:
         except Exception as e:
             raise Exception(f"Facebook post_object failed: {str(e)}")
 
+    async def create_comment(self, post_id: str, text: str, image_url: Optional[str] = None) -> str:
+        """
+        Comment on a Facebook post.
+
+        Args:
+            post_id (str): Facebook post ID to comment on
+            text (str): Comment text
+            image_url (str, optional): Image URL to attach to the comment
+
+        Returns:
+            str: Comment ID
+
+        Raises:
+            Exception: If comment fails
+        """
+        data: Dict[str, Any] = {"message": text}
+        if image_url:
+            data["attachment_url"] = image_url
+        response = self.post_object(post_id, connection="comments", data=data)
+        comment_id = response.get("id")
+        if not comment_id:
+            raise Exception("Invalid response from Facebook API: missing comment id")
+        return str(comment_id)
+
     def delete_object(self, object_id: str) -> None:
         """
         Delete a Facebook object using GraphAPI.

@@ -285,6 +285,182 @@ async def test_linkedin_delete(mock_auth_manager_class, mock_api_class):
 @pytest.mark.asyncio
 @patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
 @patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
+async def test_linkedin_reply(mock_auth_manager_class, mock_api_class):
+    """Test LinkedIn reply method."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.reply = AsyncMock(return_value="comment-123")
+    mock_api_class.return_value = mock_api
+
+    linkedin = LinkedIn(**LINKEDIN_KWARGS)
+
+    await linkedin._initialize_client()
+
+    with patch.object(linkedin, "_output_status"):
+        result = await linkedin.reply("post-123", "A comment")
+
+    assert result == "comment-123"
+    mock_api.reply.assert_called_once_with("post-123", "A comment", image_ids=[])
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
+async def test_linkedin_reply_missing_post_id(mock_auth_manager_class, mock_api_class):
+    """Test LinkedIn reply raises when post ID missing."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.reply = AsyncMock(return_value="comment-123")
+    mock_api_class.return_value = mock_api
+
+    linkedin = LinkedIn(**LINKEDIN_KWARGS)
+
+    await linkedin._initialize_client()
+
+    with pytest.raises(Exception, match="LinkedIn post ID is required"):
+        await linkedin.reply(None, "A comment")
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
+async def test_linkedin_reply_missing_text(mock_auth_manager_class, mock_api_class):
+    """Test LinkedIn reply raises when reply text missing."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.reply = AsyncMock(return_value="comment-123")
+    mock_api_class.return_value = mock_api
+
+    linkedin = LinkedIn(**LINKEDIN_KWARGS)
+
+    await linkedin._initialize_client()
+
+    with pytest.raises(Exception, match="LinkedIn reply text or image is required"):
+        await linkedin.reply("post-123", None)
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
+async def test_linkedin_reply_with_image(mock_auth_manager_class, mock_api_class):
+    """Test LinkedIn reply uploads an image and posts a comment with it."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.upload_image = AsyncMock(return_value="urn:li:image:img1")
+    mock_api.reply = AsyncMock(return_value="comment-123")
+    mock_api_class.return_value = mock_api
+
+    linkedin = LinkedIn(**LINKEDIN_KWARGS)
+    await linkedin._initialize_client()
+
+    mock_media = MagicMock()
+    mock_media.content = b"jpeg"
+    mock_media.url = "http://example.com/image.jpg"
+    mock_media.cleanup = MagicMock()
+
+    with (
+        patch.object(linkedin, "download_images", new_callable=AsyncMock, return_value=[mock_media]),
+        patch.object(linkedin, "_output_status"),
+    ):
+        result = await linkedin.reply("post-123", "A comment", status_image_url_1="http://example.com/image.jpg")
+
+    assert result == "comment-123"
+    mock_api.upload_image.assert_called_once_with(b"jpeg")
+    mock_api.reply.assert_called_once_with("post-123", "A comment", image_ids=["urn:li:image:img1"])
+    mock_media.cleanup.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
+async def test_linkedin_reply_with_video_raises(mock_auth_manager_class, mock_api_class):
+    """Test LinkedIn reply raises when a video is provided."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.reply = AsyncMock(return_value="comment-123")
+    mock_api_class.return_value = mock_api
+
+    linkedin = LinkedIn(**LINKEDIN_KWARGS)
+    await linkedin._initialize_client()
+
+    with pytest.raises(Exception, match="Video not supported in LinkedIn comments"):
+        await linkedin.reply("post-123", "A comment", video_url="http://example.com/video.mp4")
+
+    mock_api.reply.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
+async def test_linkedin_handle_reply_action(mock_auth_manager_class, mock_api_class):
+    """Test LinkedIn _handle_reply_action uses the shared base handler with the post_id remap."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.reply = AsyncMock(return_value="comment-123")
+    mock_api_class.return_value = mock_api
+
+    linkedin = LinkedIn(**{**LINKEDIN_KWARGS, "linkedin_post_id": "post-123", "status_text": "A comment"})
+
+    await linkedin._initialize_client()
+
+    with patch.object(linkedin, "reply", new_callable=AsyncMock) as mock_reply:
+        await linkedin._handle_reply_action()
+        mock_reply.assert_called_once_with(
+            "post-123",
+            "A comment",
+            status_image_url_1=None,
+            status_image_url_2=None,
+            status_image_url_3=None,
+            status_image_url_4=None,
+            video_url=None,
+        )
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
+async def test_linkedin_handle_reply_action_missing_post_id(mock_auth_manager_class, mock_api_class):
+    """Test LinkedIn _handle_reply_action raises when post_id missing."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    linkedin = LinkedIn(**{**LINKEDIN_KWARGS, "status_text": "A comment"})
+
+    await linkedin._initialize_client()
+
+    with pytest.raises(Exception, match="LinkedIn post ID is required"):
+        await linkedin._handle_reply_action()
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
+async def test_linkedin_handle_reply_action_missing_text(mock_auth_manager_class, mock_api_class):
+    """Test LinkedIn _handle_reply_action raises when text missing."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    linkedin = LinkedIn(**{**LINKEDIN_KWARGS, "linkedin_post_id": "post-123"})
+
+    await linkedin._initialize_client()
+
+    with pytest.raises(Exception, match="LinkedIn reply text or image is required"):
+        await linkedin._handle_reply_action()
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
 async def test_linkedin_video(mock_auth_manager_class, mock_api_class):
     """Test LinkedIn video method uploads and posts."""
     configure_linkedin_auth_mock(mock_auth_manager_class)

@@ -7,7 +7,6 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -17,7 +16,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
 
 from agoras.platforms.instagram.client import InstagramAPIClient, _resumable_upload_timeout
@@ -109,3 +107,82 @@ async def test_create_resumable_video_rejects_empty_bytes(mock_graph_api_class):
 
     with pytest.raises(Exception, match="Video file is empty"):
         await client.create_resumable_video("ig-user-1", b"")
+
+
+@patch("agoras.platforms.instagram.client.GraphAPI")
+async def test_instagram_client_create_comment(mock_graph_api_class):
+    """Test InstagramAPIClient create_comment targets the comments connection."""
+    mock_graph_api = MagicMock()
+    mock_graph_api.post_object.return_value = {"id": "comment-123"}
+    mock_graph_api_class.return_value = mock_graph_api
+
+    client = InstagramAPIClient("access_token")
+    client.graph_api = mock_graph_api
+    client._authenticated = True
+
+    result = await client.create_comment("media-123", "A comment")
+
+    assert result == "comment-123"
+    mock_graph_api.post_object.assert_called_once_with(
+        object_id="media-123", connection="comments", data={"message": "A comment"}
+    )
+
+
+@patch("agoras.platforms.instagram.client.GraphAPI")
+async def test_instagram_client_create_comment_missing_id_raises(mock_graph_api_class):
+    """Test InstagramAPIClient create_comment raises when response lacks an id."""
+    mock_graph_api = MagicMock()
+    mock_graph_api.post_object.return_value = {}
+    mock_graph_api_class.return_value = mock_graph_api
+
+    client = InstagramAPIClient("access_token")
+    client.graph_api = mock_graph_api
+    client._authenticated = True
+
+    with pytest.raises(Exception, match="Invalid response from Instagram API: missing comment id"):
+        await client.create_comment("media-123", "A comment")
+
+
+@patch("agoras.platforms.instagram.client.GraphAPI")
+async def test_instagram_client_create_comment_missing_id_raises(mock_graph_api_class):
+    """Test InstagramAPIClient create_comment raises when response lacks an id."""
+    mock_graph_api = MagicMock()
+    mock_graph_api.post_object.return_value = {}
+    mock_graph_api_class.return_value = mock_graph_api
+
+    client = InstagramAPIClient("access_token")
+    client.graph_api = mock_graph_api
+    client._authenticated = True
+
+    with pytest.raises(Exception, match="Invalid response from Instagram API: missing comment id"):
+        await client.create_comment("media-123", "A comment")
+
+
+@patch("agoras.platforms.instagram.client.GraphAPI")
+async def test_instagram_client_create_comment_missing_id_raises(mock_graph_api_class):
+    """Test InstagramAPIClient create_comment raises when response lacks an id."""
+    mock_graph_api = MagicMock()
+    mock_graph_api.post_object.return_value = {}
+    mock_graph_api_class.return_value = mock_graph_api
+
+    client = InstagramAPIClient("access_token")
+    client.graph_api = mock_graph_api
+    client._authenticated = True
+
+    with pytest.raises(Exception, match="Invalid response from Instagram API: missing comment id"):
+        await client.create_comment("media-123", "A comment")
+
+
+@patch("agoras.platforms.instagram.client.GraphAPI")
+async def test_instagram_client_create_comment_missing_id_raises(mock_graph_api_class):
+    """Test InstagramAPIClient create_comment raises when response lacks an id."""
+    mock_graph_api = MagicMock()
+    mock_graph_api.post_object.return_value = {}
+    mock_graph_api_class.return_value = mock_graph_api
+
+    client = InstagramAPIClient("access_token")
+    client.graph_api = mock_graph_api
+    client._authenticated = True
+
+    with pytest.raises(Exception, match="Invalid response from Instagram API: missing comment id"):
+        await client.create_comment("media-123", "A comment")

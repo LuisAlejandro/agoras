@@ -92,5 +92,5 @@ def test_get_supported_actions():
     actions = ActionValidator.get_supported_actions('twitter')
 
     assert set(actions) == {
-        'authorize', 'post', 'video', 'like', 'share', 'delete', 'thread',
+        'authorize', 'post', 'video', 'like', 'share', 'delete', 'thread', 'reply',
     }

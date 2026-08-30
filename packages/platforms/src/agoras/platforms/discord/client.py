@@ -289,6 +289,64 @@ class DiscordAPIClient:
             error_msg = f"Discord send message failed: {str(e)}"
             raise Exception(error_msg) from e
 
+    async def send_reply(
+        self,
+        message_id: str,
+        content: Optional[str] = None,
+        embeds: Optional[List[discord.Embed]] = None,
+        file: Optional[discord.File] = None,
+        files: Optional[List[discord.File]] = None,
+    ) -> str:
+        """
+        Send a reply message to a target message in the configured channel.
+
+        Uses ``channel.send(reference=MessageReference(message_id=...))`` so the
+        reply targets a message in the configured channel without an extra fetch.
+
+        Args:
+            message_id (str): ID of the message to reply to
+            content (str, optional): Text content of the reply
+            embeds (list, optional): List of Discord embeds
+            file (discord.File, optional): Single file to attach
+            files (list, optional): Multiple files to attach
+
+        Returns:
+            str: Reply message ID
+
+        Raises:
+            Exception: If reply sending fails
+        """
+        if not self._authenticated:
+            raise Exception("Discord client not authenticated")
+
+        if not self.client:
+            raise Exception("Discord client not available")
+
+        try:
+            try:
+                message_id_int = int(message_id)
+            except (TypeError, ValueError):
+                raise Exception(f"Invalid Discord message ID to reply to: {message_id!r}")
+            channel = self._get_channel()
+            reference = discord.MessageReference(message_id=message_id_int, channel_id=channel.id)
+
+            kwargs = {}
+            if content is not None:
+                kwargs["content"] = content
+            if embeds is not None:
+                kwargs["embeds"] = embeds
+            if files is not None:
+                kwargs["files"] = files
+            elif file is not None:
+                kwargs["file"] = file
+            kwargs["reference"] = reference
+
+            message = await channel.send(**kwargs)
+            return str(message.id)
+        except Exception as e:
+            error_msg = f"Discord send reply failed: {str(e)}"
+            raise Exception(error_msg) from e
+
     async def create_public_thread(
         self,
         message_id: str,

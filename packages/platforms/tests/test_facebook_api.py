@@ -120,6 +120,32 @@ async def test_facebook_api_like(facebook_api):
     assert result is not None
 
 
+# Reply Tests
+
+@pytest.mark.asyncio
+async def test_facebook_api_reply(facebook_api):
+    """Test FacebookAPI reply method."""
+    facebook_api.client.create_comment = AsyncMock(return_value='comment-123')
+
+    result = await facebook_api.reply('post-123', 'A comment')
+
+    assert result == 'comment-123'
+    facebook_api.client.create_comment.assert_called_once_with('post-123', 'A comment', image_url=None)
+
+
+@pytest.mark.asyncio
+async def test_facebook_api_reply_with_image(facebook_api):
+    """Test FacebookAPI reply passes image_url to the client."""
+    facebook_api.client.create_comment = AsyncMock(return_value='comment-123')
+
+    result = await facebook_api.reply('post-123', 'A comment', image_url='http://example.com/a.jpg')
+
+    assert result == 'comment-123'
+    facebook_api.client.create_comment.assert_called_once_with(
+        'post-123', 'A comment', image_url='http://example.com/a.jpg'
+    )
+
+
 # Share Tests
 
 @pytest.mark.asyncio

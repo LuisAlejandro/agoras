@@ -219,6 +219,35 @@ class XAPI(BaseAPI):
             self._handle_api_error(e, "X like")
             raise
 
+    async def reply(
+        self, text: str, media_ids: Optional[List[str]] = None, in_reply_to_tweet_id: Optional[str] = None
+    ) -> str:
+        """
+        Reply to a tweet.
+
+        Args:
+            text (str): Reply text content
+            media_ids (list, optional): List of media IDs
+            in_reply_to_tweet_id (str): Parent tweet ID to reply to
+
+        Returns:
+            str: Reply tweet ID
+
+        Raises:
+            Exception: If reply creation fails
+        """
+        if not self._authenticated or not self.client:
+            raise Exception("X API not authenticated")
+
+        await self._rate_limit_check("post", 1.0)
+
+        try:
+            tweet_id = await self.client.create_tweet(text, media_ids, in_reply_to_tweet_id=in_reply_to_tweet_id)
+            return tweet_id
+        except Exception as e:
+            self._handle_api_error(e, "X reply creation")
+            raise
+
     async def share(self, tweet_id: str) -> str:
         """
         Retweet (share) a tweet.

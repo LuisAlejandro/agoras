@@ -335,6 +335,42 @@ async def test_discord_client_send_message_error_handling():
         await client.send_message('Test')
 
 
+@pytest.mark.asyncio
+async def test_discord_client_send_reply():
+    """Test DiscordAPIClient send_reply posts a reply message with a reference."""
+    client = DiscordAPIClient('bot_token', 'server_name', 'channel_name')
+    mock_client = MagicMock()
+    mock_guild = MagicMock()
+    mock_guild.name = 'server_name'
+    mock_channel = AsyncMock()
+    mock_channel.name = 'channel_name'
+    mock_channel.id = 111
+    mock_message = MagicMock()
+    mock_message.id = 123456789
+    mock_channel.send = AsyncMock(return_value=mock_message)
+    mock_guild.text_channels = [mock_channel]
+    mock_client.guilds = [mock_guild]
+    client.client = mock_client
+    client._authenticated = True
+
+    result = await client.send_reply('999', 'A reply')
+
+    assert result == '123456789'
+    call_kwargs = mock_channel.send.call_args.kwargs
+    assert call_kwargs['content'] == 'A reply'
+    assert call_kwargs['reference'].message_id == 999
+    assert call_kwargs['reference'].channel_id == 111
+
+
+@pytest.mark.asyncio
+async def test_discord_client_send_reply_not_authenticated():
+    """Test DiscordAPIClient send_reply raises error when not authenticated."""
+    client = DiscordAPIClient('bot_token', 'server_name', 'channel_name')
+
+    with pytest.raises(Exception, match='not authenticated'):
+        await client.send_reply('999', 'A reply')
+
+
 # Add Reaction Tests
 
 @pytest.mark.asyncio

@@ -304,3 +304,139 @@ def test_convert_all_platforms():
         converter = ParameterConverter(platform)
         assert converter.platform == platform
         assert isinstance(converter.platform_mapping, dict)
+
+
+def test_convert_linkedin_reply_to_legacy():
+    """Test LinkedIn reply conversion maps post_id and text to native params."""
+    converter = ParameterConverter('linkedin')
+    args = Namespace(
+        action='reply',
+        post_id='urn:li:activity:123',
+        text='A comment',
+        handler=None
+    )
+
+    legacy = converter.convert_to_legacy(args)
+
+    assert legacy['network'] == 'linkedin'
+    assert legacy['action'] == 'reply'
+    assert legacy['linkedin_post_id'] == 'urn:li:activity:123'
+    assert legacy['status_text'] == 'A comment'
+
+
+def test_convert_x_reply_to_legacy():
+    """Test X reply conversion maps post_id and text to native params."""
+    converter = ParameterConverter('x')
+    args = Namespace(
+        action='reply',
+        post_id='tweet123',
+        text='A reply',
+        handler=None
+    )
+
+    legacy = converter.convert_to_legacy(args)
+
+    assert legacy['network'] == 'x'
+    assert legacy['action'] == 'reply'
+    assert legacy['tweet_id'] == 'tweet123'
+    assert legacy['status_text'] == 'A reply'
+
+
+def test_convert_threads_reply_media_to_legacy():
+    """Test Threads reply conversion maps post_id, text, and media to native params."""
+    converter = ParameterConverter('threads')
+    args = Namespace(
+        action='reply',
+        post_id='post123',
+        text='A reply',
+        image_1='http://example.com/a.jpg',
+        video_url='http://example.com/v.mp4',
+        handler=None,
+    )
+
+    legacy = converter.convert_to_legacy(args)
+
+    assert legacy['network'] == 'threads'
+    assert legacy['action'] == 'reply'
+    assert legacy['threads_post_id'] == 'post123'
+    assert legacy['status_text'] == 'A reply'
+    assert legacy['status_image_url_1'] == 'http://example.com/a.jpg'
+    assert legacy['threads_video_url'] == 'http://example.com/v.mp4'
+
+
+def test_convert_facebook_reply_media_to_legacy():
+    """Test Facebook reply conversion maps post_id, text, and image to native params."""
+    converter = ParameterConverter('facebook')
+    args = Namespace(
+        action='reply',
+        post_id='post123',
+        text='A comment',
+        image_1='http://example.com/a.jpg',
+        handler=None,
+    )
+
+    legacy = converter.convert_to_legacy(args)
+
+    assert legacy['network'] == 'facebook'
+    assert legacy['action'] == 'reply'
+    assert legacy['facebook_post_id'] == 'post123'
+    assert legacy['status_text'] == 'A comment'
+    assert legacy['status_image_url_1'] == 'http://example.com/a.jpg'
+
+
+def test_convert_linkedin_reply_media_to_legacy():
+    """Test LinkedIn reply conversion maps post_id, text, and image to native params."""
+    converter = ParameterConverter('linkedin')
+    args = Namespace(
+        action='reply',
+        post_id='urn:li:activity:123',
+        text='A comment',
+        image_1='http://example.com/a.jpg',
+        handler=None,
+    )
+
+    legacy = converter.convert_to_legacy(args)
+
+    assert legacy['network'] == 'linkedin'
+    assert legacy['action'] == 'reply'
+    assert legacy['linkedin_post_id'] == 'urn:li:activity:123'
+    assert legacy['status_text'] == 'A comment'
+    assert legacy['status_image_url_1'] == 'http://example.com/a.jpg'
+
+
+def test_convert_instagram_reply_to_legacy():
+    """Test Instagram reply conversion maps post_id and text to native params."""
+    converter = ParameterConverter('instagram')
+    args = Namespace(
+        action='reply',
+        post_id='media123',
+        text='A comment',
+        handler=None,
+    )
+
+    legacy = converter.convert_to_legacy(args)
+
+    assert legacy['network'] == 'instagram'
+    assert legacy['action'] == 'reply'
+    assert legacy['instagram_post_id'] == 'media123'
+    assert legacy['status_text'] == 'A comment'
+
+
+def test_convert_youtube_reply_to_legacy():
+    """Test YouTube reply conversion maps video_id and text to native params."""
+    converter = ParameterConverter('youtube')
+    args = Namespace(
+        action='reply',
+        video_id='video123',
+        text='A comment',
+        handler=None,
+    )
+
+    legacy = converter.convert_to_legacy(args)
+
+    assert legacy['network'] == 'youtube'
+    assert legacy['action'] == 'reply'
+    assert legacy['youtube_video_id'] == 'video123'
+    assert legacy['status_text'] == 'A comment'
+
+

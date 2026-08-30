@@ -258,6 +258,39 @@ class YouTubeAPIClient:
 
         return await asyncio.to_thread(_sync_delete)
 
+    async def insert_comment(self, video_id: str, text: str) -> str:
+        """
+        Insert a top-level comment on a YouTube video.
+
+        Args:
+            video_id (str): YouTube video ID to comment on
+            text (str): Comment text
+
+        Returns:
+            str: Comment ID
+
+        Raises:
+            Exception: If comment insert fails
+        """
+
+        def _sync_insert():
+            if not self.youtube_client:
+                raise Exception("YouTube client not initialized")
+
+            request = self.youtube_client.commentThreads().insert(
+                part="snippet",
+                body={
+                    "snippet": {
+                        "videoId": video_id,
+                        "topLevelComment": {"snippet": {"textOriginal": text}},
+                    }
+                },
+            )
+            response = request.execute()
+            return response["id"]
+
+        return await asyncio.to_thread(_sync_insert)
+
     async def get_channel_info(self) -> Dict[str, Any]:
         """
         Get channel information for the authenticated user.

@@ -134,6 +134,61 @@ def test_facebook_client_post_object_exception(mock_graph_api_class):
 
 
 @patch("agoras.platforms.facebook.client.GraphAPI")
+async def test_facebook_client_create_comment(mock_graph_api_class):
+    """Test FacebookAPIClient create_comment targets the comments connection."""
+    mock_graph_api = MagicMock()
+    mock_graph_api.post_object.return_value = {"id": "comment-123"}
+    mock_graph_api_class.return_value = mock_graph_api
+
+    client = FacebookAPIClient("access_token")
+    client.graph_api = mock_graph_api
+    client._authenticated = True
+
+    result = await client.create_comment("post-123", "A comment")
+
+    assert result == "comment-123"
+    mock_graph_api.post_object.assert_called_once_with(
+        object_id="post-123", connection="comments", data={"message": "A comment"}
+    )
+
+
+@patch("agoras.platforms.facebook.client.GraphAPI")
+async def test_facebook_client_create_comment_with_image(mock_graph_api_class):
+    """Test FacebookAPIClient create_comment includes attachment_url."""
+    mock_graph_api = MagicMock()
+    mock_graph_api.post_object.return_value = {"id": "comment-123"}
+    mock_graph_api_class.return_value = mock_graph_api
+
+    client = FacebookAPIClient("access_token")
+    client.graph_api = mock_graph_api
+    client._authenticated = True
+
+    result = await client.create_comment("post-123", "A comment", image_url="http://example.com/a.jpg")
+
+    assert result == "comment-123"
+    mock_graph_api.post_object.assert_called_once_with(
+        object_id="post-123",
+        connection="comments",
+        data={"message": "A comment", "attachment_url": "http://example.com/a.jpg"},
+    )
+
+
+@patch("agoras.platforms.facebook.client.GraphAPI")
+async def test_facebook_client_create_comment_missing_id_raises(mock_graph_api_class):
+    """Test FacebookAPIClient create_comment raises when response lacks an id."""
+    mock_graph_api = MagicMock()
+    mock_graph_api.post_object.return_value = {}
+    mock_graph_api_class.return_value = mock_graph_api
+
+    client = FacebookAPIClient("access_token")
+    client.graph_api = mock_graph_api
+    client._authenticated = True
+
+    with pytest.raises(Exception, match="Invalid response from Facebook API: missing comment id"):
+        await client.create_comment("post-123", "A comment")
+
+
+@patch("agoras.platforms.facebook.client.GraphAPI")
 def test_facebook_client_delete_object_success(mock_graph_api_class):
     """Test FacebookAPIClient delete_object success."""
     mock_graph_api = MagicMock()

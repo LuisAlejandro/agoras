@@ -255,6 +255,43 @@ async def test_youtube_client_delete_video_not_initialized():
 
 
 @pytest.mark.asyncio
+async def test_youtube_client_insert_comment_success():
+    """Test YouTubeAPIClient insert_comment success."""
+    mock_comment_threads_insert = MagicMock()
+    mock_comment_threads_insert.execute.return_value = {'id': 'comment-123'}
+    mock_comment_threads = MagicMock()
+    mock_comment_threads.insert.return_value = mock_comment_threads_insert
+    mock_youtube_client = MagicMock()
+    mock_youtube_client.commentThreads.return_value = mock_comment_threads
+
+    client = YouTubeAPIClient('access_token')
+    client.youtube_client = mock_youtube_client
+    client._authenticated = True
+
+    result = await client.insert_comment('vid123', 'A comment')
+
+    assert result == 'comment-123'
+    mock_comment_threads.insert.assert_called_once_with(
+        part='snippet',
+        body={
+            'snippet': {
+                'videoId': 'vid123',
+                'topLevelComment': {'snippet': {'textOriginal': 'A comment'}},
+            }
+        },
+    )
+
+
+@pytest.mark.asyncio
+async def test_youtube_client_insert_comment_not_initialized():
+    """Test YouTubeAPIClient insert_comment raises when not initialized."""
+    client = YouTubeAPIClient('access_token')
+
+    with pytest.raises(Exception, match='YouTube client not initialized'):
+        await client.insert_comment('vid123', 'A comment')
+
+
+@pytest.mark.asyncio
 async def test_youtube_client_get_channel_info_success():
     """Test YouTubeAPIClient get_channel_info success."""
     mock_channels_list = MagicMock()

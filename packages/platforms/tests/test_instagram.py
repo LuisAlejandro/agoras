@@ -204,6 +204,85 @@ async def test_instagram_post_rejects_local_image(mock_auth_manager_class, mock_
 @pytest.mark.asyncio
 @patch("agoras.platforms.instagram.wrapper.InstagramAPI")
 @patch("agoras.platforms.instagram.auth.InstagramAuthManager")
+async def test_instagram_reply_text_only(mock_auth_manager_class, mock_api_class):
+    """Test Instagram reply with text only posts a text comment."""
+    configure_instagram_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.reply = AsyncMock(return_value="comment-123")
+    mock_api_class.return_value = mock_api
+
+    instagram = Instagram(**INSTAGRAM_KWARGS)
+
+    await instagram._initialize_client()
+
+    with patch.object(instagram, "_output_status"):
+        result = await instagram.reply("media-123", "A comment")
+
+    assert result == "comment-123"
+    mock_api.reply.assert_called_once_with("media-123", "A comment")
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
+async def test_instagram_reply_with_media_raises(mock_auth_manager_class, mock_api_class):
+    """Test Instagram reply raises when media is provided."""
+    configure_instagram_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.reply = AsyncMock(return_value="comment-123")
+    mock_api_class.return_value = mock_api
+
+    instagram = Instagram(**INSTAGRAM_KWARGS)
+
+    await instagram._initialize_client()
+
+    with pytest.raises(Exception, match="Media not supported in Instagram comments"):
+        await instagram.reply("media-123", "A comment", status_image_url_1="http://example.com/a.jpg")
+
+    mock_api.reply.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
+async def test_instagram_reply_missing_post_id(mock_auth_manager_class, mock_api_class):
+    """Test Instagram reply raises when post_id missing."""
+    configure_instagram_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    instagram = Instagram(**INSTAGRAM_KWARGS)
+
+    await instagram._initialize_client()
+
+    with pytest.raises(Exception, match="Instagram post ID is required for reply action"):
+        await instagram.reply(None, "A comment")
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
+async def test_instagram_extract_reply_params_post_id_remap(mock_auth_manager_class, mock_api_class):
+    """Instagram _extract_reply_params yields a non-null post_id via the __init__ remap."""
+    configure_instagram_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    instagram = Instagram(**{**INSTAGRAM_KWARGS, "instagram_post_id": "media-123"})
+
+    await instagram._initialize_client()
+
+    post_id, text, media = instagram._extract_reply_params()
+    assert post_id == "media-123"
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
 async def test_instagram_video_local_file_uses_resumable_upload(mock_auth_manager_class, mock_api_class):
     """Local video paths use resumable rupload instead of video_url pull."""
     configure_instagram_auth_mock(mock_auth_manager_class)

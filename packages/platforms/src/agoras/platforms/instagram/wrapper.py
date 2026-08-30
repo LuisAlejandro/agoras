@@ -63,6 +63,10 @@ class Instagram(SocialNetwork):
                 - instagram_video_url: Instagram video URL
                 - instagram_video_caption: Instagram video caption
         """
+        # Map platform-specific key to generic key for core interface compatibility
+        if "instagram_post_id" in kwargs:
+            kwargs["post_id"] = kwargs["instagram_post_id"]
+
         super().__init__(**kwargs)
         self.instagram_access_token = None
         self.instagram_client_id = None
@@ -359,6 +363,53 @@ class Instagram(SocialNetwork):
 
         self._output_status(post_id)
         return post_id
+
+    async def reply(
+        self,
+        post_id,
+        text,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+        video_url=None,
+    ):
+        """
+        Comment on an Instagram media post (text-only).
+
+        Args:
+            post_id (str): ID of the Instagram media to comment on
+            text (str): Comment text
+            status_image_url_1 (str, optional): Unsupported; raises if provided
+            status_image_url_2 (str, optional): Unsupported; raises if provided
+            status_image_url_3 (str, optional): Unsupported; raises if provided
+            status_image_url_4 (str, optional): Unsupported; raises if provided
+            video_url (str, optional): Unsupported; raises if provided
+
+        Returns:
+            str: Comment ID
+        """
+        if not self.api:
+            raise Exception("Instagram API not initialized")
+
+        if not post_id:
+            raise Exception("Instagram post ID is required for reply action.")
+
+        source_media = list(
+            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        )
+
+        if source_media or video_url:
+            raise Exception("Media not supported in Instagram comments.")
+
+        if not text:
+            raise Exception("No reply text provided.")
+
+        validate_text("instagram", "caption", text)
+
+        result = await self.api.reply(post_id, text)
+        self._output_status(result)
+        return result
 
     async def authorize_credentials(self):
         """

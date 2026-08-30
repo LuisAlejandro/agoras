@@ -264,6 +264,37 @@ class LinkedInAPI(BaseAPI):
             self._handle_api_error(e, "LinkedIn like")
             raise
 
+    async def reply(self, post_id: str, text: str, image_ids: Optional[List[str]] = None) -> str:
+        """
+        Comment on a LinkedIn post.
+
+        Args:
+            post_id (str): Post ID to comment on
+            text (str): Comment text
+            image_ids (list, optional): List of uploaded image IDs to attach
+
+        Returns:
+            str: Comment ID
+
+        Raises:
+            Exception: If comment operation fails
+        """
+        if not self.client or not self.object_id:
+            raise Exception("LinkedIn API not authenticated")
+
+        await self._rate_limit_check("reply", 0.5)
+
+        try:
+            return await self.client.create_comment(
+                post_id=post_id,
+                actor_urn=f"urn:li:person:{self.object_id}",
+                text=text,
+                image_ids=image_ids,
+            )
+        except Exception as e:
+            self._handle_api_error(e, "LinkedIn comment")
+            raise
+
     async def share(self, post_id: str) -> str:
         """
         Share (repost) a LinkedIn post.

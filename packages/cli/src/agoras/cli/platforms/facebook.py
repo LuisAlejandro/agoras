@@ -92,6 +92,14 @@ def create_facebook_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     _add_facebook_action_options(delete, object_id_required=False)
     _add_post_id_option(delete)
 
+    # Reply action
+    reply = actions.add_parser(
+        "reply", help='Comment on a Facebook post. Requires prior authorization via "agoras facebook authorize".'
+    )
+    _add_facebook_action_options(reply, object_id_required=False)
+    _add_post_id_option(reply)
+    add_common_content_options(reply, images=1)
+
     # Set handler
     parser.set_defaults(command=_handle_facebook_command)
 

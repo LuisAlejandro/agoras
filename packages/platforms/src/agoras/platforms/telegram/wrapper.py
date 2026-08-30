@@ -18,7 +18,7 @@
 """agoras.platforms.telegram.wrapper module."""
 
 import asyncio
-from typing import List
+from typing import List, Optional
 
 from agoras.core.interfaces import SocialNetwork
 from agoras.core.text_limits import validate_text
@@ -47,6 +47,10 @@ class Telegram(SocialNetwork):
                 - telegram_message_id: Message ID for delete action
                 - telegram_reply_to_message_id: Message ID to reply to
         """
+        # Map platform-specific keys to generic keys for core interface compatibility
+        if "telegram_message_id" in kwargs:
+            kwargs["post_id"] = kwargs["telegram_message_id"]
+
         super().__init__(**kwargs)
         # Platform-specific configuration attributes
         self.telegram_bot_token = None
@@ -180,7 +184,102 @@ class Telegram(SocialNetwork):
         self._output_status(message_id)
         return message_id
 
-    async def _send_media_group(self, image_urls: List[str], caption: str) -> str:
+    async def reply(
+        self,
+        post_id,
+        text,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+        video_url=None,
+    ):
+        """
+        Reply to a Telegram message with optional media.
+
+        Args:
+            post_id (str): Message ID to reply to
+            text (str): Reply text/caption
+            status_image_url_1 (str, optional): First image URL
+            status_image_url_2 (str, optional): Second image URL
+            status_image_url_3 (str, optional): Third image URL
+            status_image_url_4 (str, optional): Fourth image URL
+            video_url (str, optional): URL of a video to attach to the reply
+
+        Returns:
+            str: Reply message ID
+        """
+        if not self.api:
+            raise Exception("Telegram API not initialized")
+
+        if not post_id:
+            raise Exception("Message ID is required for reply action.")
+
+        image_urls = list(
+            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        )
+
+        if not image_urls and not text and not video_url:
+            raise Exception("No reply text or media provided.")
+
+        chat_id = self._require_chat_id()
+        try:
+            reply_to_message_id = int(post_id)
+        except (TypeError, ValueError):
+            raise Exception(f"Invalid Telegram message ID to reply to: {post_id!r}")
+
+        if video_url:
+            caption = text or ""
+            validate_text("telegram", "caption", caption, mode="caption")
+            video = await self.download_video(video_url)
+            try:
+                if not video.content or not video.file_type:
+                    raise Exception("Failed to download or validate video")
+                message_id = await self.api.send_video(
+                    chat_id=chat_id,
+                    video_content=video.content,
+                    caption=caption,
+                    parse_mode=self.telegram_parse_mode,
+                    reply_to_message_id=reply_to_message_id,
+                )
+            finally:
+                video.cleanup()
+        elif image_urls:
+            validate_text("telegram", "caption", text or "", mode="caption")
+            if len(image_urls) > 1:
+                message_id = await self._send_media_group(image_urls, text or "", reply_to_message_id)
+            else:
+                images = await self.download_images(image_urls)
+                try:
+                    image = images[0]
+                    if image.content and image.file_type:
+                        message_id = await self.api.send_photo(
+                            chat_id=chat_id,
+                            photo_content=image.content,
+                            caption=text,
+                            parse_mode=self.telegram_parse_mode,
+                            reply_to_message_id=reply_to_message_id,
+                        )
+                    else:
+                        raise Exception(f"Failed to validate image: {image.url}")
+                finally:
+                    for image in images:
+                        image.cleanup()
+        else:
+            validate_text("telegram", "text", text or "", mode="text")
+            message_id = await self.api.send_message(
+                chat_id=chat_id,
+                text=text,
+                parse_mode=self.telegram_parse_mode,
+                reply_to_message_id=reply_to_message_id,
+            )
+
+        self._output_status(message_id)
+        return message_id
+
+    async def _send_media_group(
+        self, image_urls: List[str], caption: str, reply_to_message_id: Optional[int] = None
+    ) -> str:
         """
         Send multiple images as a media group (album).
 
@@ -218,7 +317,9 @@ class Telegram(SocialNetwork):
                 raise Exception("No valid images to send")
 
             # Send as media group
-            message_ids = await api.send_media_group(chat_id=chat_id, media=media_items)
+            message_ids = await api.send_media_group(
+                chat_id=chat_id, media=media_items, reply_to_message_id=reply_to_message_id
+            )
 
             # Return first message ID
             return message_ids[0] if message_ids else ""

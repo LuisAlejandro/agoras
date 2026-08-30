@@ -132,6 +132,32 @@ class DiscordAPI(BaseAPI):
         await self._rate_limit_check("post", 1.0)
         return await self.client.send_message(content=content, embeds=embeds, file=file, files=files)
 
+    async def reply(self, message_id, content=None, embeds=None, file=None, files=None):
+        """
+        Reply to a Discord message in the configured channel.
+
+        Args:
+            message_id (str): ID of the message to reply to
+            content (str, optional): Text content of the reply
+            embeds (list, optional): List of Discord embeds
+            file (discord.File, optional): Single file to attach
+            files (list, optional): Multiple files to attach
+
+        Returns:
+            str: Reply message ID
+
+        Raises:
+            Exception: If reply posting fails
+        """
+        if not self._authenticated:
+            await self.authenticate()
+
+        if not self.client:
+            raise Exception("Discord client not available")
+
+        await self._rate_limit_check("reply", 1.0)
+        return await self.client.send_reply(message_id, content=content, embeds=embeds, file=file, files=files)
+
     async def create_public_thread(self, message_id, name, auto_archive_duration=None):
         """
         Create a public Discord thread from a starter message.

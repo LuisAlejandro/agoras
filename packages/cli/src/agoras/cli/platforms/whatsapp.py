@@ -72,6 +72,15 @@ def create_whatsapp_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     _add_whatsapp_recipient_option(template)
     _add_template_options(template)
 
+    # Reply action
+    reply = actions.add_parser(
+        "reply", help='Reply to a WhatsApp message. Requires prior authorization via "agoras whatsapp authorize".'
+    )
+    _add_whatsapp_recipient_option(reply)
+    _add_post_id_option(reply)
+    add_common_content_options(reply, images=4)
+    add_video_options(reply, platform="whatsapp", with_content_file=False)
+
     # Set handler
     parser.set_defaults(command=_handle_whatsapp_command)
 
@@ -137,6 +146,16 @@ def _add_template_options(parser: ArgumentParser):
         metavar="<json>",
         help="Template components as JSON string (optional)",
     )
+
+
+def _add_post_id_option(parser: ArgumentParser):
+    """
+    Add post ID option for reply action.
+
+    Args:
+        parser: ArgumentParser to add options to
+    """
+    parser.add_argument("--post-id", required=True, metavar="<id>", help="WhatsApp message ID to reply to")
 
 
 def _handle_whatsapp_command(args: Namespace):

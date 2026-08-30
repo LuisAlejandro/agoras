@@ -437,6 +437,170 @@ async def test_x_post_media_upload_exception_continues(mock_api_class):
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_reply_text_only(mock_api_class):
+    """Test X reply with text only posts a reply tweet."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.reply = AsyncMock(return_value='reply-789')
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret'
+    )
+
+    await x._initialize_client()
+
+    with patch.object(x, '_output_status'):
+        result = await x.reply('tweet-123', 'A reply')
+
+    assert result == 'reply-789'
+    mock_api.reply.assert_called_once_with('A reply', [], 'tweet-123')
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_reply_via_base_handler_uses_converter_key(mock_api_class):
+    """End-to-end: CLI converter emits tweet_id, base _handle_reply_action must reach X.reply.
+
+    Regression for the P1 where the base handler read config key ``post_id`` but the
+    converter maps ``--post-id`` to ``tweet_id`` for X. The wrapper __init__ remaps
+    ``tweet_id`` -> ``post_id`` so the shared handler can drive the reply.
+    """
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.reply = AsyncMock(return_value='reply-789')
+    mock_api_class.return_value = mock_api
+
+    # Simulate the CLI converter output for `agoras x reply --post-id tweet-123 --text "A reply"`
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret',
+        action='reply',
+        tweet_id='tweet-123',
+        status_text='A reply',
+    )
+
+    await x._initialize_client()
+
+    with patch.object(x, '_output_status'):
+        await x._handle_reply_action()
+
+    mock_api.reply.assert_called_once_with('A reply', [], 'tweet-123')
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_reply_with_image(mock_api_class):
+    """Test X reply with an image posts a reply tweet with media."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.upload_media = AsyncMock(return_value='media123')
+    mock_api.reply = AsyncMock(return_value='reply-789')
+    mock_api_class.return_value = mock_api
+
+    mock_media = MagicMock()
+    mock_media.content = b'fake_image_data'
+    mock_media.file_type.mime = 'image/jpeg'
+    mock_media.cleanup = MagicMock()
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret'
+    )
+
+    await x._initialize_client()
+
+    with patch.object(x, 'download_images', return_value=[mock_media]), \
+         patch.object(x, '_output_status'):
+        result = await x.reply('tweet-123', 'A reply', 'http://image1.jpg')
+
+    assert result == 'reply-789'
+    mock_api.upload_media.assert_called_once()
+    mock_api.reply.assert_called_once_with('A reply', ['media123'], 'tweet-123')
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_reply_media_only_fails_when_upload_fails(mock_api_class):
+    """Test X reply with only media raises instead of publishing an empty reply when uploads fail."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.upload_media = AsyncMock(return_value=None)
+    mock_api.reply = AsyncMock(return_value='reply-789')
+    mock_api_class.return_value = mock_api
+
+    mock_media = MagicMock()
+    mock_media.content = b'fake_image_data'
+    mock_media.file_type.mime = 'image/jpeg'
+    mock_media.cleanup = MagicMock()
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret'
+    )
+
+    await x._initialize_client()
+
+    with patch.object(x, 'download_images', return_value=[mock_media]):
+        with pytest.raises(Exception, match="Failed to upload reply media"):
+            await x.reply('tweet-123', None, 'http://image1.jpg')
+
+    mock_api.reply.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_reply_no_post_id(mock_api_class):
+    """Test X reply raises when no post_id provided."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret'
+    )
+
+    await x._initialize_client()
+
+    with pytest.raises(Exception, match="Tweet ID is required for reply action."):
+        await x.reply(None, 'A reply')
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_reply_no_content(mock_api_class):
+    """Test X reply raises when no text or media provided."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret'
+    )
+
+    await x._initialize_client()
+
+    with pytest.raises(Exception, match="No reply text or media provided."):
+        await x.reply('tweet-123', None)
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
 async def test_x_like_no_api(mock_api_class):
     """Test X like raises when no API initialized."""
     mock_api = MagicMock()

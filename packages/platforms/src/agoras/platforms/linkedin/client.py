@@ -454,6 +454,77 @@ class LinkedInAPIClient:
 
         return await asyncio.to_thread(_sync_like)
 
+    async def create_comment(
+        self, post_id: str, actor_urn: str, text: str, image_ids: Optional[List[str]] = None
+    ) -> str:
+        """
+        Comment on a LinkedIn post.
+
+        Args:
+            post_id (str): Post ID to comment on
+            actor_urn (str): LinkedIn actor URN (e.g., "urn:li:person:12345")
+            text (str): Comment text
+            image_ids (list, optional): List of uploaded image IDs to attach
+
+        Returns:
+            str: Comment ID
+
+        Raises:
+            Exception: If comment operation fails
+        """
+
+        def _sync_comment():
+            if not self.restli_client:
+                raise Exception("LinkedIn RestliClient not initialized")
+            if not self.access_token:
+                raise Exception("No access token available")
+
+            entity: Dict[str, Any] = {
+                "actor": actor_urn,
+                "object": post_id,
+                "comment": text,
+            }
+
+            if image_ids:
+                entity["content"] = [{"entity": {"image": image_id}} for image_id in image_ids]
+
+            # Use the LinkedIn social actions endpoint for comments.
+            # POST /v2/socialActions/{postUrn}/comments
+            # URL-encode the post_id for the path.
+            encoded_post_id = urllib.parse.quote(post_id, safe="")
+
+            request = self.restli_client.create(
+                resource_path=f"/socialActions/{encoded_post_id}/comments",
+                entity=entity,
+                version_string=self.api_version,
+                access_token=self.access_token,
+            )
+
+            if request.status_code != 201:
+                try:
+                    response_data = request.response.json()
+                    if response_data.get("code") == "ACCESS_DENIED":
+                        raise Exception(
+                            'LinkedIn comment permission denied. Your LinkedIn app needs "Community Management API" '
+                            "product enabled and w_member_social scope approved. Visit "
+                            "https://developers.linkedin.com/ to configure your app permissions."
+                        )
+                    else:
+                        raise Exception(
+                            f"Unable to comment on post {post_id}: {response_data.get('message', 'Unknown error')}"
+                        )
+                except Exception as e:
+                    if "permission denied" in str(e).lower():
+                        raise e
+                    raise Exception(f"Unable to comment on post {post_id} - Status: {request.status_code}")
+
+            if hasattr(request, "entity_id") and request.entity_id:
+                return str(request.entity_id)
+            else:
+                raise Exception("Invalid response from LinkedIn API")
+
+        return await asyncio.to_thread(_sync_comment)
+
     async def share_post(self, post_id: str, author_urn: str, commentary: str = "") -> str:
         """
         Share (repost) a LinkedIn post.

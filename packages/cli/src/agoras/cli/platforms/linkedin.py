@@ -82,6 +82,13 @@ def create_linkedin_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     )
     _add_post_id_option(delete)
 
+    # Reply action
+    reply = actions.add_parser(
+        "reply", help='Comment on a LinkedIn post. Requires prior authorization via "agoras linkedin authorize".'
+    )
+    _add_post_id_option(reply)
+    add_common_content_options(reply, images=4)
+
     # Set handler
     parser.set_defaults(command=_handle_linkedin_command)
 

@@ -87,6 +87,12 @@ class Threads(SocialNetwork):
                 - threads_who_can_reply: Who can reply setting
                 - threads_post_id: Post ID for share actions
         """
+        # Map platform-specific key to generic key for core interface compatibility
+        if "threads_post_id" in kwargs:
+            kwargs["post_id"] = kwargs["threads_post_id"]
+        if "threads_video_url" in kwargs:
+            kwargs["video_url"] = kwargs["threads_video_url"]
+
         super().__init__(**kwargs)
         self.threads_app_id = None
         self.threads_app_secret = None
@@ -395,6 +401,63 @@ class Threads(SocialNetwork):
         self._output_status(post_id)
         return post_id
 
+    async def reply(
+        self,
+        post_id,
+        text,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+        video_url=None,
+    ):
+        """
+        Reply to a Threads post with optional media.
+
+        Args:
+            post_id (str): ID of the Threads post to reply to
+            text (str): Reply text
+            status_image_url_1 (str, optional): First image URL
+            status_image_url_2 (str, optional): Second image URL
+            status_image_url_3 (str, optional): Third image URL
+            status_image_url_4 (str, optional): Fourth image URL
+            video_url (str, optional): URL of a video to attach to the reply
+
+        Returns:
+            str: Reply post ID
+        """
+        if not self.api:
+            raise Exception("Threads API not initialized")
+
+        if not post_id:
+            raise Exception("Threads post ID is required for reply action.")
+
+        files = list(filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4]))
+
+        if not files and not text and not video_url:
+            raise Exception("No reply text or media provided.")
+
+        post_text = text or ""
+        validate_text("threads", "text", post_text)
+
+        if video_url:
+            reply_id = await self.api.create_video_post(
+                post_text,
+                video_url,
+                who_can_reply=self.threads_who_can_reply or "everyone",
+                reply_to_id=post_id,
+            )
+        else:
+            reply_id = await self.api.create_post(
+                post_text,
+                files=files if files else None,
+                who_can_reply=self.threads_who_can_reply or "everyone",
+                reply_to_id=post_id,
+            )
+
+        self._output_status(reply_id)
+        return reply_id
+
     async def _handle_video_action(self):
         """Handle video action with Threads-specific parameter extraction."""
         video_url = self._get_config_value("threads_video_url", "THREADS_VIDEO_URL")
@@ -454,6 +517,8 @@ class Threads(SocialNetwork):
             await self._handle_video_action()
         elif action == "thread":
             await self._handle_thread_action()
+        elif action == "reply":
+            await self._handle_reply_action()
         elif action == "last-from-feed":
             await self._handle_last_from_feed_action()
         elif action == "random-from-feed":

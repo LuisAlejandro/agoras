@@ -308,3 +308,30 @@ class InstagramAPI(BaseAPI):
             Exception: Share not supported for Instagram
         """
         raise Exception("Share not supported for Instagram")
+
+    async def reply(self, post_id: str, text: str) -> str:
+        """
+        Comment on an Instagram media post.
+
+        Args:
+            post_id (str): Media ID to comment on
+            text (str): Comment text
+
+        Returns:
+            str: Comment ID
+
+        Raises:
+            Exception: If comment operation fails
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("Instagram API not authenticated")
+
+        await self._rate_limit_check("reply", 0.5)
+
+        try:
+            return await self.client.create_comment(post_id, text)
+        except Exception as e:
+            self._handle_api_error(e, "Instagram comment")
+            raise

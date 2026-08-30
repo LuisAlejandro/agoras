@@ -69,6 +69,13 @@ def create_tiktok_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     )
     _add_video_options(video)
 
+    # Reply action
+    reply = actions.add_parser(
+        "reply", help='Comment on a TikTok video. Requires prior authorization via "agoras tiktok authorize".'
+    )
+    _add_post_id_option(reply)
+    reply.add_argument("--text", required=True, metavar="<text>", help="Comment text to post on the TikTok video")
+
     # Set handler
     parser.set_defaults(command=_handle_tiktok_command)
 
@@ -186,6 +193,16 @@ def _add_video_options(parser: ArgumentParser):
         default=None,
         help="Mark as paid partnership. Unattended publish rejects this; set it in the interactive composer.",
     )
+
+
+def _add_post_id_option(parser: ArgumentParser):
+    """
+    Add post ID option for reply action.
+
+    Args:
+        parser: ArgumentParser to add options to
+    """
+    parser.add_argument("--post-id", required=True, metavar="<id>", help="TikTok video ID to interact with")
 
 
 def _handle_tiktok_command(args: Namespace):

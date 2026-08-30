@@ -63,3 +63,122 @@ async def test_threads_video_rejects_local_video_path(mock_media_factory, thread
 
     mock_media_factory.create_video.assert_not_called()
     api.client.create_video_post.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.threads.api.ThreadsAPI.create_post')
+async def test_threads_reply_text_only(mock_create_post, threads_with_real_api):
+    """Threads reply with text only posts a text reply."""
+    threads, api = threads_with_real_api
+    mock_create_post.return_value = 'reply-1'
+
+    with patch.object(threads, '_output_status'):
+        result = await threads.reply('post-123', 'A reply')
+
+    assert result == 'reply-1'
+    mock_create_post.assert_called_once_with(
+        'A reply',
+        files=None,
+        who_can_reply='everyone',
+        reply_to_id='post-123',
+    )
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.threads.api.ThreadsAPI.create_post')
+async def test_threads_reply_with_image(mock_create_post, threads_with_real_api):
+    """Threads reply with an image posts a reply with the image."""
+    threads, api = threads_with_real_api
+    mock_create_post.return_value = 'reply-1'
+
+    with patch.object(threads, '_output_status'):
+        result = await threads.reply('post-123', 'A reply', status_image_url_1='http://example.com/a.jpg')
+
+    assert result == 'reply-1'
+    mock_create_post.assert_called_once_with(
+        'A reply',
+        files=['http://example.com/a.jpg'],
+        who_can_reply='everyone',
+        reply_to_id='post-123',
+    )
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.threads.api.ThreadsAPI.create_video_post')
+async def test_threads_reply_with_video(mock_create_video_post, threads_with_real_api):
+    """Threads reply with a video posts a video reply."""
+    threads, api = threads_with_real_api
+    mock_create_video_post.return_value = 'reply-1'
+
+    with patch.object(threads, '_output_status'):
+        result = await threads.reply('post-123', 'A reply', video_url='http://example.com/v.mp4')
+
+    assert result == 'reply-1'
+    mock_create_video_post.assert_called_once_with(
+        'A reply',
+        'http://example.com/v.mp4',
+        who_can_reply='everyone',
+        reply_to_id='post-123',
+    )
+
+
+@pytest.mark.asyncio
+async def test_threads_reply_missing_post_id(threads_with_real_api):
+    """Threads reply raises when post_id missing."""
+    threads, api = threads_with_real_api
+
+    with pytest.raises(Exception, match='Threads post ID is required for reply action'):
+        await threads.reply(None, 'A reply')
+
+
+@pytest.mark.asyncio
+async def test_threads_reply_local_media_raises(threads_with_real_api):
+    """Threads reply with a local media path raises the pull-only fast-fail error."""
+    threads, api = threads_with_real_api
+
+    with pytest.raises(Exception, match='Threads API does not support local file uploads'):
+        await threads.reply('post-123', 'A reply', status_image_url_1='/tmp/local.jpg')
+
+    api.client.create_post.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.threads.api.ThreadsAPI.create_post')
+async def test_threads_execute_action_reply_dispatch(mock_create_post, threads_with_real_api):
+    """Threads execute_action with action='reply' dispatches to the wrapper reply."""
+    threads, api = threads_with_real_api
+    mock_create_post.return_value = 'reply-1'
+
+    threads.config['post_id'] = 'post-123'
+    threads.config['status_text'] = 'A reply'
+
+    with (
+        patch.object(threads, '_initialize_client', new_callable=AsyncMock),
+        patch.object(threads, '_output_status'),
+    ):
+        await threads.execute_action('reply')
+
+    mock_create_post.assert_called_once_with(
+        'A reply',
+        files=None,
+        who_can_reply='everyone',
+        reply_to_id='post-123',
+    )
+
+
+@pytest.mark.asyncio
+async def test_threads_extract_reply_params_remap():
+    """Threads __init__ remaps threads_post_id and threads_video_url to generic keys."""
+    threads = Threads(
+        threads_app_id='app_id',
+        threads_app_secret='secret',
+        threads_refresh_token='token',
+        threads_post_id='post-123',
+        threads_video_url='http://example.com/v.mp4',
+        status_text='A reply',
+    )
+
+    post_id, text, media = threads._extract_reply_params()
+    assert post_id == 'post-123'
+    assert text == 'A reply'
+    assert media['video_url'] == 'http://example.com/v.mp4'

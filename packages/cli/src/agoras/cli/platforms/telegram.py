@@ -68,6 +68,15 @@ def create_telegram_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     )
     _add_post_id_option(delete)
 
+    # Reply action
+    reply = actions.add_parser(
+        "reply", help='Reply to a Telegram message. Requires prior authorization via "agoras telegram authorize".'
+    )
+    _add_post_id_option(reply)
+    _add_telegram_action_options(reply)
+    add_common_content_options(reply, images=4)
+    add_video_options(reply, platform="telegram", with_content_file=False)
+
     # Set handler
     parser.set_defaults(command=_handle_telegram_command)
 

@@ -240,6 +240,74 @@ class Discord(SocialNetwork):
         self._output_status(message_id)
         return message_id
 
+    async def reply(
+        self,
+        post_id,
+        text,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+        video_url=None,
+    ):
+        """
+        Reply to a Discord message with optional media.
+
+        Args:
+            post_id (str): ID of the message to reply to
+            text (str): Reply text
+            status_image_url_1 (str, optional): First image URL
+            status_image_url_2 (str, optional): Second image URL
+            status_image_url_3 (str, optional): Third image URL
+            status_image_url_4 (str, optional): Fourth image URL
+            video_url (str, optional): URL of a video to attach to the reply
+
+        Returns:
+            str: Reply message ID
+        """
+        if not self.api:
+            raise Exception("Discord API not initialized")
+
+        if not post_id:
+            raise Exception("Discord post ID is required for reply action.")
+
+        source_media = list(
+            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        )
+
+        if not source_media and not text and not video_url:
+            raise Exception("No reply text or media provided.")
+
+        validate_text("discord", "content", text or "")
+
+        embeds: List[Any] = []
+        attachment_files: List[discord.File] = []
+        cleanup_targets: List[Any] = []
+        try:
+            if source_media:
+                await self._append_image_embeds(embeds, source_media, cleanup_targets, attachment_files)
+
+            if video_url:
+                text, file_obj = await self._prepare_video_file(embeds, cleanup_targets, video_url, "", text)
+                if file_obj is not None:
+                    attachment_files.append(file_obj)
+
+            message_id = await self.api.reply(
+                post_id,
+                content=text or None,
+                embeds=embeds if embeds else None,
+                files=attachment_files if attachment_files else None,
+            )
+        finally:
+            for item in cleanup_targets:
+                try:
+                    item.cleanup()
+                except Exception:
+                    pass
+
+        self._output_status(message_id)
+        return message_id
+
     async def _append_custom_embeds(self, embeds: List[Any], custom_embeds: List[Any]) -> None:
         if not self.api:
             raise Exception("Discord API not initialized")

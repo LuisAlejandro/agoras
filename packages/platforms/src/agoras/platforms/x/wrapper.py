@@ -89,6 +89,12 @@ class X(SocialNetwork):
                 - twitter_oauth_secret: X OAuth secret
                 - tweet_id: Tweet ID for operations
         """
+        # Map platform-specific keys to generic keys for core interface compatibility
+        if "tweet_id" in kwargs:
+            kwargs["post_id"] = kwargs["tweet_id"]
+        if "twitter_video_url" in kwargs:
+            kwargs["video_url"] = kwargs["twitter_video_url"]
+
         super().__init__(**kwargs)
         self.twitter_consumer_key = None
         self.twitter_consumer_secret = None
@@ -267,36 +273,104 @@ class X(SocialNetwork):
         self._validate_tweet_text(tweet_text)
 
         # Download and upload media using the Media system
-        if source_media:
-            # Handle both images and videos
-            for media_url in source_media:
-                try:
-                    # Try to download as image first, then video
-                    try:
-                        image = await self.download_images([media_url])
-                        if image and len(image) > 0:
-                            media_obj = image[0]
-                        else:
-                            raise Exception("Failed to download as image")
-                    except Exception:
-                        # Try as video
-                        video = await self.download_video(media_url)
-                        media_obj = video
-
-                    # Upload media to X
-                    if media_obj.content and media_obj.file_type:
-                        media_id = await self.api.upload_media(media_obj.content, media_obj.file_type.mime)
-                        if media_id:
-                            media_ids.append(media_id)
-
-                    # Clean up temporary files
-                    media_obj.cleanup()
-
-                except Exception as e:
-                    print(f"Failed to upload media {media_url}: {str(e)}", file=sys.stderr)
+        media_ids = await self._upload_source_media(source_media)
 
         # Create the tweet
         tweet_id = await self.api.post(tweet_text, media_ids or [], validate=False)
+
+        self._output_status(tweet_id)
+        return tweet_id
+
+    async def _upload_source_media(self, source_media) -> List[str]:
+        """Download and upload a list of media URLs, returning their media IDs."""
+        if not self.api:
+            raise Exception("X API not initialized")
+        media_ids = []
+        for media_url in source_media:
+            try:
+                try:
+                    image = await self.download_images([media_url])
+                    if image and len(image) > 0:
+                        media_obj = image[0]
+                    else:
+                        raise Exception("Failed to download as image")
+                except Exception:
+                    video = await self.download_video(media_url)
+                    media_obj = video
+
+                if media_obj.content and media_obj.file_type:
+                    media_id = await self.api.upload_media(media_obj.content, media_obj.file_type.mime)
+                    if media_id:
+                        media_ids.append(media_id)
+
+                media_obj.cleanup()
+
+            except Exception as e:
+                print(f"Failed to upload media {media_url}: {str(e)}", file=sys.stderr)
+        return media_ids
+
+    async def reply(
+        self,
+        post_id,
+        text,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+        video_url=None,
+    ):
+        """
+        Reply to a tweet with optional media.
+
+        Args:
+            post_id (str): ID of the tweet to reply to
+            text (str): Reply text
+            status_image_url_1 (str, optional): First image URL
+            status_image_url_2 (str, optional): Second image URL
+            status_image_url_3 (str, optional): Third image URL
+            status_image_url_4 (str, optional): Fourth image URL
+            video_url (str, optional): URL of a video to attach to the reply
+
+        Returns:
+            str: Reply tweet ID
+        """
+        if not self.api:
+            raise Exception("X API not initialized")
+
+        if not post_id:
+            raise Exception("Tweet ID is required for reply action.")
+
+        source_media = list(
+            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        )
+
+        if not source_media and not text and not video_url:
+            raise Exception("No reply text or media provided.")
+
+        # Compose reply text and validate before media I/O when possible
+        reply_text = text or ""
+        self._validate_tweet_text(reply_text)
+
+        # Download and upload media using the Media system
+        media_ids = await self._upload_source_media(source_media)
+
+        if video_url:
+            video = await self.download_video(video_url)
+            try:
+                if not video.content or not video.file_type:
+                    raise Exception("Failed to download or validate video")
+                media_id = await self.api.upload_media(video.content, video.file_type.mime)
+                if media_id:
+                    media_ids.append(media_id)
+            finally:
+                video.cleanup()
+
+        # Fail instead of publishing an empty reply when all media failed to upload
+        if not media_ids and not reply_text:
+            raise Exception("Failed to upload reply media; no text to publish.")
+
+        # Create the reply tweet
+        tweet_id = await self.api.reply(reply_text, media_ids or [], post_id)
 
         self._output_status(tweet_id)
         return tweet_id

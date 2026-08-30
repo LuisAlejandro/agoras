@@ -109,6 +109,26 @@ class InstagramAPIClient:
         except Exception as e:
             raise Exception(f"Instagram post_object failed: {str(e)}")
 
+    async def create_comment(self, post_id: str, text: str) -> str:
+        """
+        Comment on an Instagram media post.
+
+        Args:
+            post_id (str): Instagram media ID to comment on
+            text (str): Comment text
+
+        Returns:
+            str: Comment ID
+
+        Raises:
+            Exception: If comment fails
+        """
+        response = self.post_object(post_id, connection="comments", data={"message": text})
+        comment_id = response.get("id")
+        if not comment_id:
+            raise Exception("Invalid response from Instagram API: missing comment id")
+        return str(comment_id)
+
     def get_object(self, object_id: str, fields: Optional[str] = None) -> Dict[str, Any]:
         """
         Get an Instagram object using GraphAPI.

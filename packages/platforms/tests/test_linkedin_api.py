@@ -43,6 +43,7 @@ def linkedin_api():
         api.client.like_post = AsyncMock(return_value={'id': 'like-123'})
         api.client.share_post = AsyncMock(return_value='share-123')
         api.client.delete_post = AsyncMock(return_value={'success': True})
+        api.client.create_comment = AsyncMock(return_value='comment-123')
         yield api
 
 
@@ -128,6 +129,42 @@ async def test_linkedin_api_like(linkedin_api):
     # Returns the result from client.like_post
     assert result == {'id': 'like-123'}
     linkedin_api.client.like_post.assert_called_once()
+
+
+# Reply Tests
+
+@pytest.mark.asyncio
+async def test_linkedin_api_reply(linkedin_api):
+    """Test LinkedInAPI reply method."""
+    result = await linkedin_api.reply('post-123', 'A comment')
+
+    assert result == 'comment-123'
+    linkedin_api.client.create_comment.assert_called_once_with(
+        post_id='post-123', actor_urn='urn:li:person:user_id', text='A comment', image_ids=None
+    )
+
+
+@pytest.mark.asyncio
+async def test_linkedin_api_reply_with_image(linkedin_api):
+    """Test LinkedInAPI reply passes image_ids to the client."""
+    result = await linkedin_api.reply('post-123', 'A comment', image_ids=['urn:li:image:img1'])
+
+    assert result == 'comment-123'
+    linkedin_api.client.create_comment.assert_called_once_with(
+        post_id='post-123',
+        actor_urn='urn:li:person:user_id',
+        text='A comment',
+        image_ids=['urn:li:image:img1'],
+    )
+
+
+@pytest.mark.asyncio
+async def test_linkedin_api_reply_error_handling(linkedin_api):
+    """Test LinkedInAPI reply handles client errors."""
+    linkedin_api.client.create_comment = AsyncMock(side_effect=Exception('Comment failed'))
+
+    with pytest.raises(Exception, match='Comment failed'):
+        await linkedin_api.reply('post-123', 'A comment')
 
 
 # Share Tests

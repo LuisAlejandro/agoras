@@ -155,6 +155,19 @@ async def test_youtube_api_share_not_supported(youtube_api):
         await youtube_api.share('video-123')
 
 
+# Reply Tests
+
+@pytest.mark.asyncio
+async def test_youtube_api_reply(youtube_api):
+    """Test YouTubeAPI reply method."""
+    youtube_api.client.insert_comment = AsyncMock(return_value='comment-123')
+
+    result = await youtube_api.reply('video-123', 'A comment')
+
+    assert result == 'comment-123'
+    youtube_api.client.insert_comment.assert_called_once_with('video-123', 'A comment')
+
+
 # Error Handling Tests
 
 @pytest.mark.asyncio

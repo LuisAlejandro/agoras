@@ -101,6 +101,7 @@ def test_socialnetwork_required_methods():
     assert hasattr(SocialNetwork, 'like')
     assert hasattr(SocialNetwork, 'delete')
     assert hasattr(SocialNetwork, 'share')
+    assert hasattr(SocialNetwork, 'reply')
 
 
 def test_socialnetwork_execute_action_exists():
@@ -144,6 +145,15 @@ async def test_video_method_default_raises_exception():
 
     with pytest.raises(Exception, match='Video posting not supported'):
         await network.video('Text', 'http://video.mp4', 'Title')
+
+
+@pytest.mark.asyncio
+async def test_reply_method_default_raises_exception():
+    """Test reply method raises not supported exception by default."""
+    network = ConcreteSocialNetwork()
+
+    with pytest.raises(Exception, match='Reply not supported'):
+        await network.reply('post-123', 'A reply')
 
 
 def test_get_config_value_from_config():
@@ -388,6 +398,48 @@ async def test_execute_action_delete():
 
 
 @pytest.mark.asyncio
+async def test_execute_action_reply():
+    """Test execute_action routes 'reply' action correctly."""
+    network = ConcreteSocialNetwork(post_id='post-123', status_text='A reply')
+
+    with patch.object(network, 'reply', new_callable=AsyncMock) as mock_reply:
+        await network.execute_action('reply')
+        mock_reply.assert_called_once_with(
+            'post-123', 'A reply',
+            status_image_url_1=None, status_image_url_2=None,
+            status_image_url_3=None, status_image_url_4=None, video_url=None,
+        )
+
+
+@pytest.mark.asyncio
+async def test_execute_action_reply_missing_post_id():
+    """Test execute_action with reply but no post_id delegates to reply default."""
+    network = ConcreteSocialNetwork(status_text='A reply')
+
+    with patch.object(network, 'reply', new_callable=AsyncMock) as mock_reply:
+        await network.execute_action('reply')
+        mock_reply.assert_called_once_with(
+            None, 'A reply',
+            status_image_url_1=None, status_image_url_2=None,
+            status_image_url_3=None, status_image_url_4=None, video_url=None,
+        )
+
+
+@pytest.mark.asyncio
+async def test_execute_action_reply_missing_text():
+    """Test execute_action with reply but no text delegates to reply default."""
+    network = ConcreteSocialNetwork(post_id='post-123')
+
+    with patch.object(network, 'reply', new_callable=AsyncMock) as mock_reply:
+        await network.execute_action('reply')
+        mock_reply.assert_called_once_with(
+            'post-123', None,
+            status_image_url_1=None, status_image_url_2=None,
+            status_image_url_3=None, status_image_url_4=None, video_url=None,
+        )
+
+
+@pytest.mark.asyncio
 async def test_execute_action_video():
     """Test execute_action routes 'video' action correctly."""
     network = ConcreteSocialNetwork(
@@ -551,6 +603,48 @@ async def test_handle_delete_action_missing_post_id():
 
     with pytest.raises(Exception, match='Post ID is required for delete'):
         await network._handle_delete_action()
+
+
+@pytest.mark.asyncio
+async def test_handle_reply_action():
+    """Test _handle_reply_action requires post_id and text."""
+    network = ConcreteSocialNetwork(post_id='reply-123', status_text='A reply')
+
+    with patch.object(network, 'reply', new_callable=AsyncMock) as mock_reply:
+        await network._handle_reply_action()
+        mock_reply.assert_called_once_with(
+            'reply-123', 'A reply',
+            status_image_url_1=None, status_image_url_2=None,
+            status_image_url_3=None, status_image_url_4=None, video_url=None,
+        )
+
+
+@pytest.mark.asyncio
+async def test_handle_reply_action_missing_post_id():
+    """Test _handle_reply_action delegates to reply default when post_id missing."""
+    network = ConcreteSocialNetwork(status_text='A reply')
+
+    with patch.object(network, 'reply', new_callable=AsyncMock) as mock_reply:
+        await network._handle_reply_action()
+        mock_reply.assert_called_once_with(
+            None, 'A reply',
+            status_image_url_1=None, status_image_url_2=None,
+            status_image_url_3=None, status_image_url_4=None, video_url=None,
+        )
+
+
+@pytest.mark.asyncio
+async def test_handle_reply_action_missing_text():
+    """Test _handle_reply_action delegates to reply default when text missing."""
+    network = ConcreteSocialNetwork(post_id='reply-123')
+
+    with patch.object(network, 'reply', new_callable=AsyncMock) as mock_reply:
+        await network._handle_reply_action()
+        mock_reply.assert_called_once_with(
+            'reply-123', None,
+            status_image_url_1=None, status_image_url_2=None,
+            status_image_url_3=None, status_image_url_4=None, video_url=None,
+        )
 
 
 @pytest.mark.asyncio

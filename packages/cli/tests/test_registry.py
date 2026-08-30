@@ -51,7 +51,8 @@ def test_get_supported_actions_x():
     assert 'like' in actions
     assert 'share' in actions
     assert 'delete' in actions
-    assert len(actions) == 7
+    assert 'reply' in actions
+    assert len(actions) == 8
 
 
 def test_get_supported_actions_twitter_alias():
@@ -70,6 +71,7 @@ def test_get_supported_actions_youtube():
     assert 'video' in actions
     assert 'like' in actions
     assert 'delete' in actions
+    assert 'reply' in actions
     assert 'post' not in actions
     assert 'share' not in actions
 
@@ -81,6 +83,7 @@ def test_get_supported_actions_instagram():
     assert 'authorize' in actions
     assert 'post' in actions
     assert 'video' in actions
+    assert 'reply' in actions
     assert 'like' not in actions
     assert 'share' not in actions
     assert 'delete' not in actions
@@ -96,6 +99,7 @@ def test_get_supported_actions_threads():
     assert 'thread' in actions
     assert 'share' in actions
     assert 'delete' in actions
+    assert 'reply' in actions
     assert 'like' not in actions
 
 
@@ -114,6 +118,14 @@ def test_validate_action_invalid():
     assert PlatformRegistry.validate_action('tiktok', 'like') is False
     assert PlatformRegistry.validate_action('instagram', 'like') is False
     assert PlatformRegistry.validate_action('discord', 'like') is False
+
+
+def test_reply_action_present_across_all_networks():
+    """Test reply is a supported action on every registered network (R10)."""
+    for platform in PlatformRegistry.get_platform_names():
+        assert 'reply' in PlatformRegistry.get_supported_actions(platform), (
+            f"reply missing from {platform} supported actions"
+        )
 
 
 def test_platform_exists():

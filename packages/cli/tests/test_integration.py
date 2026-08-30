@@ -294,3 +294,67 @@ def test_legacy_publish_with_migration_flag():
     assert args.network == 'twitter'
     assert args.action == 'post'
     assert args.show_migration is True
+
+
+def test_x_reply_parses_media_flags():
+    """Test X reply subparser accepts text, image, and video flags."""
+    parser, args = commandline([
+        'x', 'reply',
+        '--post-id', 'tweet-123',
+        '--text', 'A reply',
+        '--image-1', 'img.jpg',
+        '--video-url', 'clip.mp4',
+    ])
+
+    assert args.action == 'reply'
+    assert args.post_id == 'tweet-123'
+    assert args.text == 'A reply'
+    assert args.image_1 == 'img.jpg'
+    assert args.video_url == 'clip.mp4'
+
+
+def test_discord_reply_parses_media_flags():
+    """Test Discord reply subparser accepts text and image flags."""
+    parser, args = commandline([
+        'discord', 'reply',
+        '--post-id', 'msg-123',
+        '--text', 'A reply',
+        '--image-1', 'img.jpg',
+    ])
+
+    assert args.action == 'reply'
+    assert args.post_id == 'msg-123'
+    assert args.text == 'A reply'
+    assert args.image_1 == 'img.jpg'
+
+
+def test_telegram_reply_parses_media_flags():
+    """Test Telegram reply subparser accepts text and video flags."""
+    parser, args = commandline([
+        'telegram', 'reply',
+        '--post-id', '456',
+        '--text', 'A reply',
+        '--video-url', 'clip.mp4',
+    ])
+
+    assert args.action == 'reply'
+    assert args.post_id == '456'
+    assert args.text == 'A reply'
+    assert args.video_url == 'clip.mp4'
+
+
+def test_whatsapp_reply_parses_media_flags():
+    """Test WhatsApp reply subparser accepts text and image flags."""
+    parser, args = commandline([
+        'whatsapp', 'reply',
+        '--recipient', '+1234567890',
+        '--post-id', 'wa-msg-1',
+        '--text', 'A reply',
+        '--image-1', 'img.jpg',
+    ])
+
+    assert args.action == 'reply'
+    assert args.recipient == '+1234567890'
+    assert args.post_id == 'wa-msg-1'
+    assert args.text == 'A reply'
+    assert args.image_1 == 'img.jpg'

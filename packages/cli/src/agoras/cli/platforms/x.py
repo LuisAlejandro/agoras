@@ -85,6 +85,12 @@ def create_x_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     delete = actions.add_parser("delete", help='Delete a tweet. Requires prior authorization via "agoras x authorize".')
     _add_post_id_option(delete)
 
+    # Reply action
+    reply = actions.add_parser("reply", help='Reply to a tweet. Requires prior authorization via "agoras x authorize".')
+    _add_post_id_option(reply)
+    add_common_content_options(reply, images=4)
+    add_video_options(reply, platform="twitter", with_content_file=False)
+
     # Set handler
     parser.set_defaults(command=_handle_x_command)
 
@@ -218,6 +224,14 @@ def create_twitter_parser_alias(subparsers: _SubParsersAction) -> ArgumentParser
         "delete", help='Delete a tweet. Requires prior authorization via "agoras twitter authorize".'
     )
     _add_post_id_option(delete)
+
+    # Reply action
+    reply = actions.add_parser(
+        "reply", help='Reply to a tweet. Requires prior authorization via "agoras twitter authorize".'
+    )
+    _add_post_id_option(reply)
+    add_common_content_options(reply, images=4)
+    add_video_options(reply, platform="twitter", with_content_file=False)
 
     # Set handler
     parser.set_defaults(command=_handle_twitter_command)

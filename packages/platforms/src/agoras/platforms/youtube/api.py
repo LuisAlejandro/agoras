@@ -232,3 +232,30 @@ class YouTubeAPI(BaseAPI):
             Exception: Share not supported for YouTube
         """
         raise Exception("Share not supported for YouTube")
+
+    async def reply(self, video_id: str, text: str) -> str:
+        """
+        Comment on a YouTube video.
+
+        Args:
+            video_id (str): YouTube video ID to comment on
+            text (str): Comment text
+
+        Returns:
+            str: Comment ID
+
+        Raises:
+            Exception: If comment operation fails
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("YouTube API not authenticated")
+
+        await self._rate_limit_check("reply", 1.0)
+
+        try:
+            return await self.client.insert_comment(video_id, text)
+        except Exception as e:
+            self._handle_api_error(e, "YouTube comment")
+            raise

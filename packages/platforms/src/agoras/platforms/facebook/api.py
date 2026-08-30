@@ -276,6 +276,34 @@ class FacebookAPI(BaseAPI):
             self._handle_api_error(e, "Facebook like")
             raise
 
+    async def reply(self, post_id: str, text: str, image_url: Optional[str] = None) -> str:
+        """
+        Comment on a Facebook post.
+
+        Args:
+            post_id (str): Post ID to comment on
+            text (str): Comment text
+            image_url (str, optional): Image URL to attach to the comment
+
+        Returns:
+            str: Comment ID
+
+        Raises:
+            Exception: If comment operation fails
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("Facebook API not authenticated")
+
+        await self._rate_limit_check("reply", 0.5)
+
+        try:
+            return await self.client.create_comment(post_id, text, image_url=image_url)
+        except Exception as e:
+            self._handle_api_error(e, "Facebook comment")
+            raise
+
     async def delete(self, object_id: str, post_id: str) -> str:
         """
         Delete a Facebook post.

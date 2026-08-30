@@ -50,6 +50,10 @@ class YouTube(SocialNetwork):
                 - youtube_keywords: Comma-separated keywords
                 - youtube_video_url: Video URL to upload
         """
+        # Map platform-specific key to generic key for core interface compatibility
+        if "youtube_video_id" in kwargs:
+            kwargs["post_id"] = kwargs["youtube_video_id"]
+
         super().__init__(**kwargs)
         self.youtube_client_id = None
         self.youtube_client_secret = None
@@ -268,6 +272,53 @@ class YouTube(SocialNetwork):
 
         self._output_status(video_id)
         return video_id
+
+    async def reply(
+        self,
+        post_id,
+        text,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+        video_url=None,
+    ):
+        """
+        Comment on a YouTube video (text-only).
+
+        Args:
+            post_id (str): ID of the YouTube video to comment on
+            text (str): Comment text
+            status_image_url_1 (str, optional): Unsupported; raises if provided
+            status_image_url_2 (str, optional): Unsupported; raises if provided
+            status_image_url_3 (str, optional): Unsupported; raises if provided
+            status_image_url_4 (str, optional): Unsupported; raises if provided
+            video_url (str, optional): Unsupported; raises if provided
+
+        Returns:
+            str: Comment ID
+        """
+        if not self.api:
+            raise Exception("YouTube API not initialized")
+
+        if not post_id:
+            raise Exception("YouTube video ID is required for reply action.")
+
+        source_media = list(
+            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        )
+
+        if source_media or video_url:
+            raise Exception("Media not supported in YouTube comments.")
+
+        if not text:
+            raise Exception("No reply text provided.")
+
+        validate_text("youtube", "comment", text)
+
+        result = await self.api.reply(post_id, text)
+        self._output_status(result)
+        return result
 
     # YouTube-specific feed methods that work with videos instead of posts
     async def last_from_feed(self, feed_url, max_count, post_lookback):

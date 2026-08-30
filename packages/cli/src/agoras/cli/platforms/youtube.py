@@ -73,6 +73,13 @@ def create_youtube_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     )
     _add_video_id_option(delete)
 
+    # Reply action
+    reply = actions.add_parser(
+        "reply", help='Comment on a YouTube video. Requires prior authorization via "agoras youtube authorize".'
+    )
+    _add_video_id_option(reply)
+    reply.add_argument("--text", required=True, metavar="<text>", help="Comment text to post on the YouTube video")
+
     # Set handler
     parser.set_defaults(command=_handle_youtube_command)
 

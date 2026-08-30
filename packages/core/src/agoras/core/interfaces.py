@@ -161,6 +161,40 @@ class SocialNetwork(ABC):
         """
         raise Exception(f"Thread publishing not supported for {self.__class__.__name__}")
 
+    async def reply(
+        self,
+        post_id,
+        text,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+        video_url=None,
+    ):
+        """
+        Reply to a post/message on the social network.
+
+        Default implementation raises not supported. Platforms that support
+        replying (commenting on a post, replying to a message) override this
+        and return the created reply/comment ID.
+
+        Args:
+            post_id (str): ID of the post/message to reply to
+            text (str): Reply/comment text
+            status_image_url_1 (str, optional): First image URL
+            status_image_url_2 (str, optional): Second image URL
+            status_image_url_3 (str, optional): Third image URL
+            status_image_url_4 (str, optional): Fourth image URL
+            video_url (str, optional): URL of a video to attach to the reply
+
+        Returns:
+            str: Reply/comment ID
+
+        Raises:
+            Exception: If replying is not supported
+        """
+        raise Exception(f"Reply not supported for {self.__class__.__name__}")
+
     def get_platform_name(self):
         """
         Get the platform name for media handling.
@@ -410,6 +444,8 @@ class SocialNetwork(ABC):
             await self._handle_video_action()
         elif action == "thread":
             await self._handle_thread_action()
+        elif action == "reply":
+            await self._handle_reply_action()
         elif action == "last-from-feed":
             await self._handle_last_from_feed_action()
         elif action == "random-from-feed":
@@ -489,6 +525,36 @@ class SocialNetwork(ABC):
         emit_thread_result(result)
         if not result.complete:
             raise ThreadPublishError(result)
+
+    async def _handle_reply_action(self):
+        """Handle reply action with common parameter extraction.
+
+        Delegates to ``self.reply`` so the base default raises "not supported"
+        for networks without a reply backend, even when ``post_id``/``text``
+        are absent (the CLI converter maps ``post_id`` to a platform-specific
+        key, so it is not present here for unimplemented networks). Networks
+        that implement ``reply`` validate their own parameters.
+        """
+        post_id, text, media = self._extract_reply_params()
+        await self.reply(post_id, text, **media)
+
+    def _extract_reply_params(self):
+        """Extract reply parameters (post_id, text, media) from config.
+
+        Shared by the base ``_handle_reply_action`` and the WhatsApp
+        ``execute_action`` override so the WhatsApp reply branch cannot diverge
+        from the base handler's media extraction and validation.
+        """
+        post_id = self._get_config_value("post_id")
+        text = self._get_config_value("status_text")
+        media = {
+            "status_image_url_1": self._get_config_value("status_image_url_1", "STATUS_IMAGE_URL_1"),
+            "status_image_url_2": self._get_config_value("status_image_url_2", "STATUS_IMAGE_URL_2"),
+            "status_image_url_3": self._get_config_value("status_image_url_3", "STATUS_IMAGE_URL_3"),
+            "status_image_url_4": self._get_config_value("status_image_url_4", "STATUS_IMAGE_URL_4"),
+            "video_url": self._get_config_value("video_url"),
+        }
+        return post_id, text, media
 
     async def _handle_last_from_feed_action(self):
         """Handle last-from-feed action with common parameter extraction."""

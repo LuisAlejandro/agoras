@@ -68,6 +68,14 @@ def create_instagram_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     _add_instagram_action_options(video, object_id_required=False)
     _add_video_options(video)
 
+    # Reply action
+    reply = actions.add_parser(
+        "reply", help='Comment on an Instagram post. Requires prior authorization via "agoras instagram authorize".'
+    )
+    _add_instagram_action_options(reply, object_id_required=False)
+    _add_post_id_option(reply)
+    reply.add_argument("--text", required=True, metavar="<text>", help="Comment text to post on the Instagram post")
+
     # Set handler
     parser.set_defaults(command=_handle_instagram_command)
 
@@ -125,6 +133,16 @@ def _add_video_options(parser: ArgumentParser):
         metavar="<type>",
         help="Video type: REELS (default) or STORIES (case-insensitive; reel/story also accepted)",
     )
+
+
+def _add_post_id_option(parser: ArgumentParser):
+    """
+    Add post ID option for reply action.
+
+    Args:
+        parser: ArgumentParser to add options to
+    """
+    parser.add_argument("--post-id", required=True, metavar="<id>", help="Instagram post ID to interact with")
 
 
 def _handle_instagram_command(args: Namespace):

@@ -93,7 +93,12 @@ class TelegramAPIClient:
             raise Exception(f"Unexpected error getting bot info: {e}") from e
 
     async def send_message(
-        self, chat_id: str, text: str, parse_mode: Optional[str] = None, reply_markup=None
+        self,
+        chat_id: str,
+        text: str,
+        parse_mode: Optional[str] = None,
+        reply_markup=None,
+        reply_to_message_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Send text message with optional formatting and keyboards.
@@ -103,6 +108,7 @@ class TelegramAPIClient:
             text (str): Message text
             parse_mode (str, optional): Parse mode (HTML, Markdown, MarkdownV2)
             reply_markup: Inline keyboard or reply keyboard markup
+            reply_to_message_id (int, optional): Message ID to reply to
 
         Returns:
             dict: Message data including message_id
@@ -115,7 +121,11 @@ class TelegramAPIClient:
 
         try:
             message = await self.bot.send_message(
-                chat_id=chat_id, text=text, parse_mode=parse_mode or self.default_parse_mode, reply_markup=reply_markup
+                chat_id=chat_id,
+                text=text,
+                parse_mode=parse_mode or self.default_parse_mode,
+                reply_markup=reply_markup,
+                reply_to_message_id=reply_to_message_id,
             )
             return message.to_dict()
         except TelegramError as e:
@@ -124,7 +134,12 @@ class TelegramAPIClient:
             raise Exception(f"Unexpected error sending message: {e}") from e
 
     async def send_photo(
-        self, chat_id: str, photo, caption: Optional[str] = None, parse_mode: Optional[str] = None
+        self,
+        chat_id: str,
+        photo,
+        caption: Optional[str] = None,
+        parse_mode: Optional[str] = None,
+        reply_to_message_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Send photo with optional caption.
@@ -134,6 +149,7 @@ class TelegramAPIClient:
             photo: Photo to send (file-like object, bytes, file path, or URL)
             caption (str, optional): Photo caption (up to 1024 characters)
             parse_mode (str, optional): Parse mode for caption (HTML, Markdown, MarkdownV2)
+            reply_to_message_id (int, optional): Message ID to reply to
 
         Returns:
             dict: Message data including message_id
@@ -146,7 +162,11 @@ class TelegramAPIClient:
 
         try:
             message = await self.bot.send_photo(
-                chat_id=chat_id, photo=photo, caption=caption, parse_mode=parse_mode or self.default_parse_mode
+                chat_id=chat_id,
+                photo=photo,
+                caption=caption,
+                parse_mode=parse_mode or self.default_parse_mode,
+                reply_to_message_id=reply_to_message_id,
             )
             return message.to_dict()
         except TelegramError as e:
@@ -170,6 +190,7 @@ class TelegramAPIClient:
         duration: Optional[int] = None,
         width: Optional[int] = None,
         height: Optional[int] = None,
+        reply_to_message_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Send video with optional caption.
@@ -182,6 +203,7 @@ class TelegramAPIClient:
             duration (int, optional): Video duration in seconds
             width (int, optional): Video width
             height (int, optional): Video height
+            reply_to_message_id (int, optional): Message ID to reply to
 
         Returns:
             dict: Message data including message_id
@@ -201,6 +223,7 @@ class TelegramAPIClient:
                 duration=duration,
                 width=width,
                 height=height,
+                reply_to_message_id=reply_to_message_id,
             )
             return message.to_dict()
         except TimedOut as e:
@@ -245,7 +268,9 @@ class TelegramAPIClient:
         except Exception as e:
             raise Exception(f"Unexpected error deleting message: {e}") from e
 
-    async def send_media_group(self, chat_id: str, media: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    async def send_media_group(
+        self, chat_id: str, media: List[Dict[str, Any]], reply_to_message_id: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
         """
         Send multiple photos/videos as an album (media group).
 
@@ -256,6 +281,7 @@ class TelegramAPIClient:
                     {'type': 'photo', 'media': photo_bytes, 'caption': 'First image'},
                     {'type': 'photo', 'media': photo_bytes2}
                 ]
+            reply_to_message_id (int, optional): Message ID to reply to
 
         Returns:
             List[dict]: List of message data for each media item
@@ -287,7 +313,9 @@ class TelegramAPIClient:
                     raise Exception(f"Unsupported media type: {media_type}")
 
             # Send media group (all items must be same type: all photos or all videos)
-            messages = await self.bot.send_media_group(chat_id=chat_id, media=input_media)
+            messages = await self.bot.send_media_group(
+                chat_id=chat_id, media=input_media, reply_to_message_id=reply_to_message_id
+            )
 
             # Return list of message dicts
             return [msg.to_dict() for msg in messages]

@@ -87,6 +87,14 @@ def create_threads_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     )
     _add_post_id_option(delete)
 
+    # Reply action
+    reply = actions.add_parser(
+        "reply", help='Reply to a Threads post. Requires prior authorization via "agoras threads authorize".'
+    )
+    _add_post_id_option(reply)
+    add_common_content_options(reply, images=4)
+    add_video_options(reply, platform="threads", with_content_file=False)
+
     # Set handler
     parser.set_defaults(command=_handle_threads_command)
 
