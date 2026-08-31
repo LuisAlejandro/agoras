@@ -335,6 +335,42 @@ async def test_discord_client_send_message_error_handling():
         await client.send_message('Test')
 
 
+@pytest.mark.asyncio
+async def test_discord_client_send_reply():
+    """Test DiscordAPIClient send_reply posts a reply message with a reference."""
+    client = DiscordAPIClient('bot_token', 'server_name', 'channel_name')
+    mock_client = MagicMock()
+    mock_guild = MagicMock()
+    mock_guild.name = 'server_name'
+    mock_channel = AsyncMock()
+    mock_channel.name = 'channel_name'
+    mock_channel.id = 111
+    mock_message = MagicMock()
+    mock_message.id = 123456789
+    mock_channel.send = AsyncMock(return_value=mock_message)
+    mock_guild.text_channels = [mock_channel]
+    mock_client.guilds = [mock_guild]
+    client.client = mock_client
+    client._authenticated = True
+
+    result = await client.send_reply('999', 'A reply')
+
+    assert result == '123456789'
+    call_kwargs = mock_channel.send.call_args.kwargs
+    assert call_kwargs['content'] == 'A reply'
+    assert call_kwargs['reference'].message_id == 999
+    assert call_kwargs['reference'].channel_id == 111
+
+
+@pytest.mark.asyncio
+async def test_discord_client_send_reply_not_authenticated():
+    """Test DiscordAPIClient send_reply raises error when not authenticated."""
+    client = DiscordAPIClient('bot_token', 'server_name', 'channel_name')
+
+    with pytest.raises(Exception, match='not authenticated'):
+        await client.send_reply('999', 'A reply')
+
+
 # Add Reaction Tests
 
 @pytest.mark.asyncio
@@ -622,3 +658,59 @@ async def test_discord_client_create_public_thread_permission_error():
     with patch.object(client, '_get_channel', return_value=mock_channel):
         with pytest.raises(Exception, match='create public thread failed'):
             await client.create_public_thread('111', 'Nope')
+
+
+@pytest.mark.asyncio
+async def test_discord_client_get_message_maps_unknown_attachment_type():
+    """Test get_message labels non-image/video attachments as unknown."""
+    client = DiscordAPIClient('bot_token', 'server_name', 'channel_name')
+    client._authenticated = True
+    client.client = MagicMock()
+
+    mock_attachment = MagicMock()
+    mock_attachment.content_type = 'application/pdf'
+    mock_attachment.url = 'https://cdn.discordapp.com/file.pdf'
+
+    mock_message = MagicMock()
+    mock_message.id = 999
+    mock_message.content = 'see attachment'
+    mock_message.attachments = [mock_attachment]
+    mock_message.embeds = []
+    mock_message.created_at = None
+    mock_message.author = MagicMock(id=1, display_name='Bot', name='bot')
+
+    mock_channel = MagicMock()
+    mock_channel.fetch_message = AsyncMock(return_value=mock_message)
+
+    with patch.object(client, '_get_channel', return_value=mock_channel):
+        result = await client.get_message('999')
+
+    assert result['media'] == [{'type': 'unknown', 'url': 'https://cdn.discordapp.com/file.pdf'}]
+
+
+@pytest.mark.asyncio
+async def test_discord_client_get_message_uses_embed_text_when_content_empty():
+    """Test get_message falls back to embed title/description when content is empty."""
+    client = DiscordAPIClient('bot_token', 'server_name', 'channel_name')
+    client._authenticated = True
+    client.client = MagicMock()
+
+    mock_embed = MagicMock()
+    mock_embed.title = 'Embed title'
+    mock_embed.description = 'Embed body'
+
+    mock_message = MagicMock()
+    mock_message.id = 888
+    mock_message.content = ''
+    mock_message.attachments = []
+    mock_message.embeds = [mock_embed]
+    mock_message.created_at = None
+    mock_message.author = None
+
+    mock_channel = MagicMock()
+    mock_channel.fetch_message = AsyncMock(return_value=mock_message)
+
+    with patch.object(client, '_get_channel', return_value=mock_channel):
+        result = await client.get_message('888')
+
+    assert result['text'] == 'Embed title\n\nEmbed body'

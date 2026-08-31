@@ -43,6 +43,7 @@ def linkedin_api():
         api.client.like_post = AsyncMock(return_value={'id': 'like-123'})
         api.client.share_post = AsyncMock(return_value='share-123')
         api.client.delete_post = AsyncMock(return_value={'success': True})
+        api.client.create_comment = AsyncMock(return_value='comment-123')
         yield api
 
 
@@ -130,6 +131,42 @@ async def test_linkedin_api_like(linkedin_api):
     linkedin_api.client.like_post.assert_called_once()
 
 
+# Reply Tests
+
+@pytest.mark.asyncio
+async def test_linkedin_api_reply(linkedin_api):
+    """Test LinkedInAPI reply method."""
+    result = await linkedin_api.reply('post-123', 'A comment')
+
+    assert result == 'comment-123'
+    linkedin_api.client.create_comment.assert_called_once_with(
+        post_id='post-123', actor_urn='urn:li:person:user_id', text='A comment', image_ids=None
+    )
+
+
+@pytest.mark.asyncio
+async def test_linkedin_api_reply_with_image(linkedin_api):
+    """Test LinkedInAPI reply passes image_ids to the client."""
+    result = await linkedin_api.reply('post-123', 'A comment', image_ids=['urn:li:image:img1'])
+
+    assert result == 'comment-123'
+    linkedin_api.client.create_comment.assert_called_once_with(
+        post_id='post-123',
+        actor_urn='urn:li:person:user_id',
+        text='A comment',
+        image_ids=['urn:li:image:img1'],
+    )
+
+
+@pytest.mark.asyncio
+async def test_linkedin_api_reply_error_handling(linkedin_api):
+    """Test LinkedInAPI reply handles client errors."""
+    linkedin_api.client.create_comment = AsyncMock(side_effect=Exception('Comment failed'))
+
+    with pytest.raises(Exception, match='Comment failed'):
+        await linkedin_api.reply('post-123', 'A comment')
+
+
 # Share Tests
 
 @pytest.mark.asyncio
@@ -151,6 +188,47 @@ async def test_linkedin_api_delete(linkedin_api):
     # Returns the result from client.delete_post
     assert result == {'success': True}
     linkedin_api.client.delete_post.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_linkedin_api_delete_reply(linkedin_api):
+    """Test LinkedInAPI delete_reply delegation to client.delete_comment."""
+    linkedin_api.client.delete_comment = AsyncMock(return_value='comment-123')
+
+    result = await linkedin_api.delete_reply(comment_id='comment-123', parent_post_id='urn:li:ugcPost:123')
+
+    assert result == 'comment-123'
+    linkedin_api.client.delete_comment.assert_called_once_with(
+        comment_id='comment-123', parent_post_id='urn:li:ugcPost:123'
+    )
+
+
+@pytest.mark.asyncio
+async def test_linkedin_api_get_post_refreshes_auth(linkedin_api):
+    """Test LinkedInAPI get_post calls ensure_authenticated before read."""
+    linkedin_api.client.get_post = AsyncMock(return_value={'id': 'urn:li:ugcPost:123'})
+
+    result = await linkedin_api.get_post('urn:li:ugcPost:123')
+
+    assert result['id'] == 'urn:li:ugcPost:123'
+    linkedin_api.auth_manager.ensure_authenticated.assert_called_once()
+    linkedin_api.client.get_post.assert_called_once_with(post_id='urn:li:ugcPost:123')
+
+
+@pytest.mark.asyncio
+async def test_linkedin_api_get_reply_refreshes_auth(linkedin_api):
+    """Test LinkedInAPI get_reply calls ensure_authenticated before read."""
+    linkedin_api.client.get_comment = AsyncMock(return_value={'id': 'comment-123'})
+
+    result = await linkedin_api.get_reply(
+        comment_id='comment-123', parent_post_id='urn:li:ugcPost:123'
+    )
+
+    assert result['id'] == 'comment-123'
+    linkedin_api.auth_manager.ensure_authenticated.assert_called_once()
+    linkedin_api.client.get_comment.assert_called_once_with(
+        comment_id='comment-123', parent_post_id='urn:li:ugcPost:123'
+    )
 
 
 # Error Handling Tests

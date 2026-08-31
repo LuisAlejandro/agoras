@@ -82,6 +82,40 @@ def create_linkedin_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     )
     _add_post_id_option(delete)
 
+    # Reply action
+    reply = actions.add_parser(
+        "reply", help='Comment on a LinkedIn post. Requires prior authorization via "agoras linkedin authorize".'
+    )
+    _add_post_id_option(reply)
+    add_common_content_options(reply, images=4)
+
+    # Delete-reply action
+    delete_reply = actions.add_parser(
+        "delete-reply",
+        help='Delete a LinkedIn comment. Requires prior authorization via "agoras linkedin authorize".',
+    )
+    delete_reply.add_argument("--post-id", required=True, metavar="<id>", help="LinkedIn comment ID to delete")
+    delete_reply.add_argument(
+        "--parent-post-id", required=True, metavar="<urn>", help="LinkedIn parent post URN the comment belongs to"
+    )
+
+    # Get-post action
+    get_post = actions.add_parser(
+        "get-post",
+        help='Read a LinkedIn post. Requires prior authorization via "agoras linkedin authorize".',
+    )
+    _add_post_id_option(get_post)
+
+    # Get-reply action
+    get_reply = actions.add_parser(
+        "get-reply",
+        help='Read a LinkedIn comment. Requires prior authorization via "agoras linkedin authorize".',
+    )
+    get_reply.add_argument("--post-id", required=True, metavar="<id>", help="LinkedIn comment ID to read")
+    get_reply.add_argument(
+        "--parent-post-id", required=True, metavar="<urn>", help="LinkedIn parent post URN the comment belongs to"
+    )
+
     # Set handler
     parser.set_defaults(command=_handle_linkedin_command)
 

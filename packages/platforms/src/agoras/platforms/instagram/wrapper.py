@@ -63,6 +63,10 @@ class Instagram(SocialNetwork):
                 - instagram_video_url: Instagram video URL
                 - instagram_video_caption: Instagram video caption
         """
+        # Map platform-specific key to generic key for core interface compatibility
+        if "instagram_post_id" in kwargs:
+            kwargs["post_id"] = kwargs["instagram_post_id"]
+
         super().__init__(**kwargs)
         self.instagram_access_token = None
         self.instagram_client_id = None
@@ -359,6 +363,148 @@ class Instagram(SocialNetwork):
 
         self._output_status(post_id)
         return post_id
+
+    async def reply(
+        self,
+        post_id,
+        text,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+        video_url=None,
+    ):
+        """
+        Comment on an Instagram media post (text-only).
+
+        Args:
+            post_id (str): ID of the Instagram media to comment on
+            text (str): Comment text
+            status_image_url_1 (str, optional): Unsupported; raises if provided
+            status_image_url_2 (str, optional): Unsupported; raises if provided
+            status_image_url_3 (str, optional): Unsupported; raises if provided
+            status_image_url_4 (str, optional): Unsupported; raises if provided
+            video_url (str, optional): Unsupported; raises if provided
+
+        Returns:
+            str: Comment ID
+        """
+        if not self.api:
+            raise Exception("Instagram API not initialized")
+
+        if not post_id:
+            raise Exception("Instagram post ID is required for reply action.")
+
+        source_media = list(
+            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        )
+
+        if source_media or video_url:
+            raise Exception("Media not supported in Instagram comments.")
+
+        if not text:
+            raise Exception("No reply text provided.")
+
+        validate_text("instagram", "caption", text)
+
+        result = await self.api.reply(post_id, text)
+        self._output_status(result)
+        return result
+
+    async def delete_reply(self, post_id):
+        """
+        Delete an Instagram comment.
+
+        Args:
+            post_id (str): ID of the comment to delete
+
+        Returns:
+            str: Deleted comment ID
+        """
+        if not self.api:
+            raise Exception("Instagram API not initialized")
+
+        if not post_id:
+            raise Exception("Instagram comment ID is required for delete-reply action.")
+
+        result = await self.api.delete_reply(comment_id=post_id)
+        self._output_status(result)
+        return result
+
+    async def get_post(self, post_id):
+        """
+        Read an Instagram media object by ID and return normalized content.
+
+        Args:
+            post_id (str): Media ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        if not self.api:
+            raise Exception("Instagram API not initialized")
+
+        if not post_id:
+            raise Exception("Instagram post ID is required.")
+        instagram_post_id = post_id
+
+        raw = await self.api.get_post(instagram_post_id)
+        media = []
+        media_url = raw.get("media_url")
+        media_type = (raw.get("media_type") or "").upper()
+        if media_url:
+            media.append(
+                {
+                    "type": "video" if media_type in ("VIDEO", "REELS") else "image",
+                    "url": media_url,
+                }
+            )
+        username = raw.get("username")
+        content = {
+            "id": str(raw.get("id", instagram_post_id)),
+            "text": raw.get("caption"),
+            "media": media,
+            "author": {"id": None, "name": username} if username else None,
+            "created_at": raw.get("timestamp"),
+            "metadata": {"permalink": raw.get("permalink")} if raw.get("permalink") else {},
+        }
+        self._output_content(content)
+        return content
+
+    async def get_reply(self, post_id):
+        """
+        Read an Instagram comment by ID and return normalized content.
+
+        Args:
+            post_id (str): Comment ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        if not self.api:
+            raise Exception("Instagram API not initialized")
+
+        if not post_id:
+            raise Exception("Instagram comment ID is required for get-reply action.")
+
+        raw = await self.api.get_reply(post_id)
+        from_user = raw.get("from") or {}
+        username = raw.get("username") or from_user.get("username")
+        content = {
+            "id": str(raw.get("id", post_id)),
+            "text": raw.get("text"),
+            "media": [],
+            "author": {
+                "id": from_user.get("id"),
+                "name": username or from_user.get("name"),
+            }
+            if (from_user or username)
+            else None,
+            "created_at": raw.get("timestamp"),
+            "metadata": {"media_unavailable": True},
+        }
+        self._output_content(content)
+        return content
 
     async def authorize_credentials(self):
         """

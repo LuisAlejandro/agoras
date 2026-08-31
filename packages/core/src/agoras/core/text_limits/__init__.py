@@ -86,6 +86,7 @@ TEXT_LIMITS: Tuple[TextFieldLimit, ...] = (
     TextFieldLimit("threads", "text", 500, "threads"),
     TextFieldLimit("youtube", "title", 100, "chars"),
     TextFieldLimit("youtube", "description", 5000, "utf8_bytes"),
+    TextFieldLimit("youtube", "comment", 5000, "utf8_bytes"),
     TextFieldLimit("tiktok", "title", 2200, "utf16_runes", mode="video"),
     TextFieldLimit("tiktok", "title", 90, "utf16_runes", mode="photo"),
     TextFieldLimit("tiktok", "description", 4000, "utf16_runes", mode="photo"),

@@ -232,3 +232,108 @@ class YouTubeAPI(BaseAPI):
             Exception: Share not supported for YouTube
         """
         raise Exception("Share not supported for YouTube")
+
+    async def reply(self, video_id: str, text: str) -> str:
+        """
+        Comment on a YouTube video.
+
+        Args:
+            video_id (str): YouTube video ID to comment on
+            text (str): Comment text
+
+        Returns:
+            str: Comment ID
+
+        Raises:
+            Exception: If comment operation fails
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("YouTube API not authenticated")
+
+        await self._rate_limit_check("reply", 1.0)
+
+        try:
+            return await self.client.insert_comment(video_id, text)
+        except Exception as e:
+            self._handle_api_error(e, "YouTube comment")
+            raise
+
+    async def delete_reply(self, comment_id: str) -> str:
+        """
+        Delete a YouTube comment.
+
+        Args:
+            comment_id (str): ID of the comment to delete
+
+        Returns:
+            str: Deleted comment ID
+
+        Raises:
+            Exception: If deletion fails
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("YouTube API not authenticated")
+
+        await self._rate_limit_check("delete", 1.0)
+
+        try:
+            return await self.client.delete_comment(comment_id)
+        except Exception as e:
+            self._handle_api_error(e, "YouTube delete-reply")
+            raise
+
+    async def get_post(self, video_id: str) -> Dict[str, Any]:
+        """
+        Read a YouTube video by ID.
+
+        Args:
+            video_id (str): Video ID to read
+
+        Returns:
+            dict: Video information
+
+        Raises:
+            Exception: If the video cannot be read
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("YouTube API not authenticated")
+
+        await self._rate_limit_check("get_post", 1.0)
+
+        try:
+            return await self.client.get_video_info(video_id)
+        except Exception as e:
+            self._handle_api_error(e, "YouTube get-post")
+            raise
+
+    async def get_reply(self, comment_id: str) -> Dict[str, Any]:
+        """
+        Read a YouTube comment by ID.
+
+        Args:
+            comment_id (str): Comment ID to read
+
+        Returns:
+            dict: Comment fields
+
+        Raises:
+            Exception: If the comment cannot be read
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("YouTube API not authenticated")
+
+        await self._rate_limit_check("get_reply", 1.0)
+
+        try:
+            return await self.client.get_comment(comment_id)
+        except Exception as e:
+            self._handle_api_error(e, "YouTube get-reply")
+            raise

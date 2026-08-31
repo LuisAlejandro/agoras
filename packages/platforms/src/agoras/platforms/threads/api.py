@@ -487,6 +487,43 @@ class ThreadsAPI(BaseAPI):
             self._handle_api_error(e, "Threads post deletion")
             raise
 
+    async def get_post(self, post_id: str) -> Dict[str, Any]:
+        """
+        Read a Threads post by ID.
+
+        Args:
+            post_id (str): Post ID to read
+
+        Returns:
+            dict: Post fields from the Threads API
+
+        Raises:
+            Exception: If the post cannot be read
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.access_token:
+            raise Exception("Threads API not authenticated")
+
+        if not self.client:
+            raise Exception("Threads client not available")
+
+        if not post_id:
+            raise Exception("Post ID is required for get-post action.")
+
+        await self._rate_limit_check("get_post", 1.0)
+
+        def _sync_get():
+            if not self.client:
+                raise Exception("Threads client not available")
+            return self.client.get_post(post_id=post_id)
+
+        try:
+            return await asyncio.to_thread(_sync_get)
+        except Exception as e:
+            self._handle_api_error(e, "Threads get-post")
+            raise
+
     async def share(self, post_id: str) -> str:
         """
         Share/repost a Threads post.

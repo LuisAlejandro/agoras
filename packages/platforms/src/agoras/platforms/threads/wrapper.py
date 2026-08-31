@@ -87,6 +87,12 @@ class Threads(SocialNetwork):
                 - threads_who_can_reply: Who can reply setting
                 - threads_post_id: Post ID for share actions
         """
+        # Map platform-specific key to generic key for core interface compatibility
+        if "threads_post_id" in kwargs:
+            kwargs["post_id"] = kwargs["threads_post_id"]
+        if "threads_video_url" in kwargs:
+            kwargs["video_url"] = kwargs["threads_video_url"]
+
         super().__init__(**kwargs)
         self.threads_app_id = None
         self.threads_app_secret = None
@@ -311,6 +317,73 @@ class Threads(SocialNetwork):
         self._output_status(result)
         return result
 
+    async def delete_reply(self, post_id):
+        """
+        Delete a reply post.
+
+        A reply is a post on Threads, so deletion is a proxy of ``delete``.
+
+        Args:
+            post_id (str): ID of the reply post to delete
+
+        Returns:
+            str: Deleted post ID
+        """
+        return await self.delete(post_id)
+
+    async def get_post(self, post_id):
+        """
+        Read a Threads post by ID and return normalized content.
+
+        Args:
+            post_id (str): Post ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        if not self.api:
+            raise Exception("Threads API not initialized")
+
+        if not post_id:
+            raise Exception("Post ID is required for get-post action.")
+
+        raw = await self.api.get_post(post_id)
+        media = []
+        media_url = raw.get("media_url")
+        media_type = (raw.get("media_type") or "").upper()
+        if media_url:
+            media.append(
+                {
+                    "type": "video" if media_type in ("VIDEO", "REELS") else "image",
+                    "url": media_url,
+                }
+            )
+        username = raw.get("username")
+        content = {
+            "id": str(raw.get("id", post_id)),
+            "text": raw.get("text"),
+            "media": media,
+            "author": {"id": None, "name": username} if username else None,
+            "created_at": raw.get("timestamp"),
+            "metadata": {"permalink": raw.get("permalink")} if raw.get("permalink") else {},
+        }
+        self._output_content(content)
+        return content
+
+    async def get_reply(self, post_id):
+        """
+        Read a reply post by ID.
+
+        A reply is a post on Threads, so reading is a proxy of ``get_post``.
+
+        Args:
+            post_id (str): Reply post ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        return await self.get_post(post_id)
+
     async def share(self, post_id):
         """
         Share/repost a Threads post.
@@ -395,6 +468,63 @@ class Threads(SocialNetwork):
         self._output_status(post_id)
         return post_id
 
+    async def reply(
+        self,
+        post_id,
+        text,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+        video_url=None,
+    ):
+        """
+        Reply to a Threads post with optional media.
+
+        Args:
+            post_id (str): ID of the Threads post to reply to
+            text (str): Reply text
+            status_image_url_1 (str, optional): First image URL
+            status_image_url_2 (str, optional): Second image URL
+            status_image_url_3 (str, optional): Third image URL
+            status_image_url_4 (str, optional): Fourth image URL
+            video_url (str, optional): URL of a video to attach to the reply
+
+        Returns:
+            str: Reply post ID
+        """
+        if not self.api:
+            raise Exception("Threads API not initialized")
+
+        if not post_id:
+            raise Exception("Threads post ID is required for reply action.")
+
+        files = list(filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4]))
+
+        if not files and not text and not video_url:
+            raise Exception("No reply text or media provided.")
+
+        post_text = text or ""
+        validate_text("threads", "text", post_text)
+
+        if video_url:
+            reply_id = await self.api.create_video_post(
+                post_text,
+                video_url,
+                who_can_reply=self.threads_who_can_reply or "everyone",
+                reply_to_id=post_id,
+            )
+        else:
+            reply_id = await self.api.create_post(
+                post_text,
+                files=files if files else None,
+                who_can_reply=self.threads_who_can_reply or "everyone",
+                reply_to_id=post_id,
+            )
+
+        self._output_status(reply_id)
+        return reply_id
+
     async def _handle_video_action(self):
         """Handle video action with Threads-specific parameter extraction."""
         video_url = self._get_config_value("threads_video_url", "THREADS_VIDEO_URL")
@@ -442,26 +572,25 @@ class Threads(SocialNetwork):
         # Initialize client before executing other actions
         await self._initialize_client()
 
-        if action == "post":
-            await self._handle_post_action()
-        elif action == "like":
-            await self._handle_like_action()
-        elif action == "share":
-            await self._handle_share_action()
-        elif action == "delete":
-            await self._handle_delete_action()
-        elif action == "video":
-            await self._handle_video_action()
-        elif action == "thread":
-            await self._handle_thread_action()
-        elif action == "last-from-feed":
-            await self._handle_last_from_feed_action()
-        elif action == "random-from-feed":
-            await self._handle_random_from_feed_action()
-        elif action == "schedule":
-            await self._handle_schedule_action()
-        else:
+        handlers = {
+            "post": self._handle_post_action,
+            "like": self._handle_like_action,
+            "share": self._handle_share_action,
+            "delete": self._handle_delete_action,
+            "video": self._handle_video_action,
+            "thread": self._handle_thread_action,
+            "reply": self._handle_reply_action,
+            "delete-reply": self._handle_delete_reply_action,
+            "get-post": self._handle_get_post_action,
+            "get-reply": self._handle_get_reply_action,
+            "last-from-feed": self._handle_last_from_feed_action,
+            "random-from-feed": self._handle_random_from_feed_action,
+            "schedule": self._handle_schedule_action,
+        }
+        handler = handlers.get(action)
+        if handler is None:
             raise Exception(f'"{action}" action not supported.')
+        await handler()
 
 
 async def main_async(kwargs):

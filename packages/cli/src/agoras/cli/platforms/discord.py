@@ -77,6 +77,35 @@ def create_discord_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     )
     _add_post_id_option(delete)
 
+    # Delete-reply action (alias for delete on Discord)
+    delete_reply = actions.add_parser(
+        "delete-reply",
+        help='Delete a Discord reply message. Requires prior authorization via "agoras discord authorize".',
+    )
+    _add_post_id_option(delete_reply)
+
+    # Reply action
+    reply = actions.add_parser(
+        "reply", help='Reply to a Discord message. Requires prior authorization via "agoras discord authorize".'
+    )
+    _add_post_id_option(reply)
+    add_common_content_options(reply, images=4)
+    add_video_options(reply, platform="discord", with_content_file=False)
+
+    # Get-post action
+    get_post = actions.add_parser(
+        "get-post",
+        help='Read a Discord message. Requires prior authorization via "agoras discord authorize".',
+    )
+    _add_post_id_option(get_post)
+
+    # Get-reply action
+    get_reply = actions.add_parser(
+        "get-reply",
+        help='Read a Discord reply message. Requires prior authorization via "agoras discord authorize".',
+    )
+    _add_post_id_option(get_reply)
+
     # Set handler
     parser.set_defaults(command=_handle_discord_command)
 

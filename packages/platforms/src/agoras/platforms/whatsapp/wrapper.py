@@ -49,6 +49,10 @@ class WhatsApp(SocialNetwork):
                 - whatsapp_recipient: Target recipient phone number
                 - whatsapp_message_id: WhatsApp message ID
         """
+        # Map platform-specific keys to generic keys for core interface compatibility
+        if "whatsapp_message_id" in kwargs:
+            kwargs["post_id"] = kwargs["whatsapp_message_id"]
+
         super().__init__(**kwargs)
         # Platform-specific configuration attributes
         self.whatsapp_access_token = None
@@ -207,6 +211,89 @@ class WhatsApp(SocialNetwork):
 
         self._output_status(primary_message_id)
         return primary_message_id
+
+    async def reply(
+        self,
+        post_id,
+        text,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+        video_url=None,
+    ):
+        """
+        Reply to a WhatsApp message with optional media.
+
+        Args:
+            post_id (str): Message ID to reply to
+            text (str): Reply text/caption
+            status_image_url_1 (str, optional): First image URL
+            status_image_url_2 (str, optional): Second image URL
+            status_image_url_3 (str, optional): Third image URL
+            status_image_url_4 (str, optional): Fourth image URL
+            video_url (str, optional): URL of a video to attach to the reply
+
+        Returns:
+            str: Reply message ID
+        """
+        if not self.api:
+            raise Exception("WhatsApp API not initialized")
+
+        if not post_id:
+            raise Exception("WhatsApp message ID is required for reply action.")
+
+        image_urls = list(
+            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        )
+
+        if not image_urls and not text and not video_url:
+            raise Exception("No reply text or media provided.")
+
+        recipient = self._require_recipient()
+
+        if video_url:
+            validate_text("whatsapp", "caption", text or "", mode="caption")
+            video = await self.download_video(video_url)
+            try:
+                if not video.content or not video.file_type:
+                    raise Exception("Failed to download or validate video")
+                filename = f"video.{video.file_type.extension}" if video.file_type else "video.mp4"
+                if media_is_local(video):
+                    media_id = await self.api.upload_media(video.content, video.file_type.mime, filename=filename)
+                    message_id = await self.api.reply(recipient, post_id, text=text, video_id=media_id)
+                else:
+                    message_id = await self.api.reply(recipient, post_id, text=text, video_url=video.url)
+            finally:
+                video.cleanup()
+        elif image_urls:
+            validate_text("whatsapp", "caption", text or "", mode="caption")
+            images = await self.download_images(image_urls)
+            message_ids = []
+            try:
+                for image in images:
+                    if image.content and image.file_type:
+                        filename = f"image.{image.file_type.extension}"
+                        if media_is_local(image):
+                            media_id = await self.api.upload_media(
+                                image.content, image.file_type.mime, filename=filename
+                            )
+                            message_id = await self.api.reply(recipient, post_id, text=text, image_id=media_id)
+                        else:
+                            message_id = await self.api.reply(recipient, post_id, text=text, image_url=image.url)
+                        message_ids.append(message_id)
+                    else:
+                        raise Exception(f"Failed to validate image: {image.url}")
+            finally:
+                for image in images:
+                    image.cleanup()
+            message_id = message_ids[0] if message_ids else None
+        else:
+            validate_text("whatsapp", "text", text or "", mode="text")
+            message_id = await self.api.reply(recipient, post_id, text=text)
+
+        self._output_status(message_id)
+        return message_id
 
     async def like(self, message_id=None):
         """
@@ -440,26 +527,26 @@ class WhatsApp(SocialNetwork):
         # Initialize client before executing other actions
         await self._initialize_client()
 
-        if action == "post":
-            await self._handle_post_action()
-        elif action == "like":
-            await self._handle_like_action()
-        elif action == "share":
-            await self._handle_share_action()
-        elif action == "delete":
-            await self._handle_delete_action()
-        elif action == "video":
-            await self._handle_video_action()
-        elif action == "template":
-            await self._handle_template_action()
-        elif action == "last-from-feed":
-            await self._handle_last_from_feed_action()
-        elif action == "random-from-feed":
-            await self._handle_random_from_feed_action()
-        elif action == "schedule":
-            await self._handle_schedule_action()
-        else:
+        if action in ("get-post", "get-reply"):
+            await super().execute_action(action)
+            return
+
+        handlers = {
+            "post": self._handle_post_action,
+            "reply": self._handle_reply_action,
+            "like": self._handle_like_action,
+            "share": self._handle_share_action,
+            "delete": self._handle_delete_action,
+            "video": self._handle_video_action,
+            "template": self._handle_template_action,
+            "last-from-feed": self._handle_last_from_feed_action,
+            "random-from-feed": self._handle_random_from_feed_action,
+            "schedule": self._handle_schedule_action,
+        }
+        handler = handlers.get(action)
+        if handler is None:
             raise Exception(f'"{action}" action not supported.')
+        await handler()
 
 
 async def main_async(kwargs):

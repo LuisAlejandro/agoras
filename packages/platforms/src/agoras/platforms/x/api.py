@@ -17,7 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.x.api module."""
 
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from agoras.core.api_base import BaseAPI
 from agoras.core.auth import raise_authentication_error_from_manager
@@ -219,6 +219,35 @@ class XAPI(BaseAPI):
             self._handle_api_error(e, "X like")
             raise
 
+    async def reply(
+        self, text: str, media_ids: Optional[List[str]] = None, in_reply_to_tweet_id: Optional[str] = None
+    ) -> str:
+        """
+        Reply to a tweet.
+
+        Args:
+            text (str): Reply text content
+            media_ids (list, optional): List of media IDs
+            in_reply_to_tweet_id (str): Parent tweet ID to reply to
+
+        Returns:
+            str: Reply tweet ID
+
+        Raises:
+            Exception: If reply creation fails
+        """
+        if not self._authenticated or not self.client:
+            raise Exception("X API not authenticated")
+
+        await self._rate_limit_check("post", 1.0)
+
+        try:
+            tweet_id = await self.client.create_tweet(text, media_ids, in_reply_to_tweet_id=in_reply_to_tweet_id)
+            return tweet_id
+        except Exception as e:
+            self._handle_api_error(e, "X reply creation")
+            raise
+
     async def share(self, tweet_id: str) -> str:
         """
         Retweet (share) a tweet.
@@ -267,4 +296,28 @@ class XAPI(BaseAPI):
             return result
         except Exception as e:
             self._handle_api_error(e, "X delete")
+            raise
+
+    async def get_post(self, tweet_id: str) -> Dict[str, Any]:
+        """
+        Read a tweet by ID.
+
+        Args:
+            tweet_id (str): Tweet ID to read
+
+        Returns:
+            dict: Tweet content fields
+
+        Raises:
+            Exception: If the tweet cannot be read
+        """
+        if not self._authenticated or not self.client:
+            raise Exception("X API not authenticated")
+
+        await self._rate_limit_check("get_post", 0.5)
+
+        try:
+            return await self.client.get_tweet(tweet_id)
+        except Exception as e:
+            self._handle_api_error(e, "X get-post")
             raise

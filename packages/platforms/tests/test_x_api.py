@@ -190,6 +190,19 @@ async def test_x_api_post_with_reply_parent(x_api):
 
 
 @pytest.mark.asyncio
+async def test_x_api_reply(x_api):
+    """Test XAPI reply calls create_tweet with in_reply_to_tweet_id."""
+    x_api.client.create_tweet = AsyncMock(return_value='tweet-reply')
+
+    result = await x_api.reply('A reply', ['media-123'], 'parent-1')
+
+    assert result == 'tweet-reply'
+    x_api.client.create_tweet.assert_called_once_with(
+        'A reply', ['media-123'], in_reply_to_tweet_id='parent-1'
+    )
+
+
+@pytest.mark.asyncio
 async def test_x_api_post_rejects_over_limit(x_api):
     """Test XAPI post validates weighted length instead of truncating."""
     from agoras.core.text_limits import TextValidationError

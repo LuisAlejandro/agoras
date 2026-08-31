@@ -462,3 +462,33 @@ class TestXAPIClient:
         client.client_v2.get_me.return_value = response
 
         assert await client.get_subscription_type() is None
+
+    @patch("asyncio.to_thread")
+    @pytest.mark.asyncio
+    async def test_x_client_get_tweet_resolves_media(self, mock_to_thread):
+        """get_tweet resolves attached media from includes."""
+        mock_to_thread.side_effect = lambda func: func()
+        response_data = {
+            "id": "1",
+            "text": "hello",
+            "author_id": "42",
+            "created_at": "2026-01-01T00:00:00Z",
+            "attachments": {"media_keys": ["mk1"]},
+        }
+        includes = {
+            "media": [
+                {"media_key": "mk1", "type": "photo", "url": "https://example.com/a.jpg"},
+            ]
+        }
+        response = MagicMock()
+        response.data = response_data
+        response.includes = includes
+
+        client = XAPIClient("ck", "cs", "ot", "os")
+        client.client_v2 = MagicMock()
+        client.client_v2.get_tweet.return_value = response
+
+        result = await client.get_tweet("1")
+
+        assert result["media"] == [{"type": "image", "url": "https://example.com/a.jpg"}]
+        client.client_v2.get_tweet.assert_called_once()

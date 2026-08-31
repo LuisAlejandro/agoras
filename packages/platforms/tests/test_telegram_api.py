@@ -98,7 +98,8 @@ async def test_telegram_api_send_message(telegram_api):
     telegram_api.client.send_message.assert_called_once_with(
         chat_id='chat_id',
         text='Test message',
-        parse_mode=None
+        parse_mode=None,
+        reply_to_message_id=None
     )
 
 
@@ -112,7 +113,8 @@ async def test_telegram_api_send_photo(telegram_api):
         chat_id='chat_id',
         photo=b'image_data',
         caption='Photo caption',
-        parse_mode=None
+        parse_mode=None,
+        reply_to_message_id=None
     )
 
 
@@ -145,7 +147,8 @@ async def test_telegram_api_send_video(telegram_api):
         chat_id='chat_id',
         video=b'video_data',
         caption='Video caption',
-        parse_mode=None
+        parse_mode=None,
+        reply_to_message_id=None
     )
 
 
@@ -182,7 +185,8 @@ async def test_telegram_api_send_media_group(telegram_api):
     assert result == ['129', '130']
     telegram_api.client.send_media_group.assert_called_once_with(
         chat_id='chat_id',
-        media=media
+        media=media,
+        reply_to_message_id=None
     )
 
 
@@ -195,7 +199,64 @@ async def test_telegram_api_send_message_with_reply_markup(telegram_api):
     telegram_api.client.send_message.assert_called_once_with(
         chat_id='chat_id',
         text='Test message',
-        parse_mode='HTML'
+        parse_mode='HTML',
+        reply_to_message_id=None
+    )
+
+
+@pytest.mark.asyncio
+async def test_telegram_api_reply_text(telegram_api):
+    """Test TelegramAPI reply with text only."""
+    result = await telegram_api.reply('456', 'A reply')
+
+    assert result == '123'
+    telegram_api.client.send_message.assert_called_once_with(
+        chat_id='chat_id',
+        text='A reply',
+        parse_mode=None,
+        reply_to_message_id=456
+    )
+
+
+@pytest.mark.asyncio
+async def test_telegram_api_reply_photo(telegram_api):
+    """Test TelegramAPI reply with photo content."""
+    result = await telegram_api.reply('456', 'A reply', photo_content=b'image_data')
+
+    assert result == '124'
+    telegram_api.client.send_photo.assert_called_once_with(
+        chat_id='chat_id',
+        photo=b'image_data',
+        caption='A reply',
+        parse_mode=None,
+        reply_to_message_id=456
+    )
+
+
+@pytest.mark.asyncio
+async def test_telegram_api_reply_video(telegram_api):
+    """Test TelegramAPI reply with video content."""
+    result = await telegram_api.reply('456', 'A reply', video_content=b'video_data')
+
+    assert result == '125'
+    telegram_api.client.send_video.assert_called_once_with(
+        chat_id='chat_id',
+        video=b'video_data',
+        caption='A reply',
+        parse_mode=None,
+        reply_to_message_id=456
+    )
+
+
+@pytest.mark.asyncio
+async def test_telegram_api_reply_media_group(telegram_api):
+    """Test TelegramAPI reply with a media group."""
+    media = [{'type': 'photo', 'media': b'image_data'}]
+    result = await telegram_api.reply('456', 'A reply', media=media)
+
+    assert result == '129'
+    telegram_api.client.send_media_group.assert_called_once_with(
+        chat_id='chat_id', media=media, reply_to_message_id=456
     )
 
 
@@ -290,7 +351,9 @@ async def test_telegram_api_send_media_group_single_item(telegram_api):
     result = await telegram_api.send_media_group('chat_id', media)
 
     assert result == ['129']
-    telegram_api.client.send_media_group.assert_called_once_with(chat_id='chat_id', media=media)
+    telegram_api.client.send_media_group.assert_called_once_with(
+        chat_id='chat_id', media=media, reply_to_message_id=None
+    )
 
 
 @pytest.mark.asyncio
@@ -363,7 +426,8 @@ async def test_telegram_api_send_message_markdown_v2(telegram_api):
     telegram_api.client.send_message.assert_called_once_with(
         chat_id='chat_id',
         text='Test *message*',
-        parse_mode='MarkdownV2'
+        parse_mode='MarkdownV2',
+        reply_to_message_id=None
     )
 
 

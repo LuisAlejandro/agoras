@@ -167,7 +167,9 @@ class WhatsAppAPI(BaseAPI):
             self._handle_api_error(e, "WhatsApp post creation")
             raise
 
-    async def send_message(self, to: str, text: str, buttons: Optional[List] = None) -> str:
+    async def send_message(
+        self, to: str, text: str, buttons: Optional[List] = None, context: Optional[Dict] = None
+    ) -> str:
         """
         Send a text message via WhatsApp.
 
@@ -175,6 +177,7 @@ class WhatsAppAPI(BaseAPI):
             to (str): Recipient phone number in E.164 format (e.g., +1234567890)
             text (str): Message text content
             buttons (list, optional): Interactive buttons (not fully implemented in Phase 2)
+            context (dict, optional): Reply context (e.g. {"message_id": <id>})
 
         Returns:
             str: Message ID
@@ -193,7 +196,7 @@ class WhatsAppAPI(BaseAPI):
         try:
 
             def _sync_send():
-                response = client.send_message(to, text, buttons=buttons)
+                response = client.send_message(to, text, buttons=buttons, context=context)
                 return response["message_id"]
 
             return await asyncio.to_thread(_sync_send)
@@ -237,6 +240,7 @@ class WhatsAppAPI(BaseAPI):
         image_url: Optional[str] = None,
         caption: Optional[str] = None,
         image_id: Optional[str] = None,
+        context: Optional[Dict] = None,
     ) -> str:
         """
         Send an image message via WhatsApp.
@@ -245,6 +249,8 @@ class WhatsAppAPI(BaseAPI):
             to (str): Recipient phone number in E.164 format (e.g., +1234567890)
             image_url (str): Publicly accessible HTTPS URL of the image
             caption (str, optional): Image caption text
+            image_id (str, optional): Uploaded WhatsApp media ID
+            context (dict, optional): Reply context (e.g. {"message_id": <id>})
 
         Returns:
             str: Message ID
@@ -263,7 +269,9 @@ class WhatsAppAPI(BaseAPI):
         try:
 
             def _sync_send():
-                response = client.send_image(to, image_url=image_url, caption=caption, image_id=image_id)
+                response = client.send_image(
+                    to, image_url=image_url, caption=caption, image_id=image_id, context=context
+                )
                 return response["message_id"]
 
             return await asyncio.to_thread(_sync_send)
@@ -277,6 +285,7 @@ class WhatsAppAPI(BaseAPI):
         video_url: Optional[str] = None,
         caption: Optional[str] = None,
         video_id: Optional[str] = None,
+        context: Optional[Dict] = None,
     ) -> str:
         """
         Send a video message via WhatsApp.
@@ -285,6 +294,8 @@ class WhatsAppAPI(BaseAPI):
             to (str): Recipient phone number in E.164 format (e.g., +1234567890)
             video_url (str): Publicly accessible HTTPS URL of the video
             caption (str, optional): Video caption text
+            video_id (str, optional): Uploaded WhatsApp media ID
+            context (dict, optional): Reply context (e.g. {"message_id": <id>})
 
         Returns:
             str: Message ID
@@ -303,13 +314,50 @@ class WhatsAppAPI(BaseAPI):
         try:
 
             def _sync_send():
-                response = client.send_video(to, video_url=video_url, caption=caption, video_id=video_id)
+                response = client.send_video(
+                    to, video_url=video_url, caption=caption, video_id=video_id, context=context
+                )
                 return response["message_id"]
 
             return await asyncio.to_thread(_sync_send)
         except Exception as e:
             self._handle_api_error(e, "WhatsApp send_video")
             raise
+
+    async def reply(
+        self,
+        to: str,
+        post_id: str,
+        text: Optional[str] = None,
+        image_url: Optional[str] = None,
+        image_id: Optional[str] = None,
+        video_url: Optional[str] = None,
+        video_id: Optional[str] = None,
+    ) -> str:
+        """
+        Reply to a WhatsApp message with optional media.
+
+        Args:
+            to (str): Recipient phone number in E.164 format (e.g., +1234567890)
+            post_id (str): Message ID to reply to
+            text (str, optional): Reply text/caption
+            image_url (str, optional): Image URL to send
+            image_id (str, optional): Uploaded WhatsApp media ID
+            video_url (str, optional): Video URL to send
+            video_id (str, optional): Uploaded WhatsApp media ID
+
+        Returns:
+            str: Reply message ID
+
+        Raises:
+            Exception: If reply sending fails
+        """
+        context = {"message_id": post_id}
+        if image_id or image_url:
+            return await self.send_image(to, image_url=image_url, caption=text, image_id=image_id, context=context)
+        if video_id or video_url:
+            return await self.send_video(to, video_url=video_url, caption=text, video_id=video_id, context=context)
+        return await self.send_message(to, text or "", context=context)
 
     async def get_business_profile(self) -> Dict[str, Any]:
         """

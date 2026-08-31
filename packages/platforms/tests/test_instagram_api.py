@@ -138,6 +138,30 @@ async def test_instagram_api_share_not_supported(instagram_api):
         await instagram_api.share('media-123')
 
 
+# Reply Tests
+
+@pytest.mark.asyncio
+async def test_instagram_api_reply(instagram_api):
+    """Test InstagramAPI reply method."""
+    instagram_api.client.create_comment = AsyncMock(return_value='comment-123')
+
+    result = await instagram_api.reply('media-123', 'A comment')
+
+    assert result == 'comment-123'
+    instagram_api.client.create_comment.assert_called_once_with('media-123', 'A comment')
+
+
+@pytest.mark.asyncio
+async def test_instagram_api_delete_reply(instagram_api):
+    """Test InstagramAPI delete_reply delegates to client.delete_comment."""
+    instagram_api.client.delete_comment = AsyncMock(return_value='comment-123')
+
+    result = await instagram_api.delete_reply(comment_id='comment-123')
+
+    assert result == 'comment-123'
+    instagram_api.client.delete_comment.assert_called_once_with('comment-123')
+
+
 # Delete Tests - Not Supported
 
 @pytest.mark.asyncio

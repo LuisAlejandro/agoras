@@ -29,6 +29,15 @@ from linkedin_api.clients.restli.utils.query_tunneling import maybe_apply_query_
 from linkedin_api.common.constants import RESTLI_METHODS
 
 
+def _reject_activity_urn(urn: str, action: str) -> None:
+    """Reject activity URNs where ugcPost/share URNs are required."""
+    if urn and urn.startswith("urn:li:activity:"):
+        raise Exception(
+            f"LinkedIn {action} requires a ugcPost or share URN, not an activity URN. "
+            "Use the post URN returned when creating the post."
+        )
+
+
 class LinkedInAPIClient:
     """
     LinkedIn API client that centralizes LinkedIn operations.
@@ -454,6 +463,138 @@ class LinkedInAPIClient:
 
         return await asyncio.to_thread(_sync_like)
 
+    async def create_comment(
+        self, post_id: str, actor_urn: str, text: str, image_ids: Optional[List[str]] = None
+    ) -> str:
+        """
+        Comment on a LinkedIn post.
+
+        Args:
+            post_id (str): Post ID to comment on
+            actor_urn (str): LinkedIn actor URN (e.g., "urn:li:person:12345")
+            text (str): Comment text
+            image_ids (list, optional): List of uploaded image IDs to attach
+
+        Returns:
+            str: Comment ID
+
+        Raises:
+            Exception: If comment operation fails
+        """
+        _reject_activity_urn(post_id, "reply")
+
+        def _sync_comment():
+            if not self.restli_client:
+                raise Exception("LinkedIn RestliClient not initialized")
+            if not self.access_token:
+                raise Exception("No access token available")
+
+            entity: Dict[str, Any] = {
+                "actor": actor_urn,
+                "object": post_id,
+                "comment": text,
+            }
+
+            if image_ids:
+                entity["content"] = [{"entity": {"image": image_id}} for image_id in image_ids]
+
+            # Use the LinkedIn social actions endpoint for comments.
+            # POST /v2/socialActions/{postUrn}/comments
+            # URL-encode the post_id for the path.
+            encoded_post_id = urllib.parse.quote(post_id, safe="")
+
+            request = self.restli_client.create(
+                resource_path=f"/socialActions/{encoded_post_id}/comments",
+                entity=entity,
+                version_string=self.api_version,
+                access_token=self.access_token,
+            )
+
+            if request.status_code != 201:
+                try:
+                    response_data = request.response.json()
+                    if response_data.get("code") == "ACCESS_DENIED":
+                        raise Exception(
+                            'LinkedIn comment permission denied. Your LinkedIn app needs "Community Management API" '
+                            "product enabled and w_member_social scope approved. Visit "
+                            "https://developers.linkedin.com/ to configure your app permissions."
+                        )
+                    else:
+                        raise Exception(
+                            f"Unable to comment on post {post_id}: {response_data.get('message', 'Unknown error')}"
+                        )
+                except Exception as e:
+                    if "permission denied" in str(e).lower():
+                        raise e
+                    raise Exception(f"Unable to comment on post {post_id} - Status: {request.status_code}")
+
+            if hasattr(request, "entity_id") and request.entity_id:
+                return str(request.entity_id)
+            else:
+                raise Exception("Invalid response from LinkedIn API")
+
+        return await asyncio.to_thread(_sync_comment)
+
+    async def delete_comment(self, comment_id: str, parent_post_id: str) -> str:
+        """
+        Delete a LinkedIn comment.
+
+        The LinkedIn Comments API requires both the parent post URN and the
+        comment ID in the resource path.
+
+        Args:
+            comment_id (str): Comment ID to delete
+            parent_post_id (str): Parent post/share URN the comment belongs to
+
+        Returns:
+            str: Deleted comment ID
+
+        Raises:
+            Exception: If deletion fails
+        """
+
+        def _sync_delete_comment():
+            if not self.restli_client:
+                raise Exception("LinkedIn RestliClient not initialized")
+            if not self.access_token:
+                raise Exception("No access token available")
+            if not parent_post_id:
+                raise Exception("LinkedIn parent post ID is required for delete-reply action.")
+            if not comment_id:
+                raise Exception("LinkedIn comment ID is required for delete-reply action.")
+            _reject_activity_urn(parent_post_id, "delete-reply")
+
+            encoded_parent = urllib.parse.quote(parent_post_id, safe="")
+            encoded_comment = urllib.parse.quote(comment_id, safe="")
+
+            request = self.restli_client.delete(
+                resource_path=f"/socialActions/{encoded_parent}/comments/{encoded_comment}",
+                version_string=self.api_version,
+                access_token=self.access_token,
+            )
+
+            if request.status_code not in (200, 204):
+                try:
+                    response_data = request.response.json()
+                    if response_data.get("code") == "ACCESS_DENIED":
+                        raise Exception(
+                            'LinkedIn comment delete permission denied. Your LinkedIn app needs "Community '
+                            'Management API" product enabled and w_member_social scope approved. Visit '
+                            "https://developers.linkedin.com/ to configure your app permissions."
+                        )
+                    if response_data.get("code") == "NOT_FOUND":
+                        raise Exception(f"LinkedIn comment {comment_id} not found or already deleted.")
+                    raise Exception(
+                        f"Unable to delete comment {comment_id}: {response_data.get('message', 'Unknown error')}"
+                    )
+                except Exception as exc:
+                    if "permission" in str(exc).lower() or "not found" in str(exc).lower():
+                        raise exc
+                    raise Exception(f"Unable to delete comment {comment_id} - Status: {request.status_code}") from exc
+            return comment_id
+
+        return await asyncio.to_thread(_sync_delete_comment)
+
     async def share_post(self, post_id: str, author_urn: str, commentary: str = "") -> str:
         """
         Share (repost) a LinkedIn post.
@@ -536,6 +677,101 @@ class LinkedInAPIClient:
             return post_id
 
         return await asyncio.to_thread(_sync_delete)
+
+    async def get_post(self, post_id: str) -> Dict[str, Any]:
+        """
+        Read a LinkedIn post by URN.
+
+        Args:
+            post_id (str): Post URN to read
+
+        Returns:
+            dict: Post entity from the LinkedIn Posts API
+
+        Raises:
+            Exception: If the post cannot be read
+        """
+
+        def _sync_get():
+            if not self.restli_client:
+                raise Exception("LinkedIn RestliClient not initialized")
+            if not self.access_token:
+                raise Exception("No access token available")
+            if not post_id:
+                raise Exception("LinkedIn post ID is required for get-post action.")
+            _reject_activity_urn(post_id, "get-post")
+
+            request = self.restli_client.get(
+                resource_path="/posts/{id}",
+                path_keys={"id": post_id},
+                version_string=self.api_version,
+                access_token=self.access_token,
+            )
+
+            if request.status_code != 200:
+                raise Exception(f"Unable to get LinkedIn post {post_id} - Status: {request.status_code}")
+
+            entity = getattr(request, "entity", None)
+            if entity is None:
+                try:
+                    entity = request.response.json()
+                except Exception as exc:
+                    raise Exception(f"Unable to parse LinkedIn post {post_id}") from exc
+            if isinstance(entity, dict):
+                return entity
+            return {"id": post_id, "raw": entity}
+
+        return await asyncio.to_thread(_sync_get)
+
+    async def get_comment(self, comment_id: str, parent_post_id: str) -> Dict[str, Any]:
+        """
+        Read a LinkedIn comment by ID and parent post URN.
+
+        Args:
+            comment_id (str): Comment ID to read
+            parent_post_id (str): Parent post/share URN the comment belongs to
+
+        Returns:
+            dict: Comment entity from the LinkedIn Comments API
+
+        Raises:
+            Exception: If the comment cannot be read
+        """
+
+        def _sync_get_comment():
+            if not self.restli_client:
+                raise Exception("LinkedIn RestliClient not initialized")
+            if not self.access_token:
+                raise Exception("No access token available")
+            if not parent_post_id:
+                raise Exception("LinkedIn parent post ID is required for get-reply action.")
+            if not comment_id:
+                raise Exception("LinkedIn comment ID is required for get-reply action.")
+            _reject_activity_urn(parent_post_id, "get-reply")
+
+            encoded_parent = urllib.parse.quote(parent_post_id, safe="")
+            encoded_comment = urllib.parse.quote(comment_id, safe="")
+
+            request = self.restli_client.get(
+                resource_path=f"/socialActions/{encoded_parent}/comments/{encoded_comment}",
+                version_string=self.api_version,
+                access_token=self.access_token,
+            )
+
+            if request.status_code != 200:
+                raise Exception(f"Unable to get LinkedIn comment {comment_id} - Status: {request.status_code}")
+
+            entity = getattr(request, "entity", None)
+            if entity is None:
+                try:
+                    entity = request.response.json()
+                except Exception as exc:
+                    raise Exception(f"Unable to parse LinkedIn comment {comment_id}") from exc
+            if isinstance(entity, dict):
+                return entity
+            return {"id": comment_id, "raw": entity}
+
+        return await asyncio.to_thread(_sync_get_comment)
 
     async def get_user_info(self) -> Dict[str, Any]:
         """

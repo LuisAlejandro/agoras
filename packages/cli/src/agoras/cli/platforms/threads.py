@@ -87,6 +87,35 @@ def create_threads_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     )
     _add_post_id_option(delete)
 
+    # Delete-reply action (delete a Threads reply)
+    delete_reply = actions.add_parser(
+        "delete-reply",
+        help='Delete a Threads reply. Requires prior authorization via "agoras threads authorize".',
+    )
+    _add_post_id_option(delete_reply)
+
+    # Reply action
+    reply = actions.add_parser(
+        "reply", help='Reply to a Threads post. Requires prior authorization via "agoras threads authorize".'
+    )
+    _add_post_id_option(reply)
+    add_common_content_options(reply, images=4)
+    add_video_options(reply, platform="threads", with_content_file=False)
+
+    # Get-post action
+    get_post = actions.add_parser(
+        "get-post",
+        help='Read a Threads post. Requires prior authorization via "agoras threads authorize".',
+    )
+    _add_post_id_option(get_post)
+
+    # Get-reply action
+    get_reply = actions.add_parser(
+        "get-reply",
+        help='Read a Threads reply. Requires prior authorization via "agoras threads authorize".',
+    )
+    _add_post_id_option(get_reply)
+
     # Set handler
     parser.set_defaults(command=_handle_threads_command)
 

@@ -140,7 +140,9 @@ class WhatsAppAPIClient:
         except requests.exceptions.RequestException as e:
             raise Exception(f"WhatsApp post_object failed: {str(e)}")
 
-    def send_message(self, to: str, text: str, buttons: Optional[List] = None) -> Dict[str, Any]:
+    def send_message(
+        self, to: str, text: str, buttons: Optional[List] = None, context: Optional[Dict] = None
+    ) -> Dict[str, Any]:
         """
         Send text message via Graph API.
 
@@ -148,6 +150,7 @@ class WhatsAppAPIClient:
             to (str): Recipient phone number in E.164 format (e.g., +1234567890)
             text (str): Message text content
             buttons (list, optional): Interactive buttons (not implemented in Phase 2)
+            context (dict, optional): Reply context (e.g. {"message_id": <id>})
 
         Returns:
             dict: Response with message_id and status
@@ -164,6 +167,9 @@ class WhatsAppAPIClient:
         if buttons:
             payload["type"] = "interactive"
             payload["interactive"] = {"type": "button", "body": {"text": text}, "action": {"buttons": buttons}}
+
+        if context:
+            payload["context"] = context
 
         try:
             response = self.post_object(object_id=self.phone_number_id, connection="messages", data=payload)
@@ -224,6 +230,7 @@ class WhatsAppAPIClient:
         image_url: Optional[str] = None,
         caption: Optional[str] = None,
         image_id: Optional[str] = None,
+        context: Optional[Dict] = None,
     ) -> Dict[str, Any]:
         """
         Send image message via Graph API.
@@ -233,6 +240,7 @@ class WhatsAppAPIClient:
             image_url (str, optional): Publicly accessible HTTPS URL of the image
             caption (str, optional): Image caption text
             image_id (str, optional): Uploaded WhatsApp media ID
+            context (dict, optional): Reply context (e.g. {"message_id": <id>})
 
         Returns:
             dict: Response with message_id and status
@@ -255,6 +263,9 @@ class WhatsAppAPIClient:
         if caption:
             payload["image"]["caption"] = caption
 
+        if context:
+            payload["context"] = context
+
         try:
             response = self.post_object(object_id=self.phone_number_id, connection="messages", data=payload)
 
@@ -271,6 +282,7 @@ class WhatsAppAPIClient:
         video_url: Optional[str] = None,
         caption: Optional[str] = None,
         video_id: Optional[str] = None,
+        context: Optional[Dict] = None,
     ) -> Dict[str, Any]:
         """
         Send video message via Graph API.
@@ -280,6 +292,7 @@ class WhatsAppAPIClient:
             video_url (str, optional): Publicly accessible HTTPS URL of the video
             caption (str, optional): Video caption text
             video_id (str, optional): Uploaded WhatsApp media ID
+            context (dict, optional): Reply context (e.g. {"message_id": <id>})
 
         Returns:
             dict: Response with message_id and status
@@ -301,6 +314,9 @@ class WhatsAppAPIClient:
 
         if caption:
             payload["video"]["caption"] = caption
+
+        if context:
+            payload["context"] = context
 
         try:
             response = self.post_object(object_id=self.phone_number_id, connection="messages", data=payload)

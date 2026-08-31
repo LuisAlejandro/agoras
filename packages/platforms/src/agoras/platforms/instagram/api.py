@@ -17,7 +17,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.instagram.api module."""
 
-from typing import List, Optional
+import asyncio
+from typing import Any, Dict, List, Optional
 
 from agoras.core.api_base import BaseAPI
 from agoras.core.auth import raise_authentication_error_from_manager
@@ -308,3 +309,116 @@ class InstagramAPI(BaseAPI):
             Exception: Share not supported for Instagram
         """
         raise Exception("Share not supported for Instagram")
+
+    async def reply(self, post_id: str, text: str) -> str:
+        """
+        Comment on an Instagram media post.
+
+        Args:
+            post_id (str): Media ID to comment on
+            text (str): Comment text
+
+        Returns:
+            str: Comment ID
+
+        Raises:
+            Exception: If comment operation fails
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("Instagram API not authenticated")
+
+        await self._rate_limit_check("reply", 0.5)
+
+        try:
+            return await self.client.create_comment(post_id, text)
+        except Exception as e:
+            self._handle_api_error(e, "Instagram comment")
+            raise
+
+    async def delete_reply(self, comment_id: str) -> str:
+        """
+        Delete an Instagram comment.
+
+        Args:
+            comment_id (str): ID of the comment to delete
+
+        Returns:
+            str: Deleted comment ID
+
+        Raises:
+            Exception: If deletion fails
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("Instagram API not authenticated")
+
+        await self._rate_limit_check("delete", 0.5)
+
+        try:
+            return await self.client.delete_comment(comment_id)
+        except Exception as e:
+            self._handle_api_error(e, "Instagram delete-reply")
+            raise
+
+    async def get_post(self, post_id: str) -> Dict[str, Any]:
+        """
+        Read an Instagram media object by ID.
+
+        Args:
+            post_id (str): Media ID to read
+
+        Returns:
+            dict: Media fields from Graph API
+
+        Raises:
+            Exception: If the media cannot be read
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("Instagram API not authenticated")
+
+        await self._rate_limit_check("get_post", 0.5)
+
+        try:
+            return await asyncio.to_thread(
+                self.client.get_object,
+                post_id,
+                "id,caption,timestamp,username,media_type,media_url,permalink",
+            )
+        except Exception as e:
+            self._handle_api_error(e, "Instagram get-post")
+            raise
+
+    async def get_reply(self, comment_id: str) -> Dict[str, Any]:
+        """
+        Read an Instagram comment by ID.
+
+        Args:
+            comment_id (str): Comment ID to read
+
+        Returns:
+            dict: Comment fields from Graph API
+
+        Raises:
+            Exception: If the comment cannot be read
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("Instagram API not authenticated")
+
+        await self._rate_limit_check("get_reply", 0.5)
+
+        try:
+            return await asyncio.to_thread(
+                self.client.get_object,
+                comment_id,
+                "id,text,timestamp,username,from",
+            )
+        except Exception as e:
+            self._handle_api_error(e, "Instagram get-reply")
+            raise

@@ -120,6 +120,32 @@ async def test_facebook_api_like(facebook_api):
     assert result is not None
 
 
+# Reply Tests
+
+@pytest.mark.asyncio
+async def test_facebook_api_reply(facebook_api):
+    """Test FacebookAPI reply method."""
+    facebook_api.client.create_comment = AsyncMock(return_value='comment-123')
+
+    result = await facebook_api.reply('post-123', 'A comment')
+
+    assert result == 'comment-123'
+    facebook_api.client.create_comment.assert_called_once_with('post-123', 'A comment', image_url=None)
+
+
+@pytest.mark.asyncio
+async def test_facebook_api_reply_with_image(facebook_api):
+    """Test FacebookAPI reply passes image_url to the client."""
+    facebook_api.client.create_comment = AsyncMock(return_value='comment-123')
+
+    result = await facebook_api.reply('post-123', 'A comment', image_url='http://example.com/a.jpg')
+
+    assert result == 'comment-123'
+    facebook_api.client.create_comment.assert_called_once_with(
+        'post-123', 'A comment', image_url='http://example.com/a.jpg'
+    )
+
+
 # Share Tests
 
 @pytest.mark.asyncio
@@ -143,6 +169,17 @@ async def test_facebook_api_delete(facebook_api):
 
     # Returns whatever client returns
     assert result is not None
+
+
+@pytest.mark.asyncio
+async def test_facebook_api_delete_reply(facebook_api):
+    """Test FacebookAPI delete_reply delegates to client.delete_comment."""
+    facebook_api.client.delete_comment = AsyncMock(return_value='comment-123')
+
+    result = await facebook_api.delete_reply(comment_id='comment-123')
+
+    assert result == 'comment-123'
+    facebook_api.client.delete_comment.assert_called_once_with('comment-123')
 
 
 # Error Handling Tests

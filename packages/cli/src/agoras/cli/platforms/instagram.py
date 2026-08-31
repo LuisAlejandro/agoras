@@ -68,6 +68,36 @@ def create_instagram_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     _add_instagram_action_options(video, object_id_required=False)
     _add_video_options(video)
 
+    # Reply action
+    reply = actions.add_parser(
+        "reply", help='Comment on an Instagram post. Requires prior authorization via "agoras instagram authorize".'
+    )
+    _add_instagram_action_options(reply, object_id_required=False)
+    _add_post_id_option(reply)
+    reply.add_argument("--text", required=True, metavar="<text>", help="Comment text to post on the Instagram post")
+
+    # Delete-reply action (delete an Instagram comment)
+    delete_reply = actions.add_parser(
+        "delete-reply",
+        help='Delete an Instagram comment. Requires prior authorization via "agoras instagram authorize".',
+    )
+    _add_instagram_action_options(delete_reply, object_id_required=False)
+    _add_post_id_option(delete_reply)
+
+    # Get-post action
+    get_post = actions.add_parser(
+        "get-post",
+        help='Read an Instagram media object. Requires prior authorization via "agoras instagram authorize".',
+    )
+    _add_post_id_option(get_post)
+
+    # Get-reply action
+    get_reply = actions.add_parser(
+        "get-reply",
+        help='Read an Instagram comment. Requires prior authorization via "agoras instagram authorize".',
+    )
+    _add_post_id_option(get_reply)
+
     # Set handler
     parser.set_defaults(command=_handle_instagram_command)
 
@@ -125,6 +155,16 @@ def _add_video_options(parser: ArgumentParser):
         metavar="<type>",
         help="Video type: REELS (default) or STORIES (case-insensitive; reel/story also accepted)",
     )
+
+
+def _add_post_id_option(parser: ArgumentParser):
+    """
+    Add post ID option for reply action.
+
+    Args:
+        parser: ArgumentParser to add options to
+    """
+    parser.add_argument("--post-id", required=True, metavar="<id>", help="Instagram post ID to interact with")
 
 
 def _handle_instagram_command(args: Namespace):

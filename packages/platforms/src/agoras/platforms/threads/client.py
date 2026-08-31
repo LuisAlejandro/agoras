@@ -322,3 +322,38 @@ class ThreadsAPIClient:
             return {"id": post_id}
         except Exception as e:
             raise Exception(f"Failed to delete post: {str(e)}")
+
+    def get_post(
+        self,
+        post_id: str,
+        fields: str = "id,text,timestamp,username,media_type,media_url,permalink",
+    ) -> Dict[str, Any]:
+        """
+        Read a published Threads post by ID.
+
+        Args:
+            post_id (str): ID of the post to read
+            fields (str): Comma-separated fields to request
+
+        Returns:
+            dict: Post fields from the Threads API
+
+        Raises:
+            Exception: If the post cannot be read or not authenticated
+        """
+        if not self.access_token:
+            raise Exception("No access token available")
+
+        if not post_id:
+            raise Exception("Post ID is required")
+
+        try:
+            response = requests.get(
+                f"{self.base_url}/{post_id}",
+                params={"fields": fields, "access_token": self.access_token},
+                timeout=30,
+            )
+            self._check_response(response)
+            return response.json()
+        except Exception as e:
+            raise Exception(f"Failed to get post: {str(e)}")

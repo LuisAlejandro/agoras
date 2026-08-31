@@ -48,6 +48,10 @@ class LinkedIn(SocialNetwork):
                 - linkedin_object_id: LinkedIn object ID
                 - linkedin_post_id: LinkedIn post ID
         """
+        # Map platform-specific key to generic key for core interface compatibility
+        if "linkedin_post_id" in kwargs:
+            kwargs["post_id"] = kwargs["linkedin_post_id"]
+
         super().__init__(**kwargs)
         self.linkedin_access_token = None
         self.linkedin_client_id = None
@@ -176,7 +180,6 @@ class LinkedIn(SocialNetwork):
         status_link_title = ""
         status_link_description = ""
         status_link_image = ""
-        media_ids = []
         source_media = list(
             filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
         )
@@ -201,20 +204,7 @@ class LinkedIn(SocialNetwork):
                 source_media = [status_link_image]
 
         # Download and upload images using the Media system
-        if source_media:
-            images = await self.download_images(source_media)
-            for image in images:
-                try:
-                    # Upload image to LinkedIn
-                    if image.content:
-                        media_id = await self.api.upload_image(image.content)
-                        if media_id:
-                            media_ids.append(media_id)
-                except Exception as e:
-                    print(f"Failed to upload image {image.url}: {str(e)}", file=sys.stderr)
-                finally:
-                    # Clean up temporary files
-                    image.cleanup()
+        media_ids = await self._upload_images(source_media)
 
         # Create the post
         post_id = await self.api.post(
@@ -272,6 +262,103 @@ class LinkedIn(SocialNetwork):
         self._output_status(result)
         return result
 
+    async def delete_reply(self, post_id):
+        """
+        Delete a LinkedIn comment.
+
+        A LinkedIn reply is a comment, deleted via the Comments API. The
+        uniform ``post_id`` carries the comment ID; the parent post URN is
+        read from the ``linkedin_parent_post_id`` config key because the
+        LinkedIn comment-delete path requires both identifiers.
+
+        Args:
+            post_id (str): ID of the comment to delete
+
+        Returns:
+            str: Deleted comment ID
+        """
+        if not self.api:
+            raise Exception("LinkedIn API not initialized")
+
+        if not post_id:
+            raise Exception("LinkedIn comment ID is required for delete-reply action.")
+
+        parent_post_id = self._get_config_value("linkedin_parent_post_id", "LINKEDIN_PARENT_POST_ID")
+        if not parent_post_id:
+            raise Exception("LinkedIn parent post ID is required for delete-reply action.")
+
+        result = await self.api.delete_reply(comment_id=post_id, parent_post_id=parent_post_id)
+        self._output_status(result)
+        return result
+
+    async def get_post(self, post_id):
+        """
+        Read a LinkedIn post by URN and return normalized content.
+
+        Args:
+            post_id (str): Post URN to read
+
+        Returns:
+            dict: Normalized content
+        """
+        if not self.api:
+            raise Exception("LinkedIn API not initialized")
+
+        if not post_id:
+            raise Exception("LinkedIn post ID is required.")
+        linkedin_post_id = post_id
+
+        raw = await self.api.get_post(linkedin_post_id)
+        author_urn = raw.get("author")
+        content = {
+            "id": str(raw.get("id", linkedin_post_id)),
+            "text": raw.get("commentary") or raw.get("text"),
+            "media": [],
+            "author": {"id": author_urn, "name": None} if author_urn else None,
+            "created_at": raw.get("createdAt") or raw.get("created_at"),
+            "metadata": {},
+        }
+        self._output_content(content)
+        return content
+
+    async def get_reply(self, post_id):
+        """
+        Read a LinkedIn comment by ID and return normalized content.
+
+        The uniform ``post_id`` carries the comment ID; the parent post URN is
+        read from ``linkedin_parent_post_id`` (mirroring delete_reply).
+
+        Args:
+            post_id (str): Comment ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        if not self.api:
+            raise Exception("LinkedIn API not initialized")
+
+        if not post_id:
+            raise Exception("LinkedIn comment ID is required for get-reply action.")
+
+        parent_post_id = self._get_config_value("linkedin_parent_post_id", "LINKEDIN_PARENT_POST_ID")
+        if not parent_post_id:
+            raise Exception("LinkedIn parent post ID is required for get-reply action.")
+
+        raw = await self.api.get_reply(comment_id=post_id, parent_post_id=parent_post_id)
+        actor = raw.get("actor") or raw.get("author")
+        message = raw.get("message") or {}
+        text = message.get("text") if isinstance(message, dict) else raw.get("commentary") or raw.get("text")
+        content = {
+            "id": str(raw.get("id", post_id)),
+            "text": text,
+            "media": [],
+            "author": {"id": actor, "name": None} if actor else None,
+            "created_at": raw.get("created") or raw.get("createdAt") or raw.get("created_at"),
+            "metadata": {"parent_post_id": parent_post_id},
+        }
+        self._output_content(content)
+        return content
+
     async def share(self, linkedin_post_id=None):
         """
         Share a LinkedIn post.
@@ -291,6 +378,87 @@ class LinkedIn(SocialNetwork):
             raise Exception("LinkedIn post ID is required.")
 
         result = await self.api.share(post_id)
+        self._output_status(result)
+        return result
+
+    async def _upload_images(self, source_media):
+        """
+        Download and upload images to LinkedIn, returning their media IDs.
+
+        Args:
+            source_media (list): List of image URLs to upload.
+
+        Returns:
+            list: List of uploaded media IDs.
+        """
+        if not self.api:
+            raise Exception("LinkedIn API not initialized")
+
+        media_ids = []
+        if not source_media:
+            return media_ids
+
+        images = await self.download_images(source_media)
+        for image in images:
+            try:
+                if image.content:
+                    media_id = await self.api.upload_image(image.content)
+                    if media_id:
+                        media_ids.append(media_id)
+            except Exception as e:
+                print(f"Failed to upload image {image.url}: {str(e)}", file=sys.stderr)
+            finally:
+                image.cleanup()
+        return media_ids
+
+    async def reply(
+        self,
+        post_id,
+        text,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+        video_url=None,
+    ):
+        """
+        Comment on a LinkedIn post.
+
+        Args:
+            post_id (str): ID of the LinkedIn post to comment on.
+            text (str): Comment text.
+            status_image_url_1 (str, optional): First image URL.
+            status_image_url_2 (str, optional): Second image URL.
+            status_image_url_3 (str, optional): Third image URL.
+            status_image_url_4 (str, optional): Fourth image URL.
+            video_url (str, optional): URL of a video to attach. LinkedIn
+                comments do not support video; providing one raises.
+
+        Returns:
+            str: Comment ID
+        """
+        if not self.api:
+            raise Exception("LinkedIn API not initialized")
+
+        if not post_id:
+            raise Exception("LinkedIn post ID is required.")
+
+        source_media = list(
+            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        )
+        if not source_media and not text:
+            raise Exception("LinkedIn reply text or image is required.")
+
+        if video_url:
+            raise Exception("Video not supported in LinkedIn comments.")
+
+        validate_text("linkedin", "text", text or "")
+
+        image_ids = await self._upload_images(source_media)
+        if source_media and not image_ids:
+            raise Exception("Failed to upload any image for LinkedIn reply.")
+
+        result = await self.api.reply(post_id, text, image_ids=image_ids)
         self._output_status(result)
         return result
 

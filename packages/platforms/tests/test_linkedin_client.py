@@ -494,6 +494,163 @@ async def test_linkedin_client_like_post_failure(mock_to_thread):
         await client.like_post('post-123', 'urn:li:person:123')
 
 
+# Create Comment Tests
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.linkedin.client.asyncio.to_thread')
+async def test_linkedin_client_create_comment(mock_to_thread):
+    """Test LinkedInAPIClient create_comment method."""
+    client = LinkedInAPIClient('access_token')
+    mock_restli = MagicMock()
+    mock_request = MagicMock()
+    mock_request.status_code = 201
+    mock_request.entity_id = 'comment-123'
+    mock_restli.create.return_value = mock_request
+    client.restli_client = mock_restli
+    client._authenticated = True
+
+    def execute_sync(func):
+        return func()
+    mock_to_thread.side_effect = execute_sync
+
+    result = await client.create_comment('post-123', 'urn:li:person:123', 'A comment')
+
+    assert result == 'comment-123'
+    mock_restli.create.assert_called_once()
+    call_entity = mock_restli.create.call_args[1]['entity']
+    assert call_entity['actor'] == 'urn:li:person:123'
+    assert call_entity['object'] == 'post-123'
+    assert call_entity['comment'] == 'A comment'
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.linkedin.client.asyncio.to_thread')
+async def test_linkedin_client_create_comment_with_image(mock_to_thread):
+    """Test LinkedInAPIClient create_comment includes content[].entity.image."""
+    client = LinkedInAPIClient('access_token')
+    mock_restli = MagicMock()
+    mock_request = MagicMock()
+    mock_request.status_code = 201
+    mock_request.entity_id = 'comment-123'
+    mock_restli.create.return_value = mock_request
+    client.restli_client = mock_restli
+    client._authenticated = True
+
+    def execute_sync(func):
+        return func()
+    mock_to_thread.side_effect = execute_sync
+
+    result = await client.create_comment(
+        'post-123', 'urn:li:person:123', 'A comment', image_ids=['urn:li:image:img1', 'urn:li:image:img2']
+    )
+
+    assert result == 'comment-123'
+    call_entity = mock_restli.create.call_args[1]['entity']
+    assert call_entity['content'] == [
+        {'entity': {'image': 'urn:li:image:img1'}},
+        {'entity': {'image': 'urn:li:image:img2'}},
+    ]
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.linkedin.client.asyncio.to_thread')
+async def test_linkedin_client_create_comment_encodes_post_id(mock_to_thread):
+    """Test LinkedInAPIClient create_comment URL-encodes the post URN in the path."""
+    client = LinkedInAPIClient('access_token')
+    mock_restli = MagicMock()
+    mock_request = MagicMock()
+    mock_request.status_code = 201
+    mock_request.entity_id = 'comment-123'
+    mock_restli.create.return_value = mock_request
+    client.restli_client = mock_restli
+    client._authenticated = True
+
+    def execute_sync(func):
+        return func()
+    mock_to_thread.side_effect = execute_sync
+
+    await client.create_comment('urn:li:ugcPost:123', 'urn:li:person:123', 'A comment')
+
+    resource_path = mock_restli.create.call_args[1]['resource_path']
+    assert 'ugcPost' in resource_path
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.linkedin.client.asyncio.to_thread')
+async def test_linkedin_client_create_comment_rejects_activity_urn(mock_to_thread):
+    """Test create_comment rejects activity URNs with a clear error."""
+    client = LinkedInAPIClient('access_token')
+    client.restli_client = MagicMock()
+    client._authenticated = True
+
+    with pytest.raises(Exception, match='not an activity URN'):
+        await client.create_comment('urn:li:activity:123', 'urn:li:person:123', 'A comment')
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.linkedin.client.asyncio.to_thread')
+async def test_linkedin_client_create_comment_failure(mock_to_thread):
+    """Test LinkedInAPIClient create_comment handles failure."""
+    client = LinkedInAPIClient('access_token')
+    mock_restli = MagicMock()
+    mock_request = MagicMock()
+    mock_request.status_code = 400  # Failure
+    mock_restli.create.return_value = mock_request
+    client.restli_client = mock_restli
+    client._authenticated = True
+
+    def execute_sync(func):
+        return func()
+    mock_to_thread.side_effect = execute_sync
+
+    with pytest.raises(Exception, match='Unable to comment on post'):
+        await client.create_comment('post-123', 'urn:li:person:123', 'A comment')
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.linkedin.client.asyncio.to_thread')
+async def test_linkedin_client_create_comment_access_denied(mock_to_thread):
+    """Test LinkedInAPIClient create_comment surfaces the Community Management API message."""
+    client = LinkedInAPIClient('access_token')
+    mock_restli = MagicMock()
+    mock_request = MagicMock()
+    mock_request.status_code = 403
+    mock_response = MagicMock()
+    mock_response.json.return_value = {'code': 'ACCESS_DENIED', 'message': 'denied'}
+    mock_request.response = mock_response
+    mock_restli.create.return_value = mock_request
+    client.restli_client = mock_restli
+    client._authenticated = True
+
+    def execute_sync(func):
+        return func()
+    mock_to_thread.side_effect = execute_sync
+
+    with pytest.raises(Exception, match='Community Management API'):
+        await client.create_comment('post-123', 'urn:li:person:123', 'A comment')
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.linkedin.client.asyncio.to_thread')
+async def test_linkedin_client_create_comment_invalid_response(mock_to_thread):
+    """Test LinkedInAPIClient create_comment handles invalid response."""
+    client = LinkedInAPIClient('access_token')
+    mock_restli = MagicMock()
+    mock_request = MagicMock()
+    mock_request.status_code = 201
+    mock_request.entity_id = None  # Invalid response
+    mock_restli.create.return_value = mock_request
+    client.restli_client = mock_restli
+    client._authenticated = True
+
+    def execute_sync(func):
+        return func()
+    mock_to_thread.side_effect = execute_sync
+
+    with pytest.raises(Exception, match='Invalid response from LinkedIn API'):
+        await client.create_comment('post-123', 'urn:li:person:123', 'A comment')
+
+
 # Share Post Tests
 
 @pytest.mark.asyncio
@@ -588,6 +745,76 @@ async def test_linkedin_client_delete_post_failure(mock_to_thread):
         await client.delete_post('post-123')
 
 
+@pytest.mark.asyncio
+@patch('agoras.platforms.linkedin.client.asyncio.to_thread')
+async def test_linkedin_client_delete_comment(mock_to_thread):
+    """Test LinkedInAPIClient delete_comment issues a DELETE on the comment resource."""
+    client = LinkedInAPIClient('access_token')
+    mock_restli = MagicMock()
+    mock_request = MagicMock()
+    mock_request.status_code = 204
+    mock_restli.delete.return_value = mock_request
+    client.restli_client = mock_restli
+    client._authenticated = True
+
+    def execute_sync(func):
+        return func()
+    mock_to_thread.side_effect = execute_sync
+
+    result = await client.delete_comment('comment-123', parent_post_id='urn:li:ugcPost:123')
+
+    assert result == 'comment-123'
+    mock_restli.delete.assert_called_once()
+    resource_path = mock_restli.delete.call_args[1]['resource_path']
+    assert resource_path == '/socialActions/urn%3Ali%3AugcPost%3A123/comments/comment-123'
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.linkedin.client.asyncio.to_thread')
+async def test_linkedin_client_delete_comment_access_denied(mock_to_thread):
+    """Test LinkedInAPIClient delete_comment surfaces the Community Management API message."""
+    client = LinkedInAPIClient('access_token')
+    mock_restli = MagicMock()
+    mock_request = MagicMock()
+    mock_request.status_code = 403
+    mock_response = MagicMock()
+    mock_response.json.return_value = {'code': 'ACCESS_DENIED', 'message': 'denied'}
+    mock_request.response = mock_response
+    mock_restli.delete.return_value = mock_request
+    client.restli_client = mock_restli
+    client._authenticated = True
+
+    def execute_sync(func):
+        return func()
+    mock_to_thread.side_effect = execute_sync
+
+    with pytest.raises(Exception, match='Community Management API'):
+        await client.delete_comment('comment-123', parent_post_id='urn:li:ugcPost:123')
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.linkedin.client.asyncio.to_thread')
+async def test_linkedin_client_delete_comment_not_found(mock_to_thread):
+    """Test LinkedInAPIClient delete_comment surfaces a NOT_FOUND error."""
+    client = LinkedInAPIClient('access_token')
+    mock_restli = MagicMock()
+    mock_request = MagicMock()
+    mock_request.status_code = 404
+    mock_response = MagicMock()
+    mock_response.json.return_value = {'code': 'NOT_FOUND', 'message': 'gone'}
+    mock_request.response = mock_response
+    mock_restli.delete.return_value = mock_request
+    client.restli_client = mock_restli
+    client._authenticated = True
+
+    def execute_sync(func):
+        return func()
+    mock_to_thread.side_effect = execute_sync
+
+    with pytest.raises(Exception, match='not found or already deleted'):
+        await client.delete_comment('comment-123', parent_post_id='urn:li:ugcPost:123')
+
+
 # Get User Info Tests
 
 @pytest.mark.asyncio
@@ -634,3 +861,42 @@ async def test_linkedin_client_get_user_info_expired_token(mock_to_thread):
 
     with pytest.raises(Exception, match='access token has expired'):
         await client.get_user_info()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.linkedin.client.asyncio.to_thread')
+async def test_linkedin_client_get_post_rejects_activity_urn(mock_to_thread):
+    """Test get_post rejects activity URNs with a clear error."""
+    client = LinkedInAPIClient('access_token')
+    mock_restli = MagicMock()
+    client.restli_client = mock_restli
+    client._authenticated = True
+
+    def execute_sync(func):
+        return func()
+
+    mock_to_thread.side_effect = execute_sync
+
+    with pytest.raises(Exception, match='not an activity URN'):
+        await client.get_post('urn:li:activity:123')
+
+    mock_restli.get.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.linkedin.client.asyncio.to_thread')
+async def test_linkedin_client_get_comment_rejects_activity_urn(mock_to_thread):
+    """Test get_comment rejects activity URNs on parent post."""
+    client = LinkedInAPIClient('access_token')
+    client.restli_client = MagicMock()
+    client._authenticated = True
+
+    def execute_sync(func):
+        return func()
+
+    mock_to_thread.side_effect = execute_sync
+
+    with pytest.raises(Exception, match='not an activity URN'):
+        await client.get_comment('comment-123', 'urn:li:activity:456')
+
+    client.restli_client.get.assert_not_called()
