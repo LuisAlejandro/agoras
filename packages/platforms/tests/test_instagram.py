@@ -483,20 +483,41 @@ async def test_instagram_share_not_supported(mock_auth_manager_class, mock_api_c
 @pytest.mark.asyncio
 @patch("agoras.platforms.instagram.wrapper.InstagramAPI")
 @patch("agoras.platforms.instagram.auth.InstagramAuthManager")
-async def test_instagram_delete_not_supported(mock_auth_manager_class, mock_api_class):
-    """Test Instagram delete is not supported."""
+async def test_instagram_delete(mock_auth_manager_class, mock_api_class):
+    """Test Instagram delete deletes a media post."""
     configure_instagram_auth_mock(mock_auth_manager_class)
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
-    mock_api.delete = AsyncMock(side_effect=Exception("Delete not supported"))
+    mock_api.delete = AsyncMock(return_value="media-123")
     mock_api_class.return_value = mock_api
 
     instagram = Instagram(**INSTAGRAM_KWARGS)
 
     await instagram._initialize_client()
 
-    with pytest.raises(Exception, match="not supported"):
-        await instagram.delete("media-123")
+    with patch.object(instagram, "_output_status"):
+        result = await instagram.delete("media-123")
+
+    assert result == "media-123"
+    mock_api.delete.assert_called_once_with("media-123")
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
+async def test_instagram_delete_no_post_id(mock_auth_manager_class, mock_api_class):
+    """Test Instagram delete raises when post ID missing."""
+    configure_instagram_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    instagram = Instagram(**INSTAGRAM_KWARGS)
+
+    await instagram._initialize_client()
+
+    with pytest.raises(Exception, match="Instagram post ID is required"):
+        await instagram.delete(None)
 
 
 @pytest.mark.asyncio

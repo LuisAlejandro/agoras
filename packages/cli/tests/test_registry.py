@@ -87,9 +87,9 @@ def test_get_supported_actions_instagram():
     assert 'post' in actions
     assert 'video' in actions
     assert 'reply' in actions
+    assert 'delete' in actions
     assert 'like' not in actions
     assert 'share' not in actions
-    assert 'delete' not in actions
 
 
 def test_get_supported_actions_threads():

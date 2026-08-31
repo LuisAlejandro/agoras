@@ -161,6 +161,38 @@ class InstagramAPIClient:
 
         return await asyncio.to_thread(_sync_delete_comment)
 
+    async def delete_media(self, media_id: str) -> str:
+        """
+        Delete an Instagram media post.
+
+        Args:
+            media_id (str): Instagram media ID to delete
+
+        Returns:
+            str: Deleted media ID
+
+        Raises:
+            Exception: If deletion fails
+        """
+        if not self.graph_api:
+            raise Exception("Instagram GraphAPI not initialized")
+        if not media_id:
+            raise Exception("Instagram media ID is required for delete action.")
+
+        graph_api = self.graph_api
+
+        def _sync_delete_media():
+            try:
+                graph_api.delete_object(object_id=media_id)
+            except Exception as exc:
+                message = str(exc).lower()
+                if "permission" in message or "not exist" in message or "not found" in message:
+                    raise Exception(f"Instagram media delete: {str(exc)}") from exc
+                raise Exception(f"Unable to delete media {media_id}: {str(exc)}") from exc
+            return media_id
+
+        return await asyncio.to_thread(_sync_delete_media)
+
     def get_object(self, object_id: str, fields: Optional[str] = None) -> Dict[str, Any]:
         """
         Get an Instagram object using GraphAPI.

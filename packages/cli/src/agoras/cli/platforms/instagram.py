@@ -84,6 +84,14 @@ def create_instagram_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     _add_instagram_action_options(delete_reply, object_id_required=False)
     _add_post_id_option(delete_reply)
 
+    # Delete action (delete an Instagram media post)
+    delete = actions.add_parser(
+        "delete",
+        help='Delete an Instagram media post. Requires prior authorization via "agoras instagram authorize".',
+    )
+    _add_instagram_action_options(delete, object_id_required=False)
+    _add_post_id_option(delete)
+
     # Get-post action
     get_post = actions.add_parser(
         "get-post",

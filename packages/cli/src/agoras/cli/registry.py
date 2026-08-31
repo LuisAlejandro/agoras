@@ -85,7 +85,7 @@ class PlatformRegistry:
         "instagram": {
             "name": "Instagram",
             "description": "Instagram social network",
-            "actions": {"authorize", "post", "video", "reply", "delete-reply", "get-post", "get-reply"},
+            "actions": {"authorize", "post", "video", "reply", "delete-reply", "get-post", "get-reply", "delete"},
             "module": "agoras.cli.platforms.instagram",
         },
         "linkedin": {

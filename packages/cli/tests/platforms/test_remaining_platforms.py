@@ -519,6 +519,18 @@ def test_instagram_delete_reply_action():
     assert args.post_id == 'comment123'
 
 
+def test_instagram_delete_action():
+    """Test Instagram delete parses post-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_instagram_parser(subparsers)
+
+    args = root_parser.parse_args(['instagram', 'delete', '--post-id', 'media123'])
+
+    assert args.action == 'delete'
+    assert args.post_id == 'media123'
+
+
 def test_youtube_delete_reply_action():
     """Test YouTube delete-reply parses post-id (the comment ID)."""
     root_parser = ArgumentParser()

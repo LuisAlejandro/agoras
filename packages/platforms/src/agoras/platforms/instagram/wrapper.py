@@ -268,15 +268,29 @@ class Instagram(SocialNetwork):
 
     async def delete(self, instagram_post_id=None):
         """
-        Delete is not supported for Instagram.
+        Delete an Instagram media post.
 
         Args:
-            instagram_post_id (str, optional): ID of the Instagram post
+            instagram_post_id (str, optional): ID of the Instagram post.
+                                               Uses instance instagram_post_id if not provided.
+
+        Returns:
+            str: Deleted media ID
 
         Raises:
-            Exception: Delete not supported for Instagram
+            Exception: If deletion fails
         """
-        raise Exception("Delete not supported for Instagram")
+        if not self.api:
+            raise Exception("Instagram API not initialized")
+
+        if not instagram_post_id:
+            instagram_post_id = self._get_config_value("instagram_post_id", "INSTAGRAM_POST_ID")
+        if not instagram_post_id:
+            raise Exception("Instagram post ID is required for delete action.")
+
+        result = await self.api.delete(instagram_post_id)
+        self._output_status(result)
+        return result
 
     async def share(self, instagram_post_id=None):
         """

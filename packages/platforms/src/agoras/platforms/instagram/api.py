@@ -288,15 +288,29 @@ class InstagramAPI(BaseAPI):
 
     async def delete(self, post_id: str) -> str:
         """
-        Delete an Instagram post (not supported via API).
+        Delete an Instagram media post.
 
         Args:
-            post_id (str): Post ID to delete
+            post_id (str): Media ID to delete
+
+        Returns:
+            str: Deleted media ID
 
         Raises:
-            Exception: Delete not supported for Instagram
+            Exception: If deletion fails
         """
-        raise Exception("Delete not supported for Instagram")
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("Instagram API not authenticated")
+
+        await self._rate_limit_check("delete", 0.5)
+
+        try:
+            return await self.client.delete_media(post_id)
+        except Exception as e:
+            self._handle_api_error(e, "Instagram delete")
+            raise
 
     async def share(self, post_id: str) -> str:
         """
