@@ -129,6 +129,66 @@ async def test_instagram_client_create_comment(mock_graph_api_class):
 
 
 @patch("agoras.platforms.instagram.client.GraphAPI")
+async def test_instagram_client_delete_comment(mock_graph_api_class):
+    """Test InstagramAPIClient delete_comment calls graph_api.delete_object."""
+    mock_graph_api = MagicMock()
+    mock_graph_api_class.return_value = mock_graph_api
+
+    client = InstagramAPIClient("access_token")
+    client.graph_api = mock_graph_api
+    client._authenticated = True
+
+    result = await client.delete_comment("comment-123")
+
+    assert result == "comment-123"
+    mock_graph_api.delete_object.assert_called_once_with(object_id="comment-123")
+
+
+@patch("agoras.platforms.instagram.client.GraphAPI")
+async def test_instagram_client_delete_comment_no_id(mock_graph_api_class):
+    """Test InstagramAPIClient delete_comment raises when comment ID missing."""
+    mock_graph_api = MagicMock()
+    mock_graph_api_class.return_value = mock_graph_api
+
+    client = InstagramAPIClient("access_token")
+    client.graph_api = mock_graph_api
+    client._authenticated = True
+
+    with pytest.raises(Exception, match="Instagram comment ID is required"):
+        await client.delete_comment(None)
+
+
+@patch("agoras.platforms.instagram.client.GraphAPI")
+async def test_instagram_client_delete_comment_permission_error(mock_graph_api_class):
+    """Test InstagramAPIClient delete_comment surfaces permission errors."""
+    mock_graph_api = MagicMock()
+    mock_graph_api.delete_object.side_effect = Exception("Permission Error: Insufficient permissions")
+    mock_graph_api_class.return_value = mock_graph_api
+
+    client = InstagramAPIClient("access_token")
+    client.graph_api = mock_graph_api
+    client._authenticated = True
+
+    with pytest.raises(Exception, match="Instagram comment delete"):
+        await client.delete_comment("comment-123")
+
+
+@patch("agoras.platforms.instagram.client.GraphAPI")
+async def test_instagram_client_delete_comment_generic_error(mock_graph_api_class):
+    """Test InstagramAPIClient delete_comment surfaces generic errors."""
+    mock_graph_api = MagicMock()
+    mock_graph_api.delete_object.side_effect = Exception("Graph returned an error")
+    mock_graph_api_class.return_value = mock_graph_api
+
+    client = InstagramAPIClient("access_token")
+    client.graph_api = mock_graph_api
+    client._authenticated = True
+
+    with pytest.raises(Exception, match="Unable to delete comment comment-123"):
+        await client.delete_comment("comment-123")
+
+
+@patch("agoras.platforms.instagram.client.GraphAPI")
 async def test_instagram_client_create_comment_missing_id_raises(mock_graph_api_class):
     """Test InstagramAPIClient create_comment raises when response lacks an id."""
     mock_graph_api = MagicMock()

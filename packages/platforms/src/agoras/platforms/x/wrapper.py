@@ -261,8 +261,8 @@ class X(SocialNetwork):
             raise Exception("X API not initialized")
 
         media_ids = []
-        source_media = list(
-            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        source_media = self._collect_status_image_urls(
+            status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4
         )
 
         if not source_media and not status_text and not status_link:
@@ -340,8 +340,8 @@ class X(SocialNetwork):
         if not post_id:
             raise Exception("Tweet ID is required for reply action.")
 
-        source_media = list(
-            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        source_media = self._collect_status_image_urls(
+            status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4
         )
 
         if not source_media and not text and not video_url:
@@ -418,6 +418,67 @@ class X(SocialNetwork):
         result = await self.api.delete(post_id)
         self._output_status(result)
         return result
+
+    async def delete_reply(self, post_id):
+        """
+        Delete a reply tweet.
+
+        A reply is a tweet on X, so deletion is a proxy of ``delete``.
+
+        Args:
+            post_id (str): ID of the reply tweet to delete
+
+        Returns:
+            str: Deleted tweet ID
+        """
+        return await self.delete(post_id)
+
+    async def get_post(self, post_id):
+        """
+        Read a tweet by ID and return normalized content.
+
+        Args:
+            post_id (str): Tweet ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        if not self.api:
+            raise Exception("X API not initialized")
+
+        if not post_id:
+            raise Exception("Tweet ID is required.")
+
+        raw = await self.api.get_post(post_id)
+        metadata = {}
+        media = raw.get("media") or []
+        attachments = raw.get("attachments")
+        if attachments and not media:
+            metadata["attachments"] = attachments
+        content = {
+            "id": raw.get("id", post_id),
+            "text": raw.get("text"),
+            "media": media,
+            "author": {"id": raw.get("author_id"), "name": None} if raw.get("author_id") else None,
+            "created_at": raw.get("created_at"),
+            "metadata": metadata,
+        }
+        self._output_content(content)
+        return content
+
+    async def get_reply(self, post_id):
+        """
+        Read a reply tweet by ID.
+
+        A reply is a tweet on X, so reading is a proxy of ``get_post``.
+
+        Args:
+            post_id (str): Reply tweet ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        return await self.get_post(post_id)
 
     async def share(self, tweet_id=None):
         """

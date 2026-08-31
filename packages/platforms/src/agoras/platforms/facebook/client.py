@@ -144,6 +144,38 @@ class FacebookAPIClient:
             raise Exception("Invalid response from Facebook API: missing comment id")
         return str(comment_id)
 
+    async def delete_comment(self, comment_id: str) -> str:
+        """
+        Delete a Facebook comment.
+
+        Args:
+            comment_id (str): Comment ID to delete
+
+        Returns:
+            str: Deleted comment ID
+
+        Raises:
+            Exception: If deletion fails
+        """
+        if not self.graph_api:
+            raise Exception("Facebook GraphAPI not initialized")
+        if not comment_id:
+            raise Exception("Facebook comment ID is required for delete-reply action.")
+
+        graph_api = self.graph_api
+
+        def _sync_delete_comment():
+            try:
+                graph_api.delete_object(object_id=comment_id)
+            except Exception as exc:
+                message = str(exc).lower()
+                if "permission" in message or "not exist" in message or "not found" in message:
+                    raise Exception(f"Facebook comment delete: {str(exc)}") from exc
+                raise Exception(f"Unable to delete comment {comment_id}: {str(exc)}") from exc
+            return comment_id
+
+        return await asyncio.to_thread(_sync_delete_comment)
+
     def delete_object(self, object_id: str) -> None:
         """
         Delete a Facebook object using GraphAPI.

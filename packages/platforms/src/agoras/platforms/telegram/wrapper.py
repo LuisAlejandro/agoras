@@ -148,8 +148,8 @@ class Telegram(SocialNetwork):
         message_text = f"{status_text}\n{status_link}".strip() if status_link else status_text
 
         # Handle images
-        image_urls = list(
-            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        image_urls = self._collect_status_image_urls(
+            status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4
         )
 
         if image_urls:
@@ -184,6 +184,52 @@ class Telegram(SocialNetwork):
         self._output_status(message_id)
         return message_id
 
+    async def _prepare_telegram_reply_payload(self, text, image_urls, video_url):
+        """Download reply media and return api.reply keyword arguments."""
+        photo_content = None
+        video_content = None
+        media = None
+        cleanup_targets = []
+
+        if video_url:
+            validate_text("telegram", "caption", text or "", mode="caption")
+            video = await self.download_video(video_url)
+            cleanup_targets.append(video)
+            if not video.content or not video.file_type:
+                raise Exception("Failed to download or validate video")
+            video_content = video.content
+        elif len(image_urls) > 1:
+            validate_text("telegram", "caption", text or "", mode="caption")
+            images = await self.download_images(image_urls)
+            cleanup_targets.extend(images)
+            media = []
+            for index, image in enumerate(images):
+                if image.content and image.file_type:
+                    media.append(
+                        {
+                            "type": "photo",
+                            "media": image.content,
+                            "caption": (text or "") if index == 0 else None,
+                        }
+                    )
+                else:
+                    raise Exception(f"Failed to validate image: {image.url}")
+            if not media:
+                raise Exception("No valid images to send")
+        elif image_urls:
+            validate_text("telegram", "caption", text or "", mode="caption")
+            images = await self.download_images(image_urls)
+            cleanup_targets.extend(images)
+            image = images[0]
+            if image.content and image.file_type:
+                photo_content = image.content
+            else:
+                raise Exception(f"Failed to validate image: {image.url}")
+        else:
+            validate_text("telegram", "text", text or "", mode="text")
+
+        return photo_content, video_content, media, cleanup_targets
+
     async def reply(
         self,
         post_id,
@@ -215,64 +261,32 @@ class Telegram(SocialNetwork):
         if not post_id:
             raise Exception("Message ID is required for reply action.")
 
-        image_urls = list(
-            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        image_urls = self._collect_status_image_urls(
+            status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4
         )
 
         if not image_urls and not text and not video_url:
             raise Exception("No reply text or media provided.")
 
-        chat_id = self._require_chat_id()
+        cleanup_targets = []
         try:
-            reply_to_message_id = int(post_id)
-        except (TypeError, ValueError):
-            raise Exception(f"Invalid Telegram message ID to reply to: {post_id!r}")
-
-        if video_url:
-            caption = text or ""
-            validate_text("telegram", "caption", caption, mode="caption")
-            video = await self.download_video(video_url)
-            try:
-                if not video.content or not video.file_type:
-                    raise Exception("Failed to download or validate video")
-                message_id = await self.api.send_video(
-                    chat_id=chat_id,
-                    video_content=video.content,
-                    caption=caption,
-                    parse_mode=self.telegram_parse_mode,
-                    reply_to_message_id=reply_to_message_id,
-                )
-            finally:
-                video.cleanup()
-        elif image_urls:
-            validate_text("telegram", "caption", text or "", mode="caption")
-            if len(image_urls) > 1:
-                message_id = await self._send_media_group(image_urls, text or "", reply_to_message_id)
-            else:
-                images = await self.download_images(image_urls)
-                try:
-                    image = images[0]
-                    if image.content and image.file_type:
-                        message_id = await self.api.send_photo(
-                            chat_id=chat_id,
-                            photo_content=image.content,
-                            caption=text,
-                            parse_mode=self.telegram_parse_mode,
-                            reply_to_message_id=reply_to_message_id,
-                        )
-                    else:
-                        raise Exception(f"Failed to validate image: {image.url}")
-                finally:
-                    for image in images:
-                        image.cleanup()
-        else:
-            validate_text("telegram", "text", text or "", mode="text")
-            message_id = await self.api.send_message(
-                chat_id=chat_id,
-                text=text,
-                parse_mode=self.telegram_parse_mode,
-                reply_to_message_id=reply_to_message_id,
+            photo_content, video_content, media, cleanup_targets = await self._prepare_telegram_reply_payload(
+                text, image_urls, video_url
             )
+            message_id = await self.api.reply(
+                post_id,
+                text or "",
+                parse_mode=self.telegram_parse_mode,
+                photo_content=photo_content,
+                video_content=video_content,
+                media=media,
+            )
+        finally:
+            for item in cleanup_targets:
+                try:
+                    item.cleanup()
+                except Exception:
+                    pass
 
         self._output_status(message_id)
         return message_id
@@ -409,6 +423,20 @@ class Telegram(SocialNetwork):
 
         self._output_status(message_id)
         return message_id
+
+    async def delete_reply(self, post_id):
+        """
+        Delete a reply message.
+
+        A reply is a message on Telegram, so deletion is a proxy of ``delete``.
+
+        Args:
+            post_id (str): ID of the reply message to delete
+
+        Returns:
+            str: Deleted message ID
+        """
+        return await self.delete(post_id)
 
     async def share(self, post_id):
         """

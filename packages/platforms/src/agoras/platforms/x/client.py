@@ -26,6 +26,68 @@ from typing import Any, Dict, List, Optional, Tuple
 from tweepy import API, Client, OAuth1UserHandler
 
 
+def _x_media_type_and_url(item: Any) -> Optional[Dict[str, str]]:
+    """Map a tweepy/media object to normalized {type, url}."""
+    if isinstance(item, dict):
+        mtype = (item.get("type") or "").lower()
+        url = item.get("url")
+        preview = item.get("preview_image_url")
+        variants = item.get("variants") or []
+    else:
+        mtype = (getattr(item, "type", None) or "").lower()
+        url = getattr(item, "url", None)
+        preview = getattr(item, "preview_image_url", None)
+        variants = getattr(item, "variants", None) or []
+
+    if mtype == "photo" and url:
+        return {"type": "image", "url": url}
+    if mtype in ("video", "animated_gif"):
+        for variant in variants:
+            vurl = variant.get("url") if isinstance(variant, dict) else getattr(variant, "url", None)
+            if vurl:
+                return {"type": "video", "url": vurl}
+        fallback = preview or url
+        if fallback:
+            return {"type": "video", "url": fallback}
+    fallback = url or preview
+    if fallback:
+        return {"type": "unknown", "url": fallback}
+    return None
+
+
+def _x_media_from_includes(includes: Any, attachments: Any) -> List[Dict[str, str]]:
+    """Resolve attachment media_keys to normalized media entries."""
+    if not attachments:
+        return []
+
+    if isinstance(attachments, dict):
+        media_keys = attachments.get("media_keys") or []
+    else:
+        media_keys = getattr(attachments, "media_keys", None) or []
+    if not media_keys:
+        return []
+
+    if isinstance(includes, dict):
+        raw_media = includes.get("media") or []
+    elif includes is not None:
+        raw_media = getattr(includes, "media", None) or []
+    else:
+        raw_media = []
+
+    media_by_key: Dict[str, Any] = {}
+    for item in raw_media:
+        key = item.get("media_key") if isinstance(item, dict) else getattr(item, "media_key", None)
+        if key:
+            media_by_key[key] = item
+
+    media: List[Dict[str, str]] = []
+    for key in media_keys:
+        entry = _x_media_type_and_url(media_by_key.get(key))
+        if entry:
+            media.append(entry)
+    return media
+
+
 def _upload_path_for_media_type(media_type: str) -> Tuple[str, Optional[str]]:
     """Return temp-file suffix and X media_category for a MIME type."""
     if media_type.startswith("video/"):
@@ -338,3 +400,62 @@ class XAPIClient:
 
         result = await asyncio.to_thread(_sync_delete)
         return result
+
+    async def get_tweet(self, tweet_id: str) -> Dict[str, Any]:
+        """
+        Read a tweet by ID using v2 API.
+
+        Args:
+            tweet_id (str): Tweet ID to read
+
+        Returns:
+            dict: Tweet fields (id, text, author_id, created_at)
+
+        Raises:
+            Exception: If the tweet cannot be read
+        """
+        if not self.client_v2:
+            raise Exception("X v2 client not initialized")
+
+        def _sync_get_tweet():
+            response = self.client_v2.get_tweet(  # type: ignore
+                tweet_id,
+                tweet_fields=["created_at", "author_id", "attachments"],
+                expansions=["attachments.media_keys"],
+                media_fields=["url", "preview_image_url", "type", "variants"],
+            )
+            response_data = getattr(response, "data", None)
+            if response_data is None:
+                raise Exception(f"Tweet {tweet_id} not found")
+            if hasattr(response_data, "data"):
+                response_data = response_data.data
+            includes = getattr(response, "includes", None)
+            if isinstance(response_data, dict):
+                attachments = response_data.get("attachments")
+                media = _x_media_from_includes(includes, attachments)
+                return {
+                    "id": str(response_data.get("id", tweet_id)),
+                    "text": response_data.get("text"),
+                    "author_id": response_data.get("author_id"),
+                    "created_at": (
+                        str(response_data.get("created_at")) if response_data.get("created_at") is not None else None
+                    ),
+                    "attachments": attachments,
+                    "media": media,
+                }
+            attachments = getattr(response_data, "attachments", None)
+            media = _x_media_from_includes(includes, attachments)
+            return {
+                "id": str(getattr(response_data, "id", tweet_id)),
+                "text": getattr(response_data, "text", None),
+                "author_id": getattr(response_data, "author_id", None),
+                "created_at": (
+                    str(getattr(response_data, "created_at"))
+                    if getattr(response_data, "created_at", None) is not None
+                    else None
+                ),
+                "attachments": attachments,
+                "media": media,
+            }
+
+        return await asyncio.to_thread(_sync_get_tweet)

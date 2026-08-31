@@ -129,6 +129,38 @@ class InstagramAPIClient:
             raise Exception("Invalid response from Instagram API: missing comment id")
         return str(comment_id)
 
+    async def delete_comment(self, comment_id: str) -> str:
+        """
+        Delete an Instagram comment.
+
+        Args:
+            comment_id (str): Comment ID to delete
+
+        Returns:
+            str: Deleted comment ID
+
+        Raises:
+            Exception: If deletion fails
+        """
+        if not self.graph_api:
+            raise Exception("Instagram GraphAPI not initialized")
+        if not comment_id:
+            raise Exception("Instagram comment ID is required for delete-reply action.")
+
+        graph_api = self.graph_api
+
+        def _sync_delete_comment():
+            try:
+                graph_api.delete_object(object_id=comment_id)
+            except Exception as exc:
+                message = str(exc).lower()
+                if "permission" in message or "not exist" in message or "not found" in message:
+                    raise Exception(f"Instagram comment delete: {str(exc)}") from exc
+                raise Exception(f"Unable to delete comment {comment_id}: {str(exc)}") from exc
+            return comment_id
+
+        return await asyncio.to_thread(_sync_delete_comment)
+
     def get_object(self, object_id: str, fields: Optional[str] = None) -> Dict[str, Any]:
         """
         Get an Instagram object using GraphAPI.

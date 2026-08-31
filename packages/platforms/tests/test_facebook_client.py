@@ -498,6 +498,70 @@ async def test_facebook_client_delete_post_uses_existing_composite_id(mock_graph
 
 @pytest.mark.asyncio
 @patch("agoras.platforms.facebook.client.GraphAPI")
+async def test_facebook_client_delete_comment(mock_graph_api_class):
+    """Test FacebookAPIClient delete_comment issues a Graph DELETE on the comment ID."""
+    mock_graph_api = MagicMock()
+    mock_graph_api_class.return_value = mock_graph_api
+
+    client = FacebookAPIClient("access_token")
+    client.graph_api = mock_graph_api
+    client._authenticated = True
+
+    result = await client.delete_comment("comment-123")
+
+    assert result == "comment-123"
+    mock_graph_api.delete_object.assert_called_once_with(object_id="comment-123")
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.facebook.client.GraphAPI")
+async def test_facebook_client_delete_comment_no_id(mock_graph_api_class):
+    """Test FacebookAPIClient delete_comment raises when comment ID missing."""
+    mock_graph_api = MagicMock()
+    mock_graph_api_class.return_value = mock_graph_api
+
+    client = FacebookAPIClient("access_token")
+    client.graph_api = mock_graph_api
+    client._authenticated = True
+
+    with pytest.raises(Exception, match="Facebook comment ID is required"):
+        await client.delete_comment(None)
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.facebook.client.GraphAPI")
+async def test_facebook_client_delete_comment_permission_error(mock_graph_api_class):
+    """Test FacebookAPIClient delete_comment surfaces a permission error clearly."""
+    mock_graph_api = MagicMock()
+    mock_graph_api.delete_object.side_effect = Exception("(#200) no permission")
+    mock_graph_api_class.return_value = mock_graph_api
+
+    client = FacebookAPIClient("access_token")
+    client.graph_api = mock_graph_api
+    client._authenticated = True
+
+    with pytest.raises(Exception, match="Facebook comment delete"):
+        await client.delete_comment("comment-123")
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.facebook.client.GraphAPI")
+async def test_facebook_client_delete_comment_generic_error(mock_graph_api_class):
+    """Test FacebookAPIClient delete_comment surfaces generic delete failures."""
+    mock_graph_api = MagicMock()
+    mock_graph_api.delete_object.side_effect = Exception("boom")
+    mock_graph_api_class.return_value = mock_graph_api
+
+    client = FacebookAPIClient("access_token")
+    client.graph_api = mock_graph_api
+    client._authenticated = True
+
+    with pytest.raises(Exception, match="Unable to delete comment comment-123"):
+        await client.delete_comment("comment-123")
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.facebook.client.GraphAPI")
 async def test_facebook_client_share_post(mock_graph_api_class):
     """Test FacebookAPIClient share_post success."""
     mock_graph_api = MagicMock()

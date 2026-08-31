@@ -27,8 +27,10 @@ from agoras.cli.platforms.discord import create_discord_parser
 from agoras.cli.platforms.facebook import create_facebook_parser
 from agoras.cli.platforms.instagram import create_instagram_parser
 from agoras.cli.platforms.linkedin import create_linkedin_parser
+from agoras.cli.platforms.telegram import create_telegram_parser
 from agoras.cli.platforms.threads import create_threads_parser
 from agoras.cli.platforms.tiktok import _handle_tiktok_command, create_tiktok_parser
+from agoras.cli.platforms.whatsapp import create_whatsapp_parser
 from agoras.cli.platforms.youtube import create_youtube_parser
 
 
@@ -474,3 +476,337 @@ def test_threads_reply_requires_post_id():
             '--text', 'A reply',
             '--content', 'reply.yaml',
         ])
+
+
+# ---------------------------------------------------------------------------
+# delete-reply parser tests (R9: uniform --post-id across the 8 in-scope nets)
+# ---------------------------------------------------------------------------
+
+
+def test_threads_delete_reply_action():
+    """Test Threads delete-reply parses post-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_threads_parser(subparsers)
+
+    args = root_parser.parse_args(['threads', 'delete-reply', '--post-id', 'post123'])
+
+    assert args.action == 'delete-reply'
+    assert args.post_id == 'post123'
+
+
+def test_facebook_delete_reply_action():
+    """Test Facebook delete-reply parses post-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_facebook_parser(subparsers)
+
+    args = root_parser.parse_args(['facebook', 'delete-reply', '--post-id', 'comment123'])
+
+    assert args.action == 'delete-reply'
+    assert args.post_id == 'comment123'
+
+
+def test_instagram_delete_reply_action():
+    """Test Instagram delete-reply parses post-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_instagram_parser(subparsers)
+
+    args = root_parser.parse_args(['instagram', 'delete-reply', '--post-id', 'comment123'])
+
+    assert args.action == 'delete-reply'
+    assert args.post_id == 'comment123'
+
+
+def test_youtube_delete_reply_action():
+    """Test YouTube delete-reply parses post-id (the comment ID)."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_youtube_parser(subparsers)
+
+    args = root_parser.parse_args(['youtube', 'delete-reply', '--post-id', 'comment123'])
+
+    assert args.action == 'delete-reply'
+    assert args.post_id == 'comment123'
+
+
+def test_discord_delete_reply_action():
+    """Test Discord delete-reply parses post-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_discord_parser(subparsers)
+
+    args = root_parser.parse_args(['discord', 'delete-reply', '--post-id', 'msg123'])
+
+    assert args.action == 'delete-reply'
+    assert args.post_id == 'msg123'
+
+
+def test_linkedin_delete_reply_action():
+    """Test LinkedIn delete-reply parses post-id and parent-post-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_linkedin_parser(subparsers)
+
+    args = root_parser.parse_args([
+        'linkedin', 'delete-reply',
+        '--post-id', 'comment123',
+        '--parent-post-id', 'urn:li:ugcPost:456',
+    ])
+
+    assert args.action == 'delete-reply'
+    assert args.post_id == 'comment123'
+    assert args.parent_post_id == 'urn:li:ugcPost:456'
+
+
+def test_telegram_delete_reply_action():
+    """Test Telegram delete-reply parses post-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_telegram_parser(subparsers)
+
+    args = root_parser.parse_args(['telegram', 'delete-reply', '--post-id', 'msg123'])
+
+    assert args.action == 'delete-reply'
+    assert args.post_id == 'msg123'
+
+
+def test_linkedin_get_reply_action():
+    """Test LinkedIn get-reply parses post-id and parent-post-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_linkedin_parser(subparsers)
+
+    args = root_parser.parse_args([
+        'linkedin', 'get-reply',
+        '--post-id', 'comment123',
+        '--parent-post-id', 'urn:li:ugcPost:456',
+    ])
+
+    assert args.action == 'get-reply'
+    assert args.post_id == 'comment123'
+    assert args.parent_post_id == 'urn:li:ugcPost:456'
+
+
+def test_facebook_get_post_action():
+    """Test Facebook get-post parses post-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_facebook_parser(subparsers)
+
+    args = root_parser.parse_args(['facebook', 'get-post', '--post-id', 'post123'])
+
+    assert args.action == 'get-post'
+    assert args.post_id == 'post123'
+
+
+def test_tiktok_get_post_action():
+    """Test TikTok get-post CLI exists (runtime not supported)."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_tiktok_parser(subparsers)
+
+    args = root_parser.parse_args(['tiktok', 'get-post', '--post-id', 'vid123'])
+
+    assert args.action == 'get-post'
+    assert args.post_id == 'vid123'
+
+
+def test_instagram_get_post_action():
+    """Test Instagram get-post parses post-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_instagram_parser(subparsers)
+
+    args = root_parser.parse_args(['instagram', 'get-post', '--post-id', 'media123'])
+
+    assert args.action == 'get-post'
+    assert args.post_id == 'media123'
+
+
+def test_instagram_get_reply_action():
+    """Test Instagram get-reply parses post-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_instagram_parser(subparsers)
+
+    args = root_parser.parse_args(['instagram', 'get-reply', '--post-id', 'comment123'])
+
+    assert args.action == 'get-reply'
+    assert args.post_id == 'comment123'
+
+
+def test_threads_get_post_action():
+    """Test Threads get-post parses post-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_threads_parser(subparsers)
+
+    args = root_parser.parse_args(['threads', 'get-post', '--post-id', 'post123'])
+
+    assert args.action == 'get-post'
+    assert args.post_id == 'post123'
+
+
+def test_threads_get_reply_action():
+    """Test Threads get-reply parses post-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_threads_parser(subparsers)
+
+    args = root_parser.parse_args(['threads', 'get-reply', '--post-id', 'reply123'])
+
+    assert args.action == 'get-reply'
+    assert args.post_id == 'reply123'
+
+
+def test_discord_get_post_action():
+    """Test Discord get-post parses post-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_discord_parser(subparsers)
+
+    args = root_parser.parse_args(['discord', 'get-post', '--post-id', 'msg123'])
+
+    assert args.action == 'get-post'
+    assert args.post_id == 'msg123'
+
+
+def test_discord_get_reply_action():
+    """Test Discord get-reply parses post-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_discord_parser(subparsers)
+
+    args = root_parser.parse_args(['discord', 'get-reply', '--post-id', 'reply123'])
+
+    assert args.action == 'get-reply'
+    assert args.post_id == 'reply123'
+
+
+def test_youtube_get_post_action():
+    """Test YouTube get-post parses post-id as video-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_youtube_parser(subparsers)
+
+    args = root_parser.parse_args(['youtube', 'get-post', '--post-id', 'vid123'])
+
+    assert args.action == 'get-post'
+    assert args.post_id == 'vid123'
+
+
+def test_youtube_get_reply_action():
+    """Test YouTube get-reply parses post-id as comment-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_youtube_parser(subparsers)
+
+    args = root_parser.parse_args(['youtube', 'get-reply', '--post-id', 'comment123'])
+
+    assert args.action == 'get-reply'
+    assert args.post_id == 'comment123'
+
+
+def test_telegram_get_post_action():
+    """Test Telegram get-post parses post-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_telegram_parser(subparsers)
+
+    args = root_parser.parse_args(['telegram', 'get-post', '--post-id', 'msg123'])
+
+    assert args.action == 'get-post'
+    assert args.post_id == 'msg123'
+
+
+def test_telegram_get_reply_action():
+    """Test Telegram get-reply parses post-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_telegram_parser(subparsers)
+
+    args = root_parser.parse_args(['telegram', 'get-reply', '--post-id', 'reply123'])
+
+    assert args.action == 'get-reply'
+    assert args.post_id == 'reply123'
+
+
+def test_linkedin_get_post_action():
+    """Test LinkedIn get-post parses post-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_linkedin_parser(subparsers)
+
+    args = root_parser.parse_args(['linkedin', 'get-post', '--post-id', 'urn:li:ugcPost:123'])
+
+    assert args.action == 'get-post'
+    assert args.post_id == 'urn:li:ugcPost:123'
+
+
+def test_whatsapp_get_post_action():
+    """Test WhatsApp get-post parses post-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_whatsapp_parser(subparsers)
+
+    args = root_parser.parse_args(['whatsapp', 'get-post', '--post-id', 'msg123'])
+
+    assert args.action == 'get-post'
+    assert args.post_id == 'msg123'
+
+
+def test_whatsapp_get_reply_action():
+    """Test WhatsApp get-reply parses post-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_whatsapp_parser(subparsers)
+
+    args = root_parser.parse_args(['whatsapp', 'get-reply', '--post-id', 'reply123'])
+
+    assert args.action == 'get-reply'
+    assert args.post_id == 'reply123'
+
+
+@pytest.mark.parametrize(
+    'create_parser,platform',
+    [
+        (create_facebook_parser, 'facebook'),
+        (create_instagram_parser, 'instagram'),
+        (create_discord_parser, 'discord'),
+        (create_youtube_parser, 'youtube'),
+        (create_telegram_parser, 'telegram'),
+        (create_whatsapp_parser, 'whatsapp'),
+    ],
+)
+def test_get_post_requires_post_id(create_parser, platform):
+    """Test get-post fails without --post-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_parser(subparsers)
+
+    with pytest.raises(SystemExit):
+        root_parser.parse_args([platform, 'get-post'])
+
+
+@pytest.mark.parametrize(
+    'create_parser,platform,extra',
+    [
+        (create_facebook_parser, 'facebook', []),
+        (create_instagram_parser, 'instagram', []),
+        (create_discord_parser, 'discord', []),
+        (create_youtube_parser, 'youtube', []),
+        (create_telegram_parser, 'telegram', []),
+        (create_whatsapp_parser, 'whatsapp', []),
+        (create_linkedin_parser, 'linkedin', ['--parent-post-id', 'urn:li:ugcPost:1']),
+    ],
+)
+def test_get_reply_requires_post_id(create_parser, platform, extra):
+    """Test get-reply fails without --post-id."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_parser(subparsers)
+
+    with pytest.raises(SystemExit):
+        root_parser.parse_args([platform, 'get-reply', *extra])

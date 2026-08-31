@@ -506,6 +506,71 @@ class DiscordAPIClient:
             error_msg = f"Discord delete message failed: {str(e)}"
             raise Exception(error_msg) from e
 
+    async def get_message(self, message_id: str) -> Dict[str, Any]:
+        """
+        Read a Discord message by ID.
+
+        Args:
+            message_id (str): ID of the message to read
+
+        Returns:
+            dict: Message fields (id, text, author, created_at, media)
+
+        Raises:
+            Exception: If the message cannot be read
+        """
+        if not self._authenticated:
+            raise Exception("Discord client not authenticated")
+
+        if not self.client:
+            raise Exception("Discord client not available")
+
+        try:
+            channel = self._get_channel()
+            message = await channel.fetch_message(int(message_id))
+            author = getattr(message, "author", None)
+            media = []
+            for attachment in getattr(message, "attachments", []) or []:
+                content_type = getattr(attachment, "content_type", "") or ""
+                url = getattr(attachment, "url", None)
+                if not url:
+                    continue
+                if content_type.startswith("video/"):
+                    media_type = "video"
+                elif content_type.startswith("image/"):
+                    media_type = "image"
+                else:
+                    media_type = "unknown"
+                media.append({"type": media_type, "url": url})
+            text = getattr(message, "content", None) or None
+            if not text:
+                embed_parts = []
+                for embed in getattr(message, "embeds", []) or []:
+                    title = getattr(embed, "title", None)
+                    description = getattr(embed, "description", None)
+                    if title:
+                        embed_parts.append(title)
+                    if description:
+                        embed_parts.append(description)
+                if embed_parts:
+                    text = "\n\n".join(embed_parts)
+            created_at = getattr(message, "created_at", None)
+            return {
+                "id": str(getattr(message, "id", message_id)),
+                "text": text,
+                "author": {
+                    "id": str(getattr(author, "id", None)) if author is not None else None,
+                    "name": getattr(author, "display_name", None) or getattr(author, "name", None),
+                }
+                if author is not None
+                else None,
+                "created_at": str(created_at) if created_at is not None else None,
+                "media": media,
+            }
+        except Exception as e:
+            error_msg = f"Discord get message failed: {str(e)}"
+            raise Exception(error_msg) from e
+
     async def upload_file(
         self,
         file_content: Any,

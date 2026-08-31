@@ -195,6 +195,61 @@ class SocialNetwork(ABC):
         """
         raise Exception(f"Reply not supported for {self.__class__.__name__}")
 
+    async def delete_reply(self, post_id):
+        """
+        Delete a reply/comment on the social network.
+
+        Default implementation raises not supported. Platforms that support
+        deleting a reply (a comment on a post, or a reply message) override
+        this and return the deleted reply/comment ID.
+
+        Args:
+            post_id (str): ID of the reply/comment to delete
+
+        Returns:
+            str: Deleted reply/comment ID
+
+        Raises:
+            Exception: If deleting a reply is not supported
+        """
+        raise Exception(f"Delete reply not supported for {self.__class__.__name__}")
+
+    async def get_post(self, post_id):
+        """
+        Read a post/message by ID and return its normalized content.
+
+        Default implementation raises not supported. Platforms that support
+        reading a post override this and return a normalized content dict.
+
+        Args:
+            post_id (str): ID of the post/message to read
+
+        Returns:
+            dict: Normalized content (id, text, media, author, created_at, metadata)
+
+        Raises:
+            Exception: If reading a post is not supported
+        """
+        raise Exception(f"Get post not supported for {self.__class__.__name__}")
+
+    async def get_reply(self, post_id):
+        """
+        Read a reply/comment by ID and return its normalized content.
+
+        Default implementation raises not supported. Platforms that support
+        reading a reply override this and return a normalized content dict.
+
+        Args:
+            post_id (str): ID of the reply/comment to read
+
+        Returns:
+            dict: Normalized content (id, text, media, author, created_at, metadata)
+
+        Raises:
+            Exception: If reading a reply is not supported
+        """
+        raise Exception(f"Get reply not supported for {self.__class__.__name__}")
+
     def get_platform_name(self):
         """
         Get the platform name for media handling.
@@ -372,6 +427,71 @@ class SocialNetwork(ABC):
         status = {"id": post_id}
         print(json.dumps(status, separators=(",", ":")))
 
+    @staticmethod
+    def _normalize_content(content):
+        """
+        Normalize a content dict onto the stable get-post/get-reply schema.
+
+        Missing fields become null (not omitted) so the key set is stable
+        across networks. ``media`` defaults to an empty list; ``metadata``
+        defaults to an empty dict.
+
+        Args:
+            content (dict): Partial or full content mapping
+
+        Returns:
+            dict: Normalized content with a stable key set
+        """
+        content = content or {}
+        author = content.get("author")
+        if author is None:
+            author = None
+        elif isinstance(author, dict):
+            author = {
+                "id": author.get("id"),
+                "name": author.get("name"),
+            }
+        media = content.get("media")
+        if media is None:
+            media = []
+        metadata = content.get("metadata")
+        if metadata is None:
+            metadata = {}
+        return {
+            "id": content.get("id"),
+            "text": content.get("text"),
+            "media": media,
+            "author": author,
+            "created_at": content.get("created_at"),
+            "metadata": metadata,
+        }
+
+    def _output_content(self, content_dict):
+        """
+        Output full get-post/get-reply content as normalized JSON.
+
+        Args:
+            content_dict (dict): Content mapping (normalized before emit)
+        """
+        print(json.dumps(self._normalize_content(content_dict), separators=(",", ":")))
+
+    @staticmethod
+    def _collect_status_image_urls(
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+        limit=4,
+    ):
+        """Collect non-empty status image URLs in order."""
+        urls = [
+            status_image_url_1,
+            status_image_url_2,
+            status_image_url_3,
+            status_image_url_4,
+        ][:limit]
+        return [url for url in urls if url]
+
     def _get_config_value(self, key, env_key=None) -> Any:
         """
         Get configuration value from kwargs or environment.
@@ -432,28 +552,25 @@ class SocialNetwork(ABC):
         # Initialize client before executing other actions
         await self._initialize_client()
 
-        if action == "post":
-            await self._handle_post_action()
-        elif action == "like":
-            await self._handle_like_action()
-        elif action == "share":
-            await self._handle_share_action()
-        elif action == "delete":
-            await self._handle_delete_action()
-        elif action == "video":
-            await self._handle_video_action()
-        elif action == "thread":
-            await self._handle_thread_action()
-        elif action == "reply":
-            await self._handle_reply_action()
-        elif action == "last-from-feed":
-            await self._handle_last_from_feed_action()
-        elif action == "random-from-feed":
-            await self._handle_random_from_feed_action()
-        elif action == "schedule":
-            await self._handle_schedule_action()
-        else:
+        handlers = {
+            "post": self._handle_post_action,
+            "like": self._handle_like_action,
+            "share": self._handle_share_action,
+            "delete": self._handle_delete_action,
+            "video": self._handle_video_action,
+            "thread": self._handle_thread_action,
+            "reply": self._handle_reply_action,
+            "delete-reply": self._handle_delete_reply_action,
+            "get-post": self._handle_get_post_action,
+            "get-reply": self._handle_get_reply_action,
+            "last-from-feed": self._handle_last_from_feed_action,
+            "random-from-feed": self._handle_random_from_feed_action,
+            "schedule": self._handle_schedule_action,
+        }
+        handler = handlers.get(action)
+        if handler is None:
             raise Exception(f'"{action}" action not supported.')
+        await handler()
 
     async def _handle_post_action(self):
         """Handle post action with common parameter extraction."""
@@ -555,6 +672,39 @@ class SocialNetwork(ABC):
             "video_url": self._get_config_value("video_url"),
         }
         return post_id, text, media
+
+    async def _handle_delete_reply_action(self):
+        """Handle delete-reply action with common parameter extraction.
+
+        Delegates to ``self.delete_reply`` so the base default raises "not
+        supported" for networks without a delete-reply backend, even when
+        ``post_id`` is absent. Networks that implement ``delete_reply``
+        validate their own parameters.
+        """
+        post_id = self._get_config_value("post_id")
+        await self.delete_reply(post_id)
+
+    async def _handle_get_post_action(self):
+        """Handle get-post action with common parameter extraction.
+
+        Delegates to ``self.get_post`` so the base default raises "not
+        supported" for networks without a get-post backend, even when
+        ``post_id`` is absent. Networks that implement ``get_post``
+        validate their own parameters.
+        """
+        post_id = self._get_config_value("post_id")
+        await self.get_post(post_id)
+
+    async def _handle_get_reply_action(self):
+        """Handle get-reply action with common parameter extraction.
+
+        Delegates to ``self.get_reply`` so the base default raises "not
+        supported" for networks without a get-reply backend, even when
+        ``post_id`` is absent. Networks that implement ``get_reply``
+        validate their own parameters.
+        """
+        post_id = self._get_config_value("post_id")
+        await self.get_reply(post_id)
 
     async def _handle_last_from_feed_action(self):
         """Handle last-from-feed action with common parameter extraction."""

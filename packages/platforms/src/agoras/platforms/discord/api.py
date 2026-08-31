@@ -247,6 +247,28 @@ class DiscordAPI(BaseAPI):
         await self._rate_limit_check("delete", 0.5)
         return await self.client.delete_message(message_id)
 
+    async def get_post(self, message_id):
+        """
+        Read a Discord message by ID.
+
+        Args:
+            message_id (str): ID of the message to read
+
+        Returns:
+            dict: Message content fields
+
+        Raises:
+            Exception: If the message cannot be read
+        """
+        if not self._authenticated:
+            await self.authenticate()
+
+        if not self.client:
+            raise Exception("Discord client not available")
+
+        await self._rate_limit_check("get_post", 0.5)
+        return await self.client.get_message(message_id)
+
     async def upload_file(self, file_content, filename, content=None, embeds=None):
         """
         Upload a file to Discord.

@@ -92,6 +92,14 @@ def create_facebook_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     _add_facebook_action_options(delete, object_id_required=False)
     _add_post_id_option(delete)
 
+    # Delete-reply action (delete a Facebook comment)
+    delete_reply = actions.add_parser(
+        "delete-reply",
+        help='Delete a Facebook comment. Requires prior authorization via "agoras facebook authorize".',
+    )
+    _add_facebook_action_options(delete_reply, object_id_required=False)
+    _add_post_id_option(delete_reply)
+
     # Reply action
     reply = actions.add_parser(
         "reply", help='Comment on a Facebook post. Requires prior authorization via "agoras facebook authorize".'
@@ -99,6 +107,20 @@ def create_facebook_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     _add_facebook_action_options(reply, object_id_required=False)
     _add_post_id_option(reply)
     add_common_content_options(reply, images=1)
+
+    # Get-post action
+    get_post = actions.add_parser(
+        "get-post",
+        help='Read a Facebook post. Requires prior authorization via "agoras facebook authorize".',
+    )
+    _add_post_id_option(get_post)
+
+    # Get-reply action
+    get_reply = actions.add_parser(
+        "get-reply",
+        help='Read a Facebook comment. Requires prior authorization via "agoras facebook authorize".',
+    )
+    _add_post_id_option(get_reply)
 
     # Set handler
     parser.set_defaults(command=_handle_facebook_command)

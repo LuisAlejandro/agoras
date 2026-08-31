@@ -31,6 +31,9 @@ Available Actions
 * ``video`` - Upload and send video files
 * ``thread`` - Create a public text-channel thread from a YAML content file
 * ``delete`` - Delete messages
+* ``delete-reply`` - Delete a reply message
+* ``get-post`` - Read a post/message by ID
+* ``get-reply`` - Read a reply/comment by ID
 
 Authorization
 -------------

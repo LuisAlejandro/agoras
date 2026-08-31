@@ -151,6 +151,17 @@ async def test_instagram_api_reply(instagram_api):
     instagram_api.client.create_comment.assert_called_once_with('media-123', 'A comment')
 
 
+@pytest.mark.asyncio
+async def test_instagram_api_delete_reply(instagram_api):
+    """Test InstagramAPI delete_reply delegates to client.delete_comment."""
+    instagram_api.client.delete_comment = AsyncMock(return_value='comment-123')
+
+    result = await instagram_api.delete_reply(comment_id='comment-123')
+
+    assert result == 'comment-123'
+    instagram_api.client.delete_comment.assert_called_once_with('comment-123')
+
+
 # Delete Tests - Not Supported
 
 @pytest.mark.asyncio

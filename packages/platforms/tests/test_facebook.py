@@ -323,6 +323,125 @@ async def test_facebook_delete(mock_api_class):
 
 @pytest.mark.asyncio
 @patch("agoras.platforms.facebook.wrapper.FacebookAPI")
+async def test_facebook_delete_reply(mock_api_class):
+    """Test Facebook delete_reply deletes a comment."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.delete_reply = AsyncMock(return_value="comment-123")
+    mock_api_class.return_value = mock_api
+
+    facebook = Facebook(facebook_access_token="token", facebook_object_id="page123")
+
+    await facebook._initialize_client()
+
+    with patch.object(facebook, "_output_status"):
+        result = await facebook.delete_reply("comment-123")
+
+    assert result == "comment-123"
+    mock_api.delete_reply.assert_called_once_with(comment_id="comment-123")
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.facebook.wrapper.FacebookAPI")
+async def test_facebook_delete_reply_no_post_id(mock_api_class):
+    """Test Facebook delete_reply raises when comment ID missing."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    facebook = Facebook(facebook_access_token="token", facebook_object_id="page123")
+
+    await facebook._initialize_client()
+
+    with pytest.raises(Exception, match="Facebook comment ID is required"):
+        await facebook.delete_reply(None)
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.facebook.wrapper.FacebookAPI")
+async def test_facebook_get_post_returns_normalized_content(mock_api_class):
+    """Test Facebook get_post returns normalized content."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.get_post = AsyncMock(
+        return_value={
+            "id": "post-123",
+            "message": "hello fb",
+            "from": {"id": "page-1", "name": "Page"},
+            "created_time": "2026-01-01T00:00:00+0000",
+            "full_picture": "https://example.com/pic.jpg",
+        }
+    )
+    mock_api_class.return_value = mock_api
+
+    facebook = Facebook(facebook_access_token="token", facebook_object_id="page123")
+    await facebook._initialize_client()
+
+    with patch.object(facebook, "_output_content") as mock_out:
+        result = await facebook.get_post("post-123")
+
+    assert result["id"] == "post-123"
+    assert result["text"] == "hello fb"
+    assert result["media"] == [{"type": "image", "url": "https://example.com/pic.jpg"}]
+    mock_api.get_post.assert_called_once_with("post-123")
+    mock_out.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.facebook.wrapper.FacebookAPI")
+async def test_facebook_get_post_video_source(mock_api_class):
+    """Test Facebook get_post maps video source into media."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.get_post = AsyncMock(
+        return_value={
+            "id": "post-vid",
+            "message": "video post",
+            "type": "video",
+            "source": "https://example.com/video.mp4",
+        }
+    )
+    mock_api_class.return_value = mock_api
+
+    facebook = Facebook(facebook_access_token="token", facebook_object_id="page123")
+    await facebook._initialize_client()
+
+    with patch.object(facebook, "_output_content"):
+        result = await facebook.get_post("post-vid")
+
+    assert result["media"] == [{"type": "video", "url": "https://example.com/video.mp4"}]
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.facebook.wrapper.FacebookAPI")
+async def test_facebook_get_reply_video_attachment(mock_api_class):
+    """Test Facebook get_reply maps video attachment type."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.get_reply = AsyncMock(
+        return_value={
+            "id": "comment-1",
+            "message": "video comment",
+            "attachment": {
+                "type": "video_inline",
+                "url": "https://example.com/v.mp4",
+                "media": {"source": "https://example.com/v.mp4"},
+            },
+        }
+    )
+    mock_api_class.return_value = mock_api
+
+    facebook = Facebook(facebook_access_token="token", facebook_object_id="page123")
+    await facebook._initialize_client()
+
+    with patch.object(facebook, "_output_content"):
+        result = await facebook.get_reply("comment-1")
+
+    assert result["media"] == [{"type": "video", "url": "https://example.com/v.mp4"}]
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.facebook.wrapper.FacebookAPI")
 async def test_facebook_video(mock_api_class):
     """Test Facebook video posting."""
     mock_api = MagicMock()

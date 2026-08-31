@@ -51,8 +51,11 @@ def test_get_supported_actions_x():
     assert 'like' in actions
     assert 'share' in actions
     assert 'delete' in actions
+    assert 'delete-reply' in actions
     assert 'reply' in actions
-    assert len(actions) == 8
+    assert 'get-post' in actions
+    assert 'get-reply' in actions
+    assert len(actions) == 11
 
 
 def test_get_supported_actions_twitter_alias():
@@ -125,6 +128,59 @@ def test_reply_action_present_across_all_networks():
     for platform in PlatformRegistry.get_platform_names():
         assert 'reply' in PlatformRegistry.get_supported_actions(platform), (
             f"reply missing from {platform} supported actions"
+        )
+
+
+DELETE_REPLY_NETWORKS = [
+    "x",
+    "twitter",
+    "facebook",
+    "instagram",
+    "linkedin",
+    "discord",
+    "youtube",
+    "threads",
+    "telegram",
+]
+
+
+def test_delete_reply_action_present_across_in_scope_networks():
+    """Test delete-reply is a supported action on all 8 in-scope networks (R9)."""
+    for platform in DELETE_REPLY_NETWORKS:
+        assert PlatformRegistry.validate_action(platform, "delete-reply") is True, (
+            f"delete-reply missing from {platform} supported actions"
+        )
+
+
+def test_delete_reply_action_not_supported_elsewhere():
+    """Test delete-reply is not supported on WhatsApp or TikTok (R13)."""
+    assert PlatformRegistry.validate_action("whatsapp", "delete-reply") is False
+    assert PlatformRegistry.validate_action("tiktok", "delete-reply") is False
+
+
+GET_POST_REPLY_NETWORKS = [
+    "x",
+    "twitter",
+    "facebook",
+    "instagram",
+    "linkedin",
+    "discord",
+    "youtube",
+    "tiktok",
+    "threads",
+    "telegram",
+    "whatsapp",
+]
+
+
+def test_get_post_reply_actions_present_across_all_networks():
+    """Test get-post/get-reply are registered on all 10 networks (R20)."""
+    for platform in GET_POST_REPLY_NETWORKS:
+        assert PlatformRegistry.validate_action(platform, "get-post") is True, (
+            f"get-post missing from {platform} supported actions"
+        )
+        assert PlatformRegistry.validate_action(platform, "get-reply") is True, (
+            f"get-reply missing from {platform} supported actions"
         )
 
 

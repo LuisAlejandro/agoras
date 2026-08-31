@@ -169,3 +169,18 @@ def test_handle_api_error_chains_exception():
     # Verify exception chaining
     assert exc_info.value.__cause__ is original_error
     assert "authentication failed" in str(exc_info.value)
+
+
+def test_handle_api_error_redacts_sensitive_tokens():
+    """Test _handle_api_error redacts bearer tokens and access_token values."""
+    api = ConcreteAPI()
+    original_error = ValueError("HTTP 401 Bearer sk-secret-token access_token=abc123")
+
+    with pytest.raises(Exception) as exc_info:
+        api._handle_api_error(original_error, "Facebook get-post")
+
+    message = str(exc_info.value)
+    assert "sk-secret-token" not in message
+    assert "abc123" not in message
+    assert "Bearer [REDACTED]" in message
+    assert "access_token=[REDACTED]" in message

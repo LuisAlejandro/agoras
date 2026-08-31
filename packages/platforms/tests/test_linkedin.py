@@ -515,6 +515,143 @@ async def test_linkedin_disconnect(mock_auth_manager_class, mock_api_class):
     mock_api.disconnect.assert_called_once()
 
 
+@pytest.mark.asyncio
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
+async def test_linkedin_delete_reply(mock_auth_manager_class, mock_api_class):
+    """Test LinkedIn delete_reply deletes a comment with the parent post URN."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.delete_reply = AsyncMock(return_value="comment-123")
+    mock_api_class.return_value = mock_api
+
+    linkedin = LinkedIn(**{**LINKEDIN_KWARGS, "linkedin_parent_post_id": "urn:li:ugcPost:123"})
+    await linkedin._initialize_client()
+
+    with patch.object(linkedin, "_output_status"):
+        result = await linkedin.delete_reply("comment-123")
+
+    assert result == "comment-123"
+    mock_api.delete_reply.assert_called_once_with(
+        comment_id="comment-123", parent_post_id="urn:li:ugcPost:123"
+    )
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
+async def test_linkedin_get_post(mock_auth_manager_class, mock_api_class):
+    """Test LinkedIn get_post returns normalized content."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.get_post = AsyncMock(
+        return_value={
+            "id": "urn:li:ugcPost:123",
+            "commentary": "Hello LinkedIn",
+            "author": "urn:li:person:1",
+            "createdAt": 1700000000000,
+        }
+    )
+    mock_api_class.return_value = mock_api
+
+    linkedin = LinkedIn(**LINKEDIN_KWARGS)
+    await linkedin._initialize_client()
+
+    with patch.object(linkedin, "_output_content") as mock_out:
+        result = await linkedin.get_post("urn:li:ugcPost:123")
+
+    assert result["id"] == "urn:li:ugcPost:123"
+    assert result["text"] == "Hello LinkedIn"
+    assert result["author"]["id"] == "urn:li:person:1"
+    mock_api.get_post.assert_called_once_with("urn:li:ugcPost:123")
+    mock_out.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
+async def test_linkedin_get_reply(mock_auth_manager_class, mock_api_class):
+    """Test LinkedIn get_reply reads comment with parent URN."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.get_reply = AsyncMock(
+        return_value={
+            "id": "comment-123",
+            "message": {"text": "A comment"},
+            "actor": "urn:li:person:1",
+            "created": 1700000000000,
+        }
+    )
+    mock_api_class.return_value = mock_api
+
+    linkedin = LinkedIn(**{**LINKEDIN_KWARGS, "linkedin_parent_post_id": "urn:li:ugcPost:123"})
+    await linkedin._initialize_client()
+
+    with patch.object(linkedin, "_output_content"):
+        result = await linkedin.get_reply("comment-123")
+
+    assert result["id"] == "comment-123"
+    assert result["text"] == "A comment"
+    mock_api.get_reply.assert_called_once_with(
+        comment_id="comment-123", parent_post_id="urn:li:ugcPost:123"
+    )
+    assert result["metadata"]["parent_post_id"] == "urn:li:ugcPost:123"
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
+async def test_linkedin_get_reply_missing_parent_post_id(mock_auth_manager_class, mock_api_class):
+    """Test LinkedIn get_reply raises when parent post ID missing."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    linkedin = LinkedIn(**LINKEDIN_KWARGS)
+    await linkedin._initialize_client()
+
+    with pytest.raises(Exception, match="LinkedIn parent post ID is required"):
+        await linkedin.get_reply("comment-123")
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
+async def test_linkedin_delete_reply_no_post_id(mock_auth_manager_class, mock_api_class):
+    """Test LinkedIn delete_reply raises when comment ID missing."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    linkedin = LinkedIn(**{**LINKEDIN_KWARGS, "linkedin_parent_post_id": "urn:li:ugcPost:123"})
+    await linkedin._initialize_client()
+
+    with pytest.raises(Exception, match="LinkedIn comment ID is required"):
+        await linkedin.delete_reply(None)
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
+async def test_linkedin_delete_reply_missing_parent_post_id(mock_auth_manager_class, mock_api_class):
+    """Test LinkedIn delete_reply raises when parent post ID missing."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    linkedin = LinkedIn(**LINKEDIN_KWARGS)
+    await linkedin._initialize_client()
+
+    with pytest.raises(Exception, match="LinkedIn parent post ID is required"):
+        await linkedin.delete_reply("comment-123")
+
+
 # LinkedIn API Tests
 
 

@@ -511,6 +511,123 @@ class Facebook(SocialNetwork):
         self._output_status(result)
         return result
 
+    async def delete_reply(self, post_id):
+        """
+        Delete a Facebook comment.
+
+        A reply is a comment on Facebook, deleted via the Graph API.
+
+        Args:
+            post_id (str): ID of the comment to delete
+
+        Returns:
+            str: Deleted comment ID
+        """
+        if not self.api:
+            raise Exception("Facebook API not initialized")
+
+        if not post_id:
+            raise Exception("Facebook comment ID is required for delete-reply action.")
+
+        result = await self.api.delete_reply(comment_id=post_id)
+        self._output_status(result)
+        return result
+
+    async def get_post(self, post_id):
+        """
+        Read a Facebook post by ID and return normalized content.
+
+        Args:
+            post_id (str): Post ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        if not self.api:
+            raise Exception("Facebook API not initialized")
+
+        if not post_id:
+            raise Exception("Facebook post ID is required.")
+        facebook_post_id = post_id
+
+        raw = await self.api.get_post(facebook_post_id)
+        from_user = raw.get("from") or {}
+        media = []
+        seen_urls = set()
+
+        def _append_media(entry):
+            url = entry.get("url")
+            if url and url not in seen_urls:
+                seen_urls.add(url)
+                media.append(entry)
+
+        if raw.get("full_picture"):
+            _append_media({"type": "image", "url": raw["full_picture"]})
+        if raw.get("source"):
+            _append_media({"type": "video", "url": raw["source"]})
+        for attachment in (raw.get("attachments") or {}).get("data") or []:
+            if not isinstance(attachment, dict):
+                continue
+            att_media = attachment.get("media") or {}
+            image_src = (att_media.get("image") or {}).get("src")
+            if image_src:
+                _append_media({"type": "image", "url": image_src})
+            elif att_media.get("source"):
+                _append_media({"type": "video", "url": att_media["source"]})
+        content = {
+            "id": str(raw.get("id", facebook_post_id)),
+            "text": raw.get("message"),
+            "media": media,
+            "author": {"id": from_user.get("id"), "name": from_user.get("name")} if from_user else None,
+            "created_at": raw.get("created_time"),
+            "metadata": {"permalink_url": raw.get("permalink_url")} if raw.get("permalink_url") else {},
+        }
+        self._output_content(content)
+        return content
+
+    async def get_reply(self, post_id):
+        """
+        Read a Facebook comment by ID and return normalized content.
+
+        Args:
+            post_id (str): Comment ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        if not self.api:
+            raise Exception("Facebook API not initialized")
+
+        if not post_id:
+            raise Exception("Facebook comment ID is required for get-reply action.")
+
+        raw = await self.api.get_reply(post_id)
+        from_user = raw.get("from") or {}
+        media = []
+        attachment = raw.get("attachment") or {}
+        media_url = None
+        media_type = "image"
+        if isinstance(attachment, dict):
+            att_type = (attachment.get("type") or "").lower()
+            media_block = attachment.get("media") or {}
+            if "video" in att_type:
+                media_type = "video"
+                media_url = media_block.get("source") or attachment.get("url")
+            else:
+                media_url = media_block.get("image", {}).get("src") or attachment.get("url")
+        if media_url:
+            media.append({"type": media_type, "url": media_url})
+        content = {
+            "id": str(raw.get("id", post_id)),
+            "text": raw.get("message"),
+            "media": media,
+            "author": {"id": from_user.get("id"), "name": from_user.get("name")} if from_user else None,
+            "created_at": raw.get("created_time"),
+            "metadata": {},
+        }
+        self._output_content(content)
+        return content
+
     async def share(self, facebook_post_id=None):
         """
         Share a Facebook post.

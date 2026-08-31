@@ -85,6 +85,12 @@ def create_x_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     delete = actions.add_parser("delete", help='Delete a tweet. Requires prior authorization via "agoras x authorize".')
     _add_post_id_option(delete)
 
+    # Delete-reply action (alias for delete on X)
+    delete_reply = actions.add_parser(
+        "delete-reply", help='Delete a reply tweet. Requires prior authorization via "agoras x authorize".'
+    )
+    _add_post_id_option(delete_reply)
+
     # Reply action
     reply = actions.add_parser("reply", help='Reply to a tweet. Requires prior authorization via "agoras x authorize".')
     _add_post_id_option(reply)
@@ -92,6 +98,18 @@ def create_x_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     add_video_options(reply, platform="twitter", with_content_file=False)
 
     # Set handler
+    # Get-post action
+    get_post = actions.add_parser(
+        "get-post", help='Read a tweet. Requires prior authorization via "agoras x authorize".'
+    )
+    _add_post_id_option(get_post)
+
+    # Get-reply action
+    get_reply = actions.add_parser(
+        "get-reply", help='Read a reply tweet. Requires prior authorization via "agoras x authorize".'
+    )
+    _add_post_id_option(get_reply)
+
     parser.set_defaults(command=_handle_x_command)
 
     return parser
@@ -225,6 +243,12 @@ def create_twitter_parser_alias(subparsers: _SubParsersAction) -> ArgumentParser
     )
     _add_post_id_option(delete)
 
+    # Delete-reply action (alias for delete on X)
+    delete_reply = actions.add_parser(
+        "delete-reply", help='Delete a reply tweet. Requires prior authorization via "agoras twitter authorize".'
+    )
+    _add_post_id_option(delete_reply)
+
     # Reply action
     reply = actions.add_parser(
         "reply", help='Reply to a tweet. Requires prior authorization via "agoras twitter authorize".'
@@ -234,6 +258,18 @@ def create_twitter_parser_alias(subparsers: _SubParsersAction) -> ArgumentParser
     add_video_options(reply, platform="twitter", with_content_file=False)
 
     # Set handler
+    # Get-post action
+    get_post = actions.add_parser(
+        "get-post", help='Read a tweet. Requires prior authorization via "agoras twitter authorize".'
+    )
+    _add_post_id_option(get_post)
+
+    # Get-reply action
+    get_reply = actions.add_parser(
+        "get-reply", help='Read a reply tweet. Requires prior authorization via "agoras twitter authorize".'
+    )
+    _add_post_id_option(get_reply)
+
     parser.set_defaults(command=_handle_twitter_command)
 
     return parser

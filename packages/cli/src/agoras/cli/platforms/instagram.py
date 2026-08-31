@@ -76,6 +76,28 @@ def create_instagram_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     _add_post_id_option(reply)
     reply.add_argument("--text", required=True, metavar="<text>", help="Comment text to post on the Instagram post")
 
+    # Delete-reply action (delete an Instagram comment)
+    delete_reply = actions.add_parser(
+        "delete-reply",
+        help='Delete an Instagram comment. Requires prior authorization via "agoras instagram authorize".',
+    )
+    _add_instagram_action_options(delete_reply, object_id_required=False)
+    _add_post_id_option(delete_reply)
+
+    # Get-post action
+    get_post = actions.add_parser(
+        "get-post",
+        help='Read an Instagram media object. Requires prior authorization via "agoras instagram authorize".',
+    )
+    _add_post_id_option(get_post)
+
+    # Get-reply action
+    get_reply = actions.add_parser(
+        "get-reply",
+        help='Read an Instagram comment. Requires prior authorization via "agoras instagram authorize".',
+    )
+    _add_post_id_option(get_reply)
+
     # Set handler
     parser.set_defaults(command=_handle_instagram_command)
 

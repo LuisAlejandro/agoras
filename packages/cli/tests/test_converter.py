@@ -404,6 +404,24 @@ def test_convert_linkedin_reply_media_to_legacy():
     assert legacy['status_image_url_1'] == 'http://example.com/a.jpg'
 
 
+def test_convert_linkedin_get_reply_parent_post_id():
+    """Test LinkedIn get-reply maps parent_post_id to linkedin_parent_post_id."""
+    converter = ParameterConverter('linkedin')
+    args = Namespace(
+        action='get-reply',
+        post_id='comment123',
+        parent_post_id='urn:li:ugcPost:456',
+        handler=None,
+    )
+
+    legacy = converter.convert_to_legacy(args)
+
+    assert legacy['network'] == 'linkedin'
+    assert legacy['action'] == 'get-reply'
+    assert legacy['linkedin_post_id'] == 'comment123'
+    assert legacy['linkedin_parent_post_id'] == 'urn:li:ugcPost:456'
+
+
 def test_convert_instagram_reply_to_legacy():
     """Test Instagram reply conversion maps post_id and text to native params."""
     converter = ParameterConverter('instagram')

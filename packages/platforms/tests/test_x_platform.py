@@ -671,6 +671,171 @@ async def test_x_delete_no_tweet_id(mock_api_class):
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_delete_reply_proxies_delete(mock_api_class):
+    """Test X delete_reply delegates to the existing delete path."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.delete = AsyncMock(return_value='reply-789')
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret'
+    )
+
+    await x._initialize_client()
+
+    with patch.object(x, '_output_status'):
+        result = await x.delete_reply('reply-789')
+
+    assert result == 'reply-789'
+    mock_api.delete.assert_called_once_with('reply-789')
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_get_post_returns_normalized_content(mock_api_class):
+    """Test X get_post emits normalized content via api.get_post."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.get_post = AsyncMock(
+        return_value={
+            "id": "tweet-1",
+            "text": "hello",
+            "author_id": "user-1",
+            "created_at": "2026-01-01T00:00:00Z",
+        }
+    )
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret'
+    )
+
+    await x._initialize_client()
+
+    with patch.object(x, '_output_content') as mock_out:
+        result = await x.get_post('tweet-1')
+
+    assert result["id"] == "tweet-1"
+    assert result["text"] == "hello"
+    assert result["author"]["id"] == "user-1"
+    mock_api.get_post.assert_called_once_with('tweet-1')
+    mock_out.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_get_post_includes_resolved_media(mock_api_class):
+    """Test X get_post maps client media list into normalized content."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.get_post = AsyncMock(
+        return_value={
+            "id": "tweet-1",
+            "text": "photo tweet",
+            "author_id": "user-1",
+            "created_at": "2026-01-01T00:00:00Z",
+            "media": [{"type": "image", "url": "https://pbs.twimg.com/media/abc.jpg"}],
+        }
+    )
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret',
+    )
+
+    await x._initialize_client()
+
+    with patch.object(x, '_output_content'):
+        result = await x.get_post('tweet-1')
+
+    assert result["media"] == [{"type": "image", "url": "https://pbs.twimg.com/media/abc.jpg"}]
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_get_reply_proxies_get_post(mock_api_class):
+    """Test X get_reply delegates to get_post."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.get_post = AsyncMock(
+        return_value={"id": "reply-1", "text": "r", "author_id": None, "created_at": None}
+    )
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret'
+    )
+
+    await x._initialize_client()
+
+    with patch.object(x, '_output_content'):
+        result = await x.get_reply('reply-1')
+
+    assert result["id"] == "reply-1"
+    mock_api.get_post.assert_called_once_with('reply-1')
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_get_post_requires_explicit_post_id(mock_api_class):
+    """Test X get_post does not fall back to instance tweet_id."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.get_post = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret',
+        tweet_id='stale-tweet-id',
+    )
+
+    await x._initialize_client()
+
+    with pytest.raises(Exception, match='Tweet ID is required'):
+        await x.get_post(None)
+
+    mock_api.get_post.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_delete_reply_no_post_id(mock_api_class):
+    """Test X delete_reply raises when no post ID provided."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret'
+    )
+
+    await x._initialize_client()
+
+    with pytest.raises(Exception, match="Tweet ID is required"):
+        await x.delete_reply(None)
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
 async def test_x_share_no_api(mock_api_class):
     """Test X share raises when no API initialized."""
     mock_api = MagicMock()

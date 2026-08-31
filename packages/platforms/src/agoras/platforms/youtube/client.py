@@ -287,9 +287,76 @@ class YouTubeAPIClient:
                 },
             )
             response = request.execute()
-            return response["id"]
+            return response["snippet"]["topLevelComment"]["id"]
 
         return await asyncio.to_thread(_sync_insert)
+
+    async def delete_comment(self, comment_id: str) -> str:
+        """
+        Delete a YouTube comment.
+
+        Args:
+            comment_id (str): Comment ID to delete
+
+        Returns:
+            str: Deleted comment ID
+
+        Raises:
+            Exception: If deletion fails
+        """
+
+        def _sync_delete():
+            if not self.youtube_client:
+                raise Exception("YouTube client not initialized")
+            if not comment_id:
+                raise Exception("YouTube comment ID is required for delete-reply action.")
+
+            request = self.youtube_client.comments().delete(id=comment_id)
+            request.execute()
+            return comment_id
+
+        return await asyncio.to_thread(_sync_delete)
+
+    async def get_comment(self, comment_id: str) -> Dict[str, Any]:
+        """
+        Read a YouTube comment by ID.
+
+        Args:
+            comment_id (str): Comment ID to read
+
+        Returns:
+            dict: Comment fields
+
+        Raises:
+            Exception: If the comment cannot be read
+        """
+
+        def _sync_get():
+            if not self.youtube_client:
+                raise Exception("YouTube client not initialized")
+            if not comment_id:
+                raise Exception("YouTube comment ID is required for get-reply action.")
+
+            request = self.youtube_client.comments().list(part="snippet", id=comment_id)
+            response = request.execute()
+            items = response.get("items") or []
+            if not items:
+                raise Exception(f"Comment {comment_id} not found")
+
+            comment = items[0]
+            snippet = comment.get("snippet") or {}
+            author_channel = snippet.get("authorChannelId")
+            author_id = author_channel.get("value") if isinstance(author_channel, dict) else author_channel
+            return {
+                "id": comment.get("id", comment_id),
+                "text": snippet.get("textDisplay") or snippet.get("textOriginal"),
+                "author_id": author_id,
+                "author_name": snippet.get("authorDisplayName"),
+                "created_at": snippet.get("publishedAt"),
+                "video_id": snippet.get("videoId"),
+            }
+
+        return await asyncio.to_thread(_sync_get)
 
     async def get_channel_info(self) -> Dict[str, Any]:
         """

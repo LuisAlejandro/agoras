@@ -76,6 +76,20 @@ def create_tiktok_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     _add_post_id_option(reply)
     reply.add_argument("--text", required=True, metavar="<text>", help="Comment text to post on the TikTok video")
 
+    # Get-post action
+    get_post = actions.add_parser(
+        "get-post",
+        help='Read a TikTok post (not supported). Requires prior authorization via "agoras tiktok authorize".',
+    )
+    get_post.add_argument("--post-id", required=True, metavar="<id>", help="TikTok post ID to read")
+
+    # Get-reply action
+    get_reply = actions.add_parser(
+        "get-reply",
+        help='Read a TikTok reply (not supported). Requires prior authorization via "agoras tiktok authorize".',
+    )
+    get_reply.add_argument("--post-id", required=True, metavar="<id>", help="TikTok reply ID to read")
+
     # Set handler
     parser.set_defaults(command=_handle_tiktok_command)
 

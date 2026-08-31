@@ -29,6 +29,9 @@ Available Actions
 * ``like`` - Like posts
 * ``share`` - Share posts to your profile
 * ``delete`` - Delete your own posts
+* ``delete-reply`` - Delete a comment you posted
+* ``get-post`` - Read a post/message by ID
+* ``get-reply`` - Read a reply/comment by ID
 
 Authorization
 -------------

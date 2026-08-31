@@ -262,6 +262,103 @@ class LinkedIn(SocialNetwork):
         self._output_status(result)
         return result
 
+    async def delete_reply(self, post_id):
+        """
+        Delete a LinkedIn comment.
+
+        A LinkedIn reply is a comment, deleted via the Comments API. The
+        uniform ``post_id`` carries the comment ID; the parent post URN is
+        read from the ``linkedin_parent_post_id`` config key because the
+        LinkedIn comment-delete path requires both identifiers.
+
+        Args:
+            post_id (str): ID of the comment to delete
+
+        Returns:
+            str: Deleted comment ID
+        """
+        if not self.api:
+            raise Exception("LinkedIn API not initialized")
+
+        if not post_id:
+            raise Exception("LinkedIn comment ID is required for delete-reply action.")
+
+        parent_post_id = self._get_config_value("linkedin_parent_post_id", "LINKEDIN_PARENT_POST_ID")
+        if not parent_post_id:
+            raise Exception("LinkedIn parent post ID is required for delete-reply action.")
+
+        result = await self.api.delete_reply(comment_id=post_id, parent_post_id=parent_post_id)
+        self._output_status(result)
+        return result
+
+    async def get_post(self, post_id):
+        """
+        Read a LinkedIn post by URN and return normalized content.
+
+        Args:
+            post_id (str): Post URN to read
+
+        Returns:
+            dict: Normalized content
+        """
+        if not self.api:
+            raise Exception("LinkedIn API not initialized")
+
+        if not post_id:
+            raise Exception("LinkedIn post ID is required.")
+        linkedin_post_id = post_id
+
+        raw = await self.api.get_post(linkedin_post_id)
+        author_urn = raw.get("author")
+        content = {
+            "id": str(raw.get("id", linkedin_post_id)),
+            "text": raw.get("commentary") or raw.get("text"),
+            "media": [],
+            "author": {"id": author_urn, "name": None} if author_urn else None,
+            "created_at": raw.get("createdAt") or raw.get("created_at"),
+            "metadata": {},
+        }
+        self._output_content(content)
+        return content
+
+    async def get_reply(self, post_id):
+        """
+        Read a LinkedIn comment by ID and return normalized content.
+
+        The uniform ``post_id`` carries the comment ID; the parent post URN is
+        read from ``linkedin_parent_post_id`` (mirroring delete_reply).
+
+        Args:
+            post_id (str): Comment ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        if not self.api:
+            raise Exception("LinkedIn API not initialized")
+
+        if not post_id:
+            raise Exception("LinkedIn comment ID is required for get-reply action.")
+
+        parent_post_id = self._get_config_value("linkedin_parent_post_id", "LINKEDIN_PARENT_POST_ID")
+        if not parent_post_id:
+            raise Exception("LinkedIn parent post ID is required for get-reply action.")
+
+        raw = await self.api.get_reply(comment_id=post_id, parent_post_id=parent_post_id)
+        actor = raw.get("actor") or raw.get("author")
+        message = raw.get("message") or {}
+        text = message.get("text") if isinstance(message, dict) else raw.get("commentary") or raw.get("text")
+        content = {
+            "id": str(raw.get("id", post_id)),
+            "text": text,
+            "media": [],
+            "author": {"id": actor, "name": None} if actor else None,
+            "created_at": raw.get("created") or raw.get("createdAt") or raw.get("created_at"),
+            "metadata": {"parent_post_id": parent_post_id},
+        }
+        self._output_content(content)
+        return content
+
     async def share(self, linkedin_post_id=None):
         """
         Share a LinkedIn post.

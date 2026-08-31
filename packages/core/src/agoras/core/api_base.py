@@ -18,6 +18,7 @@
 """agoras.core.api_base module."""
 
 import asyncio
+import re
 import time
 from abc import ABC, abstractmethod
 
@@ -87,6 +88,19 @@ class BaseAPI(ABC):
 
         self._rate_limit_cache[operation_type] = time.time()
 
+    _REDACT_PATTERNS = (
+        (re.compile(r"Bearer\s+\S+", re.I), "Bearer [REDACTED]"),
+        (re.compile(r"access_token[=:]\s*\S+", re.I), "access_token=[REDACTED]"),
+        (re.compile(r"Authorization:\s*\S+", re.I), "Authorization: [REDACTED]"),
+    )
+
+    @classmethod
+    def _sanitize_error_message(cls, message: str) -> str:
+        sanitized = message
+        for pattern, replacement in cls._REDACT_PATTERNS:
+            sanitized = pattern.sub(replacement, sanitized)
+        return sanitized
+
     def _handle_api_error(self, error, operation_name):
         """
         Handle API errors with consistent error messages.
@@ -98,7 +112,7 @@ class BaseAPI(ABC):
         Raises:
             Exception: Formatted exception with context
         """
-        error_msg = f"{operation_name} failed: {str(error)}"
+        error_msg = f"{operation_name} failed: {self._sanitize_error_message(str(error))}"
         raise Exception(error_msg) from error
 
     @abstractmethod

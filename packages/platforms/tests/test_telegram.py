@@ -267,7 +267,7 @@ async def test_telegram_reply_text_only(mock_api_class):
     """Test Telegram reply with text only posts a reply message."""
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
-    mock_api.send_message = AsyncMock(return_value="reply-789")
+    mock_api.reply = AsyncMock(return_value="reply-789")
     mock_api_class.return_value = mock_api
 
     telegram = Telegram(telegram_bot_token="token", telegram_chat_id="123")
@@ -277,8 +277,14 @@ async def test_telegram_reply_text_only(mock_api_class):
         result = await telegram.reply("456", "A reply")
 
     assert result == "reply-789"
-    mock_api.send_message.assert_called_once()
-    assert mock_api.send_message.call_args.kwargs["reply_to_message_id"] == 456
+    mock_api.reply.assert_called_once_with(
+        "456",
+        "A reply",
+        parse_mode=telegram.telegram_parse_mode,
+        photo_content=None,
+        video_content=None,
+        media=None,
+    )
 
 
 @pytest.mark.asyncio
@@ -292,7 +298,7 @@ async def test_telegram_reply_via_base_handler_uses_converter_key(mock_api_class
     """
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
-    mock_api.send_message = AsyncMock(return_value="reply-789")
+    mock_api.reply = AsyncMock(return_value="reply-789")
     mock_api_class.return_value = mock_api
 
     telegram = Telegram(
@@ -307,8 +313,8 @@ async def test_telegram_reply_via_base_handler_uses_converter_key(mock_api_class
     with patch.object(telegram, "_output_status"):
         await telegram._handle_reply_action()
 
-    mock_api.send_message.assert_called_once()
-    assert mock_api.send_message.call_args.kwargs["reply_to_message_id"] == 456
+    mock_api.reply.assert_called_once()
+    assert mock_api.reply.call_args.args[0] == "456"
 
 
 @pytest.mark.asyncio
@@ -317,7 +323,7 @@ async def test_telegram_reply_with_image(mock_api_class):
     """Test Telegram reply with an image posts a reply photo."""
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
-    mock_api.send_photo = AsyncMock(return_value="reply-789")
+    mock_api.reply = AsyncMock(return_value="reply-789")
     mock_api_class.return_value = mock_api
 
     mock_image = MagicMock()
@@ -334,8 +340,8 @@ async def test_telegram_reply_with_image(mock_api_class):
             result = await telegram.reply("456", "A reply", "http://example.com/img.jpg")
 
     assert result == "reply-789"
-    mock_api.send_photo.assert_called_once()
-    assert mock_api.send_photo.call_args.kwargs["reply_to_message_id"] == 456
+    mock_api.reply.assert_called_once()
+    assert mock_api.reply.call_args.kwargs["photo_content"] == b"image_data"
 
 
 @pytest.mark.asyncio
@@ -366,3 +372,37 @@ async def test_telegram_reply_no_content(mock_api_class):
 
     with pytest.raises(Exception, match="No reply text or media provided."):
         await telegram.reply("456", None)
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.telegram.wrapper.TelegramAPI")
+async def test_telegram_delete_reply_proxies_delete(mock_api_class):
+    """Test Telegram delete_reply delegates to the existing delete path."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.delete = AsyncMock(return_value="reply-789")
+    mock_api_class.return_value = mock_api
+
+    telegram = Telegram(telegram_bot_token="token", telegram_chat_id="123")
+    await telegram._initialize_client()
+
+    with patch.object(telegram, "_output_status"):
+        result = await telegram.delete_reply("reply-789")
+
+    assert result == "reply-789"
+    mock_api.delete.assert_called_once_with(post_id="reply-789", chat_id="123")
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.telegram.wrapper.TelegramAPI")
+async def test_telegram_delete_reply_no_post_id(mock_api_class):
+    """Test Telegram delete_reply raises when no post ID provided."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    telegram = Telegram(telegram_bot_token="token", telegram_chat_id="123")
+    await telegram._initialize_client()
+
+    with pytest.raises(Exception, match="Message ID is required for deletion"):
+        await telegram.delete_reply(None)

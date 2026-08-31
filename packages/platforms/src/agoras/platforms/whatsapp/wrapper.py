@@ -527,6 +527,10 @@ class WhatsApp(SocialNetwork):
         # Initialize client before executing other actions
         await self._initialize_client()
 
+        if action in ("get-post", "get-reply"):
+            await super().execute_action(action)
+            return
+
         handlers = {
             "post": self._handle_post_action,
             "reply": self._handle_reply_action,

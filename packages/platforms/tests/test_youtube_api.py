@@ -168,6 +168,17 @@ async def test_youtube_api_reply(youtube_api):
     youtube_api.client.insert_comment.assert_called_once_with('video-123', 'A comment')
 
 
+@pytest.mark.asyncio
+async def test_youtube_api_delete_reply(youtube_api):
+    """Test YouTubeAPI delete_reply delegates to client.delete_comment."""
+    youtube_api.client.delete_comment = AsyncMock(return_value='comment-123')
+
+    result = await youtube_api.delete_reply(comment_id='comment-123')
+
+    assert result == 'comment-123'
+    youtube_api.client.delete_comment.assert_called_once_with('comment-123')
+
+
 # Error Handling Tests
 
 @pytest.mark.asyncio

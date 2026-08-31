@@ -167,6 +167,99 @@ async def test_threads_execute_action_reply_dispatch(mock_create_post, threads_w
 
 
 @pytest.mark.asyncio
+async def test_threads_execute_action_delete_reply_dispatch(threads_with_real_api):
+    """Threads execute_action override dispatches 'delete-reply' to delete_reply."""
+    threads, api = threads_with_real_api
+    threads.config['post_id'] = 'reply-1'
+
+    with (
+        patch.object(threads, '_initialize_client', new_callable=AsyncMock),
+        patch.object(threads, 'delete_reply', new_callable=AsyncMock) as mock_delete_reply,
+        patch.object(threads, '_output_status'),
+    ):
+        await threads.execute_action('delete-reply')
+
+    mock_delete_reply.assert_called_once_with('reply-1')
+
+
+@pytest.mark.asyncio
+async def test_threads_execute_action_get_post_dispatch(threads_with_real_api):
+    """Threads execute_action override dispatches 'get-post' to get_post."""
+    threads, api = threads_with_real_api
+    threads.config['post_id'] = 'post-1'
+
+    with (
+        patch.object(threads, '_initialize_client', new_callable=AsyncMock),
+        patch.object(threads, 'get_post', new_callable=AsyncMock) as mock_get_post,
+    ):
+        await threads.execute_action('get-post')
+
+    mock_get_post.assert_called_once_with('post-1')
+
+
+@pytest.mark.asyncio
+async def test_threads_execute_action_get_reply_dispatch(threads_with_real_api):
+    """Threads execute_action override dispatches 'get-reply' to get_reply."""
+    threads, api = threads_with_real_api
+    threads.config['post_id'] = 'reply-1'
+
+    with (
+        patch.object(threads, '_initialize_client', new_callable=AsyncMock),
+        patch.object(threads, 'get_reply', new_callable=AsyncMock) as mock_get_reply,
+    ):
+        await threads.execute_action('get-reply')
+
+    mock_get_reply.assert_called_once_with('reply-1')
+
+
+@pytest.mark.asyncio
+async def test_threads_get_post_requires_explicit_post_id(threads_with_real_api):
+    """Test Threads get_post does not fall back to instance threads_post_id."""
+    threads, api = threads_with_real_api
+    threads.threads_post_id = 'stale-post-id'
+    api.get_post = AsyncMock()
+
+    with pytest.raises(Exception, match='Post ID is required'):
+        await threads.get_post(None)
+
+    api.get_post.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_threads_get_reply_proxies_get_post(threads_with_real_api):
+    """Test Threads get_reply delegates to get_post."""
+    threads, _api = threads_with_real_api
+
+    with patch.object(threads, 'get_post', new_callable=AsyncMock) as mock_get_post:
+        mock_get_post.return_value = {'id': 'reply-1', 'text': 'hi'}
+        result = await threads.get_reply('reply-1')
+
+    assert result['id'] == 'reply-1'
+    mock_get_post.assert_called_once_with('reply-1')
+
+
+@pytest.mark.asyncio
+async def test_threads_get_post_maps_video_media(threads_with_real_api):
+    """Test Threads get_post maps VIDEO media type."""
+    threads, api = threads_with_real_api
+    api.get_post = AsyncMock(
+        return_value={
+            "id": "post-v",
+            "text": "video post",
+            "media_url": "https://example.com/v.mp4",
+            "media_type": "VIDEO",
+            "username": "alice",
+            "timestamp": "2026-01-01T00:00:00Z",
+        }
+    )
+
+    with patch.object(threads, '_output_content'):
+        result = await threads.get_post('post-v')
+
+    assert result['media'] == [{'type': 'video', 'url': 'https://example.com/v.mp4'}]
+
+
+@pytest.mark.asyncio
 async def test_threads_extract_reply_params_remap():
     """Threads __init__ remaps threads_post_id and threads_video_url to generic keys."""
     threads = Threads(
@@ -182,3 +275,16 @@ async def test_threads_extract_reply_params_remap():
     assert post_id == 'post-123'
     assert text == 'A reply'
     assert media['video_url'] == 'http://example.com/v.mp4'
+
+
+@pytest.mark.asyncio
+async def test_threads_delete_reply_proxies_delete(threads_with_real_api):
+    """Threads delete_reply delegates to the api.delete path."""
+    threads, api = threads_with_real_api
+    api.client.delete_post = MagicMock(return_value={'id': 'reply-1'})
+
+    with patch.object(threads, '_output_status'):
+        result = await threads.delete_reply('reply-1')
+
+    assert result == 'reply-1'
+    api.client.delete_post.assert_called_once_with(post_id='reply-1')

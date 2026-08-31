@@ -320,6 +320,99 @@ class YouTube(SocialNetwork):
         self._output_status(result)
         return result
 
+    async def delete_reply(self, post_id):
+        """
+        Delete a YouTube comment.
+
+        Args:
+            post_id (str): ID of the comment to delete
+
+        Returns:
+            str: Deleted comment ID
+        """
+        if not self.api:
+            raise Exception("YouTube API not initialized")
+
+        if not post_id:
+            raise Exception("YouTube comment ID is required for delete-reply action.")
+
+        result = await self.api.delete_reply(comment_id=post_id)
+        self._output_status(result)
+        return result
+
+    async def get_post(self, post_id):
+        """
+        Read a YouTube video by ID and return normalized content.
+
+        Args:
+            post_id (str): Video ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        if not self.api:
+            raise Exception("YouTube API not initialized")
+
+        if not post_id:
+            raise Exception("YouTube video ID is required.")
+        video_id = post_id
+
+        raw = await self.api.get_post(video_id)
+        text_parts = [part for part in (raw.get("title"), raw.get("description")) if part]
+        content = {
+            "id": str(raw.get("video_id", video_id)),
+            "text": "\n\n".join(text_parts) if text_parts else None,
+            "media": [],
+            "author": {
+                "id": raw.get("channel_id"),
+                "name": raw.get("channel_title"),
+            }
+            if raw.get("channel_id") or raw.get("channel_title")
+            else None,
+            "created_at": None,
+            "metadata": {
+                "privacy_status": raw.get("privacy_status"),
+                "view_count": raw.get("view_count"),
+                "like_count": raw.get("like_count"),
+                "comment_count": raw.get("comment_count"),
+            },
+        }
+        self._output_content(content)
+        return content
+
+    async def get_reply(self, post_id):
+        """
+        Read a YouTube comment by ID and return normalized content.
+
+        Args:
+            post_id (str): Comment ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        if not self.api:
+            raise Exception("YouTube API not initialized")
+
+        if not post_id:
+            raise Exception("YouTube comment ID is required for get-reply action.")
+
+        raw = await self.api.get_reply(post_id)
+        content = {
+            "id": str(raw.get("id", post_id)),
+            "text": raw.get("text"),
+            "media": [],
+            "author": {
+                "id": raw.get("author_id"),
+                "name": raw.get("author_name"),
+            }
+            if raw.get("author_id") or raw.get("author_name")
+            else None,
+            "created_at": raw.get("created_at"),
+            "metadata": {"video_id": raw.get("video_id")} if raw.get("video_id") else {},
+        }
+        self._output_content(content)
+        return content
+
     # YouTube-specific feed methods that work with videos instead of posts
     async def last_from_feed(self, feed_url, max_count, post_lookback):
         """

@@ -171,6 +171,17 @@ async def test_facebook_api_delete(facebook_api):
     assert result is not None
 
 
+@pytest.mark.asyncio
+async def test_facebook_api_delete_reply(facebook_api):
+    """Test FacebookAPI delete_reply delegates to client.delete_comment."""
+    facebook_api.client.delete_comment = AsyncMock(return_value='comment-123')
+
+    result = await facebook_api.delete_reply(comment_id='comment-123')
+
+    assert result == 'comment-123'
+    facebook_api.client.delete_comment.assert_called_once_with('comment-123')
+
+
 # Error Handling Tests
 
 @pytest.mark.asyncio

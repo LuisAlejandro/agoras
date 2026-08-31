@@ -658,3 +658,59 @@ async def test_discord_client_create_public_thread_permission_error():
     with patch.object(client, '_get_channel', return_value=mock_channel):
         with pytest.raises(Exception, match='create public thread failed'):
             await client.create_public_thread('111', 'Nope')
+
+
+@pytest.mark.asyncio
+async def test_discord_client_get_message_maps_unknown_attachment_type():
+    """Test get_message labels non-image/video attachments as unknown."""
+    client = DiscordAPIClient('bot_token', 'server_name', 'channel_name')
+    client._authenticated = True
+    client.client = MagicMock()
+
+    mock_attachment = MagicMock()
+    mock_attachment.content_type = 'application/pdf'
+    mock_attachment.url = 'https://cdn.discordapp.com/file.pdf'
+
+    mock_message = MagicMock()
+    mock_message.id = 999
+    mock_message.content = 'see attachment'
+    mock_message.attachments = [mock_attachment]
+    mock_message.embeds = []
+    mock_message.created_at = None
+    mock_message.author = MagicMock(id=1, display_name='Bot', name='bot')
+
+    mock_channel = MagicMock()
+    mock_channel.fetch_message = AsyncMock(return_value=mock_message)
+
+    with patch.object(client, '_get_channel', return_value=mock_channel):
+        result = await client.get_message('999')
+
+    assert result['media'] == [{'type': 'unknown', 'url': 'https://cdn.discordapp.com/file.pdf'}]
+
+
+@pytest.mark.asyncio
+async def test_discord_client_get_message_uses_embed_text_when_content_empty():
+    """Test get_message falls back to embed title/description when content is empty."""
+    client = DiscordAPIClient('bot_token', 'server_name', 'channel_name')
+    client._authenticated = True
+    client.client = MagicMock()
+
+    mock_embed = MagicMock()
+    mock_embed.title = 'Embed title'
+    mock_embed.description = 'Embed body'
+
+    mock_message = MagicMock()
+    mock_message.id = 888
+    mock_message.content = ''
+    mock_message.attachments = []
+    mock_message.embeds = [mock_embed]
+    mock_message.created_at = None
+    mock_message.author = None
+
+    mock_channel = MagicMock()
+    mock_channel.fetch_message = AsyncMock(return_value=mock_message)
+
+    with patch.object(client, '_get_channel', return_value=mock_channel):
+        result = await client.get_message('888')
+
+    assert result['text'] == 'Embed title\n\nEmbed body'

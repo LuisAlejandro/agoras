@@ -317,6 +317,73 @@ class Threads(SocialNetwork):
         self._output_status(result)
         return result
 
+    async def delete_reply(self, post_id):
+        """
+        Delete a reply post.
+
+        A reply is a post on Threads, so deletion is a proxy of ``delete``.
+
+        Args:
+            post_id (str): ID of the reply post to delete
+
+        Returns:
+            str: Deleted post ID
+        """
+        return await self.delete(post_id)
+
+    async def get_post(self, post_id):
+        """
+        Read a Threads post by ID and return normalized content.
+
+        Args:
+            post_id (str): Post ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        if not self.api:
+            raise Exception("Threads API not initialized")
+
+        if not post_id:
+            raise Exception("Post ID is required for get-post action.")
+
+        raw = await self.api.get_post(post_id)
+        media = []
+        media_url = raw.get("media_url")
+        media_type = (raw.get("media_type") or "").upper()
+        if media_url:
+            media.append(
+                {
+                    "type": "video" if media_type in ("VIDEO", "REELS") else "image",
+                    "url": media_url,
+                }
+            )
+        username = raw.get("username")
+        content = {
+            "id": str(raw.get("id", post_id)),
+            "text": raw.get("text"),
+            "media": media,
+            "author": {"id": None, "name": username} if username else None,
+            "created_at": raw.get("timestamp"),
+            "metadata": {"permalink": raw.get("permalink")} if raw.get("permalink") else {},
+        }
+        self._output_content(content)
+        return content
+
+    async def get_reply(self, post_id):
+        """
+        Read a reply post by ID.
+
+        A reply is a post on Threads, so reading is a proxy of ``get_post``.
+
+        Args:
+            post_id (str): Reply post ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        return await self.get_post(post_id)
+
     async def share(self, post_id):
         """
         Share/repost a Threads post.
@@ -505,28 +572,25 @@ class Threads(SocialNetwork):
         # Initialize client before executing other actions
         await self._initialize_client()
 
-        if action == "post":
-            await self._handle_post_action()
-        elif action == "like":
-            await self._handle_like_action()
-        elif action == "share":
-            await self._handle_share_action()
-        elif action == "delete":
-            await self._handle_delete_action()
-        elif action == "video":
-            await self._handle_video_action()
-        elif action == "thread":
-            await self._handle_thread_action()
-        elif action == "reply":
-            await self._handle_reply_action()
-        elif action == "last-from-feed":
-            await self._handle_last_from_feed_action()
-        elif action == "random-from-feed":
-            await self._handle_random_from_feed_action()
-        elif action == "schedule":
-            await self._handle_schedule_action()
-        else:
+        handlers = {
+            "post": self._handle_post_action,
+            "like": self._handle_like_action,
+            "share": self._handle_share_action,
+            "delete": self._handle_delete_action,
+            "video": self._handle_video_action,
+            "thread": self._handle_thread_action,
+            "reply": self._handle_reply_action,
+            "delete-reply": self._handle_delete_reply_action,
+            "get-post": self._handle_get_post_action,
+            "get-reply": self._handle_get_reply_action,
+            "last-from-feed": self._handle_last_from_feed_action,
+            "random-from-feed": self._handle_random_from_feed_action,
+            "schedule": self._handle_schedule_action,
+        }
+        handler = handlers.get(action)
+        if handler is None:
             raise Exception(f'"{action}" action not supported.')
+        await handler()
 
 
 async def main_async(kwargs):

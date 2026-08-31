@@ -17,6 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.facebook.api module."""
 
+import asyncio
 from typing import Any, Dict, List, Optional
 
 from agoras.core.api_base import BaseAPI
@@ -329,6 +330,92 @@ class FacebookAPI(BaseAPI):
             return await self.client.delete_post(object_id, post_id)
         except Exception as e:
             self._handle_api_error(e, "Facebook delete")
+            raise
+
+    async def delete_reply(self, comment_id: str) -> str:
+        """
+        Delete a Facebook comment.
+
+        Args:
+            comment_id (str): ID of the comment to delete
+
+        Returns:
+            str: Deleted comment ID
+
+        Raises:
+            Exception: If deletion fails
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("Facebook API not authenticated")
+
+        await self._rate_limit_check("delete", 0.5)
+
+        try:
+            return await self.client.delete_comment(comment_id)
+        except Exception as e:
+            self._handle_api_error(e, "Facebook delete-reply")
+            raise
+
+    async def get_post(self, post_id: str) -> Dict[str, Any]:
+        """
+        Read a Facebook post/object by ID.
+
+        Args:
+            post_id (str): Post or object ID to read
+
+        Returns:
+            dict: Object fields from Graph API
+
+        Raises:
+            Exception: If the object cannot be read
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("Facebook API not authenticated")
+
+        await self._rate_limit_check("get_post", 0.5)
+
+        try:
+            return await asyncio.to_thread(
+                self.client.get_object,
+                post_id,
+                "id,message,created_time,from,full_picture,permalink_url,type,source,attachments{media,type,media_type,url,subattachments}",
+            )
+        except Exception as e:
+            self._handle_api_error(e, "Facebook get-post")
+            raise
+
+    async def get_reply(self, comment_id: str) -> Dict[str, Any]:
+        """
+        Read a Facebook comment by ID.
+
+        Args:
+            comment_id (str): Comment ID to read
+
+        Returns:
+            dict: Comment fields from Graph API
+
+        Raises:
+            Exception: If the comment cannot be read
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("Facebook API not authenticated")
+
+        await self._rate_limit_check("get_reply", 0.5)
+
+        try:
+            return await asyncio.to_thread(
+                self.client.get_object,
+                comment_id,
+                "id,message,created_time,from,attachment{type,url,media{image{src},source}}",
+            )
+        except Exception as e:
+            self._handle_api_error(e, "Facebook get-reply")
             raise
 
     async def share(self, profile_id: str, object_id: str, post_id: str) -> str:
