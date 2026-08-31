@@ -773,6 +773,50 @@ class LinkedInAPIClient:
 
         return await asyncio.to_thread(_sync_get_comment)
 
+    async def get_media(self, media_urn: str) -> Dict[str, Any]:
+        """
+        Resolve a LinkedIn media URN to its downloadable URL.
+
+        Args:
+            media_urn (str): Media URN (e.g. "urn:li:image:123" or "urn:li:video:456")
+
+        Returns:
+            dict: Media entity containing a ``downloadUrl``
+
+        Raises:
+            Exception: If the media cannot be resolved
+        """
+
+        def _sync_get_media():
+            if not self.restli_client:
+                raise Exception("LinkedIn RestliClient not initialized")
+            if not self.access_token:
+                raise Exception("No access token available")
+            if not media_urn:
+                raise Exception("LinkedIn media URN is required.")
+
+            encoded_urn = urllib.parse.quote(media_urn, safe="")
+            request = self.restli_client.get(
+                resource_path=f"/media/{encoded_urn}",
+                version_string=self.api_version,
+                access_token=self.access_token,
+            )
+
+            if request.status_code != 200:
+                raise Exception(f"Unable to get LinkedIn media {media_urn} - Status: {request.status_code}")
+
+            entity = getattr(request, "entity", None)
+            if entity is None:
+                try:
+                    entity = request.response.json()
+                except Exception as exc:
+                    raise Exception(f"Unable to parse LinkedIn media {media_urn}") from exc
+            if isinstance(entity, dict):
+                return entity
+            return {"id": media_urn, "raw": entity}
+
+        return await asyncio.to_thread(_sync_get_media)
+
     async def get_user_info(self) -> Dict[str, Any]:
         """
         Get user information from LinkedIn API.

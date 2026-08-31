@@ -533,9 +533,7 @@ async def test_linkedin_delete_reply(mock_auth_manager_class, mock_api_class):
         result = await linkedin.delete_reply("comment-123")
 
     assert result == "comment-123"
-    mock_api.delete_reply.assert_called_once_with(
-        comment_id="comment-123", parent_post_id="urn:li:ugcPost:123"
-    )
+    mock_api.delete_reply.assert_called_once_with(comment_id="comment-123", parent_post_id="urn:li:ugcPost:123")
 
 
 @pytest.mark.asyncio
@@ -572,6 +570,67 @@ async def test_linkedin_get_post(mock_auth_manager_class, mock_api_class):
 @pytest.mark.asyncio
 @patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
 @patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
+async def test_linkedin_get_post_resolves_media(mock_auth_manager_class, mock_api_class):
+    """Test LinkedIn get_post resolves media URNs to normalized URLs."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.get_post = AsyncMock(
+        return_value={
+            "id": "urn:li:ugcPost:123",
+            "commentary": "Hello LinkedIn",
+            "author": "urn:li:person:1",
+            "createdAt": 1700000000000,
+            "content": {
+                "media": {"id": "urn:li:image:img1"},
+            },
+        }
+    )
+    mock_api.get_media = AsyncMock(return_value={"downloadUrl": "https://example.com/img1.jpg"})
+    mock_api_class.return_value = mock_api
+
+    linkedin = LinkedIn(**LINKEDIN_KWARGS)
+    await linkedin._initialize_client()
+
+    with patch.object(linkedin, "_output_content"):
+        result = await linkedin.get_post("urn:li:ugcPost:123")
+
+    assert result["media"] == [{"type": "image", "url": "https://example.com/img1.jpg"}]
+    mock_api.get_media.assert_called_once_with("urn:li:image:img1")
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
+async def test_linkedin_get_post_media_resolution_failure_skipped(mock_auth_manager_class, mock_api_class):
+    """Test LinkedIn get_post skips media whose URN cannot be resolved."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.get_post = AsyncMock(
+        return_value={
+            "id": "urn:li:ugcPost:123",
+            "commentary": "Hello LinkedIn",
+            "content": {
+                "multiImage": {"images": [{"id": "urn:li:image:img1"}, {"id": "urn:li:image:img2"}]},
+            },
+        }
+    )
+    mock_api.get_media = AsyncMock(side_effect=Exception("media not found"))
+    mock_api_class.return_value = mock_api
+
+    linkedin = LinkedIn(**LINKEDIN_KWARGS)
+    await linkedin._initialize_client()
+
+    with patch.object(linkedin, "_output_content"):
+        result = await linkedin.get_post("urn:li:ugcPost:123")
+
+    assert result["media"] == []
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
 async def test_linkedin_get_reply(mock_auth_manager_class, mock_api_class):
     """Test LinkedIn get_reply reads comment with parent URN."""
     configure_linkedin_auth_mock(mock_auth_manager_class)
@@ -595,9 +654,7 @@ async def test_linkedin_get_reply(mock_auth_manager_class, mock_api_class):
 
     assert result["id"] == "comment-123"
     assert result["text"] == "A comment"
-    mock_api.get_reply.assert_called_once_with(
-        comment_id="comment-123", parent_post_id="urn:li:ugcPost:123"
-    )
+    mock_api.get_reply.assert_called_once_with(comment_id="comment-123", parent_post_id="urn:li:ugcPost:123")
     assert result["metadata"]["parent_post_id"] == "urn:li:ugcPost:123"
 
 

@@ -313,7 +313,7 @@ class LinkedIn(SocialNetwork):
         content = {
             "id": str(raw.get("id", linkedin_post_id)),
             "text": raw.get("commentary") or raw.get("text"),
-            "media": [],
+            "media": await self._resolve_media(raw),
             "author": {"id": author_urn, "name": None} if author_urn else None,
             "created_at": raw.get("createdAt") or raw.get("created_at"),
             "metadata": {},
@@ -351,13 +351,59 @@ class LinkedIn(SocialNetwork):
         content = {
             "id": str(raw.get("id", post_id)),
             "text": text,
-            "media": [],
+            "media": await self._resolve_media(raw),
             "author": {"id": actor, "name": None} if actor else None,
             "created_at": raw.get("created") or raw.get("createdAt") or raw.get("created_at"),
             "metadata": {"parent_post_id": parent_post_id},
         }
         self._output_content(content)
         return content
+
+    async def _resolve_media(self, raw):
+        """
+        Resolve LinkedIn media URNs in a post/comment entity to normalized entries.
+
+        LinkedIn read APIs return media as URNs (``urn:li:image:*`` /
+        ``urn:li:video:*``), not URLs. Each URN is resolved via the Media API
+        to its ``downloadUrl``. Resolution failures are skipped so a single
+        broken media item does not fail the whole read.
+
+        Args:
+            raw (dict): Post or comment entity from the LinkedIn API
+
+        Returns:
+            list: Normalized media entries (``{type, url}``)
+        """
+        if not self.api:
+            return []
+
+        urns = []
+        content = raw.get("content") or {}
+        if isinstance(content, dict):
+            media = content.get("media") or {}
+            if isinstance(media, dict) and media.get("id"):
+                urns.append(media["id"])
+            multi = content.get("multiImage") or {}
+            for image in multi.get("images") or []:
+                if isinstance(image, dict) and image.get("id"):
+                    urns.append(image["id"])
+
+        media = []
+        for urn in urns:
+            try:
+                entity = await self.api.get_media(urn)
+                url = entity.get("downloadUrl")
+                if not url:
+                    continue
+                media.append(
+                    {
+                        "type": "video" if urn.startswith("urn:li:video:") else "image",
+                        "url": url,
+                    }
+                )
+            except Exception:
+                continue
+        return media
 
     async def share(self, linkedin_post_id=None):
         """

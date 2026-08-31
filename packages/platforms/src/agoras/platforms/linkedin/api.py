@@ -422,3 +422,29 @@ class LinkedInAPI(BaseAPI):
         except Exception as e:
             self._handle_api_error(e, "LinkedIn get-reply")
             raise
+
+    async def get_media(self, media_urn: str) -> Dict[str, Any]:
+        """
+        Resolve a LinkedIn media URN to its downloadable URL.
+
+        Args:
+            media_urn (str): Media URN (e.g. "urn:li:image:123" or "urn:li:video:456")
+
+        Returns:
+            dict: Media entity containing a ``downloadUrl``
+
+        Raises:
+            Exception: If the media cannot be resolved
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("LinkedIn API not authenticated")
+
+        await self._rate_limit_check("get_media", 0.5)
+
+        try:
+            return await self.client.get_media(media_urn=media_urn)
+        except Exception as e:
+            self._handle_api_error(e, "LinkedIn get-media")
+            raise

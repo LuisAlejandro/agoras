@@ -267,7 +267,11 @@ class DiscordAPI(BaseAPI):
             raise Exception("Discord client not available")
 
         await self._rate_limit_check("get_post", 0.5)
-        return await self.client.get_message(message_id)
+        try:
+            return await self.client.get_message(message_id)
+        except Exception as e:
+            self._handle_api_error(e, "Discord get-post")
+            raise
 
     async def upload_file(self, file_content, filename, content=None, embeds=None):
         """
