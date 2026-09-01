@@ -39,7 +39,7 @@ def instagram_api():
         api.client.create_media = AsyncMock(return_value='container-123')
         api.client.publish_media = AsyncMock(return_value='media-123')
         api.client.like_media = AsyncMock(return_value=True)
-        api.client.delete_media = AsyncMock(return_value=True)
+        api.client.delete_media = AsyncMock(return_value='media-123')
         yield api
 
 
@@ -162,13 +162,17 @@ async def test_instagram_api_delete_reply(instagram_api):
     instagram_api.client.delete_comment.assert_called_once_with('comment-123')
 
 
-# Delete Tests - Not Supported
+# Delete Tests
 
 @pytest.mark.asyncio
-async def test_instagram_api_delete_not_supported(instagram_api):
-    """Test InstagramAPI delete raises not supported exception."""
-    with pytest.raises(Exception, match='not supported'):
-        await instagram_api.delete('media-123')
+async def test_instagram_api_delete(instagram_api):
+    """Test InstagramAPI delete delegates to client.delete_media."""
+    instagram_api.client.delete_media = AsyncMock(return_value='media-123')
+
+    result = await instagram_api.delete('media-123')
+
+    assert result == 'media-123'
+    instagram_api.client.delete_media.assert_called_once_with('media-123')
 
 
 # Error Handling Tests
