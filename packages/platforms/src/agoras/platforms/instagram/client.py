@@ -521,9 +521,9 @@ class InstagramAPIClient:
             default_fields = "id,caption,media_type,media_url,permalink,timestamp"
             query_fields = fields or default_fields
 
-            return self.graph_api.get_object(
-                object_id=f"{object_id}/media", fields=query_fields, limit=limit
-            )
+            if not self.graph_api:
+                raise Exception("Instagram API client not initialized")
+            return self.graph_api.get_object(object_id=f"{object_id}/media", fields=query_fields, limit=limit)
 
         return await asyncio.to_thread(_sync_get_user_media)
 

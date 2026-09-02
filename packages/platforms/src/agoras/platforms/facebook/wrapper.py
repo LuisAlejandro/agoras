@@ -80,10 +80,10 @@ class Facebook(SocialNetwork):
 
     async def _load_config_values(self):
         """Load configuration values from params/environment."""
-        self.facebook_access_token = self._get_config_value("facebook_access_token", "FACEBOOK_ACCESS_TOKEN")
-        self.facebook_client_id = self._get_config_value("facebook_client_id", "FACEBOOK_CLIENT_ID")
-        self.facebook_client_secret = self._get_config_value("facebook_client_secret", "FACEBOOK_CLIENT_SECRET")
-        self.facebook_refresh_token = self._get_config_value("facebook_refresh_token", "FACEBOOK_REFRESH_TOKEN")
+        self.facebook_access_token = self._get_auth_config_value("facebook_access_token", "FACEBOOK_ACCESS_TOKEN")
+        self.facebook_client_id = self._get_auth_config_value("facebook_client_id", "FACEBOOK_CLIENT_ID")
+        self.facebook_client_secret = self._get_auth_config_value("facebook_client_secret", "FACEBOOK_CLIENT_SECRET")
+        self.facebook_refresh_token = self._get_auth_config_value("facebook_refresh_token", "FACEBOOK_REFRESH_TOKEN")
         # Object ID should always come from config/env, not storage (allows switching between page/user)
         self.facebook_object_id = self._get_config_value("facebook_object_id", "FACEBOOK_OBJECT_ID")
         self.facebook_post_id = self._get_config_value("facebook_post_id", "FACEBOOK_POST_ID")
@@ -99,6 +99,7 @@ class Facebook(SocialNetwork):
                 user_id=self.facebook_object_id or "",
                 client_id=self.facebook_client_id or "",
                 client_secret=self.facebook_client_secret or "",
+                profile=self._get_config_value("profile"),
             )
 
             if auth_manager._load_credentials_from_storage():
@@ -126,6 +127,7 @@ class Facebook(SocialNetwork):
                 client_id=self.facebook_client_id,
                 client_secret=self.facebook_client_secret,
                 refresh_token=self.facebook_refresh_token,
+                profile=self._get_config_value("profile"),
             )
             authenticated = await auth_manager.authenticate()
             if authenticated:
@@ -858,7 +860,12 @@ class Facebook(SocialNetwork):
         client_secret = self._get_config_value("facebook_client_secret", "FACEBOOK_CLIENT_SECRET")
         self._get_config_value("facebook_app_id", "FACEBOOK_APP_ID")
 
-        auth_manager = FacebookAuthManager(user_id=object_id, client_id=client_id, client_secret=client_secret)
+        auth_manager = FacebookAuthManager(
+            user_id=object_id,
+            client_id=client_id,
+            client_secret=client_secret,
+            profile=self._get_config_value("profile"),
+        )
 
         result = await auth_manager.authorize()
         if result:

@@ -25,7 +25,13 @@ from argparse import ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.discord.wrapper import main as discord_main
 
-from ..base import add_common_content_options, add_video_options, prepare_content_args
+from ..base import (
+    add_common_content_options,
+    add_profile_to_all,
+    add_video_options,
+    prepare_content_args,
+    resolve_action_profile,
+)
 from ..content import add_content_file_option
 from ..converter import ParameterConverter
 from ..validator import ActionValidator
@@ -116,6 +122,8 @@ def create_discord_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     # Set handler
     parser.set_defaults(command=_handle_discord_command)
 
+    add_profile_to_all(actions)
+
     return parser
 
 
@@ -174,6 +182,9 @@ def _handle_discord_command(args: Namespace):
     # Convert new args to legacy format
     converter = ParameterConverter("discord")
     legacy_args = converter.convert_to_legacy(args)
+
+    # Resolve and inject the credential profile for non-authorize actions
+    resolve_action_profile("discord", args, legacy_args)
 
     # Call core Discord module
     return discord_main(legacy_args)

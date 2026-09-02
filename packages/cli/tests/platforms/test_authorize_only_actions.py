@@ -106,3 +106,216 @@ def test_x_post_help_has_no_authentication_group(capsys):
 
     captured = capsys.readouterr()
     assert 'Authentication' not in captured.out
+
+
+def test_x_post_accepts_profile_flag():
+    """X post accepts --profile without auth flags."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_x_parser(subparsers)
+
+    args = root_parser.parse_args(['x', 'post', '--text', 'Hello', '--profile', 'app@acct'])
+    assert args.profile == 'app@acct'
+    assert args.text == 'Hello'
+
+
+def test_x_authorize_accepts_profile_flag():
+    """X authorize accepts --profile alongside credentials."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_x_parser(subparsers)
+
+    args = root_parser.parse_args([
+        'x', 'authorize', '--consumer-key', 'k', '--consumer-secret', 's', '--profile', 'app@acct'
+    ])
+    assert args.profile == 'app@acct'
+    assert args.consumer_key == 'k'
+
+
+def test_resolve_profile_single_auto_selects(monkeypatch, tmp_path):
+    """Single stored profile auto-selects with no prompt."""
+    from agoras.cli.base import resolve_profile
+    from agoras.core.auth.storage import SecureTokenStorage
+
+    monkeypatch.setenv("AGORAS_STORAGE_DIR", str(tmp_path))
+    storage = SecureTokenStorage()
+    storage.save_token("x", "app@acct", {"consumer_key": "k"})
+
+    assert resolve_profile("x", None) == "app@acct"
+
+
+def test_resolve_profile_explicit_selector(monkeypatch, tmp_path):
+    """--profile selects the named composite."""
+    from agoras.cli.base import resolve_profile
+    from agoras.core.auth.storage import SecureTokenStorage
+
+    monkeypatch.setenv("AGORAS_STORAGE_DIR", str(tmp_path))
+    storage = SecureTokenStorage()
+    storage.save_token("x", "app1@acct", {"consumer_key": "k"})
+    storage.save_token("x", "app2@acct", {"consumer_key": "k"})
+
+    assert resolve_profile("x", "app2@acct") == "app2@acct"
+
+
+def test_resolve_profile_invalid_selector_fails_fast(monkeypatch, tmp_path, capsys):
+    """A --profile that matches no stored profile fails fast with the list."""
+    from agoras.cli.base import resolve_profile
+    from agoras.core.auth.storage import SecureTokenStorage
+
+    monkeypatch.setenv("AGORAS_STORAGE_DIR", str(tmp_path))
+    storage = SecureTokenStorage()
+    storage.save_token("x", "app1@acct", {"consumer_key": "k"})
+
+    with pytest.raises(SystemExit) as exc:
+        resolve_profile("x", "nope@acct")
+    assert exc.value.code == 2
+    captured = capsys.readouterr()
+    assert "app1@acct" in captured.err
+
+
+def test_resolve_profile_multi_non_tty_fails_hard(monkeypatch, tmp_path, capsys):
+    """Multi-profile + non-tty fails hard with the profile list and exit code 2."""
+    from agoras.cli.base import resolve_profile
+    from agoras.core.auth.storage import SecureTokenStorage
+
+    monkeypatch.setenv("AGORAS_STORAGE_DIR", str(tmp_path))
+    storage = SecureTokenStorage()
+    storage.save_token("x", "app1@acct", {"consumer_key": "k"})
+    storage.save_token("x", "app2@acct", {"consumer_key": "k"})
+
+    with pytest.raises(SystemExit) as exc:
+        resolve_profile("x", None)
+    assert exc.value.code == 2
+    captured = capsys.readouterr()
+    assert "app1@acct" in captured.err
+    assert "app2@acct" in captured.err
+    assert "--profile" in captured.err
+
+
+def test_env_credential_state_complete(monkeypatch):
+    """A full env set reports complete."""
+    from agoras.cli.base import env_credential_state
+
+    monkeypatch.setenv("TWITTER_CONSUMER_KEY", "k")
+    monkeypatch.setenv("TWITTER_CONSUMER_SECRET", "s")
+    monkeypatch.setenv("TWITTER_OAUTH_TOKEN", "t")
+    monkeypatch.setenv("TWITTER_OAUTH_SECRET", "o")
+
+    assert env_credential_state("x") == "complete"
+
+
+def test_env_credential_state_partial(monkeypatch):
+    """A partial env set reports partial."""
+    from agoras.cli.base import env_credential_state
+
+    monkeypatch.setenv("TWITTER_CONSUMER_KEY", "k")
+
+    assert env_credential_state("x") == "partial"
+
+
+def test_env_credential_state_none(monkeypatch):
+    """No env vars reports none."""
+    from agoras.cli.base import env_credential_state
+
+    monkeypatch.delenv("TWITTER_CONSUMER_KEY", raising=False)
+    monkeypatch.delenv("TWITTER_CONSUMER_SECRET", raising=False)
+    monkeypatch.delenv("TWITTER_OAUTH_TOKEN", raising=False)
+    monkeypatch.delenv("TWITTER_OAUTH_SECRET", raising=False)
+
+    assert env_credential_state("x") == "none"
+
+
+def test_env_credential_state_linkedin_complete(monkeypatch):
+    """LinkedIn env is complete with client id/secret plus a token."""
+    from agoras.cli.base import env_credential_state
+
+    monkeypatch.setenv("LINKEDIN_CLIENT_ID", "id")
+    monkeypatch.setenv("LINKEDIN_CLIENT_SECRET", "sec")
+    monkeypatch.setenv("LINKEDIN_REFRESH_TOKEN", "tok")
+
+    assert env_credential_state("linkedin") == "complete"
+
+
+def test_env_credential_state_linkedin_partial(monkeypatch):
+    """LinkedIn env without a token is partial."""
+    from agoras.cli.base import env_credential_state
+
+    monkeypatch.setenv("LINKEDIN_CLIENT_ID", "id")
+    monkeypatch.setenv("LINKEDIN_CLIENT_SECRET", "sec")
+    monkeypatch.delenv("LINKEDIN_REFRESH_TOKEN", raising=False)
+    monkeypatch.delenv("LINKEDIN_ACCESS_TOKEN", raising=False)
+
+    assert env_credential_state("linkedin") == "partial"
+
+
+def test_resolve_action_profile_complete_env_skips_storage(monkeypatch, tmp_path):
+    """A complete env set wins wholesale; no profile is injected."""
+    from argparse import Namespace
+    from agoras.cli.base import resolve_action_profile
+    from agoras.core.auth.storage import SecureTokenStorage
+
+    monkeypatch.setenv("AGORAS_STORAGE_DIR", str(tmp_path))
+    storage = SecureTokenStorage()
+    storage.save_token("x", "app1@acct", {"consumer_key": "k"})
+
+    monkeypatch.setenv("TWITTER_CONSUMER_KEY", "k")
+    monkeypatch.setenv("TWITTER_CONSUMER_SECRET", "s")
+    monkeypatch.setenv("TWITTER_OAUTH_TOKEN", "t")
+    monkeypatch.setenv("TWITTER_OAUTH_SECRET", "o")
+
+    legacy_args = {}
+    resolve_action_profile("x", Namespace(action="post", profile=None), legacy_args)
+    assert "profile" not in legacy_args
+
+
+def test_resolve_action_profile_partial_env_fails_fast(monkeypatch, tmp_path, capsys):
+    """A partial env set fails fast rather than blending with storage."""
+    from argparse import Namespace
+    from agoras.cli.base import resolve_action_profile
+    from agoras.core.auth.storage import SecureTokenStorage
+
+    monkeypatch.setenv("AGORAS_STORAGE_DIR", str(tmp_path))
+    storage = SecureTokenStorage()
+    storage.save_token("x", "app1@acct", {"consumer_key": "k"})
+
+    monkeypatch.setenv("TWITTER_CONSUMER_KEY", "k")
+    monkeypatch.delenv("TWITTER_CONSUMER_SECRET", raising=False)
+    monkeypatch.delenv("TWITTER_OAUTH_TOKEN", raising=False)
+    monkeypatch.delenv("TWITTER_OAUTH_SECRET", raising=False)
+
+    legacy_args = {}
+    with pytest.raises(SystemExit) as exc:
+        resolve_action_profile("x", Namespace(action="post", profile=None), legacy_args)
+    assert exc.value.code == 2
+    captured = capsys.readouterr()
+    assert "TWITTER_CONSUMER_SECRET" in captured.err
+
+
+def test_resolve_action_profile_explicit_selector_overrides_env(monkeypatch, tmp_path):
+    """An explicit --profile makes the selected profile the sole source."""
+    from argparse import Namespace
+    from agoras.cli.base import resolve_action_profile
+    from agoras.core.auth.storage import SecureTokenStorage
+
+    monkeypatch.setenv("AGORAS_STORAGE_DIR", str(tmp_path))
+    storage = SecureTokenStorage()
+    storage.save_token("x", "app1@acct", {"consumer_key": "k"})
+
+    monkeypatch.setenv("TWITTER_CONSUMER_KEY", "k")
+    monkeypatch.setenv("TWITTER_CONSUMER_SECRET", "s")
+    monkeypatch.setenv("TWITTER_OAUTH_TOKEN", "t")
+    monkeypatch.setenv("TWITTER_OAUTH_SECRET", "o")
+
+    legacy_args = {}
+    resolve_action_profile("x", Namespace(action="post", profile="app1@acct"), legacy_args)
+    assert legacy_args["profile"] == "app1@acct"
+
+
+def test_resolve_action_profile_skips_authorize(monkeypatch, tmp_path):
+    """Authorize never resolves a profile (it creates one)."""
+    from argparse import Namespace
+    from agoras.cli.base import resolve_action_profile
+
+    legacy_args = {}
+    resolve_action_profile("x", Namespace(action="authorize", profile=None), legacy_args)
+    assert "profile" not in legacy_args

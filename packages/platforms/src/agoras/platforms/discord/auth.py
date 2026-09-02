@@ -33,7 +33,11 @@ class DiscordAuthManager(BaseAuthManager):
     """Discord authentication manager using bot token authentication."""
 
     def __init__(
-        self, bot_token: Optional[str] = None, server_name: Optional[str] = None, channel_name: Optional[str] = None
+        self,
+        bot_token: Optional[str] = None,
+        server_name: Optional[str] = None,
+        channel_name: Optional[str] = None,
+        profile: Optional[str] = None,
     ):
         """
         Initialize Discord authentication manager.
@@ -42,8 +46,10 @@ class DiscordAuthManager(BaseAuthManager):
             bot_token (str, optional): Discord bot token
             server_name (str, optional): Discord server/guild name
             channel_name (str, optional): Discord channel name
+            profile (str, optional): Explicit profile composite (server/channel key)
         """
         super().__init__()
+        self.profile = profile
         # Try loading from storage first if credentials not provided
         if not bot_token or not server_name or not channel_name:
             loaded = self._load_credentials_from_storage()
@@ -287,9 +293,11 @@ class DiscordAuthManager(BaseAuthManager):
 
     def _get_token_identifier(self) -> str:
         """Get unique identifier for token storage."""
+        if self.profile:
+            return self.profile
         if self.server_name and self.channel_name:
             return f"{self.server_name}-{self.channel_name}"
-        return "default"
+        return "unbound"
 
     def _save_credentials_to_storage(self, bot_token: str, server_name: str, channel_name: str):
         """
@@ -306,8 +314,6 @@ class DiscordAuthManager(BaseAuthManager):
         token_data = {"bot_token": bot_token, "server_name": server_name, "channel_name": channel_name}
 
         self.token_storage.save_token(platform_name, identifier, token_data)
-        # Also save as default so it becomes the primary credential loaded
-        self.token_storage.save_token(platform_name, "default", token_data)
 
     def _load_credentials_from_storage(self) -> bool:
         """
@@ -318,17 +324,8 @@ class DiscordAuthManager(BaseAuthManager):
         """
         platform_name = self._get_platform_name()
 
-        # Try to load with default identifier first
-        identifier = "default"
+        identifier = self._get_token_identifier()
         token_data = self.token_storage.load_token(platform_name, identifier)
-
-        if not token_data:
-            # If no default, try to find any stored token
-            tokens = self.token_storage.list_tokens(platform_name)
-            if tokens:
-                # Use the first available token
-                identifier = tokens[0][1]
-                token_data = self.token_storage.load_token(platform_name, identifier)
 
         if token_data:
             self.bot_token = token_data.get("bot_token")

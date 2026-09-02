@@ -28,6 +28,7 @@ import requests
 
 from agoras.core.auth import BaseAuthManager
 from agoras.core.auth.callback_server import OAuthCallbackServer
+from agoras.core.auth.storage import build_composite_key
 
 from .client import ThreadsAPIClient
 
@@ -35,14 +36,17 @@ from .client import ThreadsAPIClient
 class ThreadsAuthManager(BaseAuthManager):
     """Threads authentication manager using OAuth 2.0 flow."""
 
-    def __init__(self, app_id: str, app_secret: str, refresh_token: Optional[str] = None):
+    def __init__(
+        self, app_id: str, app_secret: str, refresh_token: Optional[str] = None, profile: Optional[str] = None
+    ):
         """Initialize Threads authentication manager."""
         super().__init__()
+        self.profile = profile
         self.app_id = app_id
         self.app_secret = app_secret
         self.redirect_uri = "https://localhost:3456/callback"
-        self.refresh_token = refresh_token or self._load_refresh_token_from_storage()
         self.user_id = None
+        self.refresh_token = refresh_token or self._load_refresh_token_from_storage()
 
     async def authenticate(self) -> bool:
         """
@@ -275,8 +279,19 @@ class ThreadsAuthManager(BaseAuthManager):
         return "threads"
 
     def _get_token_identifier(self) -> str:
-        """Get unique identifier for token storage."""
-        return self.app_id or "default"
+        """Get unique identifier for token storage.
+
+        Returns the explicit ``profile`` composite verbatim when set; otherwise
+        builds the ``app_id@user_id`` composite from the app id and the
+        API-reported user id. When the user id is not yet known (e.g. during
+        construction), returns a non-colliding placeholder so a storage load
+        simply misses.
+        """
+        if self.profile:
+            return self.profile
+        if self.app_id and self.user_id:
+            return build_composite_key(self.app_id, self.user_id)
+        return self.app_id or "unbound"
 
     def _load_user_id_from_env(self) -> Optional[str]:
         """Load user ID from environment variable for CI/CD."""
@@ -284,10 +299,8 @@ class ThreadsAuthManager(BaseAuthManager):
 
     def _load_user_id_from_storage(self) -> Optional[str]:
         """Load user ID from secure storage."""
-        app_id = self.app_id
-        if not app_id:
-            return None
-        token_data = self.token_storage.load_token("threads", app_id)
+        identifier = self._get_token_identifier()
+        token_data = self.token_storage.load_token("threads", identifier)
         if token_data:
             return token_data.get("user_id")
         return None
@@ -295,6 +308,7 @@ class ThreadsAuthManager(BaseAuthManager):
     def _save_credentials_to_storage(self, refresh_token: str, user_id: str):
         """Save all Threads credentials to secure storage."""
         platform_name = self._get_platform_name()
+        self.user_id = user_id
         identifier = self._get_token_identifier()
 
         token_data = {
@@ -302,28 +316,37 @@ class ThreadsAuthManager(BaseAuthManager):
             "app_secret": self.app_secret,
             "refresh_token": refresh_token,
             "user_id": user_id,
+            "profile": identifier,
         }
 
         self.token_storage.save_token(platform_name, identifier, token_data)
-        # Also save as default so it becomes the primary credential loaded
-        self.token_storage.save_token(platform_name, "default", token_data)
 
     def _load_credentials_from_storage(self) -> bool:
         """Load Threads credentials from secure storage."""
         platform_name = self._get_platform_name()
 
-        # Try default identifier first
         identifier = self._get_token_identifier()
         token_data = self.token_storage.load_token(platform_name, identifier)
 
-        if not token_data:
-            # Try to find any stored token
-            tokens = self.token_storage.list_tokens(platform_name)
-            if tokens:
-                identifier = tokens[0][1]
-                token_data = self.token_storage.load_token(platform_name, identifier)
+        if not token_data and self.profile is None:
+            # Recover the bound composite from a stored profile whose app half
+            # matches this app_id, so a refresh never re-mints a profile.
+            for stored_platform, stored_identifier in self.token_storage.list_tokens(platform_name):
+                try:
+                    candidate = self.token_storage.load_token(platform_name, stored_identifier)
+                except ValueError:
+                    # Skip legacy/reserved identifiers (e.g. "default") that
+                    # are no longer valid profile keys.
+                    continue
+                if candidate and candidate.get("app_id") == self.app_id:
+                    self.profile = stored_identifier
+                    token_data = candidate
+                    break
 
         if token_data:
+            # Recover the bound composite so a refresh never re-mints a profile.
+            if self.profile is None and token_data.get("profile"):
+                self.profile = token_data["profile"]
             # Only update if not already set (allow override from constructor)
             if not self.app_id:
                 self.app_id = token_data.get("app_id")

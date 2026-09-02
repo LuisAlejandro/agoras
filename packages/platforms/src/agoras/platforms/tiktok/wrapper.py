@@ -101,10 +101,10 @@ class TikTok(SocialNetwork):
         Tries to load credentials from CLI params, environment variables, or storage.
         """
         # Try params/environment first
-        self.tiktok_username = self._get_config_value("tiktok_username", "TIKTOK_USERNAME")
-        self.tiktok_client_key = self._get_config_value("tiktok_client_key", "TIKTOK_CLIENT_KEY")
-        self.tiktok_client_secret = self._get_config_value("tiktok_client_secret", "TIKTOK_CLIENT_SECRET")
-        self.tiktok_refresh_token = self._get_config_value("tiktok_refresh_token", "TIKTOK_REFRESH_TOKEN")
+        self.tiktok_username = self._get_auth_config_value("tiktok_username", "TIKTOK_USERNAME")
+        self.tiktok_client_key = self._get_auth_config_value("tiktok_client_key", "TIKTOK_CLIENT_KEY")
+        self.tiktok_client_secret = self._get_auth_config_value("tiktok_client_secret", "TIKTOK_CLIENT_SECRET")
+        self.tiktok_refresh_token = self._get_auth_config_value("tiktok_refresh_token", "TIKTOK_REFRESH_TOKEN")
         # Configuration options
         self.tiktok_title = self._get_config_value("tiktok_title", "TIKTOK_TITLE") or ""
         self.tiktok_privacy_status = (
@@ -142,6 +142,7 @@ class TikTok(SocialNetwork):
                 username=self.tiktok_username or "",
                 client_key=self.tiktok_client_key or "",
                 client_secret=self.tiktok_client_secret or "",
+                profile=self._get_config_value("profile"),
             )
 
             if auth_manager._load_credentials_from_storage():
@@ -639,7 +640,12 @@ class TikTok(SocialNetwork):
         client_key = self._get_config_value("tiktok_client_key", "TIKTOK_CLIENT_KEY")
         client_secret = self._get_config_value("tiktok_client_secret", "TIKTOK_CLIENT_SECRET")
 
-        auth_manager = TikTokAuthManager(username=username, client_key=client_key, client_secret=client_secret)
+        auth_manager = TikTokAuthManager(
+            username=username,
+            client_key=client_key,
+            client_secret=client_secret,
+            profile=self._get_config_value("profile"),
+        )
 
         result = await auth_manager.authorize()
         if result:

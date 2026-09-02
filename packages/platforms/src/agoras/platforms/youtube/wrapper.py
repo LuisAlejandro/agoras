@@ -74,8 +74,8 @@ class YouTube(SocialNetwork):
         Tries to load credentials from CLI params, environment variables, or storage.
         """
         # App credentials from CLI params or environment.
-        self.youtube_client_id = self._get_config_value("youtube_client_id", "YOUTUBE_CLIENT_ID")
-        self.youtube_client_secret = self._get_config_value("youtube_client_secret", "YOUTUBE_CLIENT_SECRET")
+        self.youtube_client_id = self._get_auth_config_value("youtube_client_id", "YOUTUBE_CLIENT_ID")
+        self.youtube_client_secret = self._get_auth_config_value("youtube_client_secret", "YOUTUBE_CLIENT_SECRET")
         self.youtube_video_id = self._get_config_value("youtube_video_id", "YOUTUBE_VIDEO_ID")
         self.youtube_title = self._get_config_value("youtube_title", "YOUTUBE_TITLE")
         self.youtube_description = self._get_config_value("youtube_description", "YOUTUBE_DESCRIPTION")
@@ -94,6 +94,7 @@ class YouTube(SocialNetwork):
             client_id=self.youtube_client_id,
             client_secret=self.youtube_client_secret,
             refresh_token=None,
+            profile=self._get_config_value("profile"),
         )
 
         if auth_manager._load_credentials_from_storage():
@@ -104,7 +105,7 @@ class YouTube(SocialNetwork):
             self.youtube_refresh_token = auth_manager.refresh_token
 
         if not self.youtube_refresh_token:
-            self.youtube_refresh_token = self._get_config_value("youtube_refresh_token", "YOUTUBE_REFRESH_TOKEN")
+            self.youtube_refresh_token = self._get_auth_config_value("youtube_refresh_token", "YOUTUBE_REFRESH_TOKEN")
 
         # Validate all credentials are now available
         if not all([self.youtube_client_id, self.youtube_client_secret, self.youtube_refresh_token]):
@@ -609,7 +610,11 @@ class YouTube(SocialNetwork):
         client_id = self._get_config_value("youtube_client_id", "YOUTUBE_CLIENT_ID")
         client_secret = self._get_config_value("youtube_client_secret", "YOUTUBE_CLIENT_SECRET")
 
-        auth_manager = YouTubeAuthManager(client_id=client_id, client_secret=client_secret)
+        auth_manager = YouTubeAuthManager(
+            client_id=client_id,
+            client_secret=client_secret,
+            profile=self._get_config_value("profile"),
+        )
 
         result = await auth_manager.authorize()
         if result:

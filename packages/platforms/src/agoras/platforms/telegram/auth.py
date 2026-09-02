@@ -58,15 +58,17 @@ class TelegramAuthManager(BaseAuthManager):
     client: Optional[TelegramAPIClient] = None
     user_info: Optional[Dict[str, Any]] = None
 
-    def __init__(self, bot_token: Optional[str] = None, chat_id: Optional[str] = None):
+    def __init__(self, bot_token: Optional[str] = None, chat_id: Optional[str] = None, profile: Optional[str] = None):
         """
         Initialize Telegram authentication manager.
 
         Args:
             bot_token (str, optional): Telegram bot token from @BotFather
             chat_id (str, optional): Target chat ID (user, group, or channel)
+            profile (str, optional): Explicit profile composite (app-derived key)
         """
         super().__init__()
+        self.profile = profile
         # Try loading from storage first if credentials not provided
         if not bot_token:
             loaded = self._load_credentials_from_storage()
@@ -251,6 +253,8 @@ class TelegramAuthManager(BaseAuthManager):
 
     def _get_token_identifier(self) -> str:
         """Get unique identifier for token storage."""
+        if self.profile:
+            return self.profile
         # Use bot username if available, otherwise use token hash
         if hasattr(self, "_cached_bot_info") and self._cached_bot_info:
             username = self._cached_bot_info.get("username")
@@ -259,7 +263,7 @@ class TelegramAuthManager(BaseAuthManager):
         # Fallback to token hash if bot_token exists
         if self.bot_token:
             return str(hash(self.bot_token))
-        return "default"
+        return "unbound"
 
     def _save_credentials_to_storage(self, bot_token: str, chat_id: Optional[str] = None):
         """
@@ -273,14 +277,10 @@ class TelegramAuthManager(BaseAuthManager):
 
         # Use bot username as identifier if available, otherwise use token hash
         identifier = self._get_token_identifier()
-        if identifier == "default" and self.bot_token:
-            identifier = str(hash(bot_token))
 
         token_data = {"bot_token": bot_token, "chat_id": chat_id}
 
         self.token_storage.save_token(platform_name, identifier, token_data)
-        # Also save as default so it becomes the primary credential loaded
-        self.token_storage.save_token(platform_name, "default", token_data)
 
     def _load_credentials_from_storage(self) -> bool:
         """
@@ -291,17 +291,8 @@ class TelegramAuthManager(BaseAuthManager):
         """
         platform_name = self._get_platform_name()
 
-        # Try to load with default identifier first
-        identifier = "default"
+        identifier = self._get_token_identifier()
         token_data = self.token_storage.load_token(platform_name, identifier)
-
-        if not token_data:
-            # If no default, try to find any stored token
-            tokens = self.token_storage.list_tokens(platform_name)
-            if tokens:
-                # Use the first available token
-                identifier = tokens[0][1]
-                token_data = self.token_storage.load_token(platform_name, identifier)
 
         if token_data:
             self.bot_token = token_data.get("bot_token")

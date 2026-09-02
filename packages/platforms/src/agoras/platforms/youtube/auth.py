@@ -27,6 +27,7 @@ from authlib.integrations.requests_client import OAuth2Session
 
 from agoras.core.auth import BaseAuthManager
 from agoras.core.auth.callback_server import OAuthCallbackServer
+from agoras.core.auth.storage import build_composite_key
 
 from .client import YouTubeAPIClient
 
@@ -34,12 +35,16 @@ from .client import YouTubeAPIClient
 class YouTubeAuthManager(BaseAuthManager):
     """YouTube authentication manager using Authlib OAuth2Session with Google OAuth2."""
 
-    def __init__(self, client_id: str, client_secret: str, refresh_token: Optional[str] = None):
+    def __init__(
+        self, client_id: str, client_secret: str, refresh_token: Optional[str] = None, profile: Optional[str] = None
+    ):
         """Initialize YouTube authentication manager."""
         super().__init__()
+        self.profile = profile
         self.client_id = client_id
         self.client_secret = client_secret
         self.refresh_token = refresh_token or self._load_refresh_token_from_storage()
+        self.channel_id: Optional[str] = None
 
         # Authlib OAuth2Session configuration for Google/YouTube OAuth
         self.oauth_session = OAuth2Session(
@@ -140,15 +145,27 @@ class YouTubeAuthManager(BaseAuthManager):
                 refresh_token = token.get("refresh_token")
                 if refresh_token:
                     self.refresh_token = refresh_token
-                    # Save all credentials to storage
-                    self._save_credentials_to_storage()
+                    self.access_token = token.get("access_token")
                     return refresh_token
                 else:
                     raise Exception(
                         "No refresh token in YouTube/Google response. Try revoking access and re-authorizing."
                     )
 
-            return await asyncio.to_thread(_sync_exchange)
+            refresh_token = await asyncio.to_thread(_sync_exchange)
+            if refresh_token:
+                # Bind the channel id from the API so the composite is stable.
+                if self.access_token:
+                    self.client = self._create_client(self.access_token)
+                    try:
+                        info = await self._get_user_info()
+                        self.channel_id = info.get("channel_id")
+                    except Exception:
+                        self.channel_id = None
+                # Save all credentials to storage under the bound composite.
+                self._save_credentials_to_storage()
+                return refresh_token
+            return None
         except Exception as e:
             print(f"Interactive authorization failed: {e}", file=sys.stderr)
             return None
@@ -191,7 +208,9 @@ class YouTubeAuthManager(BaseAuthManager):
 
         try:
             # Get channel info using YouTube API client
-            return await self.client.get_channel_info()
+            info = await self.client.get_channel_info()
+            self.channel_id = info.get("channel_id")
+            return info
         except Exception as e:
             raise Exception(f"Failed to get YouTube channel info: {str(e)}")
 
@@ -204,8 +223,20 @@ class YouTubeAuthManager(BaseAuthManager):
         return "youtube"
 
     def _get_token_identifier(self) -> str:
-        """Get unique identifier for token storage."""
-        return self.client_id or "default"
+        """Get unique identifier for token storage.
+
+        Returns the explicit ``profile`` composite verbatim when set; otherwise
+        builds the ``client_id@channel_id`` composite from the app client id
+        and the API-reported channel id. When the channel id is not yet known
+        (e.g. during construction), returns a non-colliding placeholder so a
+        storage load simply misses.
+        """
+        if self.profile:
+            return self.profile
+        channel_id = getattr(self, "channel_id", None)
+        if self.client_id and channel_id:
+            return build_composite_key(self.client_id, channel_id)
+        return self.client_id or "unbound"
 
     def _save_credentials_to_storage(self):
         """Save all YouTube credentials to secure storage."""
@@ -216,28 +247,39 @@ class YouTubeAuthManager(BaseAuthManager):
             "client_id": self.client_id,
             "client_secret": self.client_secret,
             "refresh_token": self.refresh_token,
+            "profile": identifier,
         }
+        if getattr(self, "channel_id", None):
+            token_data["channel_id"] = self.channel_id
 
         self.token_storage.save_token(platform_name, identifier, token_data)
-        # Also save as default so it becomes the primary credential loaded
-        self.token_storage.save_token(platform_name, "default", token_data)
 
     def _load_credentials_from_storage(self) -> bool:
         """Load YouTube credentials from secure storage."""
         platform_name = self._get_platform_name()
 
-        # Try default identifier first
         identifier = self._get_token_identifier()
         token_data = self.token_storage.load_token(platform_name, identifier)
 
-        if not token_data:
-            # Try to find any stored token
-            tokens = self.token_storage.list_tokens(platform_name)
-            if tokens:
-                identifier = tokens[0][1]
-                token_data = self.token_storage.load_token(platform_name, identifier)
+        if not token_data and self.profile is None:
+            # Recover the bound composite from a stored profile whose app half
+            # matches this client_id, so a refresh never re-mints a profile.
+            for stored_platform, stored_identifier in self.token_storage.list_tokens(platform_name):
+                try:
+                    candidate = self.token_storage.load_token(platform_name, stored_identifier)
+                except ValueError:
+                    # Skip legacy/reserved identifiers (e.g. "default") that
+                    # are no longer valid profile keys.
+                    continue
+                if candidate and candidate.get("client_id") == self.client_id:
+                    self.profile = stored_identifier
+                    token_data = candidate
+                    break
 
         if token_data:
+            # Recover the bound composite so a refresh never re-mints a profile.
+            if self.profile is None and token_data.get("profile"):
+                self.profile = token_data["profile"]
             # Only update if not already set (allow override from constructor)
             if not self.client_id:
                 self.client_id = token_data.get("client_id")
@@ -245,6 +287,8 @@ class YouTubeAuthManager(BaseAuthManager):
                 self.client_secret = token_data.get("client_secret")
             if not self.refresh_token:
                 self.refresh_token = token_data.get("refresh_token")
+            if not getattr(self, "channel_id", None):
+                self.channel_id = token_data.get("channel_id")
 
             return bool(all([self.client_id, self.client_secret, self.refresh_token]))
 

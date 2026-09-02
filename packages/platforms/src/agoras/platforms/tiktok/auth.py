@@ -28,6 +28,7 @@ from authlib.integrations.requests_client import OAuth2Session
 
 from agoras.core.auth import BaseAuthManager
 from agoras.core.auth.callback_server import OAuthCallbackServer
+from agoras.core.auth.storage import build_composite_key
 
 from .client import TikTokAPIClient
 
@@ -59,9 +60,17 @@ class TikTokAuthManager(BaseAuthManager):
     client: Optional[TikTokAPIClient] = None
     user_info: Optional[dict] = None
 
-    def __init__(self, username: str, client_key: str, client_secret: str, refresh_token: Optional[str] = None):
+    def __init__(
+        self,
+        username: str,
+        client_key: str,
+        client_secret: str,
+        refresh_token: Optional[str] = None,
+        profile: Optional[str] = None,
+    ):
         """Initialize TikTok authentication manager."""
         super().__init__()
+        self.profile = profile
         self.username = username
         self.client_key = client_key
         self.client_secret = client_secret
@@ -278,8 +287,19 @@ class TikTokAuthManager(BaseAuthManager):
         return "tiktok"
 
     def _get_token_identifier(self) -> str:
-        """Get unique identifier for token storage."""
-        return self.username or "default"
+        """Get unique identifier for token storage.
+
+        Returns the explicit ``profile`` composite verbatim when set; otherwise
+        builds the ``client_key@username`` composite from the app client key
+        and the API-reported username. When the username is not yet known (e.g.
+        during construction), returns a non-colliding placeholder so a storage
+        load simply misses.
+        """
+        if self.profile:
+            return self.profile
+        if self.client_key and self.username:
+            return build_composite_key(self.client_key, self.username)
+        return self.client_key or "unbound"
 
     def _save_credentials_to_storage(self):
         """Save all TikTok credentials to secure storage."""
@@ -291,29 +311,37 @@ class TikTokAuthManager(BaseAuthManager):
             "client_key": self.client_key,
             "client_secret": self.client_secret,
             "refresh_token": self.refresh_token,
+            "profile": identifier,
         }
 
         self.token_storage.save_token(platform_name, identifier, token_data)
-        # Also save as default so it becomes the primary credential loaded
-        self.token_storage.save_token(platform_name, "default", token_data)
 
     def _load_credentials_from_storage(self) -> bool:
         """Load TikTok credentials from secure storage."""
         platform_name = self._get_platform_name()
 
-        # Try to load with default identifier first
-        identifier = "default"
+        identifier = self._get_token_identifier()
         token_data = self.token_storage.load_token(platform_name, identifier)
 
-        if not token_data:
-            # If no default, try to find any stored token
-            tokens = self.token_storage.list_tokens(platform_name)
-            if tokens:
-                # Use the first available token
-                identifier = tokens[0][1]
-                token_data = self.token_storage.load_token(platform_name, identifier)
+        if not token_data and self.profile is None:
+            # Recover the bound composite from a stored profile whose app half
+            # matches this client_key, so a refresh never re-mints a profile.
+            for stored_platform, stored_identifier in self.token_storage.list_tokens(platform_name):
+                try:
+                    candidate = self.token_storage.load_token(platform_name, stored_identifier)
+                except ValueError:
+                    # Skip legacy/reserved identifiers (e.g. "default") that
+                    # are no longer valid profile keys.
+                    continue
+                if candidate and candidate.get("client_key") == self.client_key:
+                    self.profile = stored_identifier
+                    token_data = candidate
+                    break
 
         if token_data:
+            # Recover the bound composite so a refresh never re-mints a profile.
+            if self.profile is None and token_data.get("profile"):
+                self.profile = token_data["profile"]
             # Load all credentials from the token data
             self.username = token_data.get("username")
             self.client_key = token_data.get("client_key")

@@ -88,11 +88,11 @@ class LinkedIn(SocialNetwork):
         Tries to load credentials from CLI params, environment variables, or storage.
         """
         # Try params/environment first
-        self.linkedin_access_token = self._get_config_value("linkedin_access_token", "LINKEDIN_ACCESS_TOKEN")
-        self.linkedin_client_id = self._get_config_value("linkedin_client_id", "LINKEDIN_CLIENT_ID")
-        self.linkedin_client_secret = self._get_config_value("linkedin_client_secret", "LINKEDIN_CLIENT_SECRET")
-        self.linkedin_refresh_token = self._get_config_value("linkedin_refresh_token", "LINKEDIN_REFRESH_TOKEN")
-        self.linkedin_object_id = self._get_config_value("linkedin_object_id", "LINKEDIN_OBJECT_ID")
+        self.linkedin_access_token = self._get_auth_config_value("linkedin_access_token", "LINKEDIN_ACCESS_TOKEN")
+        self.linkedin_client_id = self._get_auth_config_value("linkedin_client_id", "LINKEDIN_CLIENT_ID")
+        self.linkedin_client_secret = self._get_auth_config_value("linkedin_client_secret", "LINKEDIN_CLIENT_SECRET")
+        self.linkedin_refresh_token = self._get_auth_config_value("linkedin_refresh_token", "LINKEDIN_REFRESH_TOKEN")
+        self.linkedin_object_id = self._get_auth_config_value("linkedin_object_id", "LINKEDIN_OBJECT_ID")
         self.linkedin_post_id = self._get_config_value("linkedin_post_id", "LINKEDIN_POST_ID")
 
         # If credentials not provided, try loading from storage
@@ -106,6 +106,7 @@ class LinkedIn(SocialNetwork):
                 user_id=self.linkedin_object_id or "",
                 client_id=self.linkedin_client_id or "",
                 client_secret=self.linkedin_client_secret or "",
+                profile=self._get_config_value("profile"),
             )
 
             if auth_manager._load_credentials_from_storage():
@@ -135,6 +136,7 @@ class LinkedIn(SocialNetwork):
                 client_secret=self.linkedin_client_secret,
                 refresh_token=self.linkedin_refresh_token,
                 access_token=self.linkedin_access_token,
+                profile=self._get_config_value("profile"),
             )
             authenticated = await auth_manager.authenticate()
             if authenticated:

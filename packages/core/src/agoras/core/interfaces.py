@@ -545,6 +545,18 @@ class SocialNetwork(ABC):
 
         return os.environ.get(env_key)
 
+    def _get_auth_config_value(self, key, env_key=None) -> Any:
+        """
+        Get an auth credential, skipping env when a profile is selected.
+
+        When an explicit ``--profile`` is set, the selected profile is the sole
+        credential source: env is not consulted for auth keys. Without a
+        profile, this falls back to the normal kwargs-then-env resolution.
+        """
+        if self.config.get("profile"):
+            return self.config.get(key)
+        return self._get_config_value(key, env_key)
+
     def _require_config_value(self, key, env_key=None) -> str:
         """
         Get a required configuration value from kwargs or environment.

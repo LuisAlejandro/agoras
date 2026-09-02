@@ -123,13 +123,13 @@ def test_threads_auth_save_credentials_to_storage(mock_storage_class):
         'app_id': 'app_id',
         'app_secret': 'app_secret',
         'refresh_token': 'refresh_token',
-        'user_id': 'user_id'
+        'user_id': 'user_id',
+        'profile': 'app_id@user_id',
     }
-    
-    # Should be called twice: once with app_id identifier, once with "default"
-    assert mock_storage.save_token.call_count == 2
-    mock_storage.save_token.assert_any_call('threads', 'app_id', token_data)
-    mock_storage.save_token.assert_any_call('threads', 'default', token_data)
+
+    # Should be called once with the composite identifier (no "default" alias)
+    assert mock_storage.save_token.call_count == 1
+    mock_storage.save_token.assert_any_call('threads', 'app_id@user_id', token_data)
 
 
 @patch('agoras.core.auth.base.SecureTokenStorage')

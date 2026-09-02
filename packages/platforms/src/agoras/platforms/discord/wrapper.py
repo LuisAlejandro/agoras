@@ -100,9 +100,9 @@ class Discord(SocialNetwork):
         This method sets up the Discord API client with configuration.
         Tries to load credentials from storage if not provided via parameters.
         """
-        self.discord_bot_token = self._get_config_value("discord_bot_token", "DISCORD_BOT_TOKEN")
-        self.discord_server_name = self._get_config_value("discord_server_name", "DISCORD_SERVER_NAME")
-        self.discord_channel_name = self._get_config_value("discord_channel_name", "DISCORD_CHANNEL_NAME")
+        self.discord_bot_token = self._get_auth_config_value("discord_bot_token", "DISCORD_BOT_TOKEN")
+        self.discord_server_name = self._get_auth_config_value("discord_server_name", "DISCORD_SERVER_NAME")
+        self.discord_channel_name = self._get_auth_config_value("discord_channel_name", "DISCORD_CHANNEL_NAME")
 
         # If credentials not provided, try loading from storage
         if not all([self.discord_bot_token, self.discord_server_name, self.discord_channel_name]):
@@ -112,6 +112,7 @@ class Discord(SocialNetwork):
                 bot_token=self.discord_bot_token,
                 server_name=self.discord_server_name,
                 channel_name=self.discord_channel_name,
+                profile=self._get_config_value("profile"),
             )
 
             if auth_manager._load_credentials_from_storage():
@@ -146,7 +147,12 @@ class Discord(SocialNetwork):
         server_name = self._get_config_value("discord_server_name", "DISCORD_SERVER_NAME")
         channel_name = self._get_config_value("discord_channel_name", "DISCORD_CHANNEL_NAME")
 
-        auth_manager = DiscordAuthManager(bot_token=bot_token, server_name=server_name, channel_name=channel_name)
+        auth_manager = DiscordAuthManager(
+            bot_token=bot_token,
+            server_name=server_name,
+            channel_name=channel_name,
+            profile=self._get_config_value("profile"),
+        )
 
         result = await auth_manager.authorize()
         if result:
