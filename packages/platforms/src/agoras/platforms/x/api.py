@@ -19,7 +19,12 @@
 
 from typing import Any, Dict, List, Optional
 
-from agoras.core.api_base import BaseAPI
+from agoras.core.api_base import (
+    BaseAPI,
+    guard_assert_auth,
+    guard_error_wrap,
+    guard_rate_limit,
+)
 from agoras.core.auth import raise_authentication_error_from_manager
 from agoras.core.text_limits import validate_text, x_mode_for_subscription
 
@@ -33,6 +38,9 @@ class XAPI(BaseAPI):
     Provides methods for X authentication and all X API operations
     including tweets, likes, retweets, and media uploads using both v1.1 and v2 APIs.
     """
+
+    # Guard message template (read by the composable guard decorators)
+    _not_authenticated_message = "X API not authenticated"
 
     def __init__(self, consumer_key, consumer_secret, oauth_token, oauth_secret):
         """
@@ -122,6 +130,9 @@ class XAPI(BaseAPI):
         self.client = None
         self._authenticated = False
 
+    @guard_assert_auth
+    @guard_rate_limit("upload_media", 1.0)
+    @guard_error_wrap("X media upload")
     async def upload_media(self, media_content: bytes, media_type: str) -> str:
         """
         Upload media to X.
@@ -136,17 +147,9 @@ class XAPI(BaseAPI):
         Raises:
             Exception: If media upload fails
         """
-        if not self._authenticated or not self.client:
-            raise Exception("X API not authenticated")
-
-        await self._rate_limit_check("upload_media", 1.0)
-
-        try:
-            media_id = await self.client.upload_media(media_content, media_type)
-            return media_id
-        except Exception as e:
-            self._handle_api_error(e, "X media upload")
-            raise
+        assert self.client is not None
+        media_id = await self.client.upload_media(media_content, media_type)
+        return media_id
 
     def _subscription_type(self) -> Optional[str]:
         """Return stored X subscription type when available (fail closed to free)."""
@@ -155,6 +158,8 @@ class XAPI(BaseAPI):
             return user_info.get("subscription_type") or user_info.get("subscription_type_v2")
         return None
 
+    @guard_assert_auth
+    @guard_rate_limit("post", 1.0)
     async def post(
         self,
         text: str,
@@ -178,22 +183,21 @@ class XAPI(BaseAPI):
         Raises:
             Exception: If tweet creation fails
         """
-        if not self._authenticated or not self.client:
-            raise Exception("X API not authenticated")
-
-        await self._rate_limit_check("post", 1.0)
-
         if validate:
             mode = x_mode_for_subscription(self._subscription_type())
             validate_text("twitter", "text", text, mode=mode)
 
         try:
+            assert self.client is not None
             tweet_id = await self.client.create_tweet(text, media_ids, in_reply_to_tweet_id=in_reply_to_tweet_id)
             return tweet_id
         except Exception as e:
             self._handle_api_error(e, "X tweet creation")
             raise
 
+    @guard_assert_auth
+    @guard_rate_limit("like", 0.5)
+    @guard_error_wrap("X like")
     async def like(self, tweet_id: str) -> str:
         """
         Like a tweet.
@@ -207,18 +211,13 @@ class XAPI(BaseAPI):
         Raises:
             Exception: If like operation fails
         """
-        if not self._authenticated or not self.client:
-            raise Exception("X API not authenticated")
+        assert self.client is not None
+        result = await self.client.like_tweet(tweet_id)
+        return result
 
-        await self._rate_limit_check("like", 0.5)
-
-        try:
-            result = await self.client.like_tweet(tweet_id)
-            return result
-        except Exception as e:
-            self._handle_api_error(e, "X like")
-            raise
-
+    @guard_assert_auth
+    @guard_rate_limit("post", 1.0)
+    @guard_error_wrap("X reply creation")
     async def reply(
         self, text: str, media_ids: Optional[List[str]] = None, in_reply_to_tweet_id: Optional[str] = None
     ) -> str:
@@ -236,18 +235,13 @@ class XAPI(BaseAPI):
         Raises:
             Exception: If reply creation fails
         """
-        if not self._authenticated or not self.client:
-            raise Exception("X API not authenticated")
+        assert self.client is not None
+        tweet_id = await self.client.create_tweet(text, media_ids, in_reply_to_tweet_id=in_reply_to_tweet_id)
+        return tweet_id
 
-        await self._rate_limit_check("post", 1.0)
-
-        try:
-            tweet_id = await self.client.create_tweet(text, media_ids, in_reply_to_tweet_id=in_reply_to_tweet_id)
-            return tweet_id
-        except Exception as e:
-            self._handle_api_error(e, "X reply creation")
-            raise
-
+    @guard_assert_auth
+    @guard_rate_limit("share", 0.5)
+    @guard_error_wrap("X retweet")
     async def share(self, tweet_id: str) -> str:
         """
         Retweet (share) a tweet.
@@ -261,18 +255,13 @@ class XAPI(BaseAPI):
         Raises:
             Exception: If retweet operation fails
         """
-        if not self._authenticated or not self.client:
-            raise Exception("X API not authenticated")
+        assert self.client is not None
+        result = await self.client.retweet(tweet_id)
+        return result
 
-        await self._rate_limit_check("share", 0.5)
-
-        try:
-            result = await self.client.retweet(tweet_id)
-            return result
-        except Exception as e:
-            self._handle_api_error(e, "X retweet")
-            raise
-
+    @guard_assert_auth
+    @guard_rate_limit("delete", 0.5)
+    @guard_error_wrap("X delete")
     async def delete(self, tweet_id: str) -> str:
         """
         Delete a tweet.
@@ -286,18 +275,13 @@ class XAPI(BaseAPI):
         Raises:
             Exception: If deletion fails
         """
-        if not self._authenticated or not self.client:
-            raise Exception("X API not authenticated")
+        assert self.client is not None
+        result = await self.client.delete_tweet(tweet_id)
+        return result
 
-        await self._rate_limit_check("delete", 0.5)
-
-        try:
-            result = await self.client.delete_tweet(tweet_id)
-            return result
-        except Exception as e:
-            self._handle_api_error(e, "X delete")
-            raise
-
+    @guard_assert_auth
+    @guard_rate_limit("get_post", 0.5)
+    @guard_error_wrap("X get-post")
     async def get_post(self, tweet_id: str) -> Dict[str, Any]:
         """
         Read a tweet by ID.
@@ -311,17 +295,12 @@ class XAPI(BaseAPI):
         Raises:
             Exception: If the tweet cannot be read
         """
-        if not self._authenticated or not self.client:
-            raise Exception("X API not authenticated")
+        assert self.client is not None
+        return await self.client.get_tweet(tweet_id)
 
-        await self._rate_limit_check("get_post", 0.5)
-
-        try:
-            return await self.client.get_tweet(tweet_id)
-        except Exception as e:
-            self._handle_api_error(e, "X get-post")
-            raise
-
+    @guard_assert_auth
+    @guard_rate_limit("list_posts", 0.5)
+    @guard_error_wrap("X list-posts")
     async def list_posts(self, limit: int) -> List[Dict[str, Any]]:
         """
         List the authenticated user's recent tweets.
@@ -335,17 +314,10 @@ class XAPI(BaseAPI):
         Raises:
             Exception: If the tweets cannot be read
         """
-        if not self._authenticated or not self.client:
-            raise Exception("X API not authenticated")
-
-        await self._rate_limit_check("list_posts", 0.5)
-
-        try:
-            user_info = await self.client.get_user_info()
-            user_id = user_info.get("user_id")
-            if not user_id:
-                raise Exception("Unable to resolve X user id for list-posts.")
-            return await self.client.get_users_tweets(user_id, limit)
-        except Exception as e:
-            self._handle_api_error(e, "X list-posts")
-            raise
+        assert self.client is not None
+        user_info = await self.client.get_user_info()
+        user_id = user_info.get("user_id")
+        if not user_id:
+            raise Exception("Unable to resolve X user id for list-posts.")
+        assert self.client is not None
+        return await self.client.get_users_tweets(user_id, limit)
