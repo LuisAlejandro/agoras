@@ -17,12 +17,24 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.linkedin.api module."""
 
+import warnings
 from typing import Any, Dict, List, Optional
 
-from agoras.core.api_base import BaseAPI
+from agoras.core.api_base import (
+    BaseAPI,
+    guard_client_presence,
+    guard_ensure_auth_manager,
+    guard_error_wrap,
+    guard_rate_limit,
+)
 from agoras.core.auth import raise_authentication_error_from_manager
 
 from .auth import LinkedInAuthManager
+
+
+def _deprecated(attr, cls):
+    """Warn that a read-through property is deprecated."""
+    warnings.warn(f"{cls}.{attr} is deprecated; use auth_manager.{attr}", DeprecationWarning, stacklevel=3)
 
 
 class LinkedInAPI(BaseAPI):
@@ -32,6 +44,27 @@ class LinkedInAPI(BaseAPI):
     Provides methods for LinkedIn authentication, token management,
     and all LinkedIn API operations including posts, likes, shares, and media uploads.
     """
+
+    # Guard message template (read by the composable guard decorators)
+    _client_not_available_message = "LinkedIn API not authenticated"
+
+    @property
+    def client_secret(self):
+        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
+        _deprecated("client_secret", "LinkedInAPI")
+        return self.auth_manager.client_secret if self.auth_manager else None
+
+    @property
+    def refresh_token(self):
+        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
+        _deprecated("refresh_token", "LinkedInAPI")
+        return self.auth_manager.refresh_token if self.auth_manager else None
+
+    @property
+    def user_info(self):
+        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
+        _deprecated("user_info", "LinkedInAPI")
+        return self.auth_manager.user_info if self.auth_manager else None
 
     def __init__(self, user_id, client_id, client_secret, refresh_token=None, access_token=None):
         """
@@ -72,29 +105,14 @@ class LinkedInAPI(BaseAPI):
         return self.auth_manager.client_id if self.auth_manager else None
 
     @property
-    def client_secret(self):
-        """Get the LinkedIn client secret from the auth manager."""
-        return self.auth_manager.client_secret if self.auth_manager else None
-
-    @property
     def access_token(self):
         """Get the LinkedIn access token from the auth manager."""
         return self.auth_manager.access_token if self.auth_manager else None
 
     @property
-    def refresh_token(self):
-        """Get the LinkedIn refresh token from the auth manager."""
-        return self.auth_manager.refresh_token if self.auth_manager else None
-
-    @property
-    def user_info(self):
-        """Get the LinkedIn user info from the auth manager."""
-        return self.auth_manager.user_info if self.auth_manager else None
-
-    @property
     def object_id(self):
         """Get the LinkedIn object ID from the auth manager's user info."""
-        return self.user_info.get("object_id") if self.user_info else None
+        return self.auth_manager.user_info.get("object_id") if self.auth_manager.user_info else None
 
     async def authenticate(self):
         """
@@ -113,27 +131,10 @@ class LinkedInAPI(BaseAPI):
         if not success:
             raise_authentication_error_from_manager(self.auth_manager)
 
-        # Set the client from auth manager for BaseAPI compatibility
-        self.client = self.auth_manager.client
-        self._authenticated = True
-        return self
+        return await super().authenticate()
 
-    async def disconnect(self):
-        """
-        Disconnect from LinkedIn API and clean up resources.
-        """
-        # Disconnect the client first
-        if self.client:
-            self.client.disconnect()
-
-        # Clear auth manager data
-        if self.auth_manager:
-            self.auth_manager.access_token = None
-
-        # Clear BaseAPI client
-        self.client = None
-        self._authenticated = False
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
     async def upload_video(self, video_content: bytes) -> str:
         """
         Upload a video to LinkedIn.
@@ -147,14 +148,13 @@ class LinkedInAPI(BaseAPI):
         Raises:
             Exception: If video upload fails
         """
-        self.auth_manager.ensure_authenticated()
-
-        if not self.client or not self.object_id:
+        if not self.object_id:
             raise Exception("LinkedIn API not authenticated")
 
         await self._rate_limit_check("upload_video", 2.0)
 
         try:
+            assert self.client is not None
             return await self.client.upload_video(
                 video_content=video_content, owner_urn=f"urn:li:person:{self.object_id}"
             )
@@ -162,6 +162,8 @@ class LinkedInAPI(BaseAPI):
             self._handle_api_error(e, "LinkedIn video upload")
             raise
 
+    @guard_ensure_auth_manager
+    @guard_client_presence
     async def upload_image(self, image_content: bytes) -> str:
         """
         Upload an image to LinkedIn.
@@ -175,14 +177,13 @@ class LinkedInAPI(BaseAPI):
         Raises:
             Exception: If image upload fails
         """
-        self.auth_manager.ensure_authenticated()
-
-        if not self.client or not self.object_id:
+        if not self.object_id:
             raise Exception("LinkedIn API not authenticated")
 
         await self._rate_limit_check("upload_image", 1.0)
 
         try:
+            assert self.client is not None
             return await self.client.upload_image(
                 image_content=image_content, owner_urn=f"urn:li:person:{self.object_id}"
             )
@@ -190,6 +191,10 @@ class LinkedInAPI(BaseAPI):
             self._handle_api_error(e, "LinkedIn image upload")
             raise
 
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("post", 1.0)
+    @guard_error_wrap("LinkedIn post creation")
     async def post(
         self,
         text: str,
@@ -218,28 +223,19 @@ class LinkedInAPI(BaseAPI):
         Raises:
             Exception: If post creation fails
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        return await self.client.create_post(
+            author_urn=f"urn:li:person:{self.object_id}",
+            text=text,
+            link=link,
+            link_title=link_title,
+            link_description=link_description,
+            image_ids=image_ids,
+            video_id=video_id,
+            video_title=video_title,
+        )
 
-        if not self.client:
-            raise Exception("LinkedIn API not authenticated")
-
-        await self._rate_limit_check("post", 1.0)
-
-        try:
-            return await self.client.create_post(
-                author_urn=f"urn:li:person:{self.object_id}",
-                text=text,
-                link=link,
-                link_title=link_title,
-                link_description=link_description,
-                image_ids=image_ids,
-                video_id=video_id,
-                video_title=video_title,
-            )
-        except Exception as e:
-            self._handle_api_error(e, "LinkedIn post creation")
-            raise
-
+    @guard_client_presence
     async def like(self, post_id: str) -> str:
         """
         Like a LinkedIn post.
@@ -253,17 +249,19 @@ class LinkedInAPI(BaseAPI):
         Raises:
             Exception: If like operation fails
         """
-        if not self.client or not self.object_id:
+        if not self.object_id:
             raise Exception("LinkedIn API not authenticated")
 
         await self._rate_limit_check("like", 0.5)
 
         try:
+            assert self.client is not None
             return await self.client.like_post(post_id=post_id, actor_urn=f"urn:li:person:{self.object_id}")
         except Exception as e:
             self._handle_api_error(e, "LinkedIn like")
             raise
 
+    @guard_client_presence
     async def reply(self, post_id: str, text: str, image_ids: Optional[List[str]] = None) -> str:
         """
         Comment on a LinkedIn post.
@@ -279,12 +277,13 @@ class LinkedInAPI(BaseAPI):
         Raises:
             Exception: If comment operation fails
         """
-        if not self.client or not self.object_id:
+        if not self.object_id:
             raise Exception("LinkedIn API not authenticated")
 
         await self._rate_limit_check("reply", 0.5)
 
         try:
+            assert self.client is not None
             return await self.client.create_comment(
                 post_id=post_id,
                 actor_urn=f"urn:li:person:{self.object_id}",
@@ -295,6 +294,9 @@ class LinkedInAPI(BaseAPI):
             self._handle_api_error(e, "LinkedIn comment")
             raise
 
+    @guard_client_presence
+    @guard_rate_limit("share_post", 1.0)
+    @guard_error_wrap("LinkedIn share")
     async def share(self, post_id: str) -> str:
         """
         Share (repost) a LinkedIn post.
@@ -308,19 +310,14 @@ class LinkedInAPI(BaseAPI):
         Raises:
             Exception: If share operation fails
         """
-        if not self.client:
-            raise Exception("LinkedIn API not authenticated")
+        assert self.client is not None
+        return await self.client.share_post(
+            post_id=post_id, author_urn=f"urn:li:person:{self.object_id}", commentary=""
+        )
 
-        await self._rate_limit_check("share_post", 1.0)
-
-        try:
-            return await self.client.share_post(
-                post_id=post_id, author_urn=f"urn:li:person:{self.object_id}", commentary=""
-            )
-        except Exception as e:
-            self._handle_api_error(e, "LinkedIn share")
-            raise
-
+    @guard_client_presence
+    @guard_rate_limit("delete", 0.5)
+    @guard_error_wrap("LinkedIn delete")
     async def delete(self, post_id: str) -> str:
         """
         Delete a LinkedIn post.
@@ -334,17 +331,12 @@ class LinkedInAPI(BaseAPI):
         Raises:
             Exception: If deletion fails
         """
-        if not self.client:
-            raise Exception("LinkedIn API not authenticated")
+        assert self.client is not None
+        return await self.client.delete_post(post_id=post_id)
 
-        await self._rate_limit_check("delete", 0.5)
-
-        try:
-            return await self.client.delete_post(post_id=post_id)
-        except Exception as e:
-            self._handle_api_error(e, "LinkedIn delete")
-            raise
-
+    @guard_client_presence
+    @guard_rate_limit("delete", 0.5)
+    @guard_error_wrap("LinkedIn delete-reply")
     async def delete_reply(self, comment_id: str, parent_post_id: str) -> str:
         """
         Delete a LinkedIn comment.
@@ -359,17 +351,13 @@ class LinkedInAPI(BaseAPI):
         Raises:
             Exception: If deletion fails
         """
-        if not self.client:
-            raise Exception("LinkedIn API not authenticated")
+        assert self.client is not None
+        return await self.client.delete_comment(comment_id=comment_id, parent_post_id=parent_post_id)
 
-        await self._rate_limit_check("delete", 0.5)
-
-        try:
-            return await self.client.delete_comment(comment_id=comment_id, parent_post_id=parent_post_id)
-        except Exception as e:
-            self._handle_api_error(e, "LinkedIn delete-reply")
-            raise
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("get_post", 0.5)
+    @guard_error_wrap("LinkedIn get-post")
     async def get_post(self, post_id: str) -> Dict[str, Any]:
         """
         Read a LinkedIn post by URN.
@@ -383,19 +371,13 @@ class LinkedInAPI(BaseAPI):
         Raises:
             Exception: If the post cannot be read
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        return await self.client.get_post(post_id=post_id)
 
-        if not self.client:
-            raise Exception("LinkedIn API not authenticated")
-
-        await self._rate_limit_check("get_post", 0.5)
-
-        try:
-            return await self.client.get_post(post_id=post_id)
-        except Exception as e:
-            self._handle_api_error(e, "LinkedIn get-post")
-            raise
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("get_reply", 0.5)
+    @guard_error_wrap("LinkedIn get-reply")
     async def get_reply(self, comment_id: str, parent_post_id: str) -> Dict[str, Any]:
         """
         Read a LinkedIn comment by ID and parent post URN.
@@ -410,19 +392,13 @@ class LinkedInAPI(BaseAPI):
         Raises:
             Exception: If the comment cannot be read
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        return await self.client.get_comment(comment_id=comment_id, parent_post_id=parent_post_id)
 
-        if not self.client:
-            raise Exception("LinkedIn API not authenticated")
-
-        await self._rate_limit_check("get_reply", 0.5)
-
-        try:
-            return await self.client.get_comment(comment_id=comment_id, parent_post_id=parent_post_id)
-        except Exception as e:
-            self._handle_api_error(e, "LinkedIn get-reply")
-            raise
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("get_media", 0.5)
+    @guard_error_wrap("LinkedIn get-media")
     async def get_media(self, media_urn: str) -> Dict[str, Any]:
         """
         Resolve a LinkedIn media URN to its downloadable URL.
@@ -436,19 +412,11 @@ class LinkedInAPI(BaseAPI):
         Raises:
             Exception: If the media cannot be resolved
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        return await self.client.get_media(media_urn=media_urn)
 
-        if not self.client:
-            raise Exception("LinkedIn API not authenticated")
-
-        await self._rate_limit_check("get_media", 0.5)
-
-        try:
-            return await self.client.get_media(media_urn=media_urn)
-        except Exception as e:
-            self._handle_api_error(e, "LinkedIn get-media")
-            raise
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
     async def list_posts(self, limit: int) -> List[Dict[str, Any]]:
         """
         List the authenticated user's recent posts.
@@ -462,14 +430,13 @@ class LinkedInAPI(BaseAPI):
         Raises:
             Exception: If the posts cannot be read
         """
-        self.auth_manager.ensure_authenticated()
-
-        if not self.client or not self.object_id:
+        if not self.object_id:
             raise Exception("LinkedIn API not authenticated")
 
         await self._rate_limit_check("list_posts", 0.5)
 
         try:
+            assert self.client is not None
             return await self.client.list_posts(author_urn=f"urn:li:person:{self.object_id}", limit=limit)
         except Exception as e:
             self._handle_api_error(e, "LinkedIn list-posts")

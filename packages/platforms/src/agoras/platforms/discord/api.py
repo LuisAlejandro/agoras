@@ -17,10 +17,23 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.discord.api module."""
 
-from agoras.core.api_base import BaseAPI
+import warnings
+
+from agoras.core.api_base import (
+    BaseAPI,
+    guard_auth_attempt,
+    guard_client_presence,
+    guard_error_wrap,
+    guard_rate_limit,
+)
 from agoras.core.auth import raise_authentication_error_from_manager
 
 from .auth import DiscordAuthManager
+
+
+def _deprecated(attr, cls):
+    """Warn that a read-through property is deprecated."""
+    warnings.warn(f"{cls}.{attr} is deprecated; use auth_manager.{attr}", DeprecationWarning, stacklevel=3)
 
 
 class DiscordAPI(BaseAPI):
@@ -30,6 +43,34 @@ class DiscordAPI(BaseAPI):
     Provides methods for Discord authentication, server/channel management,
     message operations, and file uploads.
     """
+
+    # Guard message templates (read by the composable guard decorators)
+    _not_authenticated_message = "Discord API not authenticated"
+    _client_not_available_message = "Discord client not available"
+
+    @property
+    def bot_token(self):
+        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
+        _deprecated("bot_token", "DiscordAPI")
+        return self.auth_manager.bot_token if self.auth_manager else None
+
+    @property
+    def server_name(self):
+        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
+        _deprecated("server_name", "DiscordAPI")
+        return self.auth_manager.server_name if self.auth_manager else None
+
+    @property
+    def channel_name(self):
+        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
+        _deprecated("channel_name", "DiscordAPI")
+        return self.auth_manager.channel_name if self.auth_manager else None
+
+    @property
+    def user_info(self):
+        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
+        _deprecated("user_info", "DiscordAPI")
+        return self.auth_manager.user_info if self.auth_manager else None
 
     def __init__(self, bot_token, server_name, channel_name):
         """
@@ -44,26 +85,6 @@ class DiscordAPI(BaseAPI):
 
         # Initialize the authentication manager
         self.auth_manager = DiscordAuthManager(bot_token=bot_token, server_name=server_name, channel_name=channel_name)
-
-    @property
-    def bot_token(self):
-        """Get the Discord bot token from the auth manager."""
-        return self.auth_manager.bot_token if self.auth_manager else None
-
-    @property
-    def server_name(self):
-        """Get the Discord server name from the auth manager."""
-        return self.auth_manager.server_name if self.auth_manager else None
-
-    @property
-    def channel_name(self):
-        """Get the Discord channel name from the auth manager."""
-        return self.auth_manager.channel_name if self.auth_manager else None
-
-    @property
-    def user_info(self):
-        """Get the Discord user info from the auth manager."""
-        return self.auth_manager.user_info if self.auth_manager else None
 
     async def authenticate(self):
         """
@@ -83,30 +104,16 @@ class DiscordAPI(BaseAPI):
         if not auth_success:
             raise_authentication_error_from_manager(self.auth_manager)
 
-        # Ensure client was created during authentication
+        return await super().authenticate()
+
+    async def _post_authenticate(self):
+        """Ensure the client was created during authentication."""
         if not self.auth_manager.client:
             raise Exception("Discord client not available after authentication")
 
-        self.client = self.auth_manager.client
-        self._authenticated = True
-        return self
-
-    async def disconnect(self):
-        """
-        Disconnect from Discord API and clean up resources.
-        """
-        # Disconnect the client first
-        if self.client:
-            self.client.disconnect()
-
-        # Clear auth manager data
-        if self.auth_manager:
-            self.auth_manager.access_token = None
-
-        # Clear BaseAPI client
-        self.client = None
-        self._authenticated = False
-
+    @guard_auth_attempt
+    @guard_client_presence
+    @guard_rate_limit("post", 1.0)
     async def post(self, content=None, embeds=None, file=None, files=None):
         """
         Post a message to the configured Discord channel.
@@ -123,15 +130,12 @@ class DiscordAPI(BaseAPI):
         Raises:
             Exception: If message posting fails
         """
-        if not self._authenticated:
-            await self.authenticate()
-
-        if not self.client:
-            raise Exception("Discord client not available")
-
-        await self._rate_limit_check("post", 1.0)
+        assert self.client is not None
         return await self.client.send_message(content=content, embeds=embeds, file=file, files=files)
 
+    @guard_auth_attempt
+    @guard_client_presence
+    @guard_rate_limit("reply", 1.0)
     async def reply(self, message_id, content=None, embeds=None, file=None, files=None):
         """
         Reply to a Discord message in the configured channel.
@@ -149,15 +153,12 @@ class DiscordAPI(BaseAPI):
         Raises:
             Exception: If reply posting fails
         """
-        if not self._authenticated:
-            await self.authenticate()
-
-        if not self.client:
-            raise Exception("Discord client not available")
-
-        await self._rate_limit_check("reply", 1.0)
+        assert self.client is not None
         return await self.client.send_reply(message_id, content=content, embeds=embeds, file=file, files=files)
 
+    @guard_auth_attempt
+    @guard_client_presence
+    @guard_rate_limit("create_public_thread", 1.0)
     async def create_public_thread(self, message_id, name, auto_archive_duration=None):
         """
         Create a public Discord thread from a starter message.
@@ -170,15 +171,12 @@ class DiscordAPI(BaseAPI):
         Returns:
             str: Thread ID
         """
-        if not self._authenticated:
-            await self.authenticate()
-
-        if not self.client:
-            raise Exception("Discord client not available")
-
-        await self._rate_limit_check("create_public_thread", 1.0)
+        assert self.client is not None
         return await self.client.create_public_thread(message_id, name, auto_archive_duration)
 
+    @guard_auth_attempt
+    @guard_client_presence
+    @guard_rate_limit("send_message_to_thread", 1.0)
     async def send_message_to_thread(self, thread, content=None, embeds=None, file=None, files=None):
         """
         Send a message into an existing Discord thread.
@@ -193,15 +191,12 @@ class DiscordAPI(BaseAPI):
         Returns:
             str: Message ID
         """
-        if not self._authenticated:
-            await self.authenticate()
-
-        if not self.client:
-            raise Exception("Discord client not available")
-
-        await self._rate_limit_check("send_message_to_thread", 1.0)
+        assert self.client is not None
         return await self.client.send_message_to_thread(thread, content=content, embeds=embeds, file=file, files=files)
 
+    @guard_auth_attempt
+    @guard_client_presence
+    @guard_rate_limit("like", 0.5)
     async def like(self, message_id, emoji="❤️"):
         """
         Add a reaction (like) to a Discord message.
@@ -216,15 +211,12 @@ class DiscordAPI(BaseAPI):
         Raises:
             Exception: If reaction fails
         """
-        if not self._authenticated:
-            await self.authenticate()
-
-        if not self.client:
-            raise Exception("Discord client not available")
-
-        await self._rate_limit_check("like", 0.5)
+        assert self.client is not None
         return await self.client.add_reaction(message_id, emoji)
 
+    @guard_auth_attempt
+    @guard_client_presence
+    @guard_rate_limit("delete", 0.5)
     async def delete(self, message_id):
         """
         Delete a Discord message.
@@ -238,15 +230,13 @@ class DiscordAPI(BaseAPI):
         Raises:
             Exception: If deletion fails
         """
-        if not self._authenticated:
-            await self.authenticate()
-
-        if not self.client:
-            raise Exception("Discord client not available")
-
-        await self._rate_limit_check("delete", 0.5)
+        assert self.client is not None
         return await self.client.delete_message(message_id)
 
+    @guard_auth_attempt
+    @guard_client_presence
+    @guard_rate_limit("get_post", 0.5)
+    @guard_error_wrap("Discord get-post")
     async def get_post(self, message_id):
         """
         Read a Discord message by ID.
@@ -260,19 +250,13 @@ class DiscordAPI(BaseAPI):
         Raises:
             Exception: If the message cannot be read
         """
-        if not self._authenticated:
-            await self.authenticate()
+        assert self.client is not None
+        return await self.client.get_message(message_id)
 
-        if not self.client:
-            raise Exception("Discord client not available")
-
-        await self._rate_limit_check("get_post", 0.5)
-        try:
-            return await self.client.get_message(message_id)
-        except Exception as e:
-            self._handle_api_error(e, "Discord get-post")
-            raise
-
+    @guard_auth_attempt
+    @guard_client_presence
+    @guard_rate_limit("list_posts", 0.5)
+    @guard_error_wrap("Discord list-posts")
     async def list_posts(self, limit):
         """
         List recent messages in the configured channel.
@@ -286,19 +270,12 @@ class DiscordAPI(BaseAPI):
         Raises:
             Exception: If the messages cannot be read
         """
-        if not self._authenticated:
-            await self.authenticate()
+        assert self.client is not None
+        return await self.client.list_messages(limit)
 
-        if not self.client:
-            raise Exception("Discord client not available")
-
-        await self._rate_limit_check("list_posts", 0.5)
-        try:
-            return await self.client.list_messages(limit)
-        except Exception as e:
-            self._handle_api_error(e, "Discord list-posts")
-            raise
-
+    @guard_auth_attempt
+    @guard_client_presence
+    @guard_rate_limit("upload_file", 1.0)
     async def upload_file(self, file_content, filename, content=None, embeds=None):
         """
         Upload a file to Discord.
@@ -315,13 +292,7 @@ class DiscordAPI(BaseAPI):
         Raises:
             Exception: If file upload fails
         """
-        if not self._authenticated:
-            await self.authenticate()
-
-        if not self.client:
-            raise Exception("Discord client not available")
-
-        await self._rate_limit_check("upload_file", 1.0)
+        assert self.client is not None
         return await self.client.upload_file(file_content, filename, content, embeds)
 
     async def share(self, message_id):

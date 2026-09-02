@@ -16,8 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -158,16 +156,16 @@ def test_handle_api_error_formats_message():
     assert "API returned 404" in str(exc_info.value)
 
 
-def test_handle_api_error_chains_exception():
-    """Test _handle_api_error chains original exception."""
+def test_handle_api_error_severs_chained_cause():
+    """Test _handle_api_error severs the chained cause to avoid token leaks."""
     api = ConcreteAPI()
     original_error = ConnectionError("Network timeout")
 
     with pytest.raises(Exception) as exc_info:
         api._handle_api_error(original_error, "authentication")
 
-    # Verify exception chaining
-    assert exc_info.value.__cause__ is original_error
+    # The raw cause must not leak into tracebacks (R5 chained-cause fix)
+    assert exc_info.value.__cause__ is None
     assert "authentication failed" in str(exc_info.value)
 
 

@@ -17,13 +17,24 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.x.api module."""
 
+import warnings
 from typing import Any, Dict, List, Optional
 
-from agoras.core.api_base import BaseAPI
+from agoras.core.api_base import (
+    BaseAPI,
+    guard_assert_auth,
+    guard_error_wrap,
+    guard_rate_limit,
+)
 from agoras.core.auth import raise_authentication_error_from_manager
 from agoras.core.text_limits import validate_text, x_mode_for_subscription
 
 from .auth import XAuthManager
+
+
+def _deprecated(attr, cls):
+    """Warn that a read-through property is deprecated."""
+    warnings.warn(f"{cls}.{attr} is deprecated; use auth_manager.{attr}", DeprecationWarning, stacklevel=3)
 
 
 class XAPI(BaseAPI):
@@ -33,6 +44,45 @@ class XAPI(BaseAPI):
     Provides methods for X authentication and all X API operations
     including tweets, likes, retweets, and media uploads using both v1.1 and v2 APIs.
     """
+
+    # Guard message template (read by the composable guard decorators)
+    _not_authenticated_message = "X API not authenticated"
+
+    @property
+    def consumer_key(self):
+        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
+        _deprecated("consumer_key", "XAPI")
+        return self.auth_manager.consumer_key if self.auth_manager else None
+
+    @property
+    def consumer_secret(self):
+        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
+        _deprecated("consumer_secret", "XAPI")
+        return self.auth_manager.consumer_secret if self.auth_manager else None
+
+    @property
+    def oauth_token(self):
+        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
+        _deprecated("oauth_token", "XAPI")
+        return self.auth_manager.oauth_token if self.auth_manager else None
+
+    @property
+    def oauth_secret(self):
+        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
+        _deprecated("oauth_secret", "XAPI")
+        return self.auth_manager.oauth_secret if self.auth_manager else None
+
+    @property
+    def access_token(self):
+        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
+        _deprecated("access_token", "XAPI")
+        return self.auth_manager.access_token if self.auth_manager else None
+
+    @property
+    def user_info(self):
+        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
+        _deprecated("user_info", "XAPI")
+        return self.auth_manager.user_info if self.auth_manager else None
 
     def __init__(self, consumer_key, consumer_secret, oauth_token, oauth_secret):
         """
@@ -54,36 +104,6 @@ class XAPI(BaseAPI):
             oauth_secret=oauth_secret,
         )
 
-    @property
-    def consumer_key(self):
-        """Get the Twitter consumer key from the auth manager."""
-        return self.auth_manager.consumer_key if self.auth_manager else None
-
-    @property
-    def consumer_secret(self):
-        """Get the Twitter consumer secret from the auth manager."""
-        return self.auth_manager.consumer_secret if self.auth_manager else None
-
-    @property
-    def oauth_token(self):
-        """Get the Twitter OAuth token from the auth manager."""
-        return self.auth_manager.oauth_token if self.auth_manager else None
-
-    @property
-    def oauth_secret(self):
-        """Get the Twitter OAuth secret from the auth manager."""
-        return self.auth_manager.oauth_secret if self.auth_manager else None
-
-    @property
-    def access_token(self):
-        """Get the Twitter access token from the auth manager."""
-        return self.auth_manager.access_token if self.auth_manager else None
-
-    @property
-    def user_info(self):
-        """Get the Twitter user info from the auth manager."""
-        return self.auth_manager.user_info if self.auth_manager else None
-
     async def authenticate(self):
         """
         Authenticate with X API using the auth manager.
@@ -101,27 +121,11 @@ class XAPI(BaseAPI):
         if not success:
             raise_authentication_error_from_manager(self.auth_manager)
 
-        # Set the client from auth manager for BaseAPI compatibility
-        self.client = self.auth_manager.client
-        self._authenticated = True
-        return self
+        return await super().authenticate()
 
-    async def disconnect(self):
-        """
-        Disconnect from X API and clean up resources.
-        """
-        # Disconnect the client first
-        if self.client:
-            self.client.disconnect()
-
-        # Clear auth manager data
-        if self.auth_manager:
-            self.auth_manager.access_token = None
-
-        # Clear BaseAPI client
-        self.client = None
-        self._authenticated = False
-
+    @guard_assert_auth
+    @guard_rate_limit("upload_media", 1.0)
+    @guard_error_wrap("X media upload")
     async def upload_media(self, media_content: bytes, media_type: str) -> str:
         """
         Upload media to X.
@@ -136,25 +140,18 @@ class XAPI(BaseAPI):
         Raises:
             Exception: If media upload fails
         """
-        if not self._authenticated or not self.client:
-            raise Exception("X API not authenticated")
-
-        await self._rate_limit_check("upload_media", 1.0)
-
-        try:
-            media_id = await self.client.upload_media(media_content, media_type)
-            return media_id
-        except Exception as e:
-            self._handle_api_error(e, "X media upload")
-            raise
+        media_id = await self.client.upload_media(media_content, media_type)
+        return media_id
 
     def _subscription_type(self) -> Optional[str]:
         """Return stored X subscription type when available (fail closed to free)."""
-        user_info = self.user_info if isinstance(self.user_info, dict) else None
+        user_info = self.auth_manager.user_info if isinstance(self.auth_manager.user_info, dict) else None
         if user_info:
             return user_info.get("subscription_type") or user_info.get("subscription_type_v2")
         return None
 
+    @guard_assert_auth
+    @guard_rate_limit("post", 1.0)
     async def post(
         self,
         text: str,
@@ -178,11 +175,6 @@ class XAPI(BaseAPI):
         Raises:
             Exception: If tweet creation fails
         """
-        if not self._authenticated or not self.client:
-            raise Exception("X API not authenticated")
-
-        await self._rate_limit_check("post", 1.0)
-
         if validate:
             mode = x_mode_for_subscription(self._subscription_type())
             validate_text("twitter", "text", text, mode=mode)
@@ -194,6 +186,9 @@ class XAPI(BaseAPI):
             self._handle_api_error(e, "X tweet creation")
             raise
 
+    @guard_assert_auth
+    @guard_rate_limit("like", 0.5)
+    @guard_error_wrap("X like")
     async def like(self, tweet_id: str) -> str:
         """
         Like a tweet.
@@ -207,18 +202,12 @@ class XAPI(BaseAPI):
         Raises:
             Exception: If like operation fails
         """
-        if not self._authenticated or not self.client:
-            raise Exception("X API not authenticated")
+        result = await self.client.like_tweet(tweet_id)
+        return result
 
-        await self._rate_limit_check("like", 0.5)
-
-        try:
-            result = await self.client.like_tweet(tweet_id)
-            return result
-        except Exception as e:
-            self._handle_api_error(e, "X like")
-            raise
-
+    @guard_assert_auth
+    @guard_rate_limit("post", 1.0)
+    @guard_error_wrap("X reply creation")
     async def reply(
         self, text: str, media_ids: Optional[List[str]] = None, in_reply_to_tweet_id: Optional[str] = None
     ) -> str:
@@ -236,18 +225,12 @@ class XAPI(BaseAPI):
         Raises:
             Exception: If reply creation fails
         """
-        if not self._authenticated or not self.client:
-            raise Exception("X API not authenticated")
+        tweet_id = await self.client.create_tweet(text, media_ids, in_reply_to_tweet_id=in_reply_to_tweet_id)
+        return tweet_id
 
-        await self._rate_limit_check("post", 1.0)
-
-        try:
-            tweet_id = await self.client.create_tweet(text, media_ids, in_reply_to_tweet_id=in_reply_to_tweet_id)
-            return tweet_id
-        except Exception as e:
-            self._handle_api_error(e, "X reply creation")
-            raise
-
+    @guard_assert_auth
+    @guard_rate_limit("share", 0.5)
+    @guard_error_wrap("X retweet")
     async def share(self, tweet_id: str) -> str:
         """
         Retweet (share) a tweet.
@@ -261,18 +244,12 @@ class XAPI(BaseAPI):
         Raises:
             Exception: If retweet operation fails
         """
-        if not self._authenticated or not self.client:
-            raise Exception("X API not authenticated")
+        result = await self.client.retweet(tweet_id)
+        return result
 
-        await self._rate_limit_check("share", 0.5)
-
-        try:
-            result = await self.client.retweet(tweet_id)
-            return result
-        except Exception as e:
-            self._handle_api_error(e, "X retweet")
-            raise
-
+    @guard_assert_auth
+    @guard_rate_limit("delete", 0.5)
+    @guard_error_wrap("X delete")
     async def delete(self, tweet_id: str) -> str:
         """
         Delete a tweet.
@@ -286,18 +263,12 @@ class XAPI(BaseAPI):
         Raises:
             Exception: If deletion fails
         """
-        if not self._authenticated or not self.client:
-            raise Exception("X API not authenticated")
+        result = await self.client.delete_tweet(tweet_id)
+        return result
 
-        await self._rate_limit_check("delete", 0.5)
-
-        try:
-            result = await self.client.delete_tweet(tweet_id)
-            return result
-        except Exception as e:
-            self._handle_api_error(e, "X delete")
-            raise
-
+    @guard_assert_auth
+    @guard_rate_limit("get_post", 0.5)
+    @guard_error_wrap("X get-post")
     async def get_post(self, tweet_id: str) -> Dict[str, Any]:
         """
         Read a tweet by ID.
@@ -311,17 +282,11 @@ class XAPI(BaseAPI):
         Raises:
             Exception: If the tweet cannot be read
         """
-        if not self._authenticated or not self.client:
-            raise Exception("X API not authenticated")
+        return await self.client.get_tweet(tweet_id)
 
-        await self._rate_limit_check("get_post", 0.5)
-
-        try:
-            return await self.client.get_tweet(tweet_id)
-        except Exception as e:
-            self._handle_api_error(e, "X get-post")
-            raise
-
+    @guard_assert_auth
+    @guard_rate_limit("list_posts", 0.5)
+    @guard_error_wrap("X list-posts")
     async def list_posts(self, limit: int) -> List[Dict[str, Any]]:
         """
         List the authenticated user's recent tweets.
@@ -335,17 +300,8 @@ class XAPI(BaseAPI):
         Raises:
             Exception: If the tweets cannot be read
         """
-        if not self._authenticated or not self.client:
-            raise Exception("X API not authenticated")
-
-        await self._rate_limit_check("list_posts", 0.5)
-
-        try:
-            user_info = await self.client.get_user_info()
-            user_id = user_info.get("user_id")
-            if not user_id:
-                raise Exception("Unable to resolve X user id for list-posts.")
-            return await self.client.get_users_tweets(user_id, limit)
-        except Exception as e:
-            self._handle_api_error(e, "X list-posts")
-            raise
+        user_info = await self.client.get_user_info()
+        user_id = user_info.get("user_id")
+        if not user_id:
+            raise Exception("Unable to resolve X user id for list-posts.")
+        return await self.client.get_users_tweets(user_id, limit)

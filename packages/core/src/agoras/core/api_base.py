@@ -18,9 +18,167 @@
 """agoras.core.api_base module."""
 
 import asyncio
+import functools
 import re
 import time
 from abc import ABC, abstractmethod
+from typing import Any, Awaitable, Callable, Concatenate, NoReturn, ParamSpec, TypeVar
+
+P = ParamSpec("P")
+R = TypeVar("R")
+T = TypeVar("T")
+
+
+def guard_auth_attempt(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Callable[Concatenate[T, P], Awaitable[R]]:
+    """
+    Guard decorator: attempt authentication when the instance is not authenticated.
+
+    Applies the auto-auth dialect: if ``self._authenticated`` is false,
+    ``self.authenticate()`` is awaited first. Guard-phase errors propagate
+    unmodified (never wrapped), preserving the categorized auth error.
+    """
+
+    @functools.wraps(func)
+    async def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
+        if not self._authenticated:  # type: ignore[attr-defined]
+            await self.authenticate()  # type: ignore[attr-defined]
+        return await func(self, *args, **kwargs)
+
+    return wrapper
+
+
+def guard_assert_auth(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Callable[Concatenate[T, P], Awaitable[R]]:
+    """
+    Guard decorator: raise the platform's not-authenticated message when unauthenticated.
+
+    Applies the assert-or-raise dialect: if ``self._authenticated`` is false
+    or ``self.client`` is missing, raise without attempting authentication.
+    """
+
+    @functools.wraps(func)
+    async def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
+        if not self._authenticated or not self.client:  # type: ignore[attr-defined]
+            raise Exception(self._not_authenticated_message)  # type: ignore[attr-defined]
+        return await func(self, *args, **kwargs)
+
+    return wrapper
+
+
+def guard_ensure_auth_manager(
+    func: Callable[Concatenate[T, P], Awaitable[R]],
+) -> Callable[Concatenate[T, P], Awaitable[R]]:
+    """
+    Guard decorator: ensure the auth manager's token is current before operations.
+
+    Applies the auth-manager-ensure dialect: ``self.auth_manager.ensure_authenticated()``
+    is invoked first. The categorized ``AuthenticationError`` it raises on
+    failure propagates unmodified, never wrapped.
+    """
+
+    @functools.wraps(func)
+    async def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
+        self.auth_manager.ensure_authenticated()  # type: ignore[attr-defined]
+        return await func(self, *args, **kwargs)
+
+    return wrapper
+
+
+def guard_token_presence(
+    token_attr: str = "access_token",
+) -> Callable[[Callable[Concatenate[T, P], Awaitable[R]]], Callable[Concatenate[T, P], Awaitable[R]]]:
+    """
+    Guard decorator: raise the platform's not-authenticated message when no token is present.
+
+    Applies the token-presence check used by tiktok and threads. ``token_attr``
+    is the attribute path on the instance (dotted paths supported, e.g.
+    ``auth_manager.access_token``), so the check reads the token source
+    directly rather than through a credential forwarder.
+    """
+
+    def resolve_token(instance: T) -> Any:
+        current = instance
+        for part in token_attr.split("."):
+            try:
+                current = getattr(current, part)
+            except AttributeError:
+                return None
+        return current
+
+    def decorate(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Callable[Concatenate[T, P], Awaitable[R]]:
+        @functools.wraps(func)
+        async def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
+            if not resolve_token(self):
+                raise Exception(self._not_authenticated_message)  # type: ignore[attr-defined]
+            return await func(self, *args, **kwargs)
+
+        return wrapper
+
+    return decorate
+
+
+def guard_client_presence(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Callable[Concatenate[T, P], Awaitable[R]]:
+    """
+    Guard decorator: raise the platform's not-available message when the client is missing.
+
+    Applies the client-check dialect: if ``self.client`` is absent, raise
+    ``self._client_not_available_message`` without attempting authentication.
+    """
+
+    @functools.wraps(func)
+    async def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
+        if not self.client:  # type: ignore[attr-defined]
+            raise Exception(self._client_not_available_message)  # type: ignore[attr-defined]
+        return await func(self, *args, **kwargs)
+
+    return wrapper
+
+
+def guard_rate_limit(
+    operation_key: str,
+    min_interval: float,
+) -> Callable[[Callable[Concatenate[T, P], Awaitable[R]]], Callable[Concatenate[T, P], Awaitable[R]]]:
+    """
+    Guard decorator: wait the operation's minimum interval before the client call.
+
+    ``operation_key`` is the literal bucket key shared by methods that throttle
+    together (e.g. x ``post`` and ``reply`` share the ``"post"`` bucket).
+    """
+
+    def decorate(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Callable[Concatenate[T, P], Awaitable[R]]:
+        @functools.wraps(func)
+        async def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
+            await self._rate_limit_check(operation_key, min_interval)  # type: ignore[attr-defined]
+            return await func(self, *args, **kwargs)
+
+        return wrapper
+
+    return decorate
+
+
+def guard_error_wrap(
+    operation_name: str,
+) -> Callable[[Callable[Concatenate[T, P], Awaitable[R]]], Callable[Concatenate[T, P], Awaitable[R]]]:
+    """
+    Guard decorator: normalize and sanitize exceptions from the client-call segment.
+
+    Covers only the client call — guard-phase errors (auth attempt, auth
+    manager ensure, client presence) are raised before this decorator's
+    scope and propagate unmodified, preserving the categorized auth error
+    and the not-supported error shapes.
+    """
+
+    def decorate(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Callable[Concatenate[T, P], Awaitable[R]]:
+        @functools.wraps(func)
+        async def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
+            try:
+                return await func(self, *args, **kwargs)
+            except Exception as e:
+                self._handle_api_error(e, operation_name)  # type: ignore[attr-defined]
+                raise
+
+        return wrapper
+
+    return decorate
 
 
 class BaseAPI(ABC):
@@ -39,15 +197,22 @@ class BaseAPI(ABC):
             **credentials: API-specific authentication credentials
         """
         self.credentials = credentials
-        self.client = None
+        self.client: Any = None
+        self.auth_manager: Any = None
         self._authenticated = False
         self._rate_limit_cache = {}
         self._last_request_time = 0
 
-    @abstractmethod
     async def authenticate(self):
         """
-        Authenticate with the API asynchronously.
+        Complete the shared authentication lifecycle.
+
+        Runs the platform-specific post-authentication steps
+        (``_post_authenticate``), wires the auth manager's client, and marks
+        the instance authenticated. Subclasses run the auth-manager attempt
+        and raise the categorized ``AuthenticationError`` on failure in their
+        override of this method, then delegate the shared tail here via
+        ``super().authenticate()``.
 
         Returns:
             BaseAPI: Self for method chaining
@@ -55,12 +220,43 @@ class BaseAPI(ABC):
         Raises:
             Exception: If authentication fails
         """
+        await self._post_authenticate()
+        self.client = self.auth_manager.client  # type: ignore[attr-defined]
+        self._authenticated = True
+        return self
 
-    @abstractmethod
+    async def _post_authenticate(self):
+        """
+        Hook for platform-specific post-authentication steps.
+
+        Called by ``authenticate`` after the auth-manager attempt succeeds and
+        before the client is wired. The default does nothing; platforms with
+        extra post-auth checks (e.g. discord, telegram) override this.
+        """
+
     async def disconnect(self):
         """
         Disconnect from the API and clean up resources.
         """
+        try:
+            self._disconnect_hook()
+        finally:
+            self.client = None
+            self._authenticated = False
+
+    def _disconnect_hook(self):
+        """
+        Hook for platform-specific disconnect teardown.
+
+        The default disconnects the client and clears the auth manager's
+        access token. Platforms that must not disconnect the client (tiktok,
+        telegram, threads) or clear different auth-manager state override
+        this.
+        """
+        if self.client:
+            self.client.disconnect()
+        if self.auth_manager:  # type: ignore[attr-defined]
+            self.auth_manager.access_token = None  # type: ignore[attr-defined]
 
     def is_authenticated(self):
         """
@@ -90,7 +286,13 @@ class BaseAPI(ABC):
 
     _REDACT_PATTERNS = (
         (re.compile(r"Bearer\s+\S+", re.I), "Bearer [REDACTED]"),
+        (re.compile(r"Bot\s+\S+", re.I), "Bot [REDACTED]"),
         (re.compile(r"access_token[=:]\s*\S+", re.I), "access_token=[REDACTED]"),
+        (re.compile(r"refresh_token[=:]\s*\S+", re.I), "refresh_token=[REDACTED]"),
+        (re.compile(r"client_secret[=:]\s*\S+", re.I), "client_secret=[REDACTED]"),
+        (re.compile(r"oauth_token[=:]\s*\S+", re.I), "oauth_token=[REDACTED]"),
+        (re.compile(r"app_secret[=:]\s*\S+", re.I), "app_secret=[REDACTED]"),
+        (re.compile(r"(?<![a-z_])token[=:]\s*\S+", re.I), "token=[REDACTED]"),
         (re.compile(r"Authorization:\s*\S+", re.I), "Authorization: [REDACTED]"),
     )
 
@@ -101,7 +303,13 @@ class BaseAPI(ABC):
             sanitized = pattern.sub(replacement, sanitized)
         return sanitized
 
-    def _handle_api_error(self, error, operation_name):
+    # Guard message templates, overridden per platform. Read by the guard
+    # decorators so the not-authenticated and not-available messages stay
+    # platform-specific without repeating the guard shape.
+    _not_authenticated_message = "API not authenticated"
+    _client_not_available_message = "API client not available"
+
+    def _handle_api_error(self, error, operation_name) -> NoReturn:
         """
         Handle API errors with consistent error messages.
 
@@ -113,7 +321,9 @@ class BaseAPI(ABC):
             Exception: Formatted exception with context
         """
         error_msg = f"{operation_name} failed: {self._sanitize_error_message(str(error))}"
-        raise Exception(error_msg) from error
+        exc = Exception(error_msg)
+        exc.__suppress_context__ = True
+        raise exc from None
 
     @abstractmethod
     async def post(self, *args, **kwargs):
