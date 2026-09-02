@@ -100,9 +100,9 @@ class Discord(SocialNetwork):
         This method sets up the Discord API client with configuration.
         Tries to load credentials from storage if not provided via parameters.
         """
-        self.discord_bot_token = self._get_config_value("discord_bot_token", "DISCORD_BOT_TOKEN")
-        self.discord_server_name = self._get_config_value("discord_server_name", "DISCORD_SERVER_NAME")
-        self.discord_channel_name = self._get_config_value("discord_channel_name", "DISCORD_CHANNEL_NAME")
+        self.discord_bot_token = self._get_auth_config_value("discord_bot_token", "DISCORD_BOT_TOKEN")
+        self.discord_server_name = self._get_auth_config_value("discord_server_name", "DISCORD_SERVER_NAME")
+        self.discord_channel_name = self._get_auth_config_value("discord_channel_name", "DISCORD_CHANNEL_NAME")
 
         # If credentials not provided, try loading from storage
         if not all([self.discord_bot_token, self.discord_server_name, self.discord_channel_name]):
@@ -112,6 +112,7 @@ class Discord(SocialNetwork):
                 bot_token=self.discord_bot_token,
                 server_name=self.discord_server_name,
                 channel_name=self.discord_channel_name,
+                profile=self._get_config_value("profile"),
             )
 
             if auth_manager._load_credentials_from_storage():
@@ -146,7 +147,12 @@ class Discord(SocialNetwork):
         server_name = self._get_config_value("discord_server_name", "DISCORD_SERVER_NAME")
         channel_name = self._get_config_value("discord_channel_name", "DISCORD_CHANNEL_NAME")
 
-        auth_manager = DiscordAuthManager(bot_token=bot_token, server_name=server_name, channel_name=channel_name)
+        auth_manager = DiscordAuthManager(
+            bot_token=bot_token,
+            server_name=server_name,
+            channel_name=channel_name,
+            profile=self._get_config_value("profile"),
+        )
 
         result = await auth_manager.authorize()
         if result:
@@ -160,6 +166,45 @@ class Discord(SocialNetwork):
         """
         if self.api:
             await self.api.disconnect()
+
+    async def _prepare_discord_media_payload(
+        self,
+        source_media,
+        text="",
+        video_url=None,
+        status_link=None,
+    ):
+        """Build embeds and attachment files shared by post() and reply()."""
+        if not self.api:
+            raise Exception("Discord API not initialized")
+
+        embeds: List[Any] = []
+        attachment_files: List[discord.File] = []
+        cleanup_targets: List[Any] = []
+
+        if status_link:
+            scraped_data = parse_metatags(status_link)
+            status_link_title = scraped_data.get("title", "")
+            status_link_description = scraped_data.get("description", "")
+            status_link_image = scraped_data.get("image", "")
+            validate_discord_embeds([{"title": status_link_title, "description": status_link_description}])
+            link_embed = self.api.create_embed(
+                title=status_link_title,
+                description=status_link_description,
+                url=status_link,
+                image_url=status_link_image,
+            )
+            embeds.append(link_embed)
+
+        if source_media:
+            await self._append_image_embeds(embeds, source_media, cleanup_targets, attachment_files)
+
+        if video_url:
+            text, file_obj = await self._prepare_video_file(embeds, cleanup_targets, video_url, "", text)
+            if file_obj is not None:
+                attachment_files.append(file_obj)
+
+        return text, embeds, attachment_files, cleanup_targets
 
     async def post(
         self,
@@ -187,12 +232,8 @@ class Discord(SocialNetwork):
         if not self.api:
             raise Exception("Discord API not initialized")
 
-        embeds = []
-        status_link_title = ""
-        status_link_description = ""
-        status_link_image = ""
-        source_media = list(
-            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        source_media = self._collect_status_image_urls(
+            status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4
         )
 
         if not source_media and not status_text and not status_link:
@@ -200,33 +241,74 @@ class Discord(SocialNetwork):
 
         validate_text("discord", "content", status_text or "")
 
-        # Parse link metadata
-        if status_link:
-            scraped_data = parse_metatags(status_link)
-            status_link_title = scraped_data.get("title", "")
-            status_link_description = scraped_data.get("description", "")
-            status_link_image = scraped_data.get("image", "")
-
-            # Validate scraped embed fields before media I/O / publish
-            validate_discord_embeds([{"title": status_link_title, "description": status_link_description}])
-
-            # Create link embed
-            link_embed = self.api.create_embed(
-                title=status_link_title,
-                description=status_link_description,
-                url=status_link,
-                image_url=status_link_image,
-            )
-            embeds.append(link_embed)
-
-        attachment_files: List[discord.File] = []
         cleanup_targets: List[Any] = []
         try:
-            if source_media:
-                await self._append_image_embeds(embeds, source_media, cleanup_targets, attachment_files)
-
+            content, embeds, attachment_files, cleanup_targets = await self._prepare_discord_media_payload(
+                source_media, status_text or "", status_link=status_link
+            )
             message_id = await self.api.post(
-                content=status_text or None,
+                content=content or None,
+                embeds=embeds if embeds else None,
+                files=attachment_files if attachment_files else None,
+            )
+        finally:
+            for item in cleanup_targets:
+                try:
+                    item.cleanup()
+                except Exception:
+                    pass
+
+        self._output_status(message_id)
+        return message_id
+
+    async def reply(
+        self,
+        post_id,
+        text,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+        video_url=None,
+    ):
+        """
+        Reply to a Discord message with optional media.
+
+        Args:
+            post_id (str): ID of the message to reply to
+            text (str): Reply text
+            status_image_url_1 (str, optional): First image URL
+            status_image_url_2 (str, optional): Second image URL
+            status_image_url_3 (str, optional): Third image URL
+            status_image_url_4 (str, optional): Fourth image URL
+            video_url (str, optional): URL of a video to attach to the reply
+
+        Returns:
+            str: Reply message ID
+        """
+        if not self.api:
+            raise Exception("Discord API not initialized")
+
+        if not post_id:
+            raise Exception("Discord post ID is required for reply action.")
+
+        source_media = self._collect_status_image_urls(
+            status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4
+        )
+
+        if not source_media and not text and not video_url:
+            raise Exception("No reply text or media provided.")
+
+        validate_text("discord", "content", text or "")
+
+        cleanup_targets: List[Any] = []
+        try:
+            content, embeds, attachment_files, cleanup_targets = await self._prepare_discord_media_payload(
+                source_media, text or "", video_url=video_url
+            )
+            message_id = await self.api.reply(
+                post_id,
+                content=content or None,
                 embeds=embeds if embeds else None,
                 files=attachment_files if attachment_files else None,
             )
@@ -509,6 +591,96 @@ class Discord(SocialNetwork):
         result = await self.api.delete(discord_post_id)
         self._output_status(result)
         return result
+
+    async def delete_reply(self, post_id):
+        """
+        Delete a reply message.
+
+        A reply is a message on Discord, so deletion is a proxy of ``delete``.
+
+        Args:
+            post_id (str): ID of the reply message to delete
+
+        Returns:
+            str: Deleted message ID
+        """
+        return await self.delete(post_id)
+
+    async def get_post(self, post_id):
+        """
+        Read a Discord message by ID and return normalized content.
+
+        Args:
+            post_id (str): Message ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        if not self.api:
+            raise Exception("Discord API not initialized")
+
+        if not post_id:
+            raise Exception("Discord post ID is required.")
+        message_id = post_id
+
+        raw = await self.api.get_post(message_id)
+        content = {
+            "id": raw.get("id", message_id),
+            "text": raw.get("text"),
+            "media": raw.get("media") or [],
+            "author": raw.get("author"),
+            "created_at": raw.get("created_at"),
+            "metadata": {},
+        }
+        self._output_content(content)
+        return content
+
+    async def get_reply(self, post_id):
+        """
+        Read a reply message by ID.
+
+        A reply is a message on Discord, so reading is a proxy of ``get_post``.
+
+        Args:
+            post_id (str): Reply message ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        return await self.get_post(post_id)
+
+    async def list_posts(self, limit):
+        """
+        List recent messages in the configured channel and return normalized content.
+
+        Args:
+            limit (int): Maximum number of messages to return
+
+        Returns:
+            list: Normalized content dicts
+        """
+        if not self.api:
+            raise Exception("Discord API not initialized")
+
+        if limit == 0:
+            self._output_list([])
+            return []
+
+        raw_items = await self.api.list_posts(limit)
+        items = []
+        for raw in raw_items:
+            items.append(
+                {
+                    "id": raw.get("id"),
+                    "text": raw.get("text"),
+                    "media": raw.get("media") or [],
+                    "author": raw.get("author"),
+                    "created_at": raw.get("created_at"),
+                    "metadata": {},
+                }
+            )
+        self._output_list(items)
+        return items
 
     async def share(self, discord_post_id):
         """

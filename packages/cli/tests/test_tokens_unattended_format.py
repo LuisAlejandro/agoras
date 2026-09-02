@@ -39,7 +39,7 @@ def temp_storage(monkeypatch):
 def test_format_x_token_exports_twitter_vars(temp_storage):
     temp_storage.save_token(
         "x",
-        "default",
+        "test",
         {
             "consumer_key": "ck",
             "consumer_secret": "cs",
@@ -61,7 +61,7 @@ def test_format_x_token_exports_twitter_vars(temp_storage):
 def test_format_facebook_maps_object_id_and_app_id(temp_storage):
     temp_storage.save_token(
         "facebook",
-        "default",
+        "test",
         {
             "user_id": "page-123",
             "client_id": "app-456",
@@ -83,7 +83,7 @@ def test_format_linkedin_exports_access_token_and_optional_refresh_token(temp_st
     # Test with both access token and refresh token (partner app scenario)
     temp_storage.save_token(
         "linkedin",
-        "default",
+        "test",
         {
             "user_id": "user-123",
             "client_id": "client-456",
@@ -102,10 +102,10 @@ def test_format_linkedin_exports_access_token_and_optional_refresh_token(temp_st
     assert "LINKEDIN_ACCESS_TOKEN=access-token" in output
 
     # Test with access token only (standard app scenario)
-    temp_storage.delete_token("linkedin", "default")
+    temp_storage.delete_token("linkedin", "test")
     temp_storage.save_token(
         "linkedin",
-        "default",
+        "test",
         {
             "user_id": "user-123",
             "client_id": "client-456",
@@ -126,7 +126,7 @@ def test_format_linkedin_exports_access_token_and_optional_refresh_token(temp_st
 def test_format_whatsapp_includes_empty_recipient(temp_storage):
     temp_storage.save_token(
         "whatsapp",
-        "default",
+        "test",
         {
             "access_token": "wa-token",
             "phone_number_id": "phone-1",
@@ -148,7 +148,7 @@ def test_format_returns_none_when_no_tokens(temp_storage):
 def test_format_platform_filter_limits_sections(temp_storage):
     temp_storage.save_token(
         "x",
-        "default",
+        "test",
         {
             "consumer_key": "ck",
             "consumer_secret": "cs",
@@ -158,7 +158,7 @@ def test_format_platform_filter_limits_sections(temp_storage):
     )
     temp_storage.save_token(
         "facebook",
-        "default",
+        "test",
         {
             "user_id": "page-123",
             "client_id": "app-456",
@@ -177,7 +177,7 @@ def test_format_platform_filter_limits_sections(temp_storage):
 def test_shell_env_line_quotes_values_with_spaces(temp_storage):
     temp_storage.save_token(
         "discord",
-        "default",
+        "test",
         {
             "bot_token": "bot-token",
             "server_name": "My Server",
@@ -194,7 +194,7 @@ def test_shell_env_line_quotes_values_with_spaces(temp_storage):
 def test_handle_unattended_format_writes_stdout_and_warns_stderr(temp_storage, capsys):
     temp_storage.save_token(
         "x",
-        "default",
+        "test",
         {
             "consumer_key": "ck",
             "consumer_secret": "cs",
@@ -226,7 +226,7 @@ def test_header_includes_agoras_storage_dir(monkeypatch, temp_storage):
     monkeypatch.setenv("AGORAS_STORAGE_DIR", "/tmp/agoras-test")
     temp_storage.save_token(
         "x",
-        "default",
+        "test",
         {
             "consumer_key": "ck",
             "consumer_secret": "cs",

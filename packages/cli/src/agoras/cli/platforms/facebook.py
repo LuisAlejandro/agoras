@@ -25,7 +25,7 @@ from argparse import SUPPRESS, ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.facebook.wrapper import main as facebook_main
 
-from ..base import add_common_content_options, prepare_content_args
+from ..base import add_common_content_options, add_profile_to_all, prepare_content_args, resolve_action_profile
 from ..content import add_content_file_option
 from ..converter import ParameterConverter
 from ..media_help import video_url_help
@@ -92,8 +92,53 @@ def create_facebook_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     _add_facebook_action_options(delete, object_id_required=False)
     _add_post_id_option(delete)
 
+    # Delete-reply action (delete a Facebook comment)
+    delete_reply = actions.add_parser(
+        "delete-reply",
+        help='Delete a Facebook comment. Requires prior authorization via "agoras facebook authorize".',
+    )
+    _add_facebook_action_options(delete_reply, object_id_required=False)
+    _add_post_id_option(delete_reply)
+
+    # Reply action
+    reply = actions.add_parser(
+        "reply", help='Comment on a Facebook post. Requires prior authorization via "agoras facebook authorize".'
+    )
+    _add_facebook_action_options(reply, object_id_required=False)
+    _add_post_id_option(reply)
+    add_common_content_options(reply, images=1)
+
+    # Get-post action
+    get_post = actions.add_parser(
+        "get-post",
+        help='Read a Facebook post. Requires prior authorization via "agoras facebook authorize".',
+    )
+    _add_post_id_option(get_post)
+
+    # Get-reply action
+    get_reply = actions.add_parser(
+        "get-reply",
+        help='Read a Facebook comment. Requires prior authorization via "agoras facebook authorize".',
+    )
+    _add_post_id_option(get_reply)
+
+    # List-posts action
+    list_posts = actions.add_parser(
+        "list-posts",
+        help='List recent Facebook posts. Requires prior authorization via "agoras facebook authorize".',
+    )
+    _add_limit_option(list_posts)
+    list_posts.add_argument(
+        "--object-id",
+        required=True,
+        metavar="<id>",
+        help="Facebook page or profile ID whose posts to list",
+    )
+
     # Set handler
     parser.set_defaults(command=_handle_facebook_command)
+
+    add_profile_to_all(actions)
 
     return parser
 
@@ -160,6 +205,16 @@ def _add_post_id_option(parser: ArgumentParser):
     parser.add_argument("--post-id", required=True, metavar="<id>", help="Facebook post ID to interact with")
 
 
+def _add_limit_option(parser: ArgumentParser):
+    """
+    Add limit option for list-posts action.
+
+    Args:
+        parser: ArgumentParser to add options to
+    """
+    parser.add_argument("--limit", type=int, metavar="<n>", help="Maximum number of posts to list")
+
+
 def _add_profile_id_option(parser: ArgumentParser):
     """
     Add profile ID option for share action.
@@ -187,6 +242,9 @@ def _handle_facebook_command(args: Namespace):
     # Convert new args to legacy format
     converter = ParameterConverter("facebook")
     legacy_args = converter.convert_to_legacy(args)
+
+    # Resolve and inject the credential profile for non-authorize actions
+    resolve_action_profile("facebook", args, legacy_args)
 
     # Call core Facebook module
     return facebook_main(legacy_args)

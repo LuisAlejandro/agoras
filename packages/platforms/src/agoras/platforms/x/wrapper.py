@@ -89,6 +89,12 @@ class X(SocialNetwork):
                 - twitter_oauth_secret: X OAuth secret
                 - tweet_id: Tweet ID for operations
         """
+        # Map platform-specific keys to generic keys for core interface compatibility
+        if "tweet_id" in kwargs:
+            kwargs["post_id"] = kwargs["tweet_id"]
+        if "twitter_video_url" in kwargs:
+            kwargs["video_url"] = kwargs["twitter_video_url"]
+
         super().__init__(**kwargs)
         self.twitter_consumer_key = None
         self.twitter_consumer_secret = None
@@ -108,6 +114,7 @@ class X(SocialNetwork):
             consumer_secret=self.twitter_consumer_secret,
             oauth_token=self.twitter_oauth_token,
             oauth_secret=self.twitter_oauth_secret,
+            profile=self._get_config_value("profile"),
         )
         # Bind tier to active oauth only — never adopt unrelated stored tokens
         self._subscription_type = auth_manager.load_subscription_type_for_active_oauth()
@@ -142,10 +149,10 @@ class X(SocialNetwork):
         Tries to load credentials from CLI params, environment variables, or storage.
         """
         # Try params/environment first
-        self.twitter_consumer_key = self._get_config_value("twitter_consumer_key", "TWITTER_CONSUMER_KEY")
-        self.twitter_consumer_secret = self._get_config_value("twitter_consumer_secret", "TWITTER_CONSUMER_SECRET")
-        self.twitter_oauth_token = self._get_config_value("twitter_oauth_token", "TWITTER_OAUTH_TOKEN")
-        self.twitter_oauth_secret = self._get_config_value("twitter_oauth_secret", "TWITTER_OAUTH_SECRET")
+        self.twitter_consumer_key = self._get_auth_config_value("twitter_consumer_key", "TWITTER_CONSUMER_KEY")
+        self.twitter_consumer_secret = self._get_auth_config_value("twitter_consumer_secret", "TWITTER_CONSUMER_SECRET")
+        self.twitter_oauth_token = self._get_auth_config_value("twitter_oauth_token", "TWITTER_OAUTH_TOKEN")
+        self.twitter_oauth_secret = self._get_auth_config_value("twitter_oauth_secret", "TWITTER_OAUTH_SECRET")
         self.tweet_id = self._get_config_value("tweet_id", "TWEET_ID")
 
         # If any credentials missing, try loading from storage
@@ -160,7 +167,9 @@ class X(SocialNetwork):
             from .auth import XAuthManager
 
             auth_manager = XAuthManager(
-                consumer_key=self.twitter_consumer_key, consumer_secret=self.twitter_consumer_secret
+                consumer_key=self.twitter_consumer_key,
+                consumer_secret=self.twitter_consumer_secret,
+                profile=self._get_config_value("profile"),
             )
 
             if auth_manager._load_credentials_from_storage():
@@ -213,6 +222,7 @@ class X(SocialNetwork):
             consumer_secret=consumer_secret,
             oauth_token=oauth_token,
             oauth_secret=oauth_secret,
+            profile=self._get_config_value("profile"),
         )
 
         result = await auth_manager.authorize()
@@ -255,8 +265,8 @@ class X(SocialNetwork):
             raise Exception("X API not initialized")
 
         media_ids = []
-        source_media = list(
-            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        source_media = self._collect_status_image_urls(
+            status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4
         )
 
         if not source_media and not status_text and not status_link:
@@ -267,36 +277,104 @@ class X(SocialNetwork):
         self._validate_tweet_text(tweet_text)
 
         # Download and upload media using the Media system
-        if source_media:
-            # Handle both images and videos
-            for media_url in source_media:
-                try:
-                    # Try to download as image first, then video
-                    try:
-                        image = await self.download_images([media_url])
-                        if image and len(image) > 0:
-                            media_obj = image[0]
-                        else:
-                            raise Exception("Failed to download as image")
-                    except Exception:
-                        # Try as video
-                        video = await self.download_video(media_url)
-                        media_obj = video
-
-                    # Upload media to X
-                    if media_obj.content and media_obj.file_type:
-                        media_id = await self.api.upload_media(media_obj.content, media_obj.file_type.mime)
-                        if media_id:
-                            media_ids.append(media_id)
-
-                    # Clean up temporary files
-                    media_obj.cleanup()
-
-                except Exception as e:
-                    print(f"Failed to upload media {media_url}: {str(e)}", file=sys.stderr)
+        media_ids = await self._upload_source_media(source_media)
 
         # Create the tweet
         tweet_id = await self.api.post(tweet_text, media_ids or [], validate=False)
+
+        self._output_status(tweet_id)
+        return tweet_id
+
+    async def _upload_source_media(self, source_media) -> List[str]:
+        """Download and upload a list of media URLs, returning their media IDs."""
+        if not self.api:
+            raise Exception("X API not initialized")
+        media_ids = []
+        for media_url in source_media:
+            try:
+                try:
+                    image = await self.download_images([media_url])
+                    if image and len(image) > 0:
+                        media_obj = image[0]
+                    else:
+                        raise Exception("Failed to download as image")
+                except Exception:
+                    video = await self.download_video(media_url)
+                    media_obj = video
+
+                if media_obj.content and media_obj.file_type:
+                    media_id = await self.api.upload_media(media_obj.content, media_obj.file_type.mime)
+                    if media_id:
+                        media_ids.append(media_id)
+
+                media_obj.cleanup()
+
+            except Exception as e:
+                print(f"Failed to upload media {media_url}: {str(e)}", file=sys.stderr)
+        return media_ids
+
+    async def reply(
+        self,
+        post_id,
+        text,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+        video_url=None,
+    ):
+        """
+        Reply to a tweet with optional media.
+
+        Args:
+            post_id (str): ID of the tweet to reply to
+            text (str): Reply text
+            status_image_url_1 (str, optional): First image URL
+            status_image_url_2 (str, optional): Second image URL
+            status_image_url_3 (str, optional): Third image URL
+            status_image_url_4 (str, optional): Fourth image URL
+            video_url (str, optional): URL of a video to attach to the reply
+
+        Returns:
+            str: Reply tweet ID
+        """
+        if not self.api:
+            raise Exception("X API not initialized")
+
+        if not post_id:
+            raise Exception("Tweet ID is required for reply action.")
+
+        source_media = self._collect_status_image_urls(
+            status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4
+        )
+
+        if not source_media and not text and not video_url:
+            raise Exception("No reply text or media provided.")
+
+        # Compose reply text and validate before media I/O when possible
+        reply_text = text or ""
+        self._validate_tweet_text(reply_text)
+
+        # Download and upload media using the Media system
+        media_ids = await self._upload_source_media(source_media)
+
+        if video_url:
+            video = await self.download_video(video_url)
+            try:
+                if not video.content or not video.file_type:
+                    raise Exception("Failed to download or validate video")
+                media_id = await self.api.upload_media(video.content, video.file_type.mime)
+                if media_id:
+                    media_ids.append(media_id)
+            finally:
+                video.cleanup()
+
+        # Fail instead of publishing an empty reply when all media failed to upload
+        if not media_ids and not reply_text:
+            raise Exception("Failed to upload reply media; no text to publish.")
+
+        # Create the reply tweet
+        tweet_id = await self.api.reply(reply_text, media_ids or [], post_id)
 
         self._output_status(tweet_id)
         return tweet_id
@@ -344,6 +422,105 @@ class X(SocialNetwork):
         result = await self.api.delete(post_id)
         self._output_status(result)
         return result
+
+    async def delete_reply(self, post_id):
+        """
+        Delete a reply tweet.
+
+        A reply is a tweet on X, so deletion is a proxy of ``delete``.
+
+        Args:
+            post_id (str): ID of the reply tweet to delete
+
+        Returns:
+            str: Deleted tweet ID
+        """
+        return await self.delete(post_id)
+
+    async def get_post(self, post_id):
+        """
+        Read a tweet by ID and return normalized content.
+
+        Args:
+            post_id (str): Tweet ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        if not self.api:
+            raise Exception("X API not initialized")
+
+        if not post_id:
+            raise Exception("Tweet ID is required.")
+
+        raw = await self.api.get_post(post_id)
+        metadata = {}
+        media = raw.get("media") or []
+        attachments = raw.get("attachments")
+        if attachments and not media:
+            metadata["attachments"] = attachments
+        content = {
+            "id": raw.get("id", post_id),
+            "text": raw.get("text"),
+            "media": media,
+            "author": {"id": raw.get("author_id"), "name": None} if raw.get("author_id") else None,
+            "created_at": raw.get("created_at"),
+            "metadata": metadata,
+        }
+        self._output_content(content)
+        return content
+
+    async def get_reply(self, post_id):
+        """
+        Read a reply tweet by ID.
+
+        A reply is a tweet on X, so reading is a proxy of ``get_post``.
+
+        Args:
+            post_id (str): Reply tweet ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        return await self.get_post(post_id)
+
+    async def list_posts(self, limit):
+        """
+        List the authenticated user's recent tweets and return normalized content.
+
+        Args:
+            limit (int): Maximum number of tweets to return
+
+        Returns:
+            list: Normalized content dicts
+        """
+        if not self.api:
+            raise Exception("X API not initialized")
+
+        if limit == 0:
+            self._output_list([])
+            return []
+
+        raw_items = await self.api.list_posts(limit)
+        items = []
+        for raw in raw_items:
+            metadata = {}
+            media = raw.get("media") or []
+            attachments = raw.get("attachments")
+            if attachments and not media:
+                metadata["attachments"] = attachments
+            items.append(
+                {
+                    "id": raw.get("id"),
+                    "text": raw.get("text"),
+                    "media": media,
+                    "author": {"id": raw.get("author_id"), "name": None} if raw.get("author_id") else None,
+                    "created_at": raw.get("created_at"),
+                    "metadata": metadata,
+                }
+            )
+        self._output_list(items)
+        return items
 
     async def share(self, tweet_id=None):
         """

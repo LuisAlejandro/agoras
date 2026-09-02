@@ -116,7 +116,7 @@ class Media(ABC):
 
             with open(tmpfile, "wb") as f:
                 request = Request(url=self.url, headers={"User-Agent": f"Agoras/{__version__}"})
-                content = urlopen(request).read()
+                content = urlopen(request, timeout=30).read()
                 f.write(content)
 
             return tmpfile, content

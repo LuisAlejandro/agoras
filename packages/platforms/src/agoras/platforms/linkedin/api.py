@@ -17,7 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.linkedin.api module."""
 
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from agoras.core.api_base import BaseAPI
 from agoras.core.auth import raise_authentication_error_from_manager
@@ -264,6 +264,37 @@ class LinkedInAPI(BaseAPI):
             self._handle_api_error(e, "LinkedIn like")
             raise
 
+    async def reply(self, post_id: str, text: str, image_ids: Optional[List[str]] = None) -> str:
+        """
+        Comment on a LinkedIn post.
+
+        Args:
+            post_id (str): Post ID to comment on
+            text (str): Comment text
+            image_ids (list, optional): List of uploaded image IDs to attach
+
+        Returns:
+            str: Comment ID
+
+        Raises:
+            Exception: If comment operation fails
+        """
+        if not self.client or not self.object_id:
+            raise Exception("LinkedIn API not authenticated")
+
+        await self._rate_limit_check("reply", 0.5)
+
+        try:
+            return await self.client.create_comment(
+                post_id=post_id,
+                actor_urn=f"urn:li:person:{self.object_id}",
+                text=text,
+                image_ids=image_ids,
+            )
+        except Exception as e:
+            self._handle_api_error(e, "LinkedIn comment")
+            raise
+
     async def share(self, post_id: str) -> str:
         """
         Share (repost) a LinkedIn post.
@@ -312,4 +343,134 @@ class LinkedInAPI(BaseAPI):
             return await self.client.delete_post(post_id=post_id)
         except Exception as e:
             self._handle_api_error(e, "LinkedIn delete")
+            raise
+
+    async def delete_reply(self, comment_id: str, parent_post_id: str) -> str:
+        """
+        Delete a LinkedIn comment.
+
+        Args:
+            comment_id (str): ID of the comment to delete
+            parent_post_id (str): Parent post URN the comment belongs to
+
+        Returns:
+            str: Deleted comment ID
+
+        Raises:
+            Exception: If deletion fails
+        """
+        if not self.client:
+            raise Exception("LinkedIn API not authenticated")
+
+        await self._rate_limit_check("delete", 0.5)
+
+        try:
+            return await self.client.delete_comment(comment_id=comment_id, parent_post_id=parent_post_id)
+        except Exception as e:
+            self._handle_api_error(e, "LinkedIn delete-reply")
+            raise
+
+    async def get_post(self, post_id: str) -> Dict[str, Any]:
+        """
+        Read a LinkedIn post by URN.
+
+        Args:
+            post_id (str): Post URN to read
+
+        Returns:
+            dict: Post entity
+
+        Raises:
+            Exception: If the post cannot be read
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("LinkedIn API not authenticated")
+
+        await self._rate_limit_check("get_post", 0.5)
+
+        try:
+            return await self.client.get_post(post_id=post_id)
+        except Exception as e:
+            self._handle_api_error(e, "LinkedIn get-post")
+            raise
+
+    async def get_reply(self, comment_id: str, parent_post_id: str) -> Dict[str, Any]:
+        """
+        Read a LinkedIn comment by ID and parent post URN.
+
+        Args:
+            comment_id (str): Comment ID to read
+            parent_post_id (str): Parent post URN the comment belongs to
+
+        Returns:
+            dict: Comment entity
+
+        Raises:
+            Exception: If the comment cannot be read
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("LinkedIn API not authenticated")
+
+        await self._rate_limit_check("get_reply", 0.5)
+
+        try:
+            return await self.client.get_comment(comment_id=comment_id, parent_post_id=parent_post_id)
+        except Exception as e:
+            self._handle_api_error(e, "LinkedIn get-reply")
+            raise
+
+    async def get_media(self, media_urn: str) -> Dict[str, Any]:
+        """
+        Resolve a LinkedIn media URN to its downloadable URL.
+
+        Args:
+            media_urn (str): Media URN (e.g. "urn:li:image:123" or "urn:li:video:456")
+
+        Returns:
+            dict: Media entity containing a ``downloadUrl``
+
+        Raises:
+            Exception: If the media cannot be resolved
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("LinkedIn API not authenticated")
+
+        await self._rate_limit_check("get_media", 0.5)
+
+        try:
+            return await self.client.get_media(media_urn=media_urn)
+        except Exception as e:
+            self._handle_api_error(e, "LinkedIn get-media")
+            raise
+
+    async def list_posts(self, limit: int) -> List[Dict[str, Any]]:
+        """
+        List the authenticated user's recent posts.
+
+        Args:
+            limit (int): Maximum number of posts to return
+
+        Returns:
+            list: Post entities
+
+        Raises:
+            Exception: If the posts cannot be read
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client or not self.object_id:
+            raise Exception("LinkedIn API not authenticated")
+
+        await self._rate_limit_check("list_posts", 0.5)
+
+        try:
+            return await self.client.list_posts(author_urn=f"urn:li:person:{self.object_id}", limit=limit)
+        except Exception as e:
+            self._handle_api_error(e, "LinkedIn list-posts")
             raise

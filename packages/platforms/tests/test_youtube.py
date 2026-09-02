@@ -347,6 +347,179 @@ async def test_youtube_like_success(mock_api_class):
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
+async def test_youtube_reply_text_only(mock_api_class):
+    """Test YouTube reply with text posts a text comment."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.reply = AsyncMock(return_value='comment-123')
+    mock_api_class.return_value = mock_api
+
+    youtube = YouTube(**YOUTUBE_KWARGS)
+
+    await youtube._initialize_client()
+
+    with patch.object(youtube, '_output_status'):
+        result = await youtube.reply('video123', 'A comment')
+
+    assert result == 'comment-123'
+    mock_api.reply.assert_called_once_with('video123', 'A comment')
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
+async def test_youtube_delete_reply(mock_api_class):
+    """Test YouTube delete_reply deletes a comment."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.delete_reply = AsyncMock(return_value='comment-123')
+    mock_api_class.return_value = mock_api
+
+    youtube = YouTube(**YOUTUBE_KWARGS)
+
+    await youtube._initialize_client()
+
+    with patch.object(youtube, '_output_status'):
+        result = await youtube.delete_reply('comment-123')
+
+    assert result == 'comment-123'
+    mock_api.delete_reply.assert_called_once_with(comment_id='comment-123')
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
+async def test_youtube_delete_reply_no_post_id(mock_api_class):
+    """Test YouTube delete_reply raises when comment ID missing."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    youtube = YouTube(**YOUTUBE_KWARGS)
+
+    await youtube._initialize_client()
+
+    with pytest.raises(Exception, match='YouTube comment ID is required'):
+        await youtube.delete_reply(None)
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
+async def test_youtube_get_post_returns_normalized_content(mock_api_class):
+    """Test YouTube get_post returns normalized content."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.get_post = AsyncMock(
+        return_value={
+            "video_id": "vid-1",
+            "title": "Title",
+            "description": "Desc",
+            "channel_id": "chan-1",
+            "channel_title": "Channel",
+            "privacy_status": "private",
+            "view_count": 10,
+            "like_count": 1,
+            "comment_count": 0,
+        }
+    )
+    mock_api_class.return_value = mock_api
+
+    youtube = YouTube(**YOUTUBE_KWARGS)
+    await youtube._initialize_client()
+
+    with patch.object(youtube, '_output_content') as mock_out:
+        result = await youtube.get_post('vid-1')
+
+    assert result['id'] == 'vid-1'
+    assert 'Title' in result['text']
+    assert result['author']['name'] == 'Channel'
+    mock_api.get_post.assert_called_once_with('vid-1')
+    mock_out.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
+async def test_youtube_get_reply_returns_normalized_content(mock_api_class):
+    """Test YouTube get_reply returns normalized comment content."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.get_reply = AsyncMock(
+        return_value={
+            "id": "comment-123",
+            "text": "A comment",
+            "author_id": "author-1",
+            "author_name": "Author",
+            "created_at": "2026-01-01T00:00:00Z",
+            "video_id": "vid-1",
+        }
+    )
+    mock_api_class.return_value = mock_api
+
+    youtube = YouTube(**YOUTUBE_KWARGS)
+    await youtube._initialize_client()
+
+    with patch.object(youtube, '_output_content') as mock_out:
+        result = await youtube.get_reply('comment-123')
+
+    assert result['id'] == 'comment-123'
+    assert result['text'] == 'A comment'
+    assert result['author']['name'] == 'Author'
+    assert result['metadata']['video_id'] == 'vid-1'
+    mock_api.get_reply.assert_called_once_with('comment-123')
+    mock_out.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
+async def test_youtube_reply_with_media_raises(mock_api_class):
+    """Test YouTube reply raises when media is provided."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.reply = AsyncMock(return_value='comment-123')
+    mock_api_class.return_value = mock_api
+
+    youtube = YouTube(**YOUTUBE_KWARGS)
+
+    await youtube._initialize_client()
+
+    with pytest.raises(Exception, match="Media not supported in YouTube comments"):
+        await youtube.reply('video123', 'A comment', status_image_url_1='http://example.com/a.jpg')
+
+    mock_api.reply.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
+async def test_youtube_reply_missing_post_id(mock_api_class):
+    """Test YouTube reply raises when post_id missing."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    youtube = YouTube(**YOUTUBE_KWARGS)
+
+    await youtube._initialize_client()
+
+    with pytest.raises(Exception, match="YouTube video ID is required for reply action"):
+        await youtube.reply(None, 'A comment')
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
+async def test_youtube_extract_reply_params_post_id_remap(mock_api_class):
+    """YouTube _extract_reply_params yields a non-null post_id via the __init__ remap."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    youtube = YouTube(**{**YOUTUBE_KWARGS, 'youtube_video_id': 'video123'})
+
+    await youtube._initialize_client()
+
+    post_id, text, media = youtube._extract_reply_params()
+    assert post_id == 'video123'
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
 async def test_youtube_delete_no_api(mock_api_class):
     """Test YouTube delete with no API initialized."""
     youtube = YouTube(**YOUTUBE_KWARGS)
@@ -829,3 +1002,65 @@ async def test_youtube_video_rejects_description_utf8_over_limit(mock_api_class)
     assert exc_info.value.counting == 'utf8_bytes'
     mock_download.assert_not_called()
     mock_api.upload_video.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
+async def test_youtube_list_posts_returns_normalized_items(mock_api_class):
+    """Test YouTube list_posts emits normalized items via api.list_posts."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.list_posts = AsyncMock(
+        return_value=[
+            {
+                "id": "vid1",
+                "title": "Video One",
+                "description": "Desc One",
+                "published_at": "2026-01-01T00:00:00Z",
+                "thumbnails": {"high": {"url": "https://example.com/1.jpg"}},
+            },
+            {
+                "id": "vid2",
+                "title": "Video Two",
+                "description": "Desc Two",
+                "published_at": "2026-01-02T00:00:00Z",
+                "thumbnails": {},
+            },
+        ]
+    )
+    mock_api_class.return_value = mock_api
+
+    youtube = YouTube(**YOUTUBE_KWARGS)
+    await youtube._initialize_client()
+
+    with patch.object(youtube, '_output_list') as mock_out:
+        result = await youtube.list_posts(2)
+
+    assert len(result) == 2
+    assert result[0]["id"] == "vid1"
+    assert result[0]["text"] == "Video One\n\nDesc One"
+    assert result[0]["media"] == [{"type": "image", "url": "https://example.com/1.jpg"}]
+    assert result[1]["id"] == "vid2"
+    assert result[1]["media"] == []
+    mock_api.list_posts.assert_called_once_with(2)
+    mock_out.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
+async def test_youtube_list_posts_limit_zero_returns_empty(mock_api_class):
+    """Test YouTube list_posts with limit=0 returns an empty list without an API call."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.list_posts = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    youtube = YouTube(**YOUTUBE_KWARGS)
+    await youtube._initialize_client()
+
+    with patch.object(youtube, '_output_list') as mock_out:
+        result = await youtube.list_posts(0)
+
+    assert result == []
+    mock_api.list_posts.assert_not_called()
+    mock_out.assert_called_once_with([])

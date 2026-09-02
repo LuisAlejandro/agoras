@@ -8,7 +8,7 @@ Complete Support Matrix
 
 .. list-table::
    :header-rows: 1
-   :widths: 14 7 7 7 7 7 7 7 8
+   :widths: 12 6 6 6 5 5 6 7 7 7 7 6
 
    * - Platform
      - post
@@ -17,12 +17,20 @@ Complete Support Matrix
      - like
      - share
      - delete
+     - delete-reply
+     - get-post
+     - get-reply
+     - list-posts
      - template
      - authorize
    * - X
      - ✓
      - ✓
      - ✓ [4]
+     - ✓
+     - ✓
+     - ✓
+     - ✓
      - ✓
      - ✓
      - ✓
@@ -35,6 +43,10 @@ Complete Support Matrix
      - ✓
      - ✓
      - ✓
+     - ✓
+     - ✓
+     - ✓
+     - ✓
      - ✗
      - ✓
    * - Instagram
@@ -44,12 +56,20 @@ Complete Support Matrix
      - ✗
      - ✗
      - ✗
+     - ✓
+     - ✓
+     - ✓
+     - ✓
      - ✗
      - ✓
    * - LinkedIn
      - ✓
      - ✓
      - ✗
+     - ✓
+     - ✓
+     - ✓
+     - ✓
      - ✓
      - ✓
      - ✓
@@ -62,6 +82,10 @@ Complete Support Matrix
      - ✗ [1]
      - ✗
      - ✓
+     - ✓
+     - ✓
+     - ✓
+     - ✓
      - ✗
      - ✓
    * - YouTube
@@ -70,6 +94,10 @@ Complete Support Matrix
      - ✗
      - ✓
      - ✗
+     - ✓
+     - ✓
+     - ✓
+     - ✓
      - ✓
      - ✗
      - ✓
@@ -81,12 +109,20 @@ Complete Support Matrix
      - ✗
      - ✗
      - ✗
+     - ✗ [5]
+     - ✗ [5]
+     - ✗ [5]
+     - ✗
      - ✓
    * - Threads
      - ✓
      - ✓
      - ✓ [4]
      - ✗
+     - ✓
+     - ✓
+     - ✓
+     - ✓
      - ✓
      - ✓
      - ✗
@@ -98,6 +134,10 @@ Complete Support Matrix
      - ✗
      - ✗
      - ✓
+     - ✓
+     - ✗ [5]
+     - ✗ [5]
+     - ✗ [5]
      - ✗
      - ✓
    * - WhatsApp
@@ -107,6 +147,10 @@ Complete Support Matrix
      - ✗
      - ✗
      - ✗
+     - ✗
+     - ✗ [5]
+     - ✗ [5]
+     - ✗ [5]
      - ✓
      - ✓
 
@@ -119,6 +163,17 @@ Complete Support Matrix
 [3] TikTok ``post`` creates photo slideshow posts; ``video`` uploads video content.
 
 [4] ``thread`` is YAML-only via ``--content``. See :doc:`../content-files`.
+
+[5] CLI subcommands exist for uniformity, but the runtime raises "not supported"
+   (TikTok has no official arbitrary-post read API; Telegram Bot API has no
+   arbitrary-message-by-ID read; WhatsApp Cloud API does not read messages by ID).
+
+[6] Mutating actions (``post``, ``reply``, ``delete``, etc.) print a compact
+   status object ``{"id": "<id>"}``. Read actions ``get-post`` and ``get-reply``
+   print the full normalized six-key content object (``id``, ``text``, ``media``,
+   ``author``, ``created_at``, ``metadata``) via ``_output_content``. ``list-posts``
+   prints a JSON array of the same normalized six-key objects via ``_output_list``.
+   Automation must branch on action type when parsing stdout.
 
 .. note::
    The deprecated ``twitter`` CLI alias exposes the same actions as ``x``.

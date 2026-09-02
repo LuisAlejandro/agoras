@@ -397,3 +397,62 @@ def test_threads_client_repost_post_no_user_id():
 
     with pytest.raises(Exception, match='No user ID available'):
         client.repost_post('post123')
+
+
+# List Posts Tests
+
+
+@patch('agoras.platforms.threads.client.requests.get')
+def test_threads_client_list_posts_success(mock_requests_get):
+    """Test ThreadsAPIClient list_posts returns the user's recent posts."""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "data": [
+            {"id": "1", "text": "hello", "timestamp": "2026-01-01T00:00:00Z"},
+            {"id": "2", "text": "world", "timestamp": "2026-01-02T00:00:00Z"},
+        ]
+    }
+    mock_requests_get.return_value = mock_response
+
+    client = ThreadsAPIClient('access_token', 'user_id')
+    result = client.list_posts(2)
+
+    assert len(result) == 2
+    assert result[0]["id"] == "1"
+    assert result[1]["id"] == "2"
+    mock_requests_get.assert_called_once()
+    call_args = mock_requests_get.call_args
+    assert 'https://graph.threads.net/v1.0/user_id/threads' in call_args[0][0]
+    assert call_args[1]['params']['limit'] == 2
+    assert call_args[1]['params']['access_token'] == 'access_token'
+
+
+def test_threads_client_list_posts_empty():
+    """Test ThreadsAPIClient list_posts returns an empty list when there are no posts."""
+    client = ThreadsAPIClient('access_token', 'user_id')
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"data": []}
+
+    with patch('agoras.platforms.threads.client.requests.get', return_value=mock_response):
+        result = client.list_posts(5)
+
+    assert result == []
+
+
+def test_threads_client_list_posts_no_token():
+    """Test ThreadsAPIClient list_posts with no token."""
+    client = ThreadsAPIClient('', 'user_id')
+
+    with pytest.raises(Exception, match='No access token available'):
+        client.list_posts(5)
+
+
+def test_threads_client_list_posts_no_user_id():
+    """Test ThreadsAPIClient list_posts with no user_id."""
+    client = ThreadsAPIClient('access_token', '')
+
+    with pytest.raises(Exception, match='No user ID available'):
+        client.list_posts(5)

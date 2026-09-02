@@ -102,6 +102,54 @@ def test_x_like_requires_post_id():
     assert args.post_id == '12345'
 
 
+def test_x_delete_reply_requires_post_id():
+    """Test that X delete-reply requires post ID."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+
+    create_x_parser(subparsers)
+
+    args = root_parser.parse_args([
+        'x', 'delete-reply',
+        '--post-id', '12345'
+    ])
+
+    assert args.action == 'delete-reply'
+    assert args.post_id == '12345'
+
+
+def test_x_get_post_requires_post_id():
+    """Test that X get-post requires post ID."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+
+    create_x_parser(subparsers)
+
+    args = root_parser.parse_args([
+        'x', 'get-post',
+        '--post-id', '12345'
+    ])
+
+    assert args.action == 'get-post'
+    assert args.post_id == '12345'
+
+
+def test_x_get_reply_requires_post_id():
+    """Test that X get-reply requires post ID."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+
+    create_x_parser(subparsers)
+
+    args = root_parser.parse_args([
+        'x', 'get-reply',
+        '--post-id', '12345'
+    ])
+
+    assert args.action == 'get-reply'
+    assert args.post_id == '12345'
+
+
 def test_twitter_alias_parser_creation():
     """Test that Twitter alias parser is created successfully."""
     root_parser = ArgumentParser()

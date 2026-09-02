@@ -119,7 +119,9 @@ class TelegramAPI(BaseAPI):
             self._handle_api_error(e, "Telegram get bot info")
             raise
 
-    async def send_message(self, chat_id: str, text: str, parse_mode: Optional[str] = None) -> str:
+    async def send_message(
+        self, chat_id: str, text: str, parse_mode: Optional[str] = None, reply_to_message_id: Optional[int] = None
+    ) -> str:
         """
         Send text message asynchronously.
 
@@ -127,6 +129,7 @@ class TelegramAPI(BaseAPI):
             chat_id (str): Target chat ID (user, group, or channel)
             text (str): Message text
             parse_mode (str, optional): Parse mode (HTML, Markdown, MarkdownV2)
+            reply_to_message_id (int, optional): Message ID to reply to
 
         Returns:
             str: Message ID
@@ -143,7 +146,9 @@ class TelegramAPI(BaseAPI):
         await self._rate_limit_check("send_message", 1.0)
 
         try:
-            response = await self.client.send_message(chat_id=chat_id, text=text, parse_mode=parse_mode)
+            response = await self.client.send_message(
+                chat_id=chat_id, text=text, parse_mode=parse_mode, reply_to_message_id=reply_to_message_id
+            )
             return str(response["message_id"])
         except Exception as e:
             self._handle_api_error(e, "Telegram send message")
@@ -156,6 +161,7 @@ class TelegramAPI(BaseAPI):
         photo_content: Optional[bytes] = None,
         caption: Optional[str] = None,
         parse_mode: Optional[str] = None,
+        reply_to_message_id: Optional[int] = None,
     ) -> str:
         """
         Send photo with Media system integration.
@@ -166,6 +172,7 @@ class TelegramAPI(BaseAPI):
             photo_content (bytes, optional): Direct bytes content (bypasses Media system)
             caption (str, optional): Photo caption
             parse_mode (str, optional): Parse mode for caption
+            reply_to_message_id (int, optional): Message ID to reply to
 
         Returns:
             str: Message ID
@@ -207,7 +214,11 @@ class TelegramAPI(BaseAPI):
 
         try:
             response = await self.client.send_photo(
-                chat_id=chat_id, photo=photo_content, caption=caption, parse_mode=parse_mode
+                chat_id=chat_id,
+                photo=photo_content,
+                caption=caption,
+                parse_mode=parse_mode,
+                reply_to_message_id=reply_to_message_id,
             )
             return str(response["message_id"])
         except Exception as e:
@@ -221,6 +232,7 @@ class TelegramAPI(BaseAPI):
         video_content: Optional[bytes] = None,
         caption: Optional[str] = None,
         parse_mode: Optional[str] = None,
+        reply_to_message_id: Optional[int] = None,
     ) -> str:
         """
         Send video with Media system integration.
@@ -231,6 +243,7 @@ class TelegramAPI(BaseAPI):
             video_content (bytes, optional): Direct bytes content (bypasses Media system)
             caption (str, optional): Video caption
             parse_mode (str, optional): Parse mode for caption
+            reply_to_message_id (int, optional): Message ID to reply to
 
         Returns:
             str: Message ID
@@ -265,7 +278,11 @@ class TelegramAPI(BaseAPI):
 
         try:
             response = await self.client.send_video(
-                chat_id=chat_id, video=video_content, caption=caption, parse_mode=parse_mode
+                chat_id=chat_id,
+                video=video_content,
+                caption=caption,
+                parse_mode=parse_mode,
+                reply_to_message_id=reply_to_message_id,
             )
             return str(response["message_id"])
         except Exception as e:
@@ -378,13 +395,16 @@ class TelegramAPI(BaseAPI):
         """
         raise Exception("Share not supported for Telegram")
 
-    async def send_media_group(self, chat_id: str, media: List[Dict[str, Any]]) -> List[str]:
+    async def send_media_group(
+        self, chat_id: str, media: List[Dict[str, Any]], reply_to_message_id: Optional[int] = None
+    ) -> List[str]:
         """
         Send multiple media items as an album (media group).
 
         Args:
             chat_id (str): Target chat ID (user, group, or channel)
             media (List[Dict]): List of media items, each with 'type' and 'media' keys
+            reply_to_message_id (int, optional): Message ID to reply to
 
         Returns:
             List[str]: List of message IDs for each media item
@@ -401,9 +421,69 @@ class TelegramAPI(BaseAPI):
         await self._rate_limit_check("send_media_group", 1.0)
 
         try:
-            response = await self.client.send_media_group(chat_id=chat_id, media=media)
+            response = await self.client.send_media_group(
+                chat_id=chat_id, media=media, reply_to_message_id=reply_to_message_id
+            )
             # Return list of message IDs
             return [str(msg["message_id"]) for msg in response]
         except Exception as e:
             self._handle_api_error(e, "Telegram send media group")
             raise
+
+    async def reply(
+        self,
+        post_id: str,
+        text: str,
+        parse_mode: Optional[str] = None,
+        photo_content: Optional[bytes] = None,
+        video_content: Optional[bytes] = None,
+        media: Optional[List[Dict[str, Any]]] = None,
+    ) -> str:
+        """
+        Reply to a Telegram message with optional media.
+
+        Args:
+            post_id (str): Message ID to reply to
+            text (str): Reply text/caption
+            parse_mode (str, optional): Parse mode for text/caption
+            photo_content (bytes, optional): Direct photo bytes
+            video_content (bytes, optional): Direct video bytes
+            media (List[Dict], optional): Media group items
+
+        Returns:
+            str: Reply message ID
+
+        Raises:
+            Exception: If reply sending fails
+        """
+        if not self._authenticated:
+            await self.authenticate()
+
+        if not self.client:
+            raise Exception("Telegram client not available")
+
+        chat_id = self.chat_id
+        if not chat_id:
+            raise Exception("Telegram chat_id is required for reply")
+
+        reply_to_message_id = int(post_id)
+
+        if media:
+            return (await self.send_media_group(chat_id, media, reply_to_message_id=reply_to_message_id))[0]
+        if photo_content:
+            return await self.send_photo(
+                chat_id,
+                photo_content=photo_content,
+                caption=text,
+                parse_mode=parse_mode,
+                reply_to_message_id=reply_to_message_id,
+            )
+        if video_content:
+            return await self.send_video(
+                chat_id,
+                video_content=video_content,
+                caption=text,
+                parse_mode=parse_mode,
+                reply_to_message_id=reply_to_message_id,
+            )
+        return await self.send_message(chat_id, text, parse_mode, reply_to_message_id=reply_to_message_id)

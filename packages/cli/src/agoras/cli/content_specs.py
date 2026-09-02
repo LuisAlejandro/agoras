@@ -136,6 +136,12 @@ _COMMON_POST = (
     _f("images", "str_list", max_items=MAX_IMAGES, min_items=1, media_source=True),
 )
 
+_COMMON_REPLY = (
+    _f("text"),
+    _f("images", "str_list", max_items=MAX_IMAGES, min_items=1, media_source=True),
+    _f("video_url", media_source=True),
+)
+
 _COMMON_VIDEO = (
     _f("video_url", required=True, media_source=True),
     _f("video_title"),
@@ -182,6 +188,14 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
                 require_one_of=(("text", "link", "images"),),
             )
         )
+        add(
+            _spec(
+                platform,
+                "reply",
+                _COMMON_REPLY,
+                require_one_of=(("text", "images", "video_url"),),
+            )
+        )
         add(_spec(platform, "video", _COMMON_VIDEO))
         add(
             _spec(
@@ -216,6 +230,17 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
             ),
         )
     )
+    add(
+        _spec(
+            "facebook",
+            "reply",
+            (
+                _f("text"),
+                _f("images", "str_list", max_items=1, min_items=1, media_source=True),
+            ),
+            require_one_of=(("text", "images"),),
+        )
+    )
 
     # --- Instagram ---
     add(
@@ -241,6 +266,13 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
             ),
         )
     )
+    add(
+        _spec(
+            "instagram",
+            "reply",
+            (_f("text", required=True),),
+        )
+    )
 
     # --- LinkedIn ---
     add(
@@ -256,6 +288,17 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
         )
     )
     add(_spec("linkedin", "video", _COMMON_VIDEO))
+    add(
+        _spec(
+            "linkedin",
+            "reply",
+            (
+                _f("text"),
+                _f("images", "str_list", max_items=MAX_IMAGES, min_items=1, media_source=True),
+            ),
+            require_one_of=(("text", "images"),),
+        )
+    )
 
     # --- Discord ---
     add(
@@ -267,6 +310,17 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
                 _f("embeds", "map_list", max_items=10),
             ),
             require_one_of=(("text", "link", "images", "embeds"),),
+        )
+    )
+    add(
+        _spec(
+            "discord",
+            "reply",
+            (
+                *_COMMON_REPLY,
+                _f("embeds", "map_list", max_items=10),
+            ),
+            require_one_of=(("text", "images", "video_url", "embeds"),),
         )
     )
     add(
@@ -312,6 +366,13 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
                 _f("privacy", default="private", choices=_YOUTUBE_PRIVACY),
                 _f("keywords", "str_list"),
             ),
+        )
+    )
+    add(
+        _spec(
+            "youtube",
+            "reply",
+            (_f("text", required=True),),
         )
     )
 
@@ -377,6 +438,18 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
     add(
         _spec(
             "threads",
+            "reply",
+            (
+                *_COMMON_REPLY,
+                _f("who_can_reply", default="everyone", choices=_THREADS_REPLY),
+                _f("alt_texts", "str_list", max_items=MAX_IMAGES),
+            ),
+            require_one_of=(("text", "images", "video_url"),),
+        )
+    )
+    add(
+        _spec(
+            "threads",
             "thread",
             (
                 _f("who_can_reply", default="everyone", choices=_THREADS_REPLY),
@@ -406,6 +479,17 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
     add(
         _spec(
             "telegram",
+            "reply",
+            (
+                *_COMMON_REPLY,
+                _f("parse_mode", default="HTML", choices=_TELEGRAM_PARSE),
+            ),
+            require_one_of=(("text", "images", "video_url"),),
+        )
+    )
+    add(
+        _spec(
+            "telegram",
             "video",
             (
                 *_COMMON_VIDEO,
@@ -421,6 +505,14 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
             "post",
             _COMMON_POST,
             require_one_of=(("text", "link", "images"),),
+        )
+    )
+    add(
+        _spec(
+            "whatsapp",
+            "reply",
+            _COMMON_REPLY,
+            require_one_of=(("text", "images", "video_url"),),
         )
     )
     add(_spec("whatsapp", "video", _COMMON_VIDEO))

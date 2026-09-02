@@ -50,6 +50,10 @@ class Facebook(SocialNetwork):
                 - facebook_profile_id: Facebook profile ID
                 - facebook_app_id: Facebook app ID
         """
+        # Map platform-specific key to generic key for core interface compatibility
+        if "facebook_post_id" in kwargs:
+            kwargs["post_id"] = kwargs["facebook_post_id"]
+
         super().__init__(**kwargs)
         self.facebook_access_token = None
         self.facebook_client_id = None
@@ -76,10 +80,10 @@ class Facebook(SocialNetwork):
 
     async def _load_config_values(self):
         """Load configuration values from params/environment."""
-        self.facebook_access_token = self._get_config_value("facebook_access_token", "FACEBOOK_ACCESS_TOKEN")
-        self.facebook_client_id = self._get_config_value("facebook_client_id", "FACEBOOK_CLIENT_ID")
-        self.facebook_client_secret = self._get_config_value("facebook_client_secret", "FACEBOOK_CLIENT_SECRET")
-        self.facebook_refresh_token = self._get_config_value("facebook_refresh_token", "FACEBOOK_REFRESH_TOKEN")
+        self.facebook_access_token = self._get_auth_config_value("facebook_access_token", "FACEBOOK_ACCESS_TOKEN")
+        self.facebook_client_id = self._get_auth_config_value("facebook_client_id", "FACEBOOK_CLIENT_ID")
+        self.facebook_client_secret = self._get_auth_config_value("facebook_client_secret", "FACEBOOK_CLIENT_SECRET")
+        self.facebook_refresh_token = self._get_auth_config_value("facebook_refresh_token", "FACEBOOK_REFRESH_TOKEN")
         # Object ID should always come from config/env, not storage (allows switching between page/user)
         self.facebook_object_id = self._get_config_value("facebook_object_id", "FACEBOOK_OBJECT_ID")
         self.facebook_post_id = self._get_config_value("facebook_post_id", "FACEBOOK_POST_ID")
@@ -95,6 +99,7 @@ class Facebook(SocialNetwork):
                 user_id=self.facebook_object_id or "",
                 client_id=self.facebook_client_id or "",
                 client_secret=self.facebook_client_secret or "",
+                profile=self._get_config_value("profile"),
             )
 
             if auth_manager._load_credentials_from_storage():
@@ -122,6 +127,7 @@ class Facebook(SocialNetwork):
                 client_id=self.facebook_client_id,
                 client_secret=self.facebook_client_secret,
                 refresh_token=self.facebook_refresh_token,
+                profile=self._get_config_value("profile"),
             )
             authenticated = await auth_manager.authenticate()
             if authenticated:
@@ -408,6 +414,57 @@ class Facebook(SocialNetwork):
         self._output_status(post_id)
         return post_id
 
+    async def reply(
+        self,
+        post_id,
+        text,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+        video_url=None,
+    ):
+        """
+        Comment on a Facebook post with optional single image.
+
+        Args:
+            post_id (str): ID of the Facebook post to comment on
+            text (str): Comment text
+            status_image_url_1 (str, optional): First image URL
+            status_image_url_2 (str, optional): Second image URL
+            status_image_url_3 (str, optional): Third image URL
+            status_image_url_4 (str, optional): Fourth image URL
+            video_url (str, optional): URL of a video to attach. Facebook
+                comments do not support video; providing one raises.
+
+        Returns:
+            str: Comment ID
+        """
+        if not self.api:
+            raise Exception("Facebook API not initialized")
+
+        if not post_id:
+            raise Exception("Facebook post ID is required for reply action.")
+
+        if video_url:
+            raise Exception("Video not supported in Facebook comments.")
+
+        source_media = list(
+            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        )
+
+        if not source_media and not text:
+            raise Exception("No reply text or media provided.")
+
+        validate_text("facebook", "message", text or "")
+
+        # Facebook comments support a single image; use the first and ignore the rest.
+        image_url = source_media[0] if source_media else None
+
+        result = await self.api.reply(post_id, text, image_url=image_url)
+        self._output_status(result)
+        return result
+
     async def like(self, facebook_post_id=None):
         """
         Like a Facebook post.
@@ -455,6 +512,182 @@ class Facebook(SocialNetwork):
         result = await self.api.delete(self.facebook_object_id, post_id)
         self._output_status(result)
         return result
+
+    async def delete_reply(self, post_id):
+        """
+        Delete a Facebook comment.
+
+        A reply is a comment on Facebook, deleted via the Graph API.
+
+        Args:
+            post_id (str): ID of the comment to delete
+
+        Returns:
+            str: Deleted comment ID
+        """
+        if not self.api:
+            raise Exception("Facebook API not initialized")
+
+        if not post_id:
+            raise Exception("Facebook comment ID is required for delete-reply action.")
+
+        result = await self.api.delete_reply(comment_id=post_id)
+        self._output_status(result)
+        return result
+
+    async def get_post(self, post_id):
+        """
+        Read a Facebook post by ID and return normalized content.
+
+        Args:
+            post_id (str): Post ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        if not self.api:
+            raise Exception("Facebook API not initialized")
+
+        if not post_id:
+            raise Exception("Facebook post ID is required.")
+        facebook_post_id = post_id
+
+        raw = await self.api.get_post(facebook_post_id)
+        from_user = raw.get("from") or {}
+        media = []
+        seen_urls = set()
+
+        def _append_media(entry):
+            url = entry.get("url")
+            if url and url not in seen_urls:
+                seen_urls.add(url)
+                media.append(entry)
+
+        if raw.get("full_picture"):
+            _append_media({"type": "image", "url": raw["full_picture"]})
+        if raw.get("source"):
+            _append_media({"type": "video", "url": raw["source"]})
+        for attachment in (raw.get("attachments") or {}).get("data") or []:
+            if not isinstance(attachment, dict):
+                continue
+            att_media = attachment.get("media") or {}
+            image_src = (att_media.get("image") or {}).get("src")
+            if image_src:
+                _append_media({"type": "image", "url": image_src})
+            elif att_media.get("source"):
+                _append_media({"type": "video", "url": att_media["source"]})
+        content = {
+            "id": str(raw.get("id", facebook_post_id)),
+            "text": raw.get("message"),
+            "media": media,
+            "author": {"id": from_user.get("id"), "name": from_user.get("name")} if from_user else None,
+            "created_at": raw.get("created_time"),
+            "metadata": {"permalink_url": raw.get("permalink_url")} if raw.get("permalink_url") else {},
+        }
+        self._output_content(content)
+        return content
+
+    async def get_reply(self, post_id):
+        """
+        Read a Facebook comment by ID and return normalized content.
+
+        Args:
+            post_id (str): Comment ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        if not self.api:
+            raise Exception("Facebook API not initialized")
+
+        if not post_id:
+            raise Exception("Facebook comment ID is required for get-reply action.")
+
+        raw = await self.api.get_reply(post_id)
+        from_user = raw.get("from") or {}
+        media = []
+        attachment = raw.get("attachment") or {}
+        media_url = None
+        media_type = "image"
+        if isinstance(attachment, dict):
+            att_type = (attachment.get("type") or "").lower()
+            media_block = attachment.get("media") or {}
+            if "video" in att_type:
+                media_type = "video"
+                media_url = media_block.get("source") or attachment.get("url")
+            else:
+                media_url = media_block.get("image", {}).get("src") or attachment.get("url")
+        if media_url:
+            media.append({"type": media_type, "url": media_url})
+        content = {
+            "id": str(raw.get("id", post_id)),
+            "text": raw.get("message"),
+            "media": media,
+            "author": {"id": from_user.get("id"), "name": from_user.get("name")} if from_user else None,
+            "created_at": raw.get("created_time"),
+            "metadata": {},
+        }
+        self._output_content(content)
+        return content
+
+    async def list_posts(self, limit):
+        """
+        List recent posts from the configured object's feed and return normalized content.
+
+        Args:
+            limit (int): Maximum number of posts to return
+
+        Returns:
+            list: Normalized content dicts
+        """
+        if not self.api:
+            raise Exception("Facebook API not initialized")
+
+        if not self.facebook_object_id:
+            raise Exception("Facebook object ID is required for list-posts action.")
+
+        if limit == 0:
+            self._output_list([])
+            return []
+
+        raw_items = await self.api.list_posts(self.facebook_object_id, limit)
+        items = []
+        for raw in raw_items:
+            from_user = raw.get("from") or {}
+            media = []
+            seen_urls = set()
+
+            def _append_media(entry):
+                url = entry.get("url")
+                if url and url not in seen_urls:
+                    seen_urls.add(url)
+                    media.append(entry)
+
+            if raw.get("full_picture"):
+                _append_media({"type": "image", "url": raw["full_picture"]})
+            if raw.get("source"):
+                _append_media({"type": "video", "url": raw["source"]})
+            for attachment in (raw.get("attachments") or {}).get("data") or []:
+                if not isinstance(attachment, dict):
+                    continue
+                att_media = attachment.get("media") or {}
+                image_src = (att_media.get("image") or {}).get("src")
+                if image_src:
+                    _append_media({"type": "image", "url": image_src})
+                elif att_media.get("source"):
+                    _append_media({"type": "video", "url": att_media["source"]})
+            items.append(
+                {
+                    "id": str(raw.get("id")),
+                    "text": raw.get("message"),
+                    "media": media,
+                    "author": {"id": from_user.get("id"), "name": from_user.get("name")} if from_user else None,
+                    "created_at": raw.get("created_time"),
+                    "metadata": {"permalink_url": raw.get("permalink_url")} if raw.get("permalink_url") else {},
+                }
+            )
+        self._output_list(items)
+        return items
 
     async def share(self, facebook_post_id=None):
         """
@@ -627,7 +860,12 @@ class Facebook(SocialNetwork):
         client_secret = self._get_config_value("facebook_client_secret", "FACEBOOK_CLIENT_SECRET")
         self._get_config_value("facebook_app_id", "FACEBOOK_APP_ID")
 
-        auth_manager = FacebookAuthManager(user_id=object_id, client_id=client_id, client_secret=client_secret)
+        auth_manager = FacebookAuthManager(
+            user_id=object_id,
+            client_id=client_id,
+            client_secret=client_secret,
+            profile=self._get_config_value("profile"),
+        )
 
         result = await auth_manager.authorize()
         if result:

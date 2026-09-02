@@ -22,6 +22,16 @@ Available Actions
 * ``like`` - Like posts
 * ``share`` - Share posts
 * ``delete`` - Delete your own posts
+* ``delete-reply`` - Delete a comment you posted (requires ``--post-id`` and ``--parent-post-id``)
+* ``get-post`` - Read a post by URN (``--post-id``)
+* ``get-reply`` - Read a comment by ID (``--post-id`` comment ID plus required ``--parent-post-id`` parent post URN)
+* ``list-posts`` - List recent posts from the authenticated user
+
+.. note::
+
+   LinkedIn ``get-reply`` and ``delete-reply`` need the parent post URN in
+   ``--parent-post-id`` (mapped to ``linkedin_parent_post_id``). Successful
+   ``get-reply`` output includes ``metadata.parent_post_id``.
 
 Authorization
 -------------
@@ -46,6 +56,7 @@ This will:
 After authorization, you can perform actions without providing tokens. Credentials are automatically refreshed when needed.
 
 For CI/CD environments, see :doc:`credentials/linkedin` for unattended execution setup.
+
 
 Publish a LinkedIn post
 -----------------------

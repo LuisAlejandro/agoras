@@ -25,7 +25,13 @@ from argparse import SUPPRESS, ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.whatsapp.wrapper import main as whatsapp_main
 
-from ..base import add_common_content_options, add_video_options, prepare_content_args
+from ..base import (
+    add_common_content_options,
+    add_profile_to_all,
+    add_video_options,
+    prepare_content_args,
+    resolve_action_profile,
+)
 from ..content import add_content_file_option
 from ..converter import ParameterConverter
 from ..validator import ActionValidator
@@ -72,8 +78,43 @@ def create_whatsapp_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     _add_whatsapp_recipient_option(template)
     _add_template_options(template)
 
+    # Reply action
+    reply = actions.add_parser(
+        "reply", help='Reply to a WhatsApp message. Requires prior authorization via "agoras whatsapp authorize".'
+    )
+    _add_whatsapp_recipient_option(reply)
+    _add_post_id_option(reply)
+    add_common_content_options(reply, images=4)
+    add_video_options(reply, platform="whatsapp", with_content_file=False)
+
+    # Get-post action
+    get_post = actions.add_parser(
+        "get-post",
+        help='Read a WhatsApp message (not supported). Requires prior authorization via "agoras whatsapp authorize".',
+    )
+    get_post.add_argument("--post-id", required=True, metavar="<id>", help="WhatsApp message ID to read")
+
+    # Get-reply action
+    get_reply = actions.add_parser(
+        "get-reply",
+        help='Read a WhatsApp reply (not supported). Requires prior authorization via "agoras whatsapp authorize".',
+    )
+    get_reply.add_argument("--post-id", required=True, metavar="<id>", help="WhatsApp reply ID to read")
+
+    # List-posts action
+    list_posts = actions.add_parser(
+        "list-posts",
+        help=(
+            "List recent WhatsApp messages (not supported). Requires prior "
+            'authorization via "agoras whatsapp authorize".'
+        ),
+    )
+    _add_limit_option(list_posts)
+
     # Set handler
     parser.set_defaults(command=_handle_whatsapp_command)
+
+    add_profile_to_all(actions)
 
     return parser
 
@@ -139,6 +180,26 @@ def _add_template_options(parser: ArgumentParser):
     )
 
 
+def _add_post_id_option(parser: ArgumentParser):
+    """
+    Add post ID option for reply action.
+
+    Args:
+        parser: ArgumentParser to add options to
+    """
+    parser.add_argument("--post-id", required=True, metavar="<id>", help="WhatsApp message ID to reply to")
+
+
+def _add_limit_option(parser: ArgumentParser):
+    """
+    Add limit option for list-posts action.
+
+    Args:
+        parser: ArgumentParser to add options to
+    """
+    parser.add_argument("--limit", type=int, metavar="<n>", help="Maximum number of posts to list")
+
+
 def _handle_whatsapp_command(args: Namespace):
     """
     Handle WhatsApp command by converting args and calling core.
@@ -156,6 +217,9 @@ def _handle_whatsapp_command(args: Namespace):
     # Convert new args to legacy format
     converter = ParameterConverter("whatsapp")
     legacy_args = converter.convert_to_legacy(args)
+
+    # Resolve and inject the credential profile for non-authorize actions
+    resolve_action_profile("whatsapp", args, legacy_args)
 
     # Call core WhatsApp module
     return whatsapp_main(legacy_args)

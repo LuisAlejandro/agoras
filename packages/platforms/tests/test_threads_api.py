@@ -291,6 +291,20 @@ async def test_threads_api_error_handling(threads_api):
         await threads_api.get_profile()
 
 
+@pytest.mark.asyncio
+async def test_threads_api_list_posts(threads_api):
+    """Test ThreadsAPI list_posts calls client.list_posts."""
+    threads_api.client.list_posts = MagicMock(
+        return_value=[{"id": "1", "text": "hello", "timestamp": "2026-01-01T00:00:00Z"}]
+    )
+
+    result = await threads_api.list_posts(5)
+
+    assert len(result) == 1
+    assert result[0]["id"] == "1"
+    threads_api.client.list_posts.assert_called_once_with(limit=5)
+
+
 # Property Tests
 
 def test_threads_api_properties():

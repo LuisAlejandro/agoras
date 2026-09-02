@@ -21,7 +21,7 @@ import asyncio
 import http.client as httplib
 import random
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import httplib2
 from apiclient import discovery, errors, http
@@ -258,6 +258,106 @@ class YouTubeAPIClient:
 
         return await asyncio.to_thread(_sync_delete)
 
+    async def insert_comment(self, video_id: str, text: str) -> str:
+        """
+        Insert a top-level comment on a YouTube video.
+
+        Args:
+            video_id (str): YouTube video ID to comment on
+            text (str): Comment text
+
+        Returns:
+            str: Comment ID
+
+        Raises:
+            Exception: If comment insert fails
+        """
+
+        def _sync_insert():
+            if not self.youtube_client:
+                raise Exception("YouTube client not initialized")
+
+            request = self.youtube_client.commentThreads().insert(
+                part="snippet",
+                body={
+                    "snippet": {
+                        "videoId": video_id,
+                        "topLevelComment": {"snippet": {"textOriginal": text}},
+                    }
+                },
+            )
+            response = request.execute()
+            return response["snippet"]["topLevelComment"]["id"]
+
+        return await asyncio.to_thread(_sync_insert)
+
+    async def delete_comment(self, comment_id: str) -> str:
+        """
+        Delete a YouTube comment.
+
+        Args:
+            comment_id (str): Comment ID to delete
+
+        Returns:
+            str: Deleted comment ID
+
+        Raises:
+            Exception: If deletion fails
+        """
+
+        def _sync_delete():
+            if not self.youtube_client:
+                raise Exception("YouTube client not initialized")
+            if not comment_id:
+                raise Exception("YouTube comment ID is required for delete-reply action.")
+
+            request = self.youtube_client.comments().delete(id=comment_id)
+            request.execute()
+            return comment_id
+
+        return await asyncio.to_thread(_sync_delete)
+
+    async def get_comment(self, comment_id: str) -> Dict[str, Any]:
+        """
+        Read a YouTube comment by ID.
+
+        Args:
+            comment_id (str): Comment ID to read
+
+        Returns:
+            dict: Comment fields
+
+        Raises:
+            Exception: If the comment cannot be read
+        """
+
+        def _sync_get():
+            if not self.youtube_client:
+                raise Exception("YouTube client not initialized")
+            if not comment_id:
+                raise Exception("YouTube comment ID is required for get-reply action.")
+
+            request = self.youtube_client.comments().list(part="snippet", id=comment_id)
+            response = request.execute()
+            items = response.get("items") or []
+            if not items:
+                raise Exception(f"Comment {comment_id} not found")
+
+            comment = items[0]
+            snippet = comment.get("snippet") or {}
+            author_channel = snippet.get("authorChannelId")
+            author_id = author_channel.get("value") if isinstance(author_channel, dict) else author_channel
+            return {
+                "id": comment.get("id", comment_id),
+                "text": snippet.get("textDisplay") or snippet.get("textOriginal"),
+                "author_id": author_id,
+                "author_name": snippet.get("authorDisplayName"),
+                "created_at": snippet.get("publishedAt"),
+                "video_id": snippet.get("videoId"),
+            }
+
+        return await asyncio.to_thread(_sync_get)
+
     async def get_channel_info(self) -> Dict[str, Any]:
         """
         Get channel information for the authenticated user.
@@ -330,6 +430,60 @@ class YouTubeAPIClient:
             }
 
         return await asyncio.to_thread(_sync_get_video_info)
+
+    async def list_uploads(self, limit: int) -> List[Dict[str, Any]]:
+        """
+        List recent uploads from the authenticated user's channel.
+
+        Resolves the channel's uploads playlist ID via ``channels().list``,
+        then reads the playlist items via ``playlistItems().list``.
+
+        Args:
+            limit (int): Maximum number of videos to return
+
+        Returns:
+            list: Video fields (id, title, description, published_at, thumbnails)
+
+        Raises:
+            Exception: If the uploads cannot be read
+        """
+
+        def _sync_list_uploads():
+            if not self.youtube_client:
+                raise Exception("YouTube client not initialized")
+
+            channel_request = self.youtube_client.channels().list(part="contentDetails", mine=True)
+            channel_response = channel_request.execute()
+            if not channel_response.get("items"):
+                raise Exception("No YouTube channel found for authenticated user")
+
+            uploads_playlist_id = (
+                channel_response["items"][0].get("contentDetails", {}).get("relatedPlaylists", {}).get("uploads")
+            )
+            if not uploads_playlist_id:
+                raise Exception("Unable to resolve uploads playlist for YouTube channel")
+
+            request = self.youtube_client.playlistItems().list(
+                part="snippet", playlistId=uploads_playlist_id, maxResults=limit
+            )
+            response = request.execute()
+
+            items = []
+            for item in response.get("items") or []:
+                snippet = item.get("snippet") or {}
+                thumbnails = snippet.get("thumbnails") or {}
+                items.append(
+                    {
+                        "id": snippet.get("resourceId", {}).get("videoId"),
+                        "title": snippet.get("title"),
+                        "description": snippet.get("description"),
+                        "published_at": snippet.get("publishedAt"),
+                        "thumbnails": thumbnails,
+                    }
+                )
+            return items
+
+        return await asyncio.to_thread(_sync_list_uploads)
 
     async def search_videos(self, query: str, max_results: int = 25) -> Dict[str, Any]:
         """

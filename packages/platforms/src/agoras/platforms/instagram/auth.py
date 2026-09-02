@@ -27,6 +27,7 @@ from authlib.integrations.requests_client import OAuth2Session
 
 from agoras.core.auth import BaseAuthManager
 from agoras.core.auth.callback_server import OAuthCallbackServer
+from agoras.core.auth.storage import build_composite_key
 
 from .client import InstagramAPIClient
 
@@ -67,10 +68,18 @@ def facebook_compliance_fix(session):
 class InstagramAuthManager(BaseAuthManager):
     """Instagram authentication manager using Authlib OAuth2Session with Facebook compliance fixes."""
 
-    def __init__(self, user_id: str, client_id: str, client_secret: str, refresh_token: Optional[str] = None):
+    def __init__(
+        self,
+        user_id: str,
+        client_id: str,
+        client_secret: str,
+        refresh_token: Optional[str] = None,
+        profile: Optional[str] = None,
+    ):
         """Initialize Instagram authentication manager."""
         super().__init__()
 
+        self.profile = profile
         self.user_id = user_id
         self.client_id = client_id
         self.client_secret = client_secret
@@ -80,7 +89,7 @@ class InstagramAuthManager(BaseAuthManager):
         self.oauth_session = OAuth2Session(
             client_id=self.client_id,
             client_secret=self.client_secret,
-            scope="instagram_basic,instagram_content_publish,pages_read_engagement,pages_show_list",
+            scope="instagram_basic,instagram_content_publish,instagram_manage_comments,pages_read_engagement,pages_show_list",
             redirect_uri="https://localhost:3456/callback",
         )
 
@@ -108,7 +117,7 @@ class InstagramAuthManager(BaseAuthManager):
             self.oauth_session = OAuth2Session(
                 client_id=self.client_id,
                 client_secret=self.client_secret,
-                scope="instagram_basic,instagram_content_publish,pages_read_engagement,pages_show_list",
+                scope="instagram_basic,instagram_content_publish,instagram_manage_comments,pages_read_engagement,pages_show_list",
                 redirect_uri="https://localhost:3456/callback",
             )
             # Apply Facebook-specific compliance fixes for Instagram
@@ -261,8 +270,19 @@ class InstagramAuthManager(BaseAuthManager):
         return "instagram"
 
     def _get_token_identifier(self) -> str:
-        """Get unique identifier for token storage."""
-        return self.user_id or "default"
+        """Get unique identifier for token storage.
+
+        Returns the explicit ``profile`` composite verbatim when set; otherwise
+        builds the ``client_id@user_id`` composite from the app client id and
+        the API-reported user id. When the user id is not yet known (e.g.
+        during construction), returns a non-colliding placeholder so a storage
+        load simply misses.
+        """
+        if self.profile:
+            return self.profile
+        if self.client_id and self.user_id:
+            return build_composite_key(self.client_id, self.user_id)
+        return self.client_id or "unbound"
 
     def _save_credentials_to_storage(self):
         """Save all Instagram credentials to secure storage."""
@@ -274,28 +294,37 @@ class InstagramAuthManager(BaseAuthManager):
             "client_id": self.client_id,
             "client_secret": self.client_secret,
             "refresh_token": self.refresh_token,
+            "profile": identifier,
         }
 
         self.token_storage.save_token(platform_name, identifier, token_data)
-        # Also save as default so it becomes the primary credential loaded
-        self.token_storage.save_token(platform_name, "default", token_data)
 
     def _load_credentials_from_storage(self) -> bool:
         """Load Instagram credentials from secure storage."""
         platform_name = self._get_platform_name()
 
-        # Try default identifier first
         identifier = self._get_token_identifier()
         token_data = self.token_storage.load_token(platform_name, identifier)
 
-        if not token_data:
-            # Try to find any stored token
-            tokens = self.token_storage.list_tokens(platform_name)
-            if tokens:
-                identifier = tokens[0][1]
-                token_data = self.token_storage.load_token(platform_name, identifier)
+        if not token_data and self.profile is None:
+            # Recover the bound composite from a stored profile whose app half
+            # matches this client_id, so a refresh never re-mints a profile.
+            for stored_platform, stored_identifier in self.token_storage.list_tokens(platform_name):
+                try:
+                    candidate = self.token_storage.load_token(platform_name, stored_identifier)
+                except ValueError:
+                    # Skip legacy/reserved identifiers (e.g. "default") that
+                    # are no longer valid profile keys.
+                    continue
+                if candidate and candidate.get("client_id") == self.client_id:
+                    self.profile = stored_identifier
+                    token_data = candidate
+                    break
 
         if token_data:
+            # Recover the bound composite so a refresh never re-mints a profile.
+            if self.profile is None and token_data.get("profile"):
+                self.profile = token_data["profile"]
             # Only update if not already set (allow override from constructor)
             if not self.user_id:
                 self.user_id = token_data.get("user_id")

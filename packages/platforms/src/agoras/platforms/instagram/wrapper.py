@@ -63,6 +63,10 @@ class Instagram(SocialNetwork):
                 - instagram_video_url: Instagram video URL
                 - instagram_video_caption: Instagram video caption
         """
+        # Map platform-specific key to generic key for core interface compatibility
+        if "instagram_post_id" in kwargs:
+            kwargs["post_id"] = kwargs["instagram_post_id"]
+
         super().__init__(**kwargs)
         self.instagram_access_token = None
         self.instagram_client_id = None
@@ -82,10 +86,10 @@ class Instagram(SocialNetwork):
         Tries to load credentials from CLI params, environment variables, or storage.
         """
         # Try params/environment first
-        self.instagram_access_token = self._get_config_value("instagram_access_token", "INSTAGRAM_ACCESS_TOKEN")
-        self.instagram_client_id = self._get_config_value("instagram_client_id", "INSTAGRAM_CLIENT_ID")
-        self.instagram_client_secret = self._get_config_value("instagram_client_secret", "INSTAGRAM_CLIENT_SECRET")
-        self.instagram_refresh_token = self._get_config_value("instagram_refresh_token", "INSTAGRAM_REFRESH_TOKEN")
+        self.instagram_access_token = self._get_auth_config_value("instagram_access_token", "INSTAGRAM_ACCESS_TOKEN")
+        self.instagram_client_id = self._get_auth_config_value("instagram_client_id", "INSTAGRAM_CLIENT_ID")
+        self.instagram_client_secret = self._get_auth_config_value("instagram_client_secret", "INSTAGRAM_CLIENT_SECRET")
+        self.instagram_refresh_token = self._get_auth_config_value("instagram_refresh_token", "INSTAGRAM_REFRESH_TOKEN")
         self.instagram_object_id = self._get_config_value("instagram_object_id", "INSTAGRAM_OBJECT_ID")
         self.instagram_post_id = self._get_config_value("instagram_post_id", "INSTAGRAM_POST_ID")
         self.instagram_video_type = self._get_config_value("instagram_video_type", "INSTAGRAM_VIDEO_TYPE")
@@ -108,6 +112,7 @@ class Instagram(SocialNetwork):
                 user_id=self.instagram_object_id or "",
                 client_id=self.instagram_client_id or "",
                 client_secret=self.instagram_client_secret or "",
+                profile=self._get_config_value("profile"),
             )
 
             if auth_manager._load_credentials_from_storage():
@@ -130,6 +135,7 @@ class Instagram(SocialNetwork):
                 client_id=self.instagram_client_id,
                 client_secret=self.instagram_client_secret,
                 refresh_token=self.instagram_refresh_token,
+                profile=self._get_config_value("profile"),
             )
             authenticated = await auth_manager.authenticate()
             if authenticated:
@@ -264,15 +270,29 @@ class Instagram(SocialNetwork):
 
     async def delete(self, instagram_post_id=None):
         """
-        Delete is not supported for Instagram.
+        Delete an Instagram media post.
 
         Args:
-            instagram_post_id (str, optional): ID of the Instagram post
+            instagram_post_id (str, optional): ID of the Instagram post.
+                                               Uses instance instagram_post_id if not provided.
+
+        Returns:
+            str: Deleted media ID
 
         Raises:
-            Exception: Delete not supported for Instagram
+            Exception: If deletion fails
         """
-        raise Exception("Delete not supported for Instagram")
+        if not self.api:
+            raise Exception("Instagram API not initialized")
+
+        if not instagram_post_id:
+            instagram_post_id = self._get_config_value("instagram_post_id", "INSTAGRAM_POST_ID")
+        if not instagram_post_id:
+            raise Exception("Instagram post ID is required for delete action.")
+
+        result = await self.api.delete(instagram_post_id)
+        self._output_status(result)
+        return result
 
     async def share(self, instagram_post_id=None):
         """
@@ -360,6 +380,195 @@ class Instagram(SocialNetwork):
         self._output_status(post_id)
         return post_id
 
+    async def reply(
+        self,
+        post_id,
+        text,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+        video_url=None,
+    ):
+        """
+        Comment on an Instagram media post (text-only).
+
+        Args:
+            post_id (str): ID of the Instagram media to comment on
+            text (str): Comment text
+            status_image_url_1 (str, optional): Unsupported; raises if provided
+            status_image_url_2 (str, optional): Unsupported; raises if provided
+            status_image_url_3 (str, optional): Unsupported; raises if provided
+            status_image_url_4 (str, optional): Unsupported; raises if provided
+            video_url (str, optional): Unsupported; raises if provided
+
+        Returns:
+            str: Comment ID
+        """
+        if not self.api:
+            raise Exception("Instagram API not initialized")
+
+        if not post_id:
+            raise Exception("Instagram post ID is required for reply action.")
+
+        source_media = list(
+            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        )
+
+        if source_media or video_url:
+            raise Exception("Media not supported in Instagram comments.")
+
+        if not text:
+            raise Exception("No reply text provided.")
+
+        validate_text("instagram", "caption", text)
+
+        result = await self.api.reply(post_id, text)
+        self._output_status(result)
+        return result
+
+    async def delete_reply(self, post_id):
+        """
+        Delete an Instagram comment.
+
+        Args:
+            post_id (str): ID of the comment to delete
+
+        Returns:
+            str: Deleted comment ID
+        """
+        if not self.api:
+            raise Exception("Instagram API not initialized")
+
+        if not post_id:
+            raise Exception("Instagram comment ID is required for delete-reply action.")
+
+        result = await self.api.delete_reply(comment_id=post_id)
+        self._output_status(result)
+        return result
+
+    async def get_post(self, post_id):
+        """
+        Read an Instagram media object by ID and return normalized content.
+
+        Args:
+            post_id (str): Media ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        if not self.api:
+            raise Exception("Instagram API not initialized")
+
+        if not post_id:
+            raise Exception("Instagram post ID is required.")
+        instagram_post_id = post_id
+
+        raw = await self.api.get_post(instagram_post_id)
+        media = []
+        media_url = raw.get("media_url")
+        media_type = (raw.get("media_type") or "").upper()
+        if media_url:
+            media.append(
+                {
+                    "type": "video" if media_type in ("VIDEO", "REELS") else "image",
+                    "url": media_url,
+                }
+            )
+        username = raw.get("username")
+        content = {
+            "id": str(raw.get("id", instagram_post_id)),
+            "text": raw.get("caption"),
+            "media": media,
+            "author": {"id": None, "name": username} if username else None,
+            "created_at": raw.get("timestamp"),
+            "metadata": {"permalink": raw.get("permalink")} if raw.get("permalink") else {},
+        }
+        self._output_content(content)
+        return content
+
+    async def get_reply(self, post_id):
+        """
+        Read an Instagram comment by ID and return normalized content.
+
+        Args:
+            post_id (str): Comment ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        if not self.api:
+            raise Exception("Instagram API not initialized")
+
+        if not post_id:
+            raise Exception("Instagram comment ID is required for get-reply action.")
+
+        raw = await self.api.get_reply(post_id)
+        from_user = raw.get("from") or {}
+        username = raw.get("username") or from_user.get("username")
+        content = {
+            "id": str(raw.get("id", post_id)),
+            "text": raw.get("text"),
+            "media": [],
+            "author": {
+                "id": from_user.get("id"),
+                "name": username or from_user.get("name"),
+            }
+            if (from_user or username)
+            else None,
+            "created_at": raw.get("timestamp"),
+            "metadata": {"media_unavailable": True},
+        }
+        self._output_content(content)
+        return content
+
+    async def list_posts(self, limit):
+        """
+        List recent media from the configured account and return normalized content.
+
+        Args:
+            limit (int): Maximum number of media items to return
+
+        Returns:
+            list: Normalized content dicts
+        """
+        if not self.api:
+            raise Exception("Instagram API not initialized")
+
+        if not self.instagram_object_id:
+            raise Exception("Instagram object ID is required for list-posts action.")
+
+        if limit == 0:
+            self._output_list([])
+            return []
+
+        raw_items = await self.api.list_posts(self.instagram_object_id, limit)
+        items = []
+        for raw in raw_items:
+            media = []
+            media_url = raw.get("media_url")
+            media_type = (raw.get("media_type") or "").upper()
+            if media_url:
+                media.append(
+                    {
+                        "type": "video" if media_type in ("VIDEO", "REELS") else "image",
+                        "url": media_url,
+                    }
+                )
+            username = raw.get("username")
+            items.append(
+                {
+                    "id": str(raw.get("id")),
+                    "text": raw.get("caption"),
+                    "media": media,
+                    "author": {"id": None, "name": username} if username else None,
+                    "created_at": raw.get("timestamp"),
+                    "metadata": {"permalink": raw.get("permalink")} if raw.get("permalink") else {},
+                }
+            )
+        self._output_list(items)
+        return items
+
     async def authorize_credentials(self):
         """
         Authorize and store Instagram credentials for future use.
@@ -373,7 +582,12 @@ class Instagram(SocialNetwork):
         client_id = self._get_config_value("instagram_client_id", "INSTAGRAM_CLIENT_ID")
         client_secret = self._get_config_value("instagram_client_secret", "INSTAGRAM_CLIENT_SECRET")
 
-        auth_manager = InstagramAuthManager(user_id=object_id, client_id=client_id, client_secret=client_secret)
+        auth_manager = InstagramAuthManager(
+            user_id=object_id,
+            client_id=client_id,
+            client_secret=client_secret,
+            profile=self._get_config_value("profile"),
+        )
 
         result = await auth_manager.authorize()
         if result:

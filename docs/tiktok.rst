@@ -22,6 +22,17 @@ Available Actions
 * ``authorize`` - Set up OAuth 2.0 authentication (required first step)
 * ``video`` - Upload videos to TikTok
 * ``post`` - Create photo slideshow posts
+* ``reply`` - Reply to a comment (CLI only; runtime raises not supported)
+* ``get-post`` - Read a post/message by ID (CLI only; runtime raises not supported)
+* ``get-reply`` - Read a reply/comment by ID (CLI only; runtime raises not supported)
+* ``list-posts`` - List recent posts (CLI only; runtime raises not supported)
+
+.. note::
+
+   ``get-post``, ``get-reply``, and ``list-posts`` subcommands exist for CLI uniformity with other
+   platforms, but TikTok has no official arbitrary-post read API. Invoking these
+   actions raises a not-supported error at runtime. The ``reply`` action is also
+   listed for CLI uniformity but is not implemented at runtime. See :doc:`reference/action-support`.
 
 Authorization
 -------------

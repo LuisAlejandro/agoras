@@ -87,7 +87,9 @@ async def test_whatsapp_api_send_message(whatsapp_api):
     result = await whatsapp_api.send_message('+1234567890', 'Test message')
 
     assert result == 'msg-123'
-    whatsapp_api.client.send_message.assert_called_once_with('+1234567890', 'Test message', buttons=None)
+    whatsapp_api.client.send_message.assert_called_once_with(
+        '+1234567890', 'Test message', buttons=None, context=None
+    )
 
 
 @pytest.mark.asyncio
@@ -97,7 +99,7 @@ async def test_whatsapp_api_send_image(whatsapp_api):
 
     assert result == 'msg-124'
     whatsapp_api.client.send_image.assert_called_once_with(
-        '+1234567890', image_url='http://image.jpg', caption='Image caption', image_id=None
+        '+1234567890', image_url='http://image.jpg', caption='Image caption', image_id=None, context=None
     )
 
 
@@ -108,7 +110,42 @@ async def test_whatsapp_api_send_video(whatsapp_api):
 
     assert result == 'msg-125'
     whatsapp_api.client.send_video.assert_called_once_with(
-        '+1234567890', video_url='http://video.mp4', caption='Video caption', video_id=None
+        '+1234567890', video_url='http://video.mp4', caption='Video caption', video_id=None, context=None
+    )
+
+
+@pytest.mark.asyncio
+async def test_whatsapp_api_reply_text(whatsapp_api):
+    """Test WhatsAppAPI reply with text only."""
+    result = await whatsapp_api.reply('+1234567890', 'wa-msg-1', text='A reply')
+
+    assert result == 'msg-123'
+    whatsapp_api.client.send_message.assert_called_once_with(
+        '+1234567890', 'A reply', buttons=None, context={'message_id': 'wa-msg-1'}
+    )
+
+
+@pytest.mark.asyncio
+async def test_whatsapp_api_reply_image(whatsapp_api):
+    """Test WhatsAppAPI reply with an image."""
+    result = await whatsapp_api.reply('+1234567890', 'wa-msg-1', text='A reply', image_url='http://image.jpg')
+
+    assert result == 'msg-124'
+    whatsapp_api.client.send_image.assert_called_once_with(
+        '+1234567890', image_url='http://image.jpg', caption='A reply', image_id=None,
+        context={'message_id': 'wa-msg-1'}
+    )
+
+
+@pytest.mark.asyncio
+async def test_whatsapp_api_reply_video(whatsapp_api):
+    """Test WhatsAppAPI reply with a video."""
+    result = await whatsapp_api.reply('+1234567890', 'wa-msg-1', text='A reply', video_url='http://video.mp4')
+
+    assert result == 'msg-125'
+    whatsapp_api.client.send_video.assert_called_once_with(
+        '+1234567890', video_url='http://video.mp4', caption='A reply', video_id=None,
+        context={'message_id': 'wa-msg-1'}
     )
 
 
@@ -251,7 +288,9 @@ async def test_whatsapp_api_send_message_with_buttons(whatsapp_api):
     result = await whatsapp_api.send_message('+1234567890', 'Test message', buttons=buttons)
 
     assert result == 'msg-123'
-    whatsapp_api.client.send_message.assert_called_once_with('+1234567890', 'Test message', buttons=buttons)
+    whatsapp_api.client.send_message.assert_called_once_with(
+        '+1234567890', 'Test message', buttons=buttons, context=None
+    )
 
 
 @pytest.mark.asyncio

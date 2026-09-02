@@ -29,6 +29,7 @@ from authlib.integrations.requests_client import OAuth2Session
 from agoras.core.auth import BaseAuthManager
 from agoras.core.auth.callback_server import OAuthCallbackServer
 from agoras.core.auth.failure import env_has_refresh_token
+from agoras.core.auth.storage import build_composite_key
 
 from .client import LinkedInAPIClient
 
@@ -43,6 +44,7 @@ class LinkedInAuthManager(BaseAuthManager):
         client_secret: str,
         refresh_token: Optional[str] = None,
         access_token: Optional[str] = None,
+        profile: Optional[str] = None,
     ):
         """
         Initialize LinkedIn authentication manager.
@@ -53,8 +55,11 @@ class LinkedInAuthManager(BaseAuthManager):
             client_secret (str): LinkedIn client secret
             refresh_token (str, optional): LinkedIn refresh token
             access_token (str, optional): LinkedIn access token (used when no refresh token)
+            profile (str, optional): Explicit profile composite key (app@account). When set,
+                ``_get_token_identifier`` returns it verbatim.
         """
         super().__init__()
+        self.profile = profile
         self.user_id = user_id
         self.client_id = client_id
         self.client_secret = client_secret
@@ -68,7 +73,7 @@ class LinkedInAuthManager(BaseAuthManager):
         self.oauth_session = OAuth2Session(
             client_id=self.client_id,
             client_secret=self.client_secret,
-            scope="openid profile email w_member_social",
+            scope="openid profile email w_member_social_feed",
             redirect_uri="https://localhost:3456/callback",
         )
 
@@ -252,8 +257,19 @@ class LinkedInAuthManager(BaseAuthManager):
         return "linkedin"
 
     def _get_token_identifier(self) -> str:
-        """Get unique identifier for token storage."""
-        return self.user_id or "default"
+        """Get unique identifier for token storage.
+
+        Returns the explicit ``profile`` composite verbatim when set; otherwise
+        builds the ``app@account`` composite from the app client id and the
+        API-reported account id. When either component is missing (e.g. during
+        construction before the account id is known), returns a non-colliding
+        placeholder so a storage load simply misses.
+        """
+        if self.profile:
+            return self.profile
+        if self.client_id and self.user_id:
+            return build_composite_key(self.client_id, self.user_id)
+        return self.client_id or "unbound"
 
     def _has_stored_or_env_credentials(self) -> bool:
         """Return True when stored or env credentials appear present for LinkedIn."""
@@ -290,7 +306,7 @@ class LinkedInAuthManager(BaseAuthManager):
         return None
 
     def _save_credentials_to_storage(self):
-        """Save all LinkedIn credentials to secure storage."""
+        """Save all LinkedIn credentials to secure storage under the composite key."""
         platform_name = self._get_platform_name()
         identifier = self._get_token_identifier()
 
@@ -299,30 +315,56 @@ class LinkedInAuthManager(BaseAuthManager):
             "client_id": self.client_id,
             "client_secret": self.client_secret,
             "refresh_token": self.refresh_token,
+            "profile": identifier,
         }
         if self.access_token:
             token_data["access_token"] = self.access_token
 
         self.token_storage.save_token(platform_name, identifier, token_data)
-        # Also save as default so it becomes the primary credential loaded
-        self.token_storage.save_token(platform_name, "default", token_data)
+
+    def _find_recovery_match(self, platform_name: str) -> Optional[tuple]:
+        """Return the sole stored profile whose app half matches self.client_id.
+
+        Only auto-adopts when exactly one profile matches; two accounts sharing
+        one app cannot be disambiguated by client_id alone, so multiple matches
+        yield None and the caller leaves selection to an explicit --profile.
+        Returns a ``(identifier, token_data)`` tuple or None.
+        """
+        matches = []
+        for stored_platform, stored_identifier in self.token_storage.list_tokens(platform_name):
+            if stored_platform != platform_name:
+                continue
+            try:
+                candidate = self.token_storage.load_token(platform_name, stored_identifier)
+            except ValueError:
+                # Skip legacy/reserved identifiers (e.g. "default") that
+                # are no longer valid profile keys.
+                continue
+            if candidate and candidate.get("client_id") == self.client_id:
+                matches.append((stored_identifier, candidate))
+        if len(matches) == 1:
+            return matches[0]
+        return None
 
     def _load_credentials_from_storage(self) -> bool:
-        """Load LinkedIn credentials from secure storage."""
+        """Load LinkedIn credentials from secure storage under the composite key."""
         platform_name = self._get_platform_name()
 
-        # Try default identifier first
         identifier = self._get_token_identifier()
         token_data = self.token_storage.load_token(platform_name, identifier)
 
-        if not token_data:
-            # Try to find any stored token
-            tokens = self.token_storage.list_tokens(platform_name)
-            if tokens:
-                identifier = tokens[0][1]
-                token_data = self.token_storage.load_token(platform_name, identifier)
+        if not token_data and self.profile is None:
+            # Recover the bound composite from a stored profile whose app half
+            # matches this client_id, so a refresh never re-mints a profile
+            # from stale runtime kwargs (e.g. an empty/old object_id).
+            recovery = self._find_recovery_match(platform_name)
+            if recovery is not None:
+                self.profile, token_data = recovery
 
         if token_data:
+            # Recover the bound composite so a refresh never re-mints a profile.
+            if self.profile is None and token_data.get("profile"):
+                self.profile = token_data["profile"]
             # Only update if not already set (allow override from constructor)
             if not self.user_id:
                 self.user_id = token_data.get("user_id")

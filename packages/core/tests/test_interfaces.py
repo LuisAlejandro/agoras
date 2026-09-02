@@ -101,6 +101,10 @@ def test_socialnetwork_required_methods():
     assert hasattr(SocialNetwork, 'like')
     assert hasattr(SocialNetwork, 'delete')
     assert hasattr(SocialNetwork, 'share')
+    assert hasattr(SocialNetwork, 'reply')
+    assert hasattr(SocialNetwork, 'delete_reply')
+    assert hasattr(SocialNetwork, 'get_post')
+    assert hasattr(SocialNetwork, 'get_reply')
 
 
 def test_socialnetwork_execute_action_exists():
@@ -146,6 +150,51 @@ async def test_video_method_default_raises_exception():
         await network.video('Text', 'http://video.mp4', 'Title')
 
 
+@pytest.mark.asyncio
+async def test_reply_method_default_raises_exception():
+    """Test reply method raises not supported exception by default."""
+    network = ConcreteSocialNetwork()
+
+    with pytest.raises(Exception, match='Reply not supported'):
+        await network.reply('post-123', 'A reply')
+
+
+@pytest.mark.asyncio
+async def test_delete_reply_method_default_raises_exception():
+    """Test delete_reply method raises not supported exception by default."""
+    network = ConcreteSocialNetwork()
+
+    with pytest.raises(Exception, match='Delete reply not supported'):
+        await network.delete_reply('post-123')
+
+
+@pytest.mark.asyncio
+async def test_get_post_method_default_raises_exception():
+    """Test get_post method raises not supported exception by default."""
+    network = ConcreteSocialNetwork()
+
+    with pytest.raises(Exception, match='Get post not supported'):
+        await network.get_post('post-123')
+
+
+@pytest.mark.asyncio
+async def test_get_reply_method_default_raises_exception():
+    """Test get_reply method raises not supported exception by default."""
+    network = ConcreteSocialNetwork()
+
+    with pytest.raises(Exception, match='Get reply not supported'):
+        await network.get_reply('post-123')
+
+
+@pytest.mark.asyncio
+async def test_list_posts_method_default_raises_exception():
+    """Test list_posts method raises not supported exception by default."""
+    network = ConcreteSocialNetwork()
+
+    with pytest.raises(Exception, match='List posts not supported'):
+        await network.list_posts(10)
+
+
 def test_get_config_value_from_config():
     """Test _get_config_value retrieves from config dict."""
     network = ConcreteSocialNetwork(api_key='config_key', secret='config_secret')
@@ -171,6 +220,36 @@ def test_get_config_value_config_overrides_env():
     network = ConcreteSocialNetwork(api_key='config_key')
 
     value = network._get_config_value('api_key', 'API_KEY')
+
+    assert value == 'config_key'
+
+
+@patch.dict(os.environ, {'API_KEY': 'env_key'})
+def test_get_auth_config_value_profile_skips_env():
+    """A selected profile is the sole auth source; env is not consulted."""
+    network = ConcreteSocialNetwork(profile='app@account')
+
+    value = network._get_auth_config_value('api_key', 'API_KEY')
+
+    assert value is None
+
+
+@patch.dict(os.environ, {'API_KEY': 'env_key'})
+def test_get_auth_config_value_no_profile_falls_back_to_env():
+    """Without a profile, auth config falls through to env resolution."""
+    network = ConcreteSocialNetwork()
+
+    value = network._get_auth_config_value('api_key', 'API_KEY')
+
+    assert value == 'env_key'
+
+
+@patch.dict(os.environ, {'API_KEY': 'env_key'})
+def test_get_auth_config_value_profile_returns_config_value():
+    """A profile returns the config value for an auth key when present."""
+    network = ConcreteSocialNetwork(profile='app@account', api_key='config_key')
+
+    value = network._get_auth_config_value('api_key', 'API_KEY')
 
     assert value == 'config_key'
 
@@ -214,6 +293,58 @@ def test_output_status(mock_print):
     mock_print.assert_called_once()
     output = mock_print.call_args[0][0]
     assert '"id":"post-123"' in output or '"id": "post-123"' in output
+
+
+def test_normalize_content_stable_key_set():
+    """Normalized content always has the R23 key set; missing fields are null."""
+    normalized = SocialNetwork._normalize_content({"id": "p1", "text": "hi"})
+    assert set(normalized.keys()) == {"id", "text", "media", "author", "created_at", "metadata"}
+    assert normalized["id"] == "p1"
+    assert normalized["text"] == "hi"
+    assert normalized["media"] == []
+    assert normalized["author"] is None
+    assert normalized["created_at"] is None
+    assert normalized["metadata"] == {}
+
+
+@patch('builtins.print')
+def test_output_content(mock_print):
+    """Test _output_content prints normalized JSON content."""
+    network = ConcreteSocialNetwork()
+
+    network._output_content({"id": "p1", "text": "hello"})
+
+    mock_print.assert_called_once()
+    output = mock_print.call_args[0][0]
+    assert '"id":"p1"' in output
+    assert '"text":"hello"' in output
+    assert '"media":[]' in output
+
+
+@patch('builtins.print')
+def test_output_list(mock_print):
+    """Test _output_list prints a JSON array of normalized items."""
+    network = ConcreteSocialNetwork()
+
+    network._output_list([{"id": "p1", "text": "hello"}, {"id": "p2", "text": "world"}])
+
+    mock_print.assert_called_once()
+    output = mock_print.call_args[0][0]
+    assert '"id":"p1"' in output
+    assert '"id":"p2"' in output
+    assert '"media":[]' in output
+
+
+@patch('builtins.print')
+def test_output_list_empty(mock_print):
+    """Test _output_list prints an empty JSON array for empty input."""
+    network = ConcreteSocialNetwork()
+
+    network._output_list([])
+
+    mock_print.assert_called_once()
+    output = mock_print.call_args[0][0]
+    assert output == '[]'
 
 
 # Media Method Tests
@@ -388,6 +519,124 @@ async def test_execute_action_delete():
 
 
 @pytest.mark.asyncio
+async def test_execute_action_delete_reply():
+    """Test execute_action routes 'delete-reply' action correctly."""
+    network = ConcreteSocialNetwork(post_id='reply-123')
+
+    with patch.object(network, 'delete_reply', new_callable=AsyncMock) as mock_delete_reply:
+        await network.execute_action('delete-reply')
+        mock_delete_reply.assert_called_once_with('reply-123')
+
+
+@pytest.mark.asyncio
+async def test_execute_action_delete_reply_missing_post_id_default():
+    """Unimplemented delete_reply surfaces 'not supported' before a missing-ID error."""
+    network = ConcreteSocialNetwork()
+
+    with pytest.raises(Exception, match='Delete reply not supported'):
+        await network.execute_action('delete-reply')
+
+
+@pytest.mark.asyncio
+async def test_execute_action_get_post():
+    """Test execute_action routes 'get-post' action correctly."""
+    network = ConcreteSocialNetwork(post_id='post-123')
+
+    with patch.object(network, 'get_post', new_callable=AsyncMock) as mock_get_post:
+        await network.execute_action('get-post')
+        mock_get_post.assert_called_once_with('post-123')
+
+
+@pytest.mark.asyncio
+async def test_execute_action_get_reply():
+    """Test execute_action routes 'get-reply' action correctly."""
+    network = ConcreteSocialNetwork(post_id='reply-123')
+
+    with patch.object(network, 'get_reply', new_callable=AsyncMock) as mock_get_reply:
+        await network.execute_action('get-reply')
+        mock_get_reply.assert_called_once_with('reply-123')
+
+
+@pytest.mark.asyncio
+async def test_execute_action_get_post_missing_post_id_default():
+    """Unimplemented get_post surfaces 'not supported' before a missing-ID error."""
+    network = ConcreteSocialNetwork()
+
+    with pytest.raises(Exception, match='Get post not supported'):
+        await network.execute_action('get-post')
+
+
+@pytest.mark.asyncio
+async def test_execute_action_get_reply_missing_post_id_default():
+    """Unimplemented get_reply surfaces 'not supported' before a missing-ID error."""
+    network = ConcreteSocialNetwork()
+
+    with pytest.raises(Exception, match='Get reply not supported'):
+        await network.execute_action('get-reply')
+
+
+@pytest.mark.asyncio
+async def test_execute_action_list_posts():
+    """Test execute_action routes 'list-posts' action correctly."""
+    network = ConcreteSocialNetwork(limit=5)
+
+    with patch.object(network, 'list_posts', new_callable=AsyncMock) as mock_list_posts:
+        await network.execute_action('list-posts')
+        mock_list_posts.assert_called_once_with(5)
+
+
+@pytest.mark.asyncio
+async def test_execute_action_list_posts_missing_limit_default():
+    """Unimplemented list_posts surfaces 'not supported' before a missing-limit error."""
+    network = ConcreteSocialNetwork()
+
+    with pytest.raises(Exception, match='List posts not supported'):
+        await network.execute_action('list-posts')
+
+
+@pytest.mark.asyncio
+async def test_execute_action_reply():
+    """Test execute_action routes 'reply' action correctly."""
+    network = ConcreteSocialNetwork(post_id='post-123', status_text='A reply')
+
+    with patch.object(network, 'reply', new_callable=AsyncMock) as mock_reply:
+        await network.execute_action('reply')
+        mock_reply.assert_called_once_with(
+            'post-123', 'A reply',
+            status_image_url_1=None, status_image_url_2=None,
+            status_image_url_3=None, status_image_url_4=None, video_url=None,
+        )
+
+
+@pytest.mark.asyncio
+async def test_execute_action_reply_missing_post_id():
+    """Test execute_action with reply but no post_id delegates to reply default."""
+    network = ConcreteSocialNetwork(status_text='A reply')
+
+    with patch.object(network, 'reply', new_callable=AsyncMock) as mock_reply:
+        await network.execute_action('reply')
+        mock_reply.assert_called_once_with(
+            None, 'A reply',
+            status_image_url_1=None, status_image_url_2=None,
+            status_image_url_3=None, status_image_url_4=None, video_url=None,
+        )
+
+
+@pytest.mark.asyncio
+async def test_execute_action_reply_missing_text():
+    """Test execute_action with reply but no text delegates to reply default."""
+    network = ConcreteSocialNetwork(post_id='post-123')
+
+    with patch.object(network, 'reply', new_callable=AsyncMock) as mock_reply:
+        await network.execute_action('reply')
+        mock_reply.assert_called_once_with(
+            'post-123', None,
+            status_image_url_1=None, status_image_url_2=None,
+            status_image_url_3=None, status_image_url_4=None, video_url=None,
+        )
+
+
+@pytest.mark.asyncio
 async def test_execute_action_video():
     """Test execute_action routes 'video' action correctly."""
     network = ConcreteSocialNetwork(
@@ -551,6 +800,159 @@ async def test_handle_delete_action_missing_post_id():
 
     with pytest.raises(Exception, match='Post ID is required for delete'):
         await network._handle_delete_action()
+
+
+@pytest.mark.asyncio
+async def test_handle_reply_action():
+    """Test _handle_reply_action requires post_id and text."""
+    network = ConcreteSocialNetwork(post_id='reply-123', status_text='A reply')
+
+    with patch.object(network, 'reply', new_callable=AsyncMock) as mock_reply:
+        await network._handle_reply_action()
+        mock_reply.assert_called_once_with(
+            'reply-123', 'A reply',
+            status_image_url_1=None, status_image_url_2=None,
+            status_image_url_3=None, status_image_url_4=None, video_url=None,
+        )
+
+
+@pytest.mark.asyncio
+async def test_handle_reply_action_missing_post_id():
+    """Test _handle_reply_action delegates to reply default when post_id missing."""
+    network = ConcreteSocialNetwork(status_text='A reply')
+
+    with patch.object(network, 'reply', new_callable=AsyncMock) as mock_reply:
+        await network._handle_reply_action()
+        mock_reply.assert_called_once_with(
+            None, 'A reply',
+            status_image_url_1=None, status_image_url_2=None,
+            status_image_url_3=None, status_image_url_4=None, video_url=None,
+        )
+
+
+@pytest.mark.asyncio
+async def test_handle_reply_action_missing_text():
+    """Test _handle_reply_action delegates to reply default when text missing."""
+    network = ConcreteSocialNetwork(post_id='reply-123')
+
+    with patch.object(network, 'reply', new_callable=AsyncMock) as mock_reply:
+        await network._handle_reply_action()
+        mock_reply.assert_called_once_with(
+            'reply-123', None,
+            status_image_url_1=None, status_image_url_2=None,
+            status_image_url_3=None, status_image_url_4=None, video_url=None,
+        )
+
+
+@pytest.mark.asyncio
+async def test_handle_delete_reply_action():
+    """Test _handle_delete_reply_action delegates to delete_reply with post_id."""
+    network = ConcreteSocialNetwork(post_id='reply-123')
+
+    with patch.object(network, 'delete_reply', new_callable=AsyncMock) as mock_delete_reply:
+        await network._handle_delete_reply_action()
+        mock_delete_reply.assert_called_once_with('reply-123')
+
+
+@pytest.mark.asyncio
+async def test_handle_delete_reply_action_missing_post_id_default():
+    """Unimplemented delete_reply surfaces 'not supported' before a missing-ID error."""
+    network = ConcreteSocialNetwork()
+
+    with pytest.raises(Exception, match='Delete reply not supported'):
+        await network._handle_delete_reply_action()
+
+
+@pytest.mark.asyncio
+async def test_handle_delete_reply_action_missing_post_id_network_validation():
+    """Implemented delete_reply validates its own parameters (no post_id)."""
+    network = ConcreteSocialNetwork()
+
+    async def delete_reply_impl(post_id):
+        if not post_id:
+            raise Exception('Post ID is required for delete-reply action.')
+        return post_id
+
+    with patch.object(network, 'delete_reply', new_callable=AsyncMock, side_effect=delete_reply_impl):
+        with pytest.raises(Exception, match='Post ID is required for delete-reply action'):
+            await network._handle_delete_reply_action()
+
+
+@pytest.mark.asyncio
+async def test_handle_get_post_action():
+    """Test _handle_get_post_action delegates to get_post with post_id."""
+    network = ConcreteSocialNetwork(post_id='post-123')
+
+    with patch.object(network, 'get_post', new_callable=AsyncMock) as mock_get_post:
+        await network._handle_get_post_action()
+        mock_get_post.assert_called_once_with('post-123')
+
+
+@pytest.mark.asyncio
+async def test_handle_get_reply_action():
+    """Test _handle_get_reply_action delegates to get_reply with post_id."""
+    network = ConcreteSocialNetwork(post_id='reply-123')
+
+    with patch.object(network, 'get_reply', new_callable=AsyncMock) as mock_get_reply:
+        await network._handle_get_reply_action()
+        mock_get_reply.assert_called_once_with('reply-123')
+
+
+@pytest.mark.asyncio
+async def test_handle_get_post_action_missing_post_id_default():
+    """Unimplemented get_post surfaces 'not supported' before a missing-ID error."""
+    network = ConcreteSocialNetwork()
+
+    with pytest.raises(Exception, match='Get post not supported'):
+        await network._handle_get_post_action()
+
+
+@pytest.mark.asyncio
+async def test_handle_get_reply_action_missing_post_id_default():
+    """Unimplemented get_reply surfaces 'not supported' before a missing-ID error."""
+    network = ConcreteSocialNetwork()
+
+    with pytest.raises(Exception, match='Get reply not supported'):
+        await network._handle_get_reply_action()
+
+
+@pytest.mark.asyncio
+async def test_handle_list_posts_action():
+    """Test _handle_list_posts_action delegates to list_posts with limit."""
+    network = ConcreteSocialNetwork(limit=5)
+
+    with patch.object(network, 'list_posts', new_callable=AsyncMock) as mock_list_posts:
+        await network._handle_list_posts_action()
+        mock_list_posts.assert_called_once_with(5)
+
+
+@pytest.mark.asyncio
+async def test_handle_list_posts_action_default_limit():
+    """Test _handle_list_posts_action defaults limit to 10 when absent."""
+    network = ConcreteSocialNetwork()
+
+    with patch.object(network, 'list_posts', new_callable=AsyncMock) as mock_list_posts:
+        await network._handle_list_posts_action()
+        mock_list_posts.assert_called_once_with(10)
+
+
+@pytest.mark.asyncio
+async def test_handle_list_posts_action_zero_limit():
+    """Test _handle_list_posts_action passes through an explicit limit of 0."""
+    network = ConcreteSocialNetwork(limit=0)
+
+    with patch.object(network, 'list_posts', new_callable=AsyncMock) as mock_list_posts:
+        await network._handle_list_posts_action()
+        mock_list_posts.assert_called_once_with(0)
+
+
+@pytest.mark.asyncio
+async def test_handle_list_posts_action_missing_limit_default():
+    """Unimplemented list_posts surfaces 'not supported' before a missing-limit error."""
+    network = ConcreteSocialNetwork()
+
+    with pytest.raises(Exception, match='List posts not supported'):
+        await network._handle_list_posts_action()
 
 
 @pytest.mark.asyncio

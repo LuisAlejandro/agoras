@@ -50,6 +50,10 @@ class YouTube(SocialNetwork):
                 - youtube_keywords: Comma-separated keywords
                 - youtube_video_url: Video URL to upload
         """
+        # Map platform-specific key to generic key for core interface compatibility
+        if "youtube_video_id" in kwargs:
+            kwargs["post_id"] = kwargs["youtube_video_id"]
+
         super().__init__(**kwargs)
         self.youtube_client_id = None
         self.youtube_client_secret = None
@@ -70,8 +74,8 @@ class YouTube(SocialNetwork):
         Tries to load credentials from CLI params, environment variables, or storage.
         """
         # App credentials from CLI params or environment.
-        self.youtube_client_id = self._get_config_value("youtube_client_id", "YOUTUBE_CLIENT_ID")
-        self.youtube_client_secret = self._get_config_value("youtube_client_secret", "YOUTUBE_CLIENT_SECRET")
+        self.youtube_client_id = self._get_auth_config_value("youtube_client_id", "YOUTUBE_CLIENT_ID")
+        self.youtube_client_secret = self._get_auth_config_value("youtube_client_secret", "YOUTUBE_CLIENT_SECRET")
         self.youtube_video_id = self._get_config_value("youtube_video_id", "YOUTUBE_VIDEO_ID")
         self.youtube_title = self._get_config_value("youtube_title", "YOUTUBE_TITLE")
         self.youtube_description = self._get_config_value("youtube_description", "YOUTUBE_DESCRIPTION")
@@ -90,6 +94,7 @@ class YouTube(SocialNetwork):
             client_id=self.youtube_client_id,
             client_secret=self.youtube_client_secret,
             refresh_token=None,
+            profile=self._get_config_value("profile"),
         )
 
         if auth_manager._load_credentials_from_storage():
@@ -100,7 +105,7 @@ class YouTube(SocialNetwork):
             self.youtube_refresh_token = auth_manager.refresh_token
 
         if not self.youtube_refresh_token:
-            self.youtube_refresh_token = self._get_config_value("youtube_refresh_token", "YOUTUBE_REFRESH_TOKEN")
+            self.youtube_refresh_token = self._get_auth_config_value("youtube_refresh_token", "YOUTUBE_REFRESH_TOKEN")
 
         # Validate all credentials are now available
         if not all([self.youtube_client_id, self.youtube_client_secret, self.youtube_refresh_token]):
@@ -269,6 +274,187 @@ class YouTube(SocialNetwork):
         self._output_status(video_id)
         return video_id
 
+    async def reply(
+        self,
+        post_id,
+        text,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+        video_url=None,
+    ):
+        """
+        Comment on a YouTube video (text-only).
+
+        Args:
+            post_id (str): ID of the YouTube video to comment on
+            text (str): Comment text
+            status_image_url_1 (str, optional): Unsupported; raises if provided
+            status_image_url_2 (str, optional): Unsupported; raises if provided
+            status_image_url_3 (str, optional): Unsupported; raises if provided
+            status_image_url_4 (str, optional): Unsupported; raises if provided
+            video_url (str, optional): Unsupported; raises if provided
+
+        Returns:
+            str: Comment ID
+        """
+        if not self.api:
+            raise Exception("YouTube API not initialized")
+
+        if not post_id:
+            raise Exception("YouTube video ID is required for reply action.")
+
+        source_media = list(
+            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        )
+
+        if source_media or video_url:
+            raise Exception("Media not supported in YouTube comments.")
+
+        if not text:
+            raise Exception("No reply text provided.")
+
+        validate_text("youtube", "comment", text)
+
+        result = await self.api.reply(post_id, text)
+        self._output_status(result)
+        return result
+
+    async def delete_reply(self, post_id):
+        """
+        Delete a YouTube comment.
+
+        Args:
+            post_id (str): ID of the comment to delete
+
+        Returns:
+            str: Deleted comment ID
+        """
+        if not self.api:
+            raise Exception("YouTube API not initialized")
+
+        if not post_id:
+            raise Exception("YouTube comment ID is required for delete-reply action.")
+
+        result = await self.api.delete_reply(comment_id=post_id)
+        self._output_status(result)
+        return result
+
+    async def get_post(self, post_id):
+        """
+        Read a YouTube video by ID and return normalized content.
+
+        Args:
+            post_id (str): Video ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        if not self.api:
+            raise Exception("YouTube API not initialized")
+
+        if not post_id:
+            raise Exception("YouTube video ID is required.")
+        video_id = post_id
+
+        raw = await self.api.get_post(video_id)
+        text_parts = [part for part in (raw.get("title"), raw.get("description")) if part]
+        content = {
+            "id": str(raw.get("video_id", video_id)),
+            "text": "\n\n".join(text_parts) if text_parts else None,
+            "media": [],
+            "author": {
+                "id": raw.get("channel_id"),
+                "name": raw.get("channel_title"),
+            }
+            if raw.get("channel_id") or raw.get("channel_title")
+            else None,
+            "created_at": None,
+            "metadata": {
+                "privacy_status": raw.get("privacy_status"),
+                "view_count": raw.get("view_count"),
+                "like_count": raw.get("like_count"),
+                "comment_count": raw.get("comment_count"),
+            },
+        }
+        self._output_content(content)
+        return content
+
+    async def get_reply(self, post_id):
+        """
+        Read a YouTube comment by ID and return normalized content.
+
+        Args:
+            post_id (str): Comment ID to read
+
+        Returns:
+            dict: Normalized content
+        """
+        if not self.api:
+            raise Exception("YouTube API not initialized")
+
+        if not post_id:
+            raise Exception("YouTube comment ID is required for get-reply action.")
+
+        raw = await self.api.get_reply(post_id)
+        content = {
+            "id": str(raw.get("id", post_id)),
+            "text": raw.get("text"),
+            "media": [],
+            "author": {
+                "id": raw.get("author_id"),
+                "name": raw.get("author_name"),
+            }
+            if raw.get("author_id") or raw.get("author_name")
+            else None,
+            "created_at": raw.get("created_at"),
+            "metadata": {"video_id": raw.get("video_id")} if raw.get("video_id") else {},
+        }
+        self._output_content(content)
+        return content
+
+    async def list_posts(self, limit):
+        """
+        List recent uploads from the authenticated user's channel and return normalized content.
+
+        Args:
+            limit (int): Maximum number of videos to return
+
+        Returns:
+            list: Normalized content dicts
+        """
+        if not self.api:
+            raise Exception("YouTube API not initialized")
+
+        if limit == 0:
+            self._output_list([])
+            return []
+
+        raw_items = await self.api.list_posts(limit)
+        items = []
+        for raw in raw_items:
+            text_parts = [part for part in (raw.get("title"), raw.get("description")) if part]
+            thumbnails = raw.get("thumbnails") or {}
+            thumbnail_url = None
+            for size in ("high", "medium", "default"):
+                thumb = thumbnails.get(size) or {}
+                if thumb.get("url"):
+                    thumbnail_url = thumb["url"]
+                    break
+            items.append(
+                {
+                    "id": str(raw.get("id")),
+                    "text": "\n\n".join(text_parts) if text_parts else None,
+                    "media": [{"type": "image", "url": thumbnail_url}] if thumbnail_url else [],
+                    "author": None,
+                    "created_at": raw.get("published_at"),
+                    "metadata": {},
+                }
+            )
+        self._output_list(items)
+        return items
+
     # YouTube-specific feed methods that work with videos instead of posts
     async def last_from_feed(self, feed_url, max_count, post_lookback):
         """
@@ -424,7 +610,11 @@ class YouTube(SocialNetwork):
         client_id = self._get_config_value("youtube_client_id", "YOUTUBE_CLIENT_ID")
         client_secret = self._get_config_value("youtube_client_secret", "YOUTUBE_CLIENT_SECRET")
 
-        auth_manager = YouTubeAuthManager(client_id=client_id, client_secret=client_secret)
+        auth_manager = YouTubeAuthManager(
+            client_id=client_id,
+            client_secret=client_secret,
+            profile=self._get_config_value("profile"),
+        )
 
         result = await auth_manager.authorize()
         if result:

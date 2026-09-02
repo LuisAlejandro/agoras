@@ -28,6 +28,10 @@ The Threads platform supports the following actions:
 * ``thread`` - Publish an ordered reply-chain thread from a YAML content file
 * ``share`` - Share/repost existing content
 * ``delete`` - Delete a Threads post
+* ``delete-reply`` - Delete a Threads reply
+* ``get-post`` - Read a post/message by ID
+* ``get-reply`` - Read a reply/comment by ID
+* ``list-posts`` - List recent posts from the authenticated user
 
 Authorization
 -------------

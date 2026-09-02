@@ -24,6 +24,52 @@ from typing import Any, Dict, Optional
 
 from cryptography.fernet import Fernet
 
+COMPOSITE_DELIMITER = "@"
+RESERVED_IDENTIFIERS = frozenset({"default"})
+
+
+def _sanitize_component(component: str) -> str:
+    """Validate and sanitize a composite component for use in a filename.
+
+    Rejects empty values, the reserved ``default`` name, the composite
+    delimiter, path separators, and ``.``/``..`` so a component can never
+    escape the token directory or collide with the composite delimiter.
+    """
+    if not component:
+        raise ValueError("Composite component cannot be empty")
+    if component in RESERVED_IDENTIFIERS:
+        raise ValueError(f"'{component}' is a reserved identifier")
+    if COMPOSITE_DELIMITER in component:
+        raise ValueError(f"Composite component cannot contain '{COMPOSITE_DELIMITER}'")
+    if "/" in component or "\\" in component or component in (".", ".."):
+        raise ValueError(f"Invalid composite component: {component!r}")
+    return component
+
+
+def build_composite_key(app: str, account: str) -> str:
+    """Build a filesystem-safe ``app@account`` composite key.
+
+    Both components are sanitized before joining so the resulting key is safe
+    to use as a token filename identifier.
+    """
+    return f"{_sanitize_component(app)}{COMPOSITE_DELIMITER}{_sanitize_component(account)}"
+
+
+def validate_identifier(identifier: str) -> str:
+    """Validate a token identifier (composite or app-derived) for filename use.
+
+    Rejects empty values, the reserved ``default`` name, path separators, and
+    ``.``/``..``. The composite delimiter ``@`` is allowed because it is the
+    legitimate separator inside a composite key.
+    """
+    if not identifier:
+        raise ValueError("Identifier cannot be empty")
+    if identifier in RESERVED_IDENTIFIERS:
+        raise ValueError(f"'{identifier}' is a reserved identifier")
+    if "/" in identifier or "\\" in identifier or identifier in (".", ".."):
+        raise ValueError(f"Invalid identifier: {identifier!r}")
+    return identifier
+
 
 class SecureTokenStorage:
     """
@@ -95,7 +141,7 @@ class SecureTokenStorage:
                 - scopes: Optional list of scopes
                 - Any other platform-specific metadata
         """
-        filename = f"{platform}-{identifier}.token"
+        filename = f"{platform}-{validate_identifier(identifier)}.token"
         filepath = self.token_dir / filename
 
         # Serialize token data to JSON
@@ -121,7 +167,7 @@ class SecureTokenStorage:
         Returns:
             dict or None: Decrypted token data if found, None otherwise
         """
-        filename = f"{platform}-{identifier}.token"
+        filename = f"{platform}-{validate_identifier(identifier)}.token"
         filepath = self.token_dir / filename
 
         if not filepath.exists():
@@ -153,7 +199,7 @@ class SecureTokenStorage:
         Returns:
             bool: True if token was deleted, False if it didn't exist
         """
-        filename = f"{platform}-{identifier}.token"
+        filename = f"{platform}-{validate_identifier(identifier)}.token"
         filepath = self.token_dir / filename
 
         if filepath.exists():

@@ -40,6 +40,18 @@ Request Access to Products
 
 2. Once approved (usually instantly), go to the **Auth** tab in your app settings to find your **Client ID** and **Client Secret**.
 
+Required Permissions
+--------------------
+
+To use the comment actions (``reply`` to comment on a post, plus
+``delete-reply`` / ``get-reply``), your LinkedIn App needs the **Community
+Management API** product enabled and the ``w_member_social_feed`` scope
+approved. Without it the API returns a comment permission denied error.
+
+1. Go to the **Products** tab and request access to the **Community Management API** product.
+2. Once approved, confirm the ``w_member_social_feed`` scope is granted on the **Auth** tab.
+3. Re-run ``agoras linkedin authorize`` so the fresh token includes the scope.
+
 Get App Credentials
 -------------------
 

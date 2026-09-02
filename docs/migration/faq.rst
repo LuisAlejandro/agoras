@@ -55,7 +55,16 @@ Since **2.1.0**, **X, Discord, Telegram, and WhatsApp** also require ``agoras <p
 Q: Do I need to re-authorize if I upgrade?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A: No. Once you've authorized, your tokens are stored securely and persist across upgrades. You only need to re-authorize if you revoke access or if your tokens expire.
+A: It depends on the upgrade. For ordinary 2.x upgrades, no — once you've
+authorized, your tokens are persisted and carried forward, and you only need to
+re-authorize if you revoke access or your tokens expire.
+
+**Exception — the 2.x credential-profiles change:** the release that introduced
+``--profile`` and ``app@account`` composite storage keys switched how tokens are
+stored and read. Previously stored accounts are not auto-read under the new
+keys, so **every existing account must be re-authorized once** after upgrading
+past that release: run ``agoras <platform> authorize`` (or set the platform
+environment variables) for each account you use.
 
 Q: Where are tokens stored?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~

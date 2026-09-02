@@ -345,6 +345,175 @@ async def test_discord_delete_success(mock_api_class):
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.discord.wrapper.DiscordAPI')
+async def test_discord_delete_reply_proxies_delete(mock_api_class):
+    """Test Discord delete_reply delegates to the existing delete path."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.delete = AsyncMock(return_value='deleted123')
+    mock_api_class.return_value = mock_api
+
+    discord = Discord(
+        discord_bot_token='token',
+        discord_server_name='Server',
+        discord_channel_name='Channel'
+    )
+
+    await discord._initialize_client()
+
+    with patch.object(discord, '_output_status'):
+        result = await discord.delete_reply('message123')
+
+    assert result == 'deleted123'
+    mock_api.delete.assert_called_once_with('message123')
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.discord.wrapper.DiscordAPI')
+async def test_discord_get_post_returns_normalized_content(mock_api_class):
+    """Test Discord get_post returns normalized content."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.get_post = AsyncMock(
+        return_value={
+            "id": "message123",
+            "text": "hello discord",
+            "author": {"id": "user-1", "name": "Alice"},
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "media": [],
+        }
+    )
+    mock_api_class.return_value = mock_api
+
+    discord = Discord(
+        discord_bot_token='token',
+        discord_server_name='Server',
+        discord_channel_name='Channel'
+    )
+
+    await discord._initialize_client()
+
+    with patch.object(discord, '_output_content') as mock_out:
+        result = await discord.get_post('message123')
+
+    assert result["id"] == "message123"
+    assert result["text"] == "hello discord"
+    assert result["author"]["name"] == "Alice"
+    mock_api.get_post.assert_called_once_with('message123')
+    mock_out.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.discord.wrapper.DiscordAPI')
+async def test_discord_get_reply_proxies_get_post(mock_api_class):
+    """Test Discord get_reply delegates to get_post."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.get_post = AsyncMock(
+        return_value={
+            "id": "reply123",
+            "text": "reply",
+            "author": None,
+            "created_at": None,
+            "media": [],
+        }
+    )
+    mock_api_class.return_value = mock_api
+
+    discord = Discord(
+        discord_bot_token='token',
+        discord_server_name='Server',
+        discord_channel_name='Channel'
+    )
+
+    await discord._initialize_client()
+
+    with patch.object(discord, '_output_content'):
+        result = await discord.get_reply('reply123')
+
+    assert result["id"] == "reply123"
+    mock_api.get_post.assert_called_once_with('reply123')
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.discord.wrapper.DiscordAPI')
+async def test_discord_list_posts_returns_normalized_items(mock_api_class):
+    """Test Discord list_posts emits normalized items via api.list_posts."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.list_posts = AsyncMock(
+        return_value=[
+            {"id": "1", "text": "hello", "author": {"id": "u1", "name": "Bot"}, "created_at": None, "media": []},
+            {"id": "2", "text": "world", "author": None, "created_at": None, "media": []},
+        ]
+    )
+    mock_api_class.return_value = mock_api
+
+    discord = Discord(
+        discord_bot_token='token',
+        discord_server_name='Server',
+        discord_channel_name='Channel',
+    )
+
+    await discord._initialize_client()
+
+    with patch.object(discord, '_output_list') as mock_out:
+        result = await discord.list_posts(2)
+
+    assert len(result) == 2
+    assert result[0]["id"] == "1"
+    assert result[0]["author"]["name"] == "Bot"
+    assert result[1]["id"] == "2"
+    mock_api.list_posts.assert_called_once_with(2)
+    mock_out.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.discord.wrapper.DiscordAPI')
+async def test_discord_list_posts_limit_zero_returns_empty(mock_api_class):
+    """Test Discord list_posts with limit=0 returns an empty list without an API call."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.list_posts = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    discord = Discord(
+        discord_bot_token='token',
+        discord_server_name='Server',
+        discord_channel_name='Channel',
+    )
+
+    await discord._initialize_client()
+
+    with patch.object(discord, '_output_list') as mock_out:
+        result = await discord.list_posts(0)
+
+    assert result == []
+    mock_api.list_posts.assert_not_called()
+    mock_out.assert_called_once_with([])
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.discord.wrapper.DiscordAPI')
+async def test_discord_delete_reply_no_post_id(mock_api_class):
+    """Test Discord delete_reply raises when no post ID provided."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    discord = Discord(
+        discord_bot_token='token',
+        discord_server_name='Server',
+        discord_channel_name='Channel'
+    )
+
+    await discord._initialize_client()
+
+    with pytest.raises(Exception, match='Discord post ID is required'):
+        await discord.delete_reply(None)
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.discord.wrapper.DiscordAPI')
 async def test_discord_share_raises(mock_api_class):
     """Test Discord share raises exception."""
     mock_api = MagicMock()
@@ -455,6 +624,103 @@ async def test_discord_video_success(mock_api_class):
             result = await discord.video('Video text', 'http://video.mp4', 'Video Title')
 
     assert result == 'message-456'
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.discord.wrapper.DiscordAPI')
+async def test_discord_reply_text_only(mock_api_class):
+    """Test Discord reply with text only posts a reply message."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.reply = AsyncMock(return_value='reply-789')
+    mock_api_class.return_value = mock_api
+
+    discord = Discord(
+        discord_bot_token='token',
+        discord_server_name='Server',
+        discord_channel_name='Channel'
+    )
+
+    await discord._initialize_client()
+
+    with patch.object(discord, '_output_status'):
+        result = await discord.reply('message-123', 'A reply')
+
+    assert result == 'reply-789'
+    mock_api.reply.assert_called_once_with(
+        'message-123', content='A reply', embeds=None, files=None
+    )
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.discord.wrapper.DiscordAPI')
+async def test_discord_reply_with_image(mock_api_class):
+    """Test Discord reply with an image posts a reply message with an embed."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.create_embed.return_value = {'image': 'img.jpg'}
+    mock_api.reply = AsyncMock(return_value='reply-789')
+    mock_api_class.return_value = mock_api
+
+    discord = Discord(
+        discord_bot_token='token',
+        discord_server_name='Server',
+        discord_channel_name='Channel'
+    )
+
+    await discord._initialize_client()
+
+    with patch.object(discord, 'download_images', new_callable=AsyncMock) as mock_download:
+        mock_image = MagicMock()
+        mock_image.url = 'img.jpg'
+        mock_image.cleanup = MagicMock()
+        mock_download.return_value = [mock_image]
+
+        with patch.object(discord, '_output_status'):
+            result = await discord.reply('message-123', 'A reply', 'http://image1.jpg')
+
+    assert result == 'reply-789'
+    mock_api.reply.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.discord.wrapper.DiscordAPI')
+async def test_discord_reply_no_post_id(mock_api_class):
+    """Test Discord reply raises when no post_id provided."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    discord = Discord(
+        discord_bot_token='token',
+        discord_server_name='Server',
+        discord_channel_name='Channel'
+    )
+
+    await discord._initialize_client()
+
+    with pytest.raises(Exception, match="Discord post ID is required for reply action."):
+        await discord.reply(None, 'A reply')
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.discord.wrapper.DiscordAPI')
+async def test_discord_reply_no_content(mock_api_class):
+    """Test Discord reply raises when no text or media provided."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    discord = Discord(
+        discord_bot_token='token',
+        discord_server_name='Server',
+        discord_channel_name='Channel'
+    )
+
+    await discord._initialize_client()
+
+    with pytest.raises(Exception, match="No reply text or media provided."):
+        await discord.reply('message-123', None)
 
 
 @pytest.mark.asyncio

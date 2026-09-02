@@ -51,7 +51,12 @@ def test_get_supported_actions_x():
     assert 'like' in actions
     assert 'share' in actions
     assert 'delete' in actions
-    assert len(actions) == 7
+    assert 'delete-reply' in actions
+    assert 'reply' in actions
+    assert 'get-post' in actions
+    assert 'get-reply' in actions
+    assert 'list-posts' in actions
+    assert len(actions) == 12
 
 
 def test_get_supported_actions_twitter_alias():
@@ -70,6 +75,7 @@ def test_get_supported_actions_youtube():
     assert 'video' in actions
     assert 'like' in actions
     assert 'delete' in actions
+    assert 'reply' in actions
     assert 'post' not in actions
     assert 'share' not in actions
 
@@ -81,9 +87,10 @@ def test_get_supported_actions_instagram():
     assert 'authorize' in actions
     assert 'post' in actions
     assert 'video' in actions
+    assert 'reply' in actions
+    assert 'delete' in actions
     assert 'like' not in actions
     assert 'share' not in actions
-    assert 'delete' not in actions
 
 
 def test_get_supported_actions_threads():
@@ -96,6 +103,7 @@ def test_get_supported_actions_threads():
     assert 'thread' in actions
     assert 'share' in actions
     assert 'delete' in actions
+    assert 'reply' in actions
     assert 'like' not in actions
 
 
@@ -114,6 +122,90 @@ def test_validate_action_invalid():
     assert PlatformRegistry.validate_action('tiktok', 'like') is False
     assert PlatformRegistry.validate_action('instagram', 'like') is False
     assert PlatformRegistry.validate_action('discord', 'like') is False
+
+
+def test_reply_action_present_across_all_networks():
+    """Test reply is a supported action on every registered network (R10)."""
+    for platform in PlatformRegistry.get_platform_names():
+        assert 'reply' in PlatformRegistry.get_supported_actions(platform), (
+            f"reply missing from {platform} supported actions"
+        )
+
+
+DELETE_REPLY_NETWORKS = [
+    "x",
+    "twitter",
+    "facebook",
+    "instagram",
+    "linkedin",
+    "discord",
+    "youtube",
+    "threads",
+    "telegram",
+]
+
+
+def test_delete_reply_action_present_across_in_scope_networks():
+    """Test delete-reply is a supported action on all 8 in-scope networks (R9)."""
+    for platform in DELETE_REPLY_NETWORKS:
+        assert PlatformRegistry.validate_action(platform, "delete-reply") is True, (
+            f"delete-reply missing from {platform} supported actions"
+        )
+
+
+def test_delete_reply_action_not_supported_elsewhere():
+    """Test delete-reply is not supported on WhatsApp or TikTok (R13)."""
+    assert PlatformRegistry.validate_action("whatsapp", "delete-reply") is False
+    assert PlatformRegistry.validate_action("tiktok", "delete-reply") is False
+
+
+GET_POST_REPLY_NETWORKS = [
+    "x",
+    "twitter",
+    "facebook",
+    "instagram",
+    "linkedin",
+    "discord",
+    "youtube",
+    "tiktok",
+    "threads",
+    "telegram",
+    "whatsapp",
+]
+
+
+def test_get_post_reply_actions_present_across_all_networks():
+    """Test get-post/get-reply are registered on all 10 networks (R20)."""
+    for platform in GET_POST_REPLY_NETWORKS:
+        assert PlatformRegistry.validate_action(platform, "get-post") is True, (
+            f"get-post missing from {platform} supported actions"
+        )
+        assert PlatformRegistry.validate_action(platform, "get-reply") is True, (
+            f"get-reply missing from {platform} supported actions"
+        )
+
+
+LIST_POSTS_NETWORKS = [
+    "x",
+    "twitter",
+    "facebook",
+    "instagram",
+    "linkedin",
+    "discord",
+    "youtube",
+    "tiktok",
+    "threads",
+    "telegram",
+    "whatsapp",
+]
+
+
+def test_list_posts_action_present_across_all_networks():
+    """Test list-posts is registered on all 10 networks plus the twitter alias (R8)."""
+    for platform in LIST_POSTS_NETWORKS:
+        assert PlatformRegistry.validate_action(platform, "list-posts") is True, (
+            f"list-posts missing from {platform} supported actions"
+        )
 
 
 def test_platform_exists():

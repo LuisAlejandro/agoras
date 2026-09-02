@@ -259,3 +259,150 @@ async def test_telegram_text_vs_caption_limits(mock_api_class):
     assert exc_info.value.field == "caption"
     mock_download.assert_not_called()
     mock_api.send_photo.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.telegram.wrapper.TelegramAPI")
+async def test_telegram_reply_text_only(mock_api_class):
+    """Test Telegram reply with text only posts a reply message."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.reply = AsyncMock(return_value="reply-789")
+    mock_api_class.return_value = mock_api
+
+    telegram = Telegram(telegram_bot_token="token", telegram_chat_id="123")
+    await telegram._initialize_client()
+
+    with patch.object(telegram, "_output_status"):
+        result = await telegram.reply("456", "A reply")
+
+    assert result == "reply-789"
+    mock_api.reply.assert_called_once_with(
+        "456",
+        "A reply",
+        parse_mode=telegram.telegram_parse_mode,
+        photo_content=None,
+        video_content=None,
+        media=None,
+    )
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.telegram.wrapper.TelegramAPI")
+async def test_telegram_reply_via_base_handler_uses_converter_key(mock_api_class):
+    """End-to-end: CLI converter emits telegram_message_id, base handler must reach Telegram.reply.
+
+    Regression for the P1 where the base handler read config key ``post_id`` but the
+    converter maps ``--post-id`` to ``telegram_message_id`` for Telegram. The wrapper
+    __init__ remaps ``telegram_message_id`` -> ``post_id`` so the shared handler works.
+    """
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.reply = AsyncMock(return_value="reply-789")
+    mock_api_class.return_value = mock_api
+
+    telegram = Telegram(
+        telegram_bot_token="token",
+        telegram_chat_id="123",
+        action="reply",
+        telegram_message_id="456",
+        status_text="A reply",
+    )
+    await telegram._initialize_client()
+
+    with patch.object(telegram, "_output_status"):
+        await telegram._handle_reply_action()
+
+    mock_api.reply.assert_called_once()
+    assert mock_api.reply.call_args.args[0] == "456"
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.telegram.wrapper.TelegramAPI")
+async def test_telegram_reply_with_image(mock_api_class):
+    """Test Telegram reply with an image posts a reply photo."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.reply = AsyncMock(return_value="reply-789")
+    mock_api_class.return_value = mock_api
+
+    mock_image = MagicMock()
+    mock_image.content = b"image_data"
+    mock_image.file_type = MagicMock()
+    mock_image.url = "http://example.com/img.jpg"
+    mock_image.cleanup = MagicMock()
+
+    telegram = Telegram(telegram_bot_token="token", telegram_chat_id="123")
+    await telegram._initialize_client()
+
+    with patch.object(telegram, "download_images", new_callable=AsyncMock, return_value=[mock_image]):
+        with patch.object(telegram, "_output_status"):
+            result = await telegram.reply("456", "A reply", "http://example.com/img.jpg")
+
+    assert result == "reply-789"
+    mock_api.reply.assert_called_once()
+    assert mock_api.reply.call_args.kwargs["photo_content"] == b"image_data"
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.telegram.wrapper.TelegramAPI")
+async def test_telegram_reply_no_post_id(mock_api_class):
+    """Test Telegram reply raises when no post_id provided."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    telegram = Telegram(telegram_bot_token="token", telegram_chat_id="123")
+    await telegram._initialize_client()
+
+    with pytest.raises(Exception, match="Message ID is required for reply action."):
+        await telegram.reply(None, "A reply")
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.telegram.wrapper.TelegramAPI")
+async def test_telegram_reply_no_content(mock_api_class):
+    """Test Telegram reply raises when no text or media provided."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    telegram = Telegram(telegram_bot_token="token", telegram_chat_id="123")
+    await telegram._initialize_client()
+
+    with pytest.raises(Exception, match="No reply text or media provided."):
+        await telegram.reply("456", None)
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.telegram.wrapper.TelegramAPI")
+async def test_telegram_delete_reply_proxies_delete(mock_api_class):
+    """Test Telegram delete_reply delegates to the existing delete path."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.delete = AsyncMock(return_value="reply-789")
+    mock_api_class.return_value = mock_api
+
+    telegram = Telegram(telegram_bot_token="token", telegram_chat_id="123")
+    await telegram._initialize_client()
+
+    with patch.object(telegram, "_output_status"):
+        result = await telegram.delete_reply("reply-789")
+
+    assert result == "reply-789"
+    mock_api.delete.assert_called_once_with(post_id="reply-789", chat_id="123")
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.telegram.wrapper.TelegramAPI")
+async def test_telegram_delete_reply_no_post_id(mock_api_class):
+    """Test Telegram delete_reply raises when no post ID provided."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    telegram = Telegram(telegram_bot_token="token", telegram_chat_id="123")
+    await telegram._initialize_client()
+
+    with pytest.raises(Exception, match="Message ID is required for deletion"):
+        await telegram.delete_reply(None)

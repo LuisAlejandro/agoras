@@ -20,6 +20,10 @@ Available Actions
 * ``authorize`` - Set up OAuth 2.0 authentication (required first step)
 * ``post`` - Create Instagram posts with images
 * ``video`` - Upload videos to Instagram
+* ``delete-reply`` - Delete an Instagram comment you posted
+* ``get-post`` - Read a post/message by ID
+* ``get-reply`` - Read a reply/comment by ID
+* ``list-posts`` - List recent media from an account (requires ``--object-id``)
 
 Authorization
 -------------
@@ -44,6 +48,7 @@ This will:
 After authorization, you can perform actions without providing tokens. Credentials are automatically refreshed when needed.
 
 For CI/CD environments, see :doc:`credentials/instagram` for unattended execution setup.
+
 
 Publish a Instagram post
 ------------------------

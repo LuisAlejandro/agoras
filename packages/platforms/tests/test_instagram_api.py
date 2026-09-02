@@ -138,13 +138,41 @@ async def test_instagram_api_share_not_supported(instagram_api):
         await instagram_api.share('media-123')
 
 
-# Delete Tests - Not Supported
+# Reply Tests
 
 @pytest.mark.asyncio
-async def test_instagram_api_delete_not_supported(instagram_api):
-    """Test InstagramAPI delete raises not supported exception."""
-    with pytest.raises(Exception, match='not supported'):
-        await instagram_api.delete('media-123')
+async def test_instagram_api_reply(instagram_api):
+    """Test InstagramAPI reply method."""
+    instagram_api.client.create_comment = AsyncMock(return_value='comment-123')
+
+    result = await instagram_api.reply('media-123', 'A comment')
+
+    assert result == 'comment-123'
+    instagram_api.client.create_comment.assert_called_once_with('media-123', 'A comment')
+
+
+@pytest.mark.asyncio
+async def test_instagram_api_delete_reply(instagram_api):
+    """Test InstagramAPI delete_reply delegates to client.delete_comment."""
+    instagram_api.client.delete_comment = AsyncMock(return_value='comment-123')
+
+    result = await instagram_api.delete_reply(comment_id='comment-123')
+
+    assert result == 'comment-123'
+    instagram_api.client.delete_comment.assert_called_once_with('comment-123')
+
+
+# Delete Tests
+
+@pytest.mark.asyncio
+async def test_instagram_api_delete(instagram_api):
+    """Test InstagramAPI delete delegates to client.delete_media."""
+    instagram_api.client.delete_media = AsyncMock(return_value='media-123')
+
+    result = await instagram_api.delete(post_id='media-123')
+
+    assert result == 'media-123'
+    instagram_api.client.delete_media.assert_called_once_with('media-123')
 
 
 # Error Handling Tests
@@ -168,3 +196,27 @@ async def test_instagram_api_handles_error(instagram_api):
 
     with pytest.raises(Exception, match='Instagram media creation'):
         await instagram_api.create_media('user_id', image_url='http://image.jpg', caption='Caption')
+
+
+@pytest.mark.asyncio
+async def test_instagram_api_list_posts(instagram_api):
+    """Test InstagramAPI list_posts reads the user's media and returns the data list."""
+    instagram_api.client.get_user_media = AsyncMock(
+        return_value={
+            "data": [
+                {"id": "media-1", "caption": "hello"},
+                {"id": "media-2", "caption": "world"},
+            ]
+        }
+    )
+
+    result = await instagram_api.list_posts("user123", 2)
+
+    assert len(result) == 2
+    assert result[0]["id"] == "media-1"
+    assert result[1]["id"] == "media-2"
+    instagram_api.client.get_user_media.assert_called_once_with(
+        "user123",
+        fields="id,caption,timestamp,username,media_type,media_url,permalink",
+        limit=2,
+    )
