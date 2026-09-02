@@ -84,7 +84,7 @@ def guard_ensure_auth_manager(
 
 
 def guard_token_presence(
-    token_attr: str = "access_token",
+    token_attr: str | None = None,
 ) -> Callable[[Callable[Concatenate[T, P], Awaitable[R]]], Callable[Concatenate[T, P], Awaitable[R]]]:
     """
     Guard decorator: raise the platform's not-authenticated message when no token is present.
@@ -94,10 +94,11 @@ def guard_token_presence(
     ``auth_manager.access_token``), so the check reads the token source
     directly rather than through a credential forwarder.
     """
+    resolved_token_attr = token_attr if token_attr is not None else "access_token"
 
     def resolve_token(instance: T) -> Any:
         current = instance
-        for part in token_attr.split("."):
+        for part in resolved_token_attr.split("."):
             try:
                 current = getattr(current, part)
             except AttributeError:
