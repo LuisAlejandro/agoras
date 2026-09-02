@@ -22,7 +22,7 @@ import functools
 import re
 import time
 from abc import ABC, abstractmethod
-from typing import Awaitable, Callable, NoReturn, TypeVar
+from typing import Any, Awaitable, Callable, NoReturn, TypeVar
 
 from typing_extensions import Concatenate, ParamSpec
 
@@ -83,6 +83,36 @@ def guard_ensure_auth_manager(
         return await func(self, *args, **kwargs)
 
     return wrapper  # type: ignore[return-value]
+
+
+def guard_token_presence(
+    token_attr: str = "access_token",
+) -> Callable[[Callable[Concatenate[T, P], Awaitable[R]]], Callable[Concatenate[T, P], Awaitable[R]]]:
+    """
+    Guard decorator: raise the platform's not-authenticated message when no token is present.
+
+    Applies the token-presence check used by tiktok and threads. ``token_attr``
+    is the attribute path on the instance (dotted paths supported, e.g.
+    ``auth_manager.access_token``), so the check reads the token source
+    directly rather than through a credential forwarder.
+    """
+
+    def resolve_token(instance: T) -> Any:
+        current = instance
+        for part in token_attr.split("."):
+            current = getattr(current, part)
+        return current
+
+    def decorate(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Callable[Concatenate[T, P], Awaitable[R]]:
+        @functools.wraps(func)
+        async def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
+            if not resolve_token(self):
+                raise Exception(self._not_authenticated_message)  # type: ignore[attr-defined]
+            return await func(self, *args, **kwargs)
+
+        return wrapper  # type: ignore[return-value]
+
+    return decorate
 
 
 def guard_client_presence(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Callable[Concatenate[T, P], Awaitable[R]]:
