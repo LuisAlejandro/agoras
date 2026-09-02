@@ -81,29 +81,14 @@ class LinkedInAPI(BaseAPI):
         return self.auth_manager.client_id if self.auth_manager else None
 
     @property
-    def client_secret(self):
-        """Get the LinkedIn client secret from the auth manager."""
-        return self.auth_manager.client_secret if self.auth_manager else None
-
-    @property
     def access_token(self):
         """Get the LinkedIn access token from the auth manager."""
         return self.auth_manager.access_token if self.auth_manager else None
 
     @property
-    def refresh_token(self):
-        """Get the LinkedIn refresh token from the auth manager."""
-        return self.auth_manager.refresh_token if self.auth_manager else None
-
-    @property
-    def user_info(self):
-        """Get the LinkedIn user info from the auth manager."""
-        return self.auth_manager.user_info if self.auth_manager else None
-
-    @property
     def object_id(self):
         """Get the LinkedIn object ID from the auth manager's user info."""
-        return self.user_info.get("object_id") if self.user_info else None
+        return self.auth_manager.user_info.get("object_id") if self.auth_manager.user_info else None
 
     async def authenticate(self):
         """

@@ -62,36 +62,6 @@ class XAPI(BaseAPI):
             oauth_secret=oauth_secret,
         )
 
-    @property
-    def consumer_key(self):
-        """Get the Twitter consumer key from the auth manager."""
-        return self.auth_manager.consumer_key if self.auth_manager else None
-
-    @property
-    def consumer_secret(self):
-        """Get the Twitter consumer secret from the auth manager."""
-        return self.auth_manager.consumer_secret if self.auth_manager else None
-
-    @property
-    def oauth_token(self):
-        """Get the Twitter OAuth token from the auth manager."""
-        return self.auth_manager.oauth_token if self.auth_manager else None
-
-    @property
-    def oauth_secret(self):
-        """Get the Twitter OAuth secret from the auth manager."""
-        return self.auth_manager.oauth_secret if self.auth_manager else None
-
-    @property
-    def access_token(self):
-        """Get the Twitter access token from the auth manager."""
-        return self.auth_manager.access_token if self.auth_manager else None
-
-    @property
-    def user_info(self):
-        """Get the Twitter user info from the auth manager."""
-        return self.auth_manager.user_info if self.auth_manager else None
-
     async def authenticate(self):
         """
         Authenticate with X API using the auth manager.
@@ -153,7 +123,7 @@ class XAPI(BaseAPI):
 
     def _subscription_type(self) -> Optional[str]:
         """Return stored X subscription type when available (fail closed to free)."""
-        user_info = self.user_info if isinstance(self.user_info, dict) else None
+        user_info = self.auth_manager.user_info if isinstance(self.auth_manager.user_info, dict) else None
         if user_info:
             return user_info.get("subscription_type") or user_info.get("subscription_type_v2")
         return None

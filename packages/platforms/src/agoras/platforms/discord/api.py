@@ -55,26 +55,6 @@ class DiscordAPI(BaseAPI):
         # Initialize the authentication manager
         self.auth_manager = DiscordAuthManager(bot_token=bot_token, server_name=server_name, channel_name=channel_name)
 
-    @property
-    def bot_token(self):
-        """Get the Discord bot token from the auth manager."""
-        return self.auth_manager.bot_token if self.auth_manager else None
-
-    @property
-    def server_name(self):
-        """Get the Discord server name from the auth manager."""
-        return self.auth_manager.server_name if self.auth_manager else None
-
-    @property
-    def channel_name(self):
-        """Get the Discord channel name from the auth manager."""
-        return self.auth_manager.channel_name if self.auth_manager else None
-
-    @property
-    def user_info(self):
-        """Get the Discord user info from the auth manager."""
-        return self.auth_manager.user_info if self.auth_manager else None
-
     async def authenticate(self):
         """
         Authenticate with Discord API using the auth manager and client.

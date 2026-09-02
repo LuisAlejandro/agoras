@@ -60,16 +60,6 @@ class InstagramAPI(BaseAPI):
             user_id=user_id, client_id=client_id, client_secret=client_secret, refresh_token=refresh_token
         )
 
-    @property
-    def access_token(self):
-        """Get the Instagram access token from the auth manager."""
-        return self.auth_manager.access_token if self.auth_manager else None
-
-    @property
-    def user_info(self):
-        """Get the Instagram user info from the auth manager."""
-        return self.auth_manager.user_info if self.auth_manager else None
-
     async def authenticate(self):
         """
         Authenticate with Instagram API using the auth manager.
