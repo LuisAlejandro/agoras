@@ -27,7 +27,7 @@ import sys
 from argparse import SUPPRESS, ArgumentParser, Namespace
 from typing import Optional
 
-from agoras.core.auth.storage import SecureTokenStorage
+from agoras.core.auth.storage import RESERVED_IDENTIFIERS, SecureTokenStorage
 
 from .content import ContentError, add_content_file_option, ensure_content_source_xor
 from .media_help import video_url_help
@@ -87,7 +87,11 @@ def add_profile_option(parser: ArgumentParser):
     parser.add_argument(
         "--profile",
         metavar="<app@account>",
-        help="Credential profile (app@account composite) to use",
+        help=(
+            "Credential profile (app@account composite) to use. On authorize, "
+            "creates a named profile; on other actions, selects which stored "
+            "profile to use."
+        ),
     )
 
 
@@ -98,23 +102,43 @@ def add_profile_to_all(actions):
 
 
 def _list_profiles(platform: str) -> list:
-    """Return the stored profile identifiers for a platform."""
+    """Return the stored profile identifiers for a platform.
+
+    Reserved identifiers (e.g. the legacy ``default`` alias) are excluded so
+    they are never surfaced as selectable profiles.
+    """
     storage = SecureTokenStorage()
-    return [identifier for p, identifier in storage.list_tokens(platform) if p == platform]
+    return [
+        identifier
+        for p, identifier in storage.list_tokens(platform)
+        if p == platform and identifier not in RESERVED_IDENTIFIERS
+    ]
 
 
 def _read_tty_choice(profiles: list, platform: str) -> str:
     """Present a text menu on /dev/tty and return the chosen profile.
 
-    Reads from /dev/tty (not stdin) so piped content is never consumed.
+    Reads from /dev/tty (not stdin) so piped content is never consumed. If
+    /dev/tty is unavailable (e.g. no controlling terminal), fail hard the same
+    way the non-interactive multi-profile path does instead of raising an
+    uncaught OSError.
     """
-    with open("/dev/tty", "r") as tty:
+    try:
+        tty_fd = open("/dev/tty", "r")
+    except OSError:
+        available = ", ".join(profiles)
+        print(
+            f"error: multiple profiles for {platform}. Pass --profile. Available: {available}",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+    with tty_fd:
         print(f"Multiple profiles found for {platform}. Select one:", file=sys.stderr)
         for i, profile in enumerate(profiles, 1):
             print(f"  {i}. {profile}", file=sys.stderr)
         while True:
             print("Enter number: ", end="", file=sys.stderr, flush=True)
-            line = tty.readline()
+            line = tty_fd.readline()
             if not line:
                 raise SystemExit(2)
             try:

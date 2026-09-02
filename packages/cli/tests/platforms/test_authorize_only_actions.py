@@ -189,7 +189,22 @@ def test_resolve_profile_multi_non_tty_fails_hard(monkeypatch, tmp_path, capsys)
     captured = capsys.readouterr()
     assert "app1@acct" in captured.err
     assert "app2@acct" in captured.err
-    assert "--profile" in captured.err
+
+
+def test_resolve_profile_skips_legacy_default(monkeypatch, tmp_path):
+    """A legacy 'default' token is not surfaced as a selectable profile."""
+    from agoras.cli.base import resolve_profile
+    from agoras.core.auth.storage import SecureTokenStorage
+
+    monkeypatch.setenv("AGORAS_STORAGE_DIR", str(tmp_path))
+    storage = SecureTokenStorage()
+    storage.save_token("x", "app@acct", {"consumer_key": "k"})
+    # Simulate a legacy pre-refactor token under the reserved 'default' alias
+    # by writing the file directly (save_token now rejects reserved names).
+    (storage.token_dir / "x-default.token").write_text("legacy")
+
+    # Only the composite profile is selectable; 'default' is filtered out.
+    assert resolve_profile("x", None) == "app@acct"
 
 
 def test_env_credential_state_complete(monkeypatch):

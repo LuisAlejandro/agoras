@@ -224,6 +224,36 @@ def test_get_config_value_config_overrides_env():
     assert value == 'config_key'
 
 
+@patch.dict(os.environ, {'API_KEY': 'env_key'})
+def test_get_auth_config_value_profile_skips_env():
+    """A selected profile is the sole auth source; env is not consulted."""
+    network = ConcreteSocialNetwork(profile='app@account')
+
+    value = network._get_auth_config_value('api_key', 'API_KEY')
+
+    assert value is None
+
+
+@patch.dict(os.environ, {'API_KEY': 'env_key'})
+def test_get_auth_config_value_no_profile_falls_back_to_env():
+    """Without a profile, auth config falls through to env resolution."""
+    network = ConcreteSocialNetwork()
+
+    value = network._get_auth_config_value('api_key', 'API_KEY')
+
+    assert value == 'env_key'
+
+
+@patch.dict(os.environ, {'API_KEY': 'env_key'})
+def test_get_auth_config_value_profile_returns_config_value():
+    """A profile returns the config value for an auth key when present."""
+    network = ConcreteSocialNetwork(profile='app@account', api_key='config_key')
+
+    value = network._get_auth_config_value('api_key', 'API_KEY')
+
+    assert value == 'config_key'
+
+
 def test_get_config_value_returns_none_when_missing():
     """Test _get_config_value returns None when value not found."""
     network = ConcreteSocialNetwork()

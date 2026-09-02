@@ -322,6 +322,30 @@ class LinkedInAuthManager(BaseAuthManager):
 
         self.token_storage.save_token(platform_name, identifier, token_data)
 
+    def _find_recovery_match(self, platform_name: str) -> Optional[tuple]:
+        """Return the sole stored profile whose app half matches self.client_id.
+
+        Only auto-adopts when exactly one profile matches; two accounts sharing
+        one app cannot be disambiguated by client_id alone, so multiple matches
+        yield None and the caller leaves selection to an explicit --profile.
+        Returns a ``(identifier, token_data)`` tuple or None.
+        """
+        matches = []
+        for stored_platform, stored_identifier in self.token_storage.list_tokens(platform_name):
+            if stored_platform != platform_name:
+                continue
+            try:
+                candidate = self.token_storage.load_token(platform_name, stored_identifier)
+            except ValueError:
+                # Skip legacy/reserved identifiers (e.g. "default") that
+                # are no longer valid profile keys.
+                continue
+            if candidate and candidate.get("client_id") == self.client_id:
+                matches.append((stored_identifier, candidate))
+        if len(matches) == 1:
+            return matches[0]
+        return None
+
     def _load_credentials_from_storage(self) -> bool:
         """Load LinkedIn credentials from secure storage under the composite key."""
         platform_name = self._get_platform_name()
@@ -333,17 +357,9 @@ class LinkedInAuthManager(BaseAuthManager):
             # Recover the bound composite from a stored profile whose app half
             # matches this client_id, so a refresh never re-mints a profile
             # from stale runtime kwargs (e.g. an empty/old object_id).
-            for stored_platform, stored_identifier in self.token_storage.list_tokens(platform_name):
-                try:
-                    candidate = self.token_storage.load_token(platform_name, stored_identifier)
-                except ValueError:
-                    # Skip legacy/reserved identifiers (e.g. "default") that
-                    # are no longer valid profile keys.
-                    continue
-                if candidate and candidate.get("client_id") == self.client_id:
-                    self.profile = stored_identifier
-                    token_data = candidate
-                    break
+            recovery = self._find_recovery_match(platform_name)
+            if recovery is not None:
+                self.profile, token_data = recovery
 
         if token_data:
             # Recover the bound composite so a refresh never re-mints a profile.

@@ -258,7 +258,9 @@ class WhatsAppAuthManager(BaseAuthManager):
             business_account_id (str, optional): WhatsApp Business Account ID
         """
         platform_name = self._get_platform_name()
-        identifier = phone_number_id
+        # Prefer the explicit profile when set so save and load agree; otherwise
+        # fall back to the derived phone-number identifier (matching _get_token_identifier).
+        identifier = self.profile if self.profile else phone_number_id
 
         token_data = {
             "access_token": access_token,
@@ -279,6 +281,23 @@ class WhatsAppAuthManager(BaseAuthManager):
 
         identifier = self._get_token_identifier()
         token_data = self.token_storage.load_token(platform_name, identifier)
+
+        if not token_data and self.profile is None:
+            # Restore the pre-refactor single-token auto-load: when no profile
+            # is selected and exactly one non-reserved token exists for the
+            # platform, adopt it (no silent first-listed pick among several).
+            loadable = []
+            for stored_platform, stored_identifier in self.token_storage.list_tokens(platform_name):
+                if stored_platform != platform_name:
+                    continue
+                candidate = self.token_storage.load_token(platform_name, stored_identifier)
+                if candidate is None:
+                    # Reserved/legacy identifiers fail to (re-)load; skip them.
+                    continue
+                loadable.append((stored_identifier, candidate))
+            if len(loadable) == 1:
+                self.profile = loadable[0][0]
+                token_data = loadable[0][1]
 
         if token_data:
             self.access_token = token_data.get("access_token")

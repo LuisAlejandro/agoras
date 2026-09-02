@@ -309,7 +309,9 @@ class DiscordAuthManager(BaseAuthManager):
             channel_name (str): Discord channel name
         """
         platform_name = self._get_platform_name()
-        identifier = f"{server_name}-{channel_name}"
+        # Prefer the explicit profile when set so save and load agree; otherwise
+        # fall back to the derived server-channel identifier.
+        identifier = self.profile if self.profile else f"{server_name}-{channel_name}"
 
         token_data = {"bot_token": bot_token, "server_name": server_name, "channel_name": channel_name}
 
@@ -326,6 +328,25 @@ class DiscordAuthManager(BaseAuthManager):
 
         identifier = self._get_token_identifier()
         token_data = self.token_storage.load_token(platform_name, identifier)
+
+        if not token_data and self.profile is None:
+            # Restore the pre-refactor single-token auto-load: when no profile
+            # is selected and exactly one non-reserved token exists for the
+            # platform, adopt it (no silent first-listed pick among several).
+            candidates = [
+                (stored_identifier, self.token_storage.load_token(platform_name, stored_identifier))
+                for stored_platform, stored_identifier in self.token_storage.list_tokens(platform_name)
+                if stored_platform == platform_name
+            ]
+            loadable = []
+            for stored_identifier, candidate in candidates:
+                if candidate is None:
+                    # Reserved/legacy identifiers fail to (re-)load; skip them.
+                    continue
+                loadable.append((stored_identifier, candidate))
+            if len(loadable) == 1:
+                self.profile = loadable[0][0]
+                token_data = loadable[0][1]
 
         if token_data:
             self.bot_token = token_data.get("bot_token")

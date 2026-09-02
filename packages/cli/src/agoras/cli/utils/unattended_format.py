@@ -169,9 +169,19 @@ def load_platform_token(storage: SecureTokenStorage, platform: str) -> Optional[
     Enumerates stored profiles for the platform and returns the first one.
     The legacy ``default`` alias is no longer written, so it is not consulted.
     """
-    for listed_platform, identifier in storage.list_tokens(platform):
-        if listed_platform == platform:
+    identifiers = [
+        identifier for listed_platform, identifier in storage.list_tokens(platform) if listed_platform == platform
+    ]
+    # Deterministic selection: always pick the lexicographically first profile
+    # so the export is reproducible when multiple profiles exist, rather than
+    # depending on filesystem enumeration order. Single-profile is unchanged.
+    for identifier in sorted(identifiers):
+        try:
             return storage.load_token(platform, identifier)
+        except ValueError:
+            # Skip reserved/legacy identifiers (e.g. "default") that are
+            # no longer valid profile keys.
+            continue
 
     return None
 

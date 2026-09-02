@@ -155,13 +155,13 @@ class YouTubeAuthManager(BaseAuthManager):
             refresh_token = await asyncio.to_thread(_sync_exchange)
             if refresh_token:
                 # Bind the channel id from the API so the composite is stable.
+                # If the channel lookup fails, fail the whole authorize below
+                # (the outer handler returns None) rather than persisting a
+                # degraded bare-client_id key that defeats collision protection.
                 if self.access_token:
                     self.client = self._create_client(self.access_token)
-                    try:
-                        info = await self._get_user_info()
-                        self.channel_id = info.get("channel_id")
-                    except Exception:
-                        self.channel_id = None
+                    info = await self._get_user_info()
+                    self.channel_id = info.get("channel_id")
                 # Save all credentials to storage under the bound composite.
                 self._save_credentials_to_storage()
                 return refresh_token

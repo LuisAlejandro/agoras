@@ -325,6 +325,22 @@ class XAuthManager(BaseAuthManager):
         identifier = self._get_token_identifier()
         token_data = self.token_storage.load_token(platform_name, identifier)
 
+        if not token_data and self.profile is None:
+            # Restore the pre-refactor single-token auto-load: when no profile
+            # is selected and exactly one non-reserved token exists for the
+            # platform, adopt it (no silent first-listed pick among several).
+            loadable = []
+            for stored_platform, stored_identifier in self.token_storage.list_tokens(platform_name):
+                if stored_platform != platform_name:
+                    continue
+                candidate = self.token_storage.load_token(platform_name, stored_identifier)
+                if candidate is None:
+                    continue
+                loadable.append((stored_identifier, candidate))
+            if len(loadable) == 1:
+                self.profile = loadable[0][0]
+                token_data = loadable[0][1]
+
         if token_data:
             self.consumer_key = token_data.get("consumer_key")
             self.consumer_secret = token_data.get("consumer_secret")
