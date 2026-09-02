@@ -98,7 +98,10 @@ def guard_token_presence(
     def resolve_token(instance: T) -> Any:
         current = instance
         for part in token_attr.split("."):
-            current = getattr(current, part)
+            try:
+                current = getattr(current, part)
+            except AttributeError:
+                return None
         return current
 
     def decorate(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Callable[Concatenate[T, P], Awaitable[R]]:
