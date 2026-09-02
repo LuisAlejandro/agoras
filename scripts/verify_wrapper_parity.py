@@ -34,6 +34,18 @@ WRAPPER_DIR = Path("packages/platforms/src/agoras/platforms")
 PROXY_PLATFORMS = {"x", "discord", "telegram", "threads"}
 REAL_DELETE_REPLY = {"facebook", "instagram", "linkedin", "youtube"}
 THREADS_VARIANT = {"threads"}
+CLASS_NAMES = {
+    "x": "X",
+    "discord": "Discord",
+    "telegram": "Telegram",
+    "threads": "Threads",
+    "facebook": "Facebook",
+    "instagram": "Instagram",
+    "linkedin": "LinkedIn",
+    "youtube": "YouTube",
+    "tiktok": "TikTok",
+    "whatsapp": "WhatsApp",
+}
 
 
 def check_proxy_flags(name, src, failures):
@@ -63,16 +75,17 @@ def check_overrides(name, src, failures):
         failures.append(f"{name} lost its _is_uncertain_publish_error variant")
 
 
+CHECK_IMPORTS = False
+
+
 def check_platform(name):
     failures = []
     wrapper = WRAPPER_DIR / name / "wrapper.py"
     src = wrapper.read_text()
 
-    # 1. Guard message literal
-    literal = f"{name.capitalize()} API not initialized"
-    # x's class is "X", discord "Discord", etc. — map class names
-    class_name = {"x": "X"}.get(name, name.capitalize())
-    literal = f"{class_name} API not initialized"
+    # 1. Guard message literal (real class names — capitalize() is wrong
+    # for youtube/tiktok/linkedin/whatsapp)
+    literal = f"{CLASS_NAMES[name]} API not initialized"
     if "self._require_api()" in src:
         if literal in src:
             failures.append(f"guard literal '{literal}' still present in migrated wrapper")
@@ -80,14 +93,19 @@ def check_platform(name):
         if "self._require_api()" not in src and literal not in src:
             failures.append(f"guard literal '{literal}' absent but wrapper not migrated")
 
-    # 2. Import seams
-    try:
-        mod = importlib.import_module(f"agoras.platforms.{name}.wrapper")
-        importlib.reload(mod)
-        if not hasattr(mod, "main") or not hasattr(mod, "main_async"):
-            failures.append(f"main/main_async not importable from {name}.wrapper")
-    except Exception as e:  # noqa: BLE001
-        failures.append(f"import failed for {name}.wrapper: {e}")
+    # 2. Import seams (requires the installed packages + SDK deps)
+    if CHECK_IMPORTS:
+        try:
+            mod = importlib.import_module(f"agoras.platforms.{name}.wrapper")
+            importlib.reload(mod)
+            if not hasattr(mod, "main") or not hasattr(mod, "main_async"):
+                failures.append(f"main/main_async not importable from {name}.wrapper")
+        except Exception as e:  # noqa: BLE001
+            failures.append(f"import failed for {name}.wrapper: {e}")
+    else:
+        # Offline structural check: the module defines main/main_async
+        if "def main(" not in src or "async def main_async(" not in src:
+            failures.append(f"main/main_async not defined in {name}.wrapper")
 
     # 3-6. Proxy flags, overrides, teardown, threads variant
     check_proxy_flags(name, src, failures)
@@ -99,12 +117,22 @@ def check_platform(name):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("platforms", nargs="*", help="platform names; default: all ten")
+    parser.add_argument("--check-imports", action="store_true", help="also import each wrapper module (needs SDK deps)")
     args = parser.parse_args()
+    global CHECK_IMPORTS
+    CHECK_IMPORTS = args.check_imports
 
     platforms = args.platforms or [
-        "x", "discord", "telegram", "threads",
-        "facebook", "instagram", "linkedin", "youtube",
-        "tiktok", "whatsapp",
+        "x",
+        "discord",
+        "telegram",
+        "threads",
+        "facebook",
+        "instagram",
+        "linkedin",
+        "youtube",
+        "tiktok",
+        "whatsapp",
     ]
 
     all_failures = []

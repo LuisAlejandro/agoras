@@ -79,7 +79,6 @@ class LinkedIn(SocialNetwork):
         self.linkedin_refresh_token = None
         self.linkedin_object_id = None
         self.linkedin_post_id = None
-        self.api = None
 
     async def _initialize_client(self):
         """

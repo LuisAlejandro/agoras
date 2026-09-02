@@ -62,7 +62,6 @@ class Telegram(SocialNetwork):
         # Action-specific attributes
         self.telegram_message_id = None
         self.telegram_reply_to_message_id = None
-        self.api = None
 
     def _require_chat_id(self) -> str:
         chat_id = self.telegram_chat_id

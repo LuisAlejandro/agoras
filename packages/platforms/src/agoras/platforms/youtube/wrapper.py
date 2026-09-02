@@ -65,7 +65,6 @@ class YouTube(SocialNetwork):
         self.youtube_keywords = None
         self.youtube_video_url = None
         self.youtube_refresh_token = None
-        self.api = None
 
     async def _initialize_client(self):
         """

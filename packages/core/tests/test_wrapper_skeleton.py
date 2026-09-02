@@ -207,3 +207,64 @@ def test_is_uncertain_publish_error_classifies_timeouts():
     assert _is_uncertain_publish_error(asyncio.TimeoutError()) is True
     assert _is_uncertain_publish_error(ValueError("temporarily unavailable")) is True
     assert _is_uncertain_publish_error(ValueError("permanently failed")) is False
+
+
+@pytest.mark.asyncio
+async def test_run_main_async_teardown_failure_preserves_action_exception():
+    stub = _Stub()
+
+    class _FailingApi(_Api):
+        async def disconnect(self):
+            raise Exception("teardown boom")
+
+    async def execute_action(action):
+        stub.executed_actions.append(action)
+        raise Exception("action boom")
+
+    stub.execute_action = execute_action
+    stub.api = _FailingApi()
+    with pytest.raises(Exception, match="action boom"):
+        await stub.run_main_async({"action": "post"})
+
+
+@pytest.mark.asyncio
+async def test_run_main_async_teardown_failure_keeps_success_result():
+    stub = _Stub()
+
+    class _FailingApi(_Api):
+        async def disconnect(self):
+            raise Exception("teardown boom")
+
+    stub.api = _FailingApi()
+    result = await stub.run_main_async({"action": "post"})
+    assert result is None
+    assert stub.executed_actions == ["post"]
+
+
+@pytest.mark.asyncio
+async def test_run_main_async_authorize_skips_teardown():
+    stub = _Stub()
+    api = _Api()
+    stub.api = api
+
+    async def authorize():
+        return True
+
+    stub.authorize_credentials = authorize
+    result = await stub.run_main_async({"action": "authorize"})
+    assert result == 0
+    assert api.disconnect_calls == 0
+    assert stub.init_calls == 0
+
+
+def test_shim_pattern_end_to_end():
+    """A real instance through a module-level shim (the wrapper pattern)."""
+
+    async def main_async(kwargs):
+        instance = _Stub(**kwargs)
+        return await SocialNetwork.run_main_async(instance, kwargs)
+
+    import asyncio
+
+    result = asyncio.run(main_async({"action": "post"}))
+    assert result is None

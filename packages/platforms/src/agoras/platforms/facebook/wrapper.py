@@ -63,7 +63,6 @@ class Facebook(SocialNetwork):
         self.facebook_post_id = None
         self.facebook_profile_id = None
         self.facebook_app_id = None
-        self.api = None
 
     async def _initialize_client(self):
         """

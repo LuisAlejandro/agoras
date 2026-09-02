@@ -89,7 +89,6 @@ class Threads(SocialNetwork):
         self.threads_who_can_reply = None
         # Action-specific attributes
         self.threads_post_id = None
-        self.api = None
 
     async def _initialize_client(self):
         """

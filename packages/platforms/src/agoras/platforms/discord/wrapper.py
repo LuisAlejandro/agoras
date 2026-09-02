@@ -72,7 +72,6 @@ class Discord(SocialNetwork):
         self.discord_bot_token = None
         self.discord_server_name = None
         self.discord_channel_name = None
-        self.api = None
 
     async def _initialize_client(self):
         """

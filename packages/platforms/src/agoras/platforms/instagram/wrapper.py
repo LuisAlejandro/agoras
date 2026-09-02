@@ -77,7 +77,6 @@ class Instagram(SocialNetwork):
         self.instagram_video_type = None
         self.instagram_video_url = None
         self.instagram_video_caption = None
-        self.api = None
 
     async def _initialize_client(self):
         """

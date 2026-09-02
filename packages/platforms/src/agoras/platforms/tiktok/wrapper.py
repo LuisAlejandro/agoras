@@ -90,7 +90,6 @@ class TikTok(SocialNetwork):
         self.tiktok_auto_add_music = None
         self.brand_organic = None
         self.brand_content = None
-        self.api = None
         # Store action to determine appropriate defaults
         self._action = kwargs.get("action", "")
 

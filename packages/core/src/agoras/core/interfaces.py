@@ -123,10 +123,14 @@ class SocialNetwork(ABC):
         Template runner for the CLI main entry point.
 
         Dispatches the authorize action directly to ``authorize_credentials``
-        without client initialization (matching the historical runner), and
-        sends every other action through ``execute_action`` (which initializes
-        the client internally). Every exit from the action path reaches
-        ``disconnect``; the authorize branch deliberately skips teardown
+        without client initialization, and sends every other action through
+        ``execute_action`` (which initializes the client internally).
+        Note: the action path now guarantees ``disconnect`` on every exit,
+        including failures — six platforms (facebook, instagram, linkedin,
+        tiktok, youtube, telegram) historically disconnected only on success;
+        this is an accepted, documented deviation from strict parity (in-memory
+        auth state is cleared on failure too, and teardown errors never mask
+        the action outcome). The authorize branch deliberately skips teardown
         because no ``authorize_credentials`` implementation sets ``self.api``.
 
         Args:
@@ -148,7 +152,11 @@ class SocialNetwork(ABC):
         try:
             await self.execute_action(action)
         finally:
-            await self.disconnect()
+            try:
+                await self.disconnect()
+            except Exception:
+                # Teardown must never replace the action's outcome or exception.
+                print("Warning: disconnect failed after action execution.", file=sys.stderr)
         return None
 
     @abstractmethod
@@ -326,7 +334,7 @@ class SocialNetwork(ABC):
 
         Default implementation raises not supported. Platforms that support
         reading a reply override this and return a normalized content dict.
-        Pure-proxy platforms set ``_proxy_delete_reply = True`` to delegate
+        Pure-proxy platforms set ``_proxy_get_reply = True`` to delegate
         to ``get_post``.
 
         Args:

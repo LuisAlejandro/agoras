@@ -82,7 +82,6 @@ class X(SocialNetwork):
         self.twitter_oauth_token = None
         self.twitter_oauth_secret = None
         self.tweet_id = None
-        self.api = None
         self._subscription_type = None
         self._subscription_resolved = False
 
