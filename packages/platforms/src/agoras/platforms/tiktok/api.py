@@ -97,23 +97,14 @@ class TikTokAPI(BaseAPI):
         if not success:
             raise_authentication_error_from_manager(self.auth_manager)
 
-        self.client = self.auth_manager.client
-        self._authenticated = True
-        return self
+        return await super().authenticate()
 
-    async def disconnect(self):
-        """
-        Disconnect from TikTok API and clean up resources.
-        """
-        # Clear auth manager tokens and user info
+    def _disconnect_hook(self):
+        """Clear auth manager tokens, user info, and client without disconnecting."""
         if self.auth_manager:
             self.auth_manager.access_token = None
             self.auth_manager.user_info = None
             self.auth_manager.client = None
-
-        # Clear BaseAPI client
-        self.client = None
-        self._authenticated = False
 
     async def get_creator_info(self) -> Dict[str, Any]:
         """

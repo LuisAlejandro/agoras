@@ -94,17 +94,10 @@ class ThreadsAPI(BaseAPI):
         if not success:
             raise_authentication_error_from_manager(self.auth_manager)
 
-        self.client = self.auth_manager.client
-        self._authenticated = True
-        return self
+        return await super().authenticate()
 
-    async def disconnect(self):
-        """
-        Disconnect from Threads API and clean up resources.
-        """
-        # Clear BaseAPI client
-        self.client = None
-        self._authenticated = False
+    def _disconnect_hook(self):
+        """Keep Threads auth-manager state intact on disconnect."""
 
     @staticmethod
     def _cleanup_downloaded_images(images: List[Any]) -> None:

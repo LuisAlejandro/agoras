@@ -203,10 +203,16 @@ class BaseAPI(ABC):
         self._rate_limit_cache = {}
         self._last_request_time = 0
 
-    @abstractmethod
     async def authenticate(self):
         """
-        Authenticate with the API asynchronously.
+        Complete the shared authentication lifecycle.
+
+        Runs the platform-specific post-authentication steps
+        (``_post_authenticate``), wires the auth manager's client, and marks
+        the instance authenticated. Subclasses run the auth-manager attempt
+        and raise the categorized ``AuthenticationError`` on failure in their
+        override of this method, then delegate the shared tail here via
+        ``super().authenticate()``.
 
         Returns:
             BaseAPI: Self for method chaining
@@ -214,12 +220,41 @@ class BaseAPI(ABC):
         Raises:
             Exception: If authentication fails
         """
+        await self._post_authenticate()
+        self.client = self.auth_manager.client  # type: ignore[attr-defined]
+        self._authenticated = True
+        return self
 
-    @abstractmethod
+    async def _post_authenticate(self):
+        """
+        Hook for platform-specific post-authentication steps.
+
+        Called by ``authenticate`` after the auth-manager attempt succeeds and
+        before the client is wired. The default does nothing; platforms with
+        extra post-auth checks (e.g. discord, telegram) override this.
+        """
+
     async def disconnect(self):
         """
         Disconnect from the API and clean up resources.
         """
+        self._disconnect_hook()
+        self.client = None
+        self._authenticated = False
+
+    def _disconnect_hook(self):
+        """
+        Hook for platform-specific disconnect teardown.
+
+        The default disconnects the client and clears the auth manager's
+        access token. Platforms that must not disconnect the client (tiktok,
+        telegram, threads) or clear different auth-manager state override
+        this.
+        """
+        if self.client:
+            self.client.disconnect()
+        if self.auth_manager:  # type: ignore[attr-defined]
+            self.auth_manager.access_token = None  # type: ignore[attr-defined]
 
     def is_authenticated(self):
         """

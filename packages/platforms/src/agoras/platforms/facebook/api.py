@@ -80,10 +80,7 @@ class FacebookAPI(BaseAPI):
         if not success:
             raise_authentication_error_from_manager(self.auth_manager)
 
-        # Set the client from auth manager for BaseAPI compatibility
-        self.client = self.auth_manager.client
-        self._authenticated = True
-        return self
+        return await super().authenticate()
 
     @guard_ensure_auth_manager
     @guard_client_presence
@@ -122,22 +119,6 @@ class FacebookAPI(BaseAPI):
             raise Exception("Facebook access token not available")
         assert self.client is not None
         return await self.client.get_page_access_token(object_id, user_token)
-
-    async def disconnect(self):
-        """
-        Disconnect from Facebook API and clean up resources.
-        """
-        # Disconnect the client first
-        if self.client:
-            self.client.disconnect()
-
-        # Clear auth manager tokens
-        if self.auth_manager:
-            self.auth_manager.access_token = None
-
-        # Clear BaseAPI client
-        self.client = None
-        self._authenticated = False
 
     @guard_ensure_auth_manager
     @guard_client_presence

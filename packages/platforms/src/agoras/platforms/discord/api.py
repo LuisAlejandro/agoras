@@ -73,29 +73,12 @@ class DiscordAPI(BaseAPI):
         if not auth_success:
             raise_authentication_error_from_manager(self.auth_manager)
 
-        # Ensure client was created during authentication
+        return await super().authenticate()
+
+    async def _post_authenticate(self):
+        """Ensure the client was created during authentication."""
         if not self.auth_manager.client:
             raise Exception("Discord client not available after authentication")
-
-        self.client = self.auth_manager.client
-        self._authenticated = True
-        return self
-
-    async def disconnect(self):
-        """
-        Disconnect from Discord API and clean up resources.
-        """
-        # Disconnect the client first
-        if self.client:
-            self.client.disconnect()
-
-        # Clear auth manager data
-        if self.auth_manager:
-            self.auth_manager.access_token = None
-
-        # Clear BaseAPI client
-        self.client = None
-        self._authenticated = False
 
     @guard_auth_attempt
     @guard_client_presence

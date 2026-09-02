@@ -111,26 +111,7 @@ class YouTubeAPI(BaseAPI):
         if not success:
             raise_authentication_error_from_manager(self.auth_manager)
 
-        # Set the client from auth manager for BaseAPI compatibility
-        self.client = self.auth_manager.client
-        self._authenticated = True
-        return self
-
-    async def disconnect(self):
-        """
-        Disconnect from YouTube API and clean up resources.
-        """
-        # Disconnect the client first
-        if self.client:
-            self.client.disconnect()
-
-        # Clear auth manager data
-        if self.auth_manager:
-            self.auth_manager.access_token = None
-
-        # Clear BaseAPI client
-        self.client = None
-        self._authenticated = False
+        return await super().authenticate()
 
     @guard_ensure_auth_manager
     @guard_client_presence
