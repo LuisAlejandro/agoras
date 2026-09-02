@@ -20,7 +20,13 @@
 import asyncio
 from typing import Any, Dict, List, Optional
 
-from agoras.core.api_base import BaseAPI
+from agoras.core.api_base import (
+    BaseAPI,
+    guard_client_presence,
+    guard_ensure_auth_manager,
+    guard_error_wrap,
+    guard_rate_limit,
+)
 from agoras.core.auth import raise_authentication_error_from_manager
 
 from .auth import FacebookAuthManager
@@ -33,6 +39,9 @@ class FacebookAPI(BaseAPI):
     Provides methods for Facebook authentication, token management,
     and all Facebook API operations including posts, likes, shares, and videos.
     """
+
+    # Guard message template (read by the composable guard decorators)
+    _client_not_available_message = "Facebook API not authenticated"
 
     def __init__(self, user_id, client_id, client_secret, refresh_token=None, app_id=None):
         """
@@ -76,6 +85,10 @@ class FacebookAPI(BaseAPI):
         self._authenticated = True
         return self
 
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("check_if_page", 0.1)
+    @guard_error_wrap("Facebook page check")
     async def check_if_page(self, object_id: str) -> bool:
         """
         Check if the given object_id represents a Facebook Page.
@@ -86,19 +99,13 @@ class FacebookAPI(BaseAPI):
         Returns:
             bool: True if object is a Facebook Page, False otherwise
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        return await self.client.is_page(object_id)
 
-        if not self.client:
-            raise Exception("Facebook API not authenticated")
-
-        await self._rate_limit_check("check_if_page", 0.1)
-
-        try:
-            return await self.client.is_page(object_id)
-        except Exception as e:
-            self._handle_api_error(e, "Facebook page check")
-            raise
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("get_page_token", 0.5)
+    @guard_error_wrap("Facebook page token exchange")
     async def get_page_token(self, object_id: str) -> str:
         """
         Exchange user access token for page access token.
@@ -109,22 +116,12 @@ class FacebookAPI(BaseAPI):
         Returns:
             str: Page access token
         """
-        self.auth_manager.ensure_authenticated()
-
-        if not self.client:
-            raise Exception("Facebook API not authenticated")
-
-        await self._rate_limit_check("get_page_token", 0.5)
-
-        try:
-            # We need to pass the current user access token to get page token
-            user_token = self.auth_manager.access_token
-            if not user_token:
-                raise Exception("Facebook access token not available")
-            return await self.client.get_page_access_token(object_id, user_token)
-        except Exception as e:
-            self._handle_api_error(e, "Facebook page token exchange")
-            raise
+        # We need to pass the current user access token to get page token
+        user_token = self.auth_manager.access_token
+        if not user_token:
+            raise Exception("Facebook access token not available")
+        assert self.client is not None
+        return await self.client.get_page_access_token(object_id, user_token)
 
     async def disconnect(self):
         """
@@ -142,6 +139,10 @@ class FacebookAPI(BaseAPI):
         self.client = None
         self._authenticated = False
 
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("post", 1.0)
+    @guard_error_wrap("Facebook post creation")
     async def post(
         self,
         object_id: str,
@@ -164,21 +165,15 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If post creation fails
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        return await self.client.create_post(
+            object_id=object_id, message=message, link=link, attached_media=attached_media
+        )
 
-        if not self.client:
-            raise Exception("Facebook API not authenticated")
-
-        await self._rate_limit_check("post", 1.0)
-
-        try:
-            return await self.client.create_post(
-                object_id=object_id, message=message, link=link, attached_media=attached_media
-            )
-        except Exception as e:
-            self._handle_api_error(e, "Facebook post creation")
-            raise
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("upload_media", 1.0)
+    @guard_error_wrap("Facebook media upload")
     async def upload_media(self, object_id: str, media_url: str, published: bool = False) -> Dict[str, Any]:
         """
         Upload media to Facebook.
@@ -194,19 +189,13 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If media upload fails
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        return await self.client.upload_media(object_id, media_url, published)
 
-        if not self.client:
-            raise Exception("Facebook API not authenticated")
-
-        await self._rate_limit_check("upload_media", 1.0)
-
-        try:
-            return await self.client.upload_media(object_id, media_url, published)
-        except Exception as e:
-            self._handle_api_error(e, "Facebook media upload")
-            raise
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("upload_photo_file", 1.0)
+    @guard_error_wrap("Facebook photo file upload")
     async def upload_photo_file(
         self,
         object_id: str,
@@ -229,27 +218,24 @@ class FacebookAPI(BaseAPI):
 
         Returns:
             dict: Photo upload response
+
+        Raises:
+            Exception: If photo upload fails
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        return await self.client.upload_photo_file(
+            object_id,
+            file_content,
+            published=published,
+            filename=filename,
+            mime_type=mime_type,
+            message=message,
+        )
 
-        if not self.client:
-            raise Exception("Facebook API not authenticated")
-
-        await self._rate_limit_check("upload_photo_file", 1.0)
-
-        try:
-            return await self.client.upload_photo_file(
-                object_id,
-                file_content,
-                published=published,
-                filename=filename,
-                mime_type=mime_type,
-                message=message,
-            )
-        except Exception as e:
-            self._handle_api_error(e, "Facebook photo file upload")
-            raise
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("like", 0.5)
+    @guard_error_wrap("Facebook like")
     async def like(self, object_id: str, post_id: str) -> str:
         """
         Like a Facebook post.
@@ -264,19 +250,13 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If like operation fails
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        return await self.client.like_post(object_id, post_id)
 
-        if not self.client:
-            raise Exception("Facebook API not authenticated")
-
-        await self._rate_limit_check("like", 0.5)
-
-        try:
-            return await self.client.like_post(object_id, post_id)
-        except Exception as e:
-            self._handle_api_error(e, "Facebook like")
-            raise
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("reply", 0.5)
+    @guard_error_wrap("Facebook comment")
     async def reply(self, post_id: str, text: str, image_url: Optional[str] = None) -> str:
         """
         Comment on a Facebook post.
@@ -292,19 +272,13 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If comment operation fails
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        return await self.client.create_comment(post_id, text, image_url=image_url)
 
-        if not self.client:
-            raise Exception("Facebook API not authenticated")
-
-        await self._rate_limit_check("reply", 0.5)
-
-        try:
-            return await self.client.create_comment(post_id, text, image_url=image_url)
-        except Exception as e:
-            self._handle_api_error(e, "Facebook comment")
-            raise
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("delete", 0.5)
+    @guard_error_wrap("Facebook delete")
     async def delete(self, object_id: str, post_id: str) -> str:
         """
         Delete a Facebook post.
@@ -319,19 +293,13 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If deletion fails
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        return await self.client.delete_post(object_id, post_id)
 
-        if not self.client:
-            raise Exception("Facebook API not authenticated")
-
-        await self._rate_limit_check("delete", 0.5)
-
-        try:
-            return await self.client.delete_post(object_id, post_id)
-        except Exception as e:
-            self._handle_api_error(e, "Facebook delete")
-            raise
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("delete", 0.5)
+    @guard_error_wrap("Facebook delete-reply")
     async def delete_reply(self, comment_id: str) -> str:
         """
         Delete a Facebook comment.
@@ -345,19 +313,13 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If deletion fails
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        return await self.client.delete_comment(comment_id)
 
-        if not self.client:
-            raise Exception("Facebook API not authenticated")
-
-        await self._rate_limit_check("delete", 0.5)
-
-        try:
-            return await self.client.delete_comment(comment_id)
-        except Exception as e:
-            self._handle_api_error(e, "Facebook delete-reply")
-            raise
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("get_post", 0.5)
+    @guard_error_wrap("Facebook get-post")
     async def get_post(self, post_id: str) -> Dict[str, Any]:
         """
         Read a Facebook post/object by ID.
@@ -371,23 +333,17 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If the object cannot be read
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        return await asyncio.to_thread(
+            self.client.get_object,
+            post_id,
+            "id,message,created_time,from,full_picture,permalink_url",
+        )
 
-        if not self.client:
-            raise Exception("Facebook API not authenticated")
-
-        await self._rate_limit_check("get_post", 0.5)
-
-        try:
-            return await asyncio.to_thread(
-                self.client.get_object,
-                post_id,
-                "id,message,created_time,from,full_picture,permalink_url",
-            )
-        except Exception as e:
-            self._handle_api_error(e, "Facebook get-post")
-            raise
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("get_reply", 0.5)
+    @guard_error_wrap("Facebook get-reply")
     async def get_reply(self, comment_id: str) -> Dict[str, Any]:
         """
         Read a Facebook comment by ID.
@@ -401,23 +357,17 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If the comment cannot be read
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        return await asyncio.to_thread(
+            self.client.get_object,
+            comment_id,
+            "id,message,created_time,from,attachment{type,url,media{image{src},source}}",
+        )
 
-        if not self.client:
-            raise Exception("Facebook API not authenticated")
-
-        await self._rate_limit_check("get_reply", 0.5)
-
-        try:
-            return await asyncio.to_thread(
-                self.client.get_object,
-                comment_id,
-                "id,message,created_time,from,attachment{type,url,media{image{src},source}}",
-            )
-        except Exception as e:
-            self._handle_api_error(e, "Facebook get-reply")
-            raise
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("list_posts", 0.5)
+    @guard_error_wrap("Facebook list-posts")
     async def list_posts(self, object_id: str, limit: int) -> List[Dict[str, Any]]:
         """
         List recent posts from a Facebook object's feed.
@@ -432,25 +382,19 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If the posts cannot be read
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        result = await asyncio.to_thread(
+            self.client.get_object,
+            f"{object_id}/feed",
+            "id,message,created_time,from,full_picture,permalink_url,type,source,attachments{media,type,media_type,url,subattachments}",
+        )
+        data = result.get("data") or []
+        return data[:limit]
 
-        if not self.client:
-            raise Exception("Facebook API not authenticated")
-
-        await self._rate_limit_check("list_posts", 0.5)
-
-        try:
-            result = await asyncio.to_thread(
-                self.client.get_object,
-                f"{object_id}/feed",
-                "id,message,created_time,from,full_picture,permalink_url,type,source,attachments{media,type,media_type,url,subattachments}",
-            )
-            data = result.get("data") or []
-            return data[:limit]
-        except Exception as e:
-            self._handle_api_error(e, "Facebook list-posts")
-            raise
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("share", 1.0)
+    @guard_error_wrap("Facebook share")
     async def share(self, profile_id: str, object_id: str, post_id: str) -> str:
         """
         Share a Facebook post.
@@ -466,19 +410,13 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If sharing fails
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        return await self.client.share_post(profile_id, object_id, post_id)
 
-        if not self.client:
-            raise Exception("Facebook API not authenticated")
-
-        await self._rate_limit_check("share", 1.0)
-
-        try:
-            return await self.client.share_post(profile_id, object_id, post_id)
-        except Exception as e:
-            self._handle_api_error(e, "Facebook share")
-            raise
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("upload_reel_or_story", 1.0)
+    @guard_error_wrap("Facebook reel or story upload")
     async def upload_reel_or_story(self, object_id: str, video_type: str, status_text: str, video_url: str) -> str:
         """
         Upload a video as a reel or story to Facebook.
@@ -495,19 +433,12 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If upload fails
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        return await self.client.upload_reel_or_story(object_id, video_type, status_text, video_url)
 
-        if not self.client:
-            raise Exception("Facebook API not authenticated")
-
-        await self._rate_limit_check("upload_reel_or_story", 1.0)
-
-        try:
-            return await self.client.upload_reel_or_story(object_id, video_type, status_text, video_url)
-        except Exception as e:
-            self._handle_api_error(e, "Facebook reel or story upload")
-            raise
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("upload_regular_video", 1.0)
     async def upload_regular_video(
         self,
         object_id: str,
@@ -539,17 +470,11 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If upload fails
         """
-        self.auth_manager.ensure_authenticated()
-
-        if not self.client:
-            raise Exception("Facebook API not authenticated")
-
-        await self._rate_limit_check("upload_regular_video", 1.0)
-
         if not self.app_id:
             raise Exception("Facebook app ID is required for regular video uploads")
 
         try:
+            assert self.client is not None
             return await self.client.upload_regular_video(
                 object_id,
                 self.app_id,
