@@ -19,17 +19,41 @@
 Core interfaces and shared social network abstractions for Agoras.
 """
 
+import asyncio
 import datetime
 import json
 import os
 import sys
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Dict, List
 
 from agoras.core.feed import Feed
 from agoras.core.sheet import ScheduleSheet
 from agoras.media import MediaFactory
 from agoras.media.constraints import resolve_platform
+
+
+def _entry_images(entry: Dict[str, Any]) -> List[str]:
+    """Collect flattened image_1..image_4 URLs from a thread entry."""
+    return list(
+        filter(
+            None,
+            [
+                entry.get("image_1"),
+                entry.get("image_2"),
+                entry.get("image_3"),
+                entry.get("image_4"),
+            ],
+        )
+    )
+
+
+def _is_uncertain_publish_error(exc: BaseException) -> bool:
+    """Classify timeout/uncertain errors after a publish dispatch."""
+    if isinstance(exc, (TimeoutError, asyncio.TimeoutError)):
+        return True
+    message = str(exc).lower()
+    return any(token in message for token in ("timeout", "timed out", "temporarily unavailable"))
 
 
 class SocialNetwork(ABC):
@@ -50,6 +74,7 @@ class SocialNetwork(ABC):
         """
         self.config = kwargs
         self.client = None
+        self.api: Any = None
 
     @abstractmethod
     async def _initialize_client(self):
@@ -60,11 +85,71 @@ class SocialNetwork(ABC):
         their specific API clients and authentication.
         """
 
-    @abstractmethod
     async def disconnect(self):
         """
         Disconnect from the social network.
         """
+        if self.api:
+            await self.api.disconnect()
+
+    def _require_api(self):
+        """
+        Raise the platform's not-initialized message when no api is available.
+
+        Guard-phase helper replacing the per-platform
+        ``if not self.api: raise Exception("<Platform> API not initialized")``
+        pairs. The message matches the historical per-platform text.
+        """
+        if not self.api:
+            raise Exception(f"{self.__class__.__name__} API not initialized")
+
+    async def authorize_credentials(self):
+        """
+        Authorize credentials for the social network.
+
+        Default implementation raises not supported. Platforms that support
+        interactive credential authorization override this.
+
+        Returns:
+            bool: True if authorization succeeded
+
+        Raises:
+            Exception: If authorization is not supported
+        """
+        raise Exception(f"Authorize not supported for {self.__class__.__name__}")
+
+    async def run_main_async(self, kwargs):
+        """
+        Template runner for the CLI main entry point.
+
+        Dispatches the authorize action directly to ``authorize_credentials``
+        without client initialization (matching the historical runner), and
+        sends every other action through ``execute_action`` (which initializes
+        the client internally). Every exit from the action path reaches
+        ``disconnect``; the authorize branch deliberately skips teardown
+        because no ``authorize_credentials`` implementation sets ``self.api``.
+
+        Args:
+            kwargs (dict): Configuration arguments
+
+        Returns:
+            int or None: 0 if authorize succeeded, 1 if it failed,
+                None for other actions
+        """
+        action = kwargs.get("action", "")
+
+        if action == "":
+            raise Exception("Action is a required argument.")
+
+        if action == "authorize":
+            success = await self.authorize_credentials()
+            return 0 if success else 1
+
+        try:
+            await self.execute_action(action)
+        finally:
+            await self.disconnect()
+        return None
 
     @abstractmethod
     async def post(
@@ -201,7 +286,8 @@ class SocialNetwork(ABC):
 
         Default implementation raises not supported. Platforms that support
         deleting a reply (a comment on a post, or a reply message) override
-        this and return the deleted reply/comment ID.
+        this and return the deleted reply/comment ID. Pure-proxy platforms
+        set ``_proxy_delete_reply = True`` to delegate to ``delete``.
 
         Args:
             post_id (str): ID of the reply/comment to delete
@@ -212,6 +298,8 @@ class SocialNetwork(ABC):
         Raises:
             Exception: If deleting a reply is not supported
         """
+        if getattr(self, "_proxy_delete_reply", False):
+            return await self.delete(post_id)
         raise Exception(f"Delete reply not supported for {self.__class__.__name__}")
 
     async def get_post(self, post_id):
@@ -238,6 +326,8 @@ class SocialNetwork(ABC):
 
         Default implementation raises not supported. Platforms that support
         reading a reply override this and return a normalized content dict.
+        Pure-proxy platforms set ``_proxy_delete_reply = True`` to delegate
+        to ``get_post``.
 
         Args:
             post_id (str): ID of the reply/comment to read
@@ -248,6 +338,8 @@ class SocialNetwork(ABC):
         Raises:
             Exception: If reading a reply is not supported
         """
+        if getattr(self, "_proxy_delete_reply", False):
+            return await self.get_post(post_id)
         raise Exception(f"Get reply not supported for {self.__class__.__name__}")
 
     async def list_posts(self, limit):
