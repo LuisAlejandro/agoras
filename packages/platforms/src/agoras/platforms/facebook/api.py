@@ -96,7 +96,6 @@ class FacebookAPI(BaseAPI):
         Returns:
             bool: True if object is a Facebook Page, False otherwise
         """
-        assert self.client is not None
         return await self.client.is_page(object_id)
 
     @guard_ensure_auth_manager
@@ -117,7 +116,6 @@ class FacebookAPI(BaseAPI):
         user_token = self.auth_manager.access_token
         if not user_token:
             raise Exception("Facebook access token not available")
-        assert self.client is not None
         return await self.client.get_page_access_token(object_id, user_token)
 
     @guard_ensure_auth_manager
@@ -146,7 +144,6 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If post creation fails
         """
-        assert self.client is not None
         return await self.client.create_post(
             object_id=object_id, message=message, link=link, attached_media=attached_media
         )
@@ -170,7 +167,6 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If media upload fails
         """
-        assert self.client is not None
         return await self.client.upload_media(object_id, media_url, published)
 
     @guard_ensure_auth_manager
@@ -203,7 +199,6 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If photo upload fails
         """
-        assert self.client is not None
         return await self.client.upload_photo_file(
             object_id,
             file_content,
@@ -231,7 +226,6 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If like operation fails
         """
-        assert self.client is not None
         return await self.client.like_post(object_id, post_id)
 
     @guard_ensure_auth_manager
@@ -253,7 +247,6 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If comment operation fails
         """
-        assert self.client is not None
         return await self.client.create_comment(post_id, text, image_url=image_url)
 
     @guard_ensure_auth_manager
@@ -274,7 +267,6 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If deletion fails
         """
-        assert self.client is not None
         return await self.client.delete_post(object_id, post_id)
 
     @guard_ensure_auth_manager
@@ -294,7 +286,6 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If deletion fails
         """
-        assert self.client is not None
         return await self.client.delete_comment(comment_id)
 
     @guard_ensure_auth_manager
@@ -314,7 +305,6 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If the object cannot be read
         """
-        assert self.client is not None
         return await asyncio.to_thread(
             self.client.get_object,
             post_id,
@@ -338,7 +328,6 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If the comment cannot be read
         """
-        assert self.client is not None
         return await asyncio.to_thread(
             self.client.get_object,
             comment_id,
@@ -363,7 +352,6 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If the posts cannot be read
         """
-        assert self.client is not None
         result = await asyncio.to_thread(
             self.client.get_object,
             f"{object_id}/feed",
@@ -391,7 +379,6 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If sharing fails
         """
-        assert self.client is not None
         return await self.client.share_post(profile_id, object_id, post_id)
 
     @guard_ensure_auth_manager
@@ -414,7 +401,6 @@ class FacebookAPI(BaseAPI):
         Raises:
             Exception: If upload fails
         """
-        assert self.client is not None
         return await self.client.upload_reel_or_story(object_id, video_type, status_text, video_url)
 
     @guard_ensure_auth_manager
@@ -455,7 +441,6 @@ class FacebookAPI(BaseAPI):
             raise Exception("Facebook app ID is required for regular video uploads")
 
         try:
-            assert self.client is not None
             return await self.client.upload_regular_video(
                 object_id,
                 self.app_id,

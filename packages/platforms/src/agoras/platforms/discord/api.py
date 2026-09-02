@@ -17,6 +17,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.discord.api module."""
 
+import warnings
+
 from agoras.core.api_base import (
     BaseAPI,
     guard_auth_attempt,
@@ -27,6 +29,11 @@ from agoras.core.api_base import (
 from agoras.core.auth import raise_authentication_error_from_manager
 
 from .auth import DiscordAuthManager
+
+
+def _deprecated(attr, cls):
+    """Warn that a read-through property is deprecated."""
+    warnings.warn(f"{cls}.{attr} is deprecated; use auth_manager.{attr}", DeprecationWarning, stacklevel=3)
 
 
 class DiscordAPI(BaseAPI):
@@ -40,6 +47,30 @@ class DiscordAPI(BaseAPI):
     # Guard message templates (read by the composable guard decorators)
     _not_authenticated_message = "Discord API not authenticated"
     _client_not_available_message = "Discord client not available"
+
+    @property
+    def bot_token(self):
+        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
+        _deprecated("bot_token", "DiscordAPI")
+        return self.auth_manager.bot_token if self.auth_manager else None
+
+    @property
+    def server_name(self):
+        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
+        _deprecated("server_name", "DiscordAPI")
+        return self.auth_manager.server_name if self.auth_manager else None
+
+    @property
+    def channel_name(self):
+        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
+        _deprecated("channel_name", "DiscordAPI")
+        return self.auth_manager.channel_name if self.auth_manager else None
+
+    @property
+    def user_info(self):
+        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
+        _deprecated("user_info", "DiscordAPI")
+        return self.auth_manager.user_info if self.auth_manager else None
 
     def __init__(self, bot_token, server_name, channel_name):
         """

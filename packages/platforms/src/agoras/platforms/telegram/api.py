@@ -112,7 +112,6 @@ class TelegramAPI(BaseAPI):
         Raises:
             Exception: If API call fails
         """
-        assert self.client is not None
         return await self.client.get_me()
 
     @guard_auth_attempt
@@ -137,7 +136,6 @@ class TelegramAPI(BaseAPI):
         Raises:
             Exception: If message sending fails
         """
-        assert self.client is not None
         response = await self.client.send_message(
             chat_id=chat_id, text=text, parse_mode=parse_mode, reply_to_message_id=reply_to_message_id
         )
@@ -172,8 +170,6 @@ class TelegramAPI(BaseAPI):
         Raises:
             Exception: If photo sending fails
         """
-        assert self.client is not None
-
         # If URL provided, download using Media system
         if photo_url:
             from agoras.media import MediaFactory
@@ -240,8 +236,6 @@ class TelegramAPI(BaseAPI):
         Raises:
             Exception: If video sending fails
         """
-        assert self.client is not None
-
         # If URL provided, download using Media system
         if video_url:
             from agoras.media import MediaFactory
@@ -290,7 +284,6 @@ class TelegramAPI(BaseAPI):
         Raises:
             Exception: If message deletion fails
         """
-        assert self.client is not None
         await self.client.delete_message(chat_id=chat_id, message_id=int(message_id))
         return str(message_id)
 
@@ -392,7 +385,6 @@ class TelegramAPI(BaseAPI):
         Raises:
             Exception: If media group sending fails
         """
-        assert self.client is not None
         response = await self.client.send_media_group(
             chat_id=chat_id, media=media, reply_to_message_id=reply_to_message_id
         )

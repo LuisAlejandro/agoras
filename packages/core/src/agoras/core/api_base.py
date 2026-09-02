@@ -197,7 +197,8 @@ class BaseAPI(ABC):
             **credentials: API-specific authentication credentials
         """
         self.credentials = credentials
-        self.client = None
+        self.client: Any = None
+        self.auth_manager: Any = None
         self._authenticated = False
         self._rate_limit_cache = {}
         self._last_request_time = 0
@@ -237,9 +238,11 @@ class BaseAPI(ABC):
         """
         Disconnect from the API and clean up resources.
         """
-        self._disconnect_hook()
-        self.client = None
-        self._authenticated = False
+        try:
+            self._disconnect_hook()
+        finally:
+            self.client = None
+            self._authenticated = False
 
     def _disconnect_hook(self):
         """
@@ -283,7 +286,13 @@ class BaseAPI(ABC):
 
     _REDACT_PATTERNS = (
         (re.compile(r"Bearer\s+\S+", re.I), "Bearer [REDACTED]"),
+        (re.compile(r"Bot\s+\S+", re.I), "Bot [REDACTED]"),
         (re.compile(r"access_token[=:]\s*\S+", re.I), "access_token=[REDACTED]"),
+        (re.compile(r"refresh_token[=:]\s*\S+", re.I), "refresh_token=[REDACTED]"),
+        (re.compile(r"client_secret[=:]\s*\S+", re.I), "client_secret=[REDACTED]"),
+        (re.compile(r"oauth_token[=:]\s*\S+", re.I), "oauth_token=[REDACTED]"),
+        (re.compile(r"app_secret[=:]\s*\S+", re.I), "app_secret=[REDACTED]"),
+        (re.compile(r"(?<![a-z_])token[=:]\s*\S+", re.I), "token=[REDACTED]"),
         (re.compile(r"Authorization:\s*\S+", re.I), "Authorization: [REDACTED]"),
     )
 
@@ -312,7 +321,9 @@ class BaseAPI(ABC):
             Exception: Formatted exception with context
         """
         error_msg = f"{operation_name} failed: {self._sanitize_error_message(str(error))}"
-        raise Exception(error_msg) from None
+        exc = Exception(error_msg)
+        exc.__suppress_context__ = True
+        raise exc from None
 
     @abstractmethod
     async def post(self, *args, **kwargs):

@@ -17,6 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.linkedin.api module."""
 
+import warnings
 from typing import Any, Dict, List, Optional
 
 from agoras.core.api_base import (
@@ -31,6 +32,11 @@ from agoras.core.auth import raise_authentication_error_from_manager
 from .auth import LinkedInAuthManager
 
 
+def _deprecated(attr, cls):
+    """Warn that a read-through property is deprecated."""
+    warnings.warn(f"{cls}.{attr} is deprecated; use auth_manager.{attr}", DeprecationWarning, stacklevel=3)
+
+
 class LinkedInAPI(BaseAPI):
     """
     LinkedIn API handler that centralizes LinkedIn operations.
@@ -41,6 +47,24 @@ class LinkedInAPI(BaseAPI):
 
     # Guard message template (read by the composable guard decorators)
     _client_not_available_message = "LinkedIn API not authenticated"
+
+    @property
+    def client_secret(self):
+        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
+        _deprecated("client_secret", "LinkedInAPI")
+        return self.auth_manager.client_secret if self.auth_manager else None
+
+    @property
+    def refresh_token(self):
+        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
+        _deprecated("refresh_token", "LinkedInAPI")
+        return self.auth_manager.refresh_token if self.auth_manager else None
+
+    @property
+    def user_info(self):
+        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
+        _deprecated("user_info", "LinkedInAPI")
+        return self.auth_manager.user_info if self.auth_manager else None
 
     def __init__(self, user_id, client_id, client_secret, refresh_token=None, access_token=None):
         """

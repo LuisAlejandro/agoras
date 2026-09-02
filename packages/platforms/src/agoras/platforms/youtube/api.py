@@ -143,7 +143,6 @@ class YouTubeAPI(BaseAPI):
         Raises:
             Exception: If upload fails
         """
-        assert self.client is not None
         return await self.client.upload_video(
             video_file_path=video_file_path,
             title=title,
@@ -167,7 +166,6 @@ class YouTubeAPI(BaseAPI):
         Raises:
             Exception: If like operation fails
         """
-        assert self.client is not None
         await self.client.like_video(video_id)
 
     @guard_client_presence
@@ -183,7 +181,6 @@ class YouTubeAPI(BaseAPI):
         Raises:
             Exception: If delete operation fails
         """
-        assert self.client is not None
         await self.client.delete_video(video_id)
 
     async def post(self, *args, **kwargs) -> str:
@@ -225,7 +222,6 @@ class YouTubeAPI(BaseAPI):
         Raises:
             Exception: If comment operation fails
         """
-        assert self.client is not None
         return await self.client.insert_comment(video_id, text)
 
     @guard_ensure_auth_manager
@@ -245,7 +241,6 @@ class YouTubeAPI(BaseAPI):
         Raises:
             Exception: If deletion fails
         """
-        assert self.client is not None
         return await self.client.delete_comment(comment_id)
 
     @guard_ensure_auth_manager
@@ -265,7 +260,6 @@ class YouTubeAPI(BaseAPI):
         Raises:
             Exception: If the video cannot be read
         """
-        assert self.client is not None
         return await self.client.get_video_info(video_id)
 
     @guard_ensure_auth_manager
@@ -285,7 +279,6 @@ class YouTubeAPI(BaseAPI):
         Raises:
             Exception: If the comment cannot be read
         """
-        assert self.client is not None
         return await self.client.get_comment(comment_id)
 
     @guard_ensure_auth_manager
@@ -305,5 +298,4 @@ class YouTubeAPI(BaseAPI):
         Raises:
             Exception: If the uploads cannot be read
         """
-        assert self.client is not None
         return await self.client.list_uploads(limit)
