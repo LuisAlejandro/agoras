@@ -338,7 +338,7 @@ class SocialNetwork(ABC):
         Raises:
             Exception: If reading a reply is not supported
         """
-        if getattr(self, "_proxy_delete_reply", False):
+        if getattr(self, "_proxy_get_reply", False):
             return await self.get_post(post_id)
         raise Exception(f"Get reply not supported for {self.__class__.__name__}")
 

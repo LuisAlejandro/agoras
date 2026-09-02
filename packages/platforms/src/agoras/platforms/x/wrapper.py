@@ -56,6 +56,7 @@ class X(SocialNetwork):
 
     # Pure-proxy platform: delete_reply/get_reply delegate to delete/get_post
     _proxy_delete_reply = True
+    _proxy_get_reply = True
 
     def __init__(self, **kwargs):
         """
@@ -391,7 +392,6 @@ class X(SocialNetwork):
         self._output_status(result)
         return result
 
-
     async def get_post(self, post_id):
         """
         Read a tweet by ID and return normalized content.
@@ -423,7 +423,6 @@ class X(SocialNetwork):
         }
         self._output_content(content)
         return content
-
 
     async def list_posts(self, limit):
         """

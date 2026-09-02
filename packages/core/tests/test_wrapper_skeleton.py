@@ -61,6 +61,7 @@ class _Stub(SocialNetwork):
 
 class _ProxyStub(_Stub):
     _proxy_delete_reply = True
+    _proxy_get_reply = True
 
 
 class _Api:

@@ -36,6 +36,33 @@ REAL_DELETE_REPLY = {"facebook", "instagram", "linkedin", "youtube"}
 THREADS_VARIANT = {"threads"}
 
 
+def check_proxy_flags(name, src, failures):
+    proxy_expected = name in PROXY_PLATFORMS
+    proxy_set = "_proxy_delete_reply = True" in src
+    if proxy_expected and not proxy_set:
+        failures.append(f"{name} is a proxy platform but _proxy_delete_reply not set")
+    if not proxy_expected and proxy_set:
+        failures.append(f"{name} is not a proxy platform but _proxy_delete_reply is set")
+    if name == "telegram":
+        if "_proxy_get_reply" in src:
+            failures.append("telegram must not proxy get_reply (no get_post support)")
+    elif proxy_expected and "_proxy_get_reply = True" not in src:
+        failures.append(f"{name} is a proxy platform but _proxy_get_reply not set")
+
+
+def check_overrides(name, src, failures):
+    if name in REAL_DELETE_REPLY:
+        if not re.search(r"async def delete_reply", src):
+            failures.append(f"{name} lost its real delete_reply override")
+    else:
+        if re.search(r"async def delete_reply", src):
+            failures.append(f"{name} still defines delete_reply (should inherit base raise)")
+    if re.search(r"async def disconnect", src):
+        failures.append(f"{name} still defines disconnect (should inherit base default)")
+    if name in THREADS_VARIANT and "_is_uncertain_publish_error" not in src:
+        failures.append(f"{name} lost its _is_uncertain_publish_error variant")
+
+
 def check_platform(name):
     failures = []
     wrapper = WRAPPER_DIR / name / "wrapper.py"
@@ -62,30 +89,9 @@ def check_platform(name):
     except Exception as e:  # noqa: BLE001
         failures.append(f"import failed for {name}.wrapper: {e}")
 
-    # 3. Proxy flags
-    proxy_expected = name in PROXY_PLATFORMS
-    proxy_set = "_proxy_delete_reply = True" in src
-    if proxy_expected and not proxy_set:
-        failures.append(f"{name} is a proxy platform but _proxy_delete_reply not set")
-    if not proxy_expected and proxy_set:
-        failures.append(f"{name} is not a proxy platform but _proxy_delete_reply is set")
-
-    # 4. Real-logic overrides
-    if name in REAL_DELETE_REPLY:
-        if not re.search(r"async def delete_reply", src):
-            failures.append(f"{name} lost its real delete_reply override")
-    else:
-        if re.search(r"async def delete_reply", src):
-            failures.append(f"{name} still defines delete_reply (should inherit base raise)")
-
-    # 5. Teardown inherited
-    if re.search(r"async def disconnect", src):
-        failures.append(f"{name} still defines disconnect (should inherit base default)")
-
-    # 6. Threads variant
-    if name in THREADS_VARIANT:
-        if "_is_uncertain_publish_error" not in src:
-            failures.append(f"{name} lost its _is_uncertain_publish_error variant")
+    # 3-6. Proxy flags, overrides, teardown, threads variant
+    check_proxy_flags(name, src, failures)
+    check_overrides(name, src, failures)
 
     return failures
 
