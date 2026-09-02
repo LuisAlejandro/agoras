@@ -19,7 +19,13 @@
 
 from typing import Any, Dict, List, Optional
 
-from agoras.core.api_base import BaseAPI
+from agoras.core.api_base import (
+    BaseAPI,
+    guard_auth_attempt,
+    guard_client_presence,
+    guard_error_wrap,
+    guard_rate_limit,
+)
 from agoras.core.auth import raise_authentication_error_from_manager
 
 from .auth import TelegramAuthManager
@@ -32,6 +38,10 @@ class TelegramAPI(BaseAPI):
     Provides methods for Telegram authentication, message sending,
     media posting, and all Telegram Bot API operations.
     """
+
+    # Guard message templates (read by the composable guard decorators)
+    _not_authenticated_message = "Telegram API not authenticated"
+    _client_not_available_message = "Telegram client not available"
 
     def __init__(self, bot_token: str, chat_id: Optional[str] = None):
         """
@@ -97,6 +107,9 @@ class TelegramAPI(BaseAPI):
         self.client = None
         self._authenticated = False
 
+    @guard_auth_attempt
+    @guard_client_presence
+    @guard_error_wrap("Telegram get bot info")
     async def get_bot_info(self) -> Dict[str, Any]:
         """
         Get information about the bot.
@@ -107,18 +120,13 @@ class TelegramAPI(BaseAPI):
         Raises:
             Exception: If API call fails
         """
-        if not self._authenticated:
-            await self.authenticate()
+        assert self.client is not None
+        return await self.client.get_me()
 
-        if not self.client:
-            raise Exception("Telegram client not available")
-
-        try:
-            return await self.client.get_me()
-        except Exception as e:
-            self._handle_api_error(e, "Telegram get bot info")
-            raise
-
+    @guard_auth_attempt
+    @guard_client_presence
+    @guard_rate_limit("send_message", 1.0)
+    @guard_error_wrap("Telegram send message")
     async def send_message(
         self, chat_id: str, text: str, parse_mode: Optional[str] = None, reply_to_message_id: Optional[int] = None
     ) -> str:
@@ -137,23 +145,16 @@ class TelegramAPI(BaseAPI):
         Raises:
             Exception: If message sending fails
         """
-        if not self._authenticated:
-            await self.authenticate()
+        assert self.client is not None
+        response = await self.client.send_message(
+            chat_id=chat_id, text=text, parse_mode=parse_mode, reply_to_message_id=reply_to_message_id
+        )
+        return str(response["message_id"])
 
-        if not self.client:
-            raise Exception("Telegram client not available")
-
-        await self._rate_limit_check("send_message", 1.0)
-
-        try:
-            response = await self.client.send_message(
-                chat_id=chat_id, text=text, parse_mode=parse_mode, reply_to_message_id=reply_to_message_id
-            )
-            return str(response["message_id"])
-        except Exception as e:
-            self._handle_api_error(e, "Telegram send message")
-            raise
-
+    @guard_auth_attempt
+    @guard_client_presence
+    @guard_rate_limit("send_photo", 1.0)
+    @guard_error_wrap("Telegram send photo")
     async def send_photo(
         self,
         chat_id: str,
@@ -180,13 +181,7 @@ class TelegramAPI(BaseAPI):
         Raises:
             Exception: If photo sending fails
         """
-        if not self._authenticated:
-            await self.authenticate()
-
-        if not self.client:
-            raise Exception("Telegram client not available")
-
-        await self._rate_limit_check("send_photo", 1.0)
+        assert self.client is not None
 
         # If URL provided, download using Media system
         if photo_url:
@@ -212,19 +207,19 @@ class TelegramAPI(BaseAPI):
         if not photo_content:
             raise Exception("No photo content available")
 
-        try:
-            response = await self.client.send_photo(
-                chat_id=chat_id,
-                photo=photo_content,
-                caption=caption,
-                parse_mode=parse_mode,
-                reply_to_message_id=reply_to_message_id,
-            )
-            return str(response["message_id"])
-        except Exception as e:
-            self._handle_api_error(e, "Telegram send photo")
-            raise
+        response = await self.client.send_photo(
+            chat_id=chat_id,
+            photo=photo_content,
+            caption=caption,
+            parse_mode=parse_mode,
+            reply_to_message_id=reply_to_message_id,
+        )
+        return str(response["message_id"])
 
+    @guard_auth_attempt
+    @guard_client_presence
+    @guard_rate_limit("send_video", 1.0)
+    @guard_error_wrap("Telegram send video")
     async def send_video(
         self,
         chat_id: str,
@@ -251,13 +246,7 @@ class TelegramAPI(BaseAPI):
         Raises:
             Exception: If video sending fails
         """
-        if not self._authenticated:
-            await self.authenticate()
-
-        if not self.client:
-            raise Exception("Telegram client not available")
-
-        await self._rate_limit_check("send_video", 1.0)
+        assert self.client is not None
 
         # If URL provided, download using Media system
         if video_url:
@@ -276,19 +265,19 @@ class TelegramAPI(BaseAPI):
         if not video_content:
             raise Exception("No video content available")
 
-        try:
-            response = await self.client.send_video(
-                chat_id=chat_id,
-                video=video_content,
-                caption=caption,
-                parse_mode=parse_mode,
-                reply_to_message_id=reply_to_message_id,
-            )
-            return str(response["message_id"])
-        except Exception as e:
-            self._handle_api_error(e, "Telegram send video")
-            raise
+        response = await self.client.send_video(
+            chat_id=chat_id,
+            video=video_content,
+            caption=caption,
+            parse_mode=parse_mode,
+            reply_to_message_id=reply_to_message_id,
+        )
+        return str(response["message_id"])
 
+    @guard_auth_attempt
+    @guard_client_presence
+    @guard_rate_limit("delete_message", 0.5)
+    @guard_error_wrap("Telegram delete message")
     async def delete_message(self, chat_id: str, message_id: int) -> str:
         """
         Delete a message.
@@ -303,20 +292,9 @@ class TelegramAPI(BaseAPI):
         Raises:
             Exception: If message deletion fails
         """
-        if not self._authenticated:
-            await self.authenticate()
-
-        if not self.client:
-            raise Exception("Telegram client not available")
-
-        await self._rate_limit_check("delete_message", 0.5)
-
-        try:
-            await self.client.delete_message(chat_id=chat_id, message_id=int(message_id))
-            return str(message_id)
-        except Exception as e:
-            self._handle_api_error(e, "Telegram delete message")
-            raise
+        assert self.client is not None
+        await self.client.delete_message(chat_id=chat_id, message_id=int(message_id))
+        return str(message_id)
 
     async def post(self, *args, **kwargs) -> str:
         """
@@ -395,6 +373,10 @@ class TelegramAPI(BaseAPI):
         """
         raise Exception("Share not supported for Telegram")
 
+    @guard_auth_attempt
+    @guard_client_presence
+    @guard_rate_limit("send_media_group", 1.0)
+    @guard_error_wrap("Telegram send media group")
     async def send_media_group(
         self, chat_id: str, media: List[Dict[str, Any]], reply_to_message_id: Optional[int] = None
     ) -> List[str]:
@@ -412,23 +394,12 @@ class TelegramAPI(BaseAPI):
         Raises:
             Exception: If media group sending fails
         """
-        if not self._authenticated:
-            await self.authenticate()
-
-        if not self.client:
-            raise Exception("Telegram client not available")
-
-        await self._rate_limit_check("send_media_group", 1.0)
-
-        try:
-            response = await self.client.send_media_group(
-                chat_id=chat_id, media=media, reply_to_message_id=reply_to_message_id
-            )
-            # Return list of message IDs
-            return [str(msg["message_id"]) for msg in response]
-        except Exception as e:
-            self._handle_api_error(e, "Telegram send media group")
-            raise
+        assert self.client is not None
+        response = await self.client.send_media_group(
+            chat_id=chat_id, media=media, reply_to_message_id=reply_to_message_id
+        )
+        # Return list of message IDs
+        return [str(msg["message_id"]) for msg in response]
 
     async def reply(
         self,
