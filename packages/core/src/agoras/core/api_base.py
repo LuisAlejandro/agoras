@@ -18,9 +18,138 @@
 """agoras.core.api_base module."""
 
 import asyncio
+import functools
 import re
 import time
 from abc import ABC, abstractmethod
+from typing import Awaitable, Callable, NoReturn, TypeVar
+
+from typing_extensions import Concatenate, ParamSpec
+
+P = ParamSpec("P")
+R = TypeVar("R")
+T = TypeVar("T")
+
+
+def guard_auth_attempt(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Callable[Concatenate[T, P], Awaitable[R]]:
+    """
+    Guard decorator: attempt authentication when the instance is not authenticated.
+
+    Applies the auto-auth dialect: if ``self._authenticated`` is false,
+    ``self.authenticate()`` is awaited first. Guard-phase errors propagate
+    unmodified (never wrapped), preserving the categorized auth error.
+    """
+
+    @functools.wraps(func)
+    async def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
+        if not self._authenticated:  # type: ignore[attr-defined]
+            await self.authenticate()  # type: ignore[attr-defined]
+        return await func(self, *args, **kwargs)
+
+    return wrapper  # type: ignore[return-value]
+
+
+def guard_assert_auth(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Callable[Concatenate[T, P], Awaitable[R]]:
+    """
+    Guard decorator: raise the platform's not-authenticated message when unauthenticated.
+
+    Applies the assert-or-raise dialect: if ``self._authenticated`` is false
+    or ``self.client`` is missing, raise without attempting authentication.
+    """
+
+    @functools.wraps(func)
+    async def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
+        if not self._authenticated or not self.client:  # type: ignore[attr-defined]
+            raise Exception(self._not_authenticated_message)  # type: ignore[attr-defined]
+        return await func(self, *args, **kwargs)
+
+    return wrapper  # type: ignore[return-value]
+
+
+def guard_ensure_auth_manager(
+    func: Callable[Concatenate[T, P], Awaitable[R]],
+) -> Callable[Concatenate[T, P], Awaitable[R]]:
+    """
+    Guard decorator: ensure the auth manager's token is current before operations.
+
+    Applies the auth-manager-ensure dialect: ``self.auth_manager.ensure_authenticated()``
+    is invoked first. The categorized ``AuthenticationError`` it raises on
+    failure propagates unmodified, never wrapped.
+    """
+
+    @functools.wraps(func)
+    async def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
+        self.auth_manager.ensure_authenticated()  # type: ignore[attr-defined]
+        return await func(self, *args, **kwargs)
+
+    return wrapper  # type: ignore[return-value]
+
+
+def guard_client_presence(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Callable[Concatenate[T, P], Awaitable[R]]:
+    """
+    Guard decorator: raise the platform's not-available message when the client is missing.
+
+    Applies the client-check dialect: if ``self.client`` is absent, raise
+    ``self._client_not_available_message`` without attempting authentication.
+    """
+
+    @functools.wraps(func)
+    async def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
+        if not self.client:  # type: ignore[attr-defined]
+            raise Exception(self._client_not_available_message)  # type: ignore[attr-defined]
+        return await func(self, *args, **kwargs)
+
+    return wrapper  # type: ignore[return-value]
+
+
+def guard_rate_limit(
+    operation_key: str,
+    min_interval: float,
+    rate_limit_cache_attr: str = "_rate_limit_cache",
+) -> Callable[[Callable[Concatenate[T, P], Awaitable[R]]], Callable[Concatenate[T, P], Awaitable[R]]]:
+    """
+    Guard decorator: wait the operation's minimum interval before the client call.
+
+    ``operation_key`` is the literal bucket key shared by methods that throttle
+    together (e.g. x ``post`` and ``reply`` share the ``"post"`` bucket).
+    """
+
+    def decorate(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Callable[Concatenate[T, P], Awaitable[R]]:
+        @functools.wraps(func)
+        async def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
+            await self._rate_limit_check(operation_key, min_interval)  # type: ignore[attr-defined]
+            return await func(self, *args, **kwargs)
+
+        return wrapper  # type: ignore[return-value]
+
+    return decorate
+
+
+def guard_error_wrap(
+    operation_name: str,
+    error_handler_attr: str = "_handle_api_error",
+) -> Callable[[Callable[Concatenate[T, P], Awaitable[R]]], Callable[Concatenate[T, P], Awaitable[R]]]:
+    """
+    Guard decorator: normalize and sanitize exceptions from the client-call segment.
+
+    Covers only the client call — guard-phase errors (auth attempt, auth
+    manager ensure, client presence) are raised before this decorator's
+    scope and propagate unmodified, preserving the categorized auth error
+    and the not-supported error shapes.
+    """
+
+    def decorate(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Callable[Concatenate[T, P], Awaitable[R]]:
+        @functools.wraps(func)
+        async def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
+            try:
+                return await func(self, *args, **kwargs)
+            except Exception as e:
+                getattr(self, error_handler_attr)(e, operation_name)
+                raise
+
+        return wrapper  # type: ignore[return-value]
+
+    return decorate
 
 
 class BaseAPI(ABC):
@@ -101,7 +230,13 @@ class BaseAPI(ABC):
             sanitized = pattern.sub(replacement, sanitized)
         return sanitized
 
-    def _handle_api_error(self, error, operation_name):
+    # Guard message templates, overridden per platform. Read by the guard
+    # decorators so the not-authenticated and not-available messages stay
+    # platform-specific without repeating the guard shape.
+    _not_authenticated_message = "API not authenticated"
+    _client_not_available_message = "API client not available"
+
+    def _handle_api_error(self, error, operation_name) -> NoReturn:
         """
         Handle API errors with consistent error messages.
 
@@ -113,7 +248,7 @@ class BaseAPI(ABC):
             Exception: Formatted exception with context
         """
         error_msg = f"{operation_name} failed: {self._sanitize_error_message(str(error))}"
-        raise Exception(error_msg) from error
+        raise Exception(error_msg) from None
 
     @abstractmethod
     async def post(self, *args, **kwargs):
