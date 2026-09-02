@@ -19,7 +19,13 @@
 
 from typing import Any, Dict, List, Optional
 
-from agoras.core.api_base import BaseAPI
+from agoras.core.api_base import (
+    BaseAPI,
+    guard_client_presence,
+    guard_ensure_auth_manager,
+    guard_error_wrap,
+    guard_rate_limit,
+)
 from agoras.core.auth import raise_authentication_error_from_manager
 
 from .auth import YouTubeAuthManager
@@ -32,6 +38,10 @@ class YouTubeAPI(BaseAPI):
     Provides methods for YouTube OAuth authentication, video uploads,
     and all YouTube API operations.
     """
+
+    # Guard message templates (read by the composable guard decorators)
+    _not_authenticated_message = "YouTube API not authenticated"
+    _client_not_available_message = "YouTube API not authenticated"
 
     def __init__(self, client_id, client_secret, refresh_token=None):
         """
@@ -122,6 +132,10 @@ class YouTubeAPI(BaseAPI):
         self.client = None
         self._authenticated = False
 
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("upload_video", 2.0)
+    @guard_error_wrap("YouTube video upload")
     async def upload_video(
         self,
         video_file_path: str,
@@ -148,26 +162,20 @@ class YouTubeAPI(BaseAPI):
         Raises:
             Exception: If upload fails
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        return await self.client.upload_video(
+            video_file_path=video_file_path,
+            title=title,
+            description=description,
+            category_id=category_id,
+            privacy_status=privacy_status,
+            keywords=keywords,
+        )
 
-        if not self.client:
-            raise Exception("YouTube API not authenticated")
-
-        await self._rate_limit_check("upload_video", 2.0)
-
-        try:
-            return await self.client.upload_video(
-                video_file_path=video_file_path,
-                title=title,
-                description=description,
-                category_id=category_id,
-                privacy_status=privacy_status,
-                keywords=keywords,
-            )
-        except Exception as e:
-            self._handle_api_error(e, "YouTube video upload")
-            raise
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("like", 1.0)
+    @guard_error_wrap("YouTube video like")
     async def like(self, video_id: str) -> None:
         """
         Like a YouTube video.
@@ -178,19 +186,12 @@ class YouTubeAPI(BaseAPI):
         Raises:
             Exception: If like operation fails
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        await self.client.like_video(video_id)
 
-        if not self.client:
-            raise Exception("YouTube API not authenticated")
-
-        await self._rate_limit_check("like", 1.0)
-
-        try:
-            await self.client.like_video(video_id)
-        except Exception as e:
-            self._handle_api_error(e, "YouTube video like")
-            raise
-
+    @guard_client_presence
+    @guard_rate_limit("delete", 1.0)
+    @guard_error_wrap("YouTube video deletion")
     async def delete(self, video_id: str) -> None:
         """
         Delete a YouTube video.
@@ -201,16 +202,8 @@ class YouTubeAPI(BaseAPI):
         Raises:
             Exception: If delete operation fails
         """
-        if not self.client:
-            raise Exception("YouTube API not authenticated")
-
-        await self._rate_limit_check("delete", 1.0)
-
-        try:
-            await self.client.delete_video(video_id)
-        except Exception as e:
-            self._handle_api_error(e, "YouTube video deletion")
-            raise
+        assert self.client is not None
+        await self.client.delete_video(video_id)
 
     async def post(self, *args, **kwargs) -> str:
         """
@@ -233,6 +226,10 @@ class YouTubeAPI(BaseAPI):
         """
         raise Exception("Share not supported for YouTube")
 
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("reply", 1.0)
+    @guard_error_wrap("YouTube comment")
     async def reply(self, video_id: str, text: str) -> str:
         """
         Comment on a YouTube video.
@@ -247,19 +244,13 @@ class YouTubeAPI(BaseAPI):
         Raises:
             Exception: If comment operation fails
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        return await self.client.insert_comment(video_id, text)
 
-        if not self.client:
-            raise Exception("YouTube API not authenticated")
-
-        await self._rate_limit_check("reply", 1.0)
-
-        try:
-            return await self.client.insert_comment(video_id, text)
-        except Exception as e:
-            self._handle_api_error(e, "YouTube comment")
-            raise
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("delete", 1.0)
+    @guard_error_wrap("YouTube delete-reply")
     async def delete_reply(self, comment_id: str) -> str:
         """
         Delete a YouTube comment.
@@ -273,19 +264,13 @@ class YouTubeAPI(BaseAPI):
         Raises:
             Exception: If deletion fails
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        return await self.client.delete_comment(comment_id)
 
-        if not self.client:
-            raise Exception("YouTube API not authenticated")
-
-        await self._rate_limit_check("delete", 1.0)
-
-        try:
-            return await self.client.delete_comment(comment_id)
-        except Exception as e:
-            self._handle_api_error(e, "YouTube delete-reply")
-            raise
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("get_post", 1.0)
+    @guard_error_wrap("YouTube get-post")
     async def get_post(self, video_id: str) -> Dict[str, Any]:
         """
         Read a YouTube video by ID.
@@ -299,19 +284,13 @@ class YouTubeAPI(BaseAPI):
         Raises:
             Exception: If the video cannot be read
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        return await self.client.get_video_info(video_id)
 
-        if not self.client:
-            raise Exception("YouTube API not authenticated")
-
-        await self._rate_limit_check("get_post", 1.0)
-
-        try:
-            return await self.client.get_video_info(video_id)
-        except Exception as e:
-            self._handle_api_error(e, "YouTube get-post")
-            raise
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("get_reply", 1.0)
+    @guard_error_wrap("YouTube get-reply")
     async def get_reply(self, comment_id: str) -> Dict[str, Any]:
         """
         Read a YouTube comment by ID.
@@ -325,19 +304,13 @@ class YouTubeAPI(BaseAPI):
         Raises:
             Exception: If the comment cannot be read
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        return await self.client.get_comment(comment_id)
 
-        if not self.client:
-            raise Exception("YouTube API not authenticated")
-
-        await self._rate_limit_check("get_reply", 1.0)
-
-        try:
-            return await self.client.get_comment(comment_id)
-        except Exception as e:
-            self._handle_api_error(e, "YouTube get-reply")
-            raise
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("list_posts", 1.0)
+    @guard_error_wrap("YouTube list-posts")
     async def list_posts(self, limit: int) -> List[Dict[str, Any]]:
         """
         List recent uploads from the authenticated user's channel.
@@ -351,15 +324,5 @@ class YouTubeAPI(BaseAPI):
         Raises:
             Exception: If the uploads cannot be read
         """
-        self.auth_manager.ensure_authenticated()
-
-        if not self.client:
-            raise Exception("YouTube API not authenticated")
-
-        await self._rate_limit_check("list_posts", 1.0)
-
-        try:
-            return await self.client.list_uploads(limit)
-        except Exception as e:
-            self._handle_api_error(e, "YouTube list-posts")
-            raise
+        assert self.client is not None
+        return await self.client.list_uploads(limit)

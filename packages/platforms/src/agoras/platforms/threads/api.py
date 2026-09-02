@@ -20,7 +20,14 @@
 import asyncio
 from typing import Any, Dict, List, Optional, Tuple
 
-from agoras.core.api_base import BaseAPI
+from agoras.core.api_base import (
+    BaseAPI,
+    guard_client_presence,
+    guard_ensure_auth_manager,
+    guard_error_wrap,
+    guard_rate_limit,
+    guard_token_presence,
+)
 from agoras.core.auth import raise_authentication_error_from_manager
 from agoras.media import MediaFactory
 from agoras.media.errors import MediaValidationError
@@ -36,6 +43,10 @@ class ThreadsAPI(BaseAPI):
     Provides methods for Threads authentication, post creation, replies,
     reposts, and all Threads API operations.
     """
+
+    # Guard message templates (read by the composable guard decorators)
+    _not_authenticated_message = "Threads API not authenticated"
+    _client_not_available_message = "Threads client not available"
 
     def __init__(self, app_id: str, app_secret: str, refresh_token: Optional[str] = None):
         """
@@ -192,6 +203,8 @@ class ThreadsAPI(BaseAPI):
                 raise Exception(f"Media validation failed: {error_msg}")
             raise
 
+    @guard_token_presence(token_attr="auth_manager.access_token")
+    @guard_error_wrap("Threads get profile")
     async def get_profile(self) -> Dict[str, Any]:
         """
         Get user profile information from Threads API.
@@ -202,21 +215,18 @@ class ThreadsAPI(BaseAPI):
         Raises:
             Exception: If API call fails
         """
-        if not self.access_token:
-            raise Exception("Threads API not authenticated")
-
         def _sync_get_profile():
             if not self.client:
                 raise Exception("Threads client not available")
             return self.client.get_profile()
 
-        try:
-            profile_info = await asyncio.to_thread(_sync_get_profile)
-            return profile_info
-        except Exception as e:
-            self._handle_api_error(e, "Threads get profile")
-            raise
+        profile_info = await asyncio.to_thread(_sync_get_profile)
+        return profile_info
 
+    @guard_ensure_auth_manager
+    @guard_token_presence(token_attr="auth_manager.access_token")
+    @guard_client_presence
+    @guard_rate_limit("create_post", 2.0)
     async def create_post(
         self,
         post_text: str,
@@ -241,16 +251,6 @@ class ThreadsAPI(BaseAPI):
         Raises:
             Exception: If post creation fails
         """
-        self.auth_manager.ensure_authenticated()
-
-        if not self.access_token:
-            raise Exception("Threads API not authenticated")
-
-        if not self.client:
-            raise Exception("Threads client not available")
-
-        await self._rate_limit_check("create_post", 2.0)
-
         # Validate file_captions length matches files if both provided
         if file_captions and files and len(file_captions) != len(files):
             raise Exception(f"File captions count ({len(file_captions)}) must match files count ({len(files)})")
@@ -297,6 +297,9 @@ class ThreadsAPI(BaseAPI):
                 except Exception:
                     pass
 
+    @guard_ensure_auth_manager
+    @guard_token_presence(token_attr="auth_manager.access_token")
+    @guard_client_presence
     async def create_video_post(
         self,
         post_text: str,
@@ -319,14 +322,6 @@ class ThreadsAPI(BaseAPI):
         Raises:
             Exception: If video post creation fails
         """
-        self.auth_manager.ensure_authenticated()
-
-        if not self.access_token:
-            raise Exception("Threads API not authenticated")
-
-        if not self.client:
-            raise Exception("Threads client not available")
-
         if not video_url:
             raise Exception("Video URL is required")
 
@@ -382,6 +377,11 @@ class ThreadsAPI(BaseAPI):
                 except Exception:
                     pass
 
+    @guard_ensure_auth_manager
+    @guard_token_presence(token_attr="auth_manager.access_token")
+    @guard_client_presence
+    @guard_rate_limit("repost_post", 2.0)
+    @guard_error_wrap("Threads repost")
     async def repost_post(self, post_id: str) -> str:
         """
         Repost an existing post.
@@ -395,30 +395,16 @@ class ThreadsAPI(BaseAPI):
         Raises:
             Exception: If repost fails
         """
-        self.auth_manager.ensure_authenticated()
-
-        if not self.access_token:
-            raise Exception("Threads API not authenticated")
-
-        if not self.client:
-            raise Exception("Threads client not available")
-
-        await self._rate_limit_check("repost_post", 2.0)
-
         def _sync_repost():
             if not self.client:
                 raise Exception("Threads client not available")
             return self.client.repost_post(post_id=post_id)
 
-        try:
-            response = await asyncio.to_thread(_sync_repost)
+        response = await asyncio.to_thread(_sync_repost)
 
-            # Extract repost ID from response
-            repost_id = response.get("id") or response.get("repost_id") or str(response)
-            return repost_id
-        except Exception as e:
-            self._handle_api_error(e, "Threads repost")
-            raise
+        # Extract repost ID from response
+        repost_id = response.get("id") or response.get("repost_id") or str(response)
+        return repost_id
 
     # BaseAPI abstract method implementations
     async def post(
@@ -449,6 +435,9 @@ class ThreadsAPI(BaseAPI):
         """
         raise Exception("Like not supported for Threads")
 
+    @guard_ensure_auth_manager
+    @guard_token_presence(token_attr="auth_manager.access_token")
+    @guard_client_presence
     async def delete(self, post_id: str) -> str:
         """
         Delete a Threads post.
@@ -462,14 +451,6 @@ class ThreadsAPI(BaseAPI):
         Raises:
             Exception: If deletion fails
         """
-        self.auth_manager.ensure_authenticated()
-
-        if not self.access_token:
-            raise Exception("Threads API not authenticated")
-
-        if not self.client:
-            raise Exception("Threads client not available")
-
         if not post_id:
             raise Exception("Post ID is required for delete action.")
 
@@ -487,6 +468,9 @@ class ThreadsAPI(BaseAPI):
             self._handle_api_error(e, "Threads post deletion")
             raise
 
+    @guard_ensure_auth_manager
+    @guard_token_presence(token_attr="auth_manager.access_token")
+    @guard_client_presence
     async def get_post(self, post_id: str) -> Dict[str, Any]:
         """
         Read a Threads post by ID.
@@ -500,14 +484,6 @@ class ThreadsAPI(BaseAPI):
         Raises:
             Exception: If the post cannot be read
         """
-        self.auth_manager.ensure_authenticated()
-
-        if not self.access_token:
-            raise Exception("Threads API not authenticated")
-
-        if not self.client:
-            raise Exception("Threads client not available")
-
         if not post_id:
             raise Exception("Post ID is required for get-post action.")
 
@@ -524,6 +500,11 @@ class ThreadsAPI(BaseAPI):
             self._handle_api_error(e, "Threads get-post")
             raise
 
+    @guard_ensure_auth_manager
+    @guard_token_presence(token_attr="auth_manager.access_token")
+    @guard_client_presence
+    @guard_rate_limit("list_posts", 1.0)
+    @guard_error_wrap("Threads list-posts")
     async def list_posts(self, limit: int) -> List[Dict[str, Any]]:
         """
         List the authenticated user's recent posts.
@@ -537,26 +518,12 @@ class ThreadsAPI(BaseAPI):
         Raises:
             Exception: If the posts cannot be read
         """
-        self.auth_manager.ensure_authenticated()
-
-        if not self.access_token:
-            raise Exception("Threads API not authenticated")
-
-        if not self.client:
-            raise Exception("Threads client not available")
-
-        await self._rate_limit_check("list_posts", 1.0)
-
         def _sync_list():
             if not self.client:
                 raise Exception("Threads client not available")
             return self.client.list_posts(limit=limit)
 
-        try:
-            return await asyncio.to_thread(_sync_list)
-        except Exception as e:
-            self._handle_api_error(e, "Threads list-posts")
-            raise
+        return await asyncio.to_thread(_sync_list)
 
     async def share(self, post_id: str) -> str:
         """
