@@ -250,6 +250,25 @@ class SocialNetwork(ABC):
         """
         raise Exception(f"Get reply not supported for {self.__class__.__name__}")
 
+    async def list_posts(self, limit):
+        """
+        List the account's recent posts and return a list of normalized content.
+
+        Default implementation raises not supported. Platforms that support
+        listing posts override this and return a list of normalized content
+        dicts.
+
+        Args:
+            limit (int): Maximum number of posts to return
+
+        Returns:
+            list: Normalized content dicts (id, text, media, author, created_at, metadata)
+
+        Raises:
+            Exception: If listing posts is not supported
+        """
+        raise Exception(f"List posts not supported for {self.__class__.__name__}")
+
     def get_platform_name(self):
         """
         Get the platform name for media handling.
@@ -475,6 +494,15 @@ class SocialNetwork(ABC):
         """
         print(json.dumps(self._normalize_content(content_dict), separators=(",", ":")))
 
+    def _output_list(self, items):
+        """
+        Output a list of normalized content items as a JSON array.
+
+        Args:
+            items (list): Content mappings (each normalized before emit)
+        """
+        print(json.dumps([self._normalize_content(c) for c in items], separators=(",", ":")))
+
     @staticmethod
     def _collect_status_image_urls(
         status_image_url_1=None,
@@ -563,6 +591,7 @@ class SocialNetwork(ABC):
             "delete-reply": self._handle_delete_reply_action,
             "get-post": self._handle_get_post_action,
             "get-reply": self._handle_get_reply_action,
+            "list-posts": self._handle_list_posts_action,
             "last-from-feed": self._handle_last_from_feed_action,
             "random-from-feed": self._handle_random_from_feed_action,
             "schedule": self._handle_schedule_action,
@@ -705,6 +734,18 @@ class SocialNetwork(ABC):
         """
         post_id = self._get_config_value("post_id")
         await self.get_reply(post_id)
+
+    async def _handle_list_posts_action(self):
+        """Handle list-posts action with common parameter extraction.
+
+        Delegates to ``self.list_posts`` so the base default raises "not
+        supported" for networks without a list-posts backend, even when
+        ``limit`` is absent. Networks that implement ``list_posts`` validate
+        their own parameters.
+        """
+        raw_limit = self._get_config_value("limit")
+        limit = int(raw_limit) if raw_limit not in (None, "") else 10
+        await self.list_posts(limit)
 
     async def _handle_last_from_feed_action(self):
         """Handle last-from-feed action with common parameter extraction."""

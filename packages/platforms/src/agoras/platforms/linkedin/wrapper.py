@@ -19,12 +19,32 @@
 
 import asyncio
 import sys
+from datetime import datetime, timezone
 
 from agoras.common.utils import parse_metatags
 from agoras.core.interfaces import SocialNetwork
 from agoras.core.text_limits import validate_text
 
 from .api import LinkedInAPI
+
+
+def _normalize_linkedin_created_at(value):
+    """Format a LinkedIn timestamp to ISO-8601.
+
+    LinkedIn read APIs return ``createdAt`` as epoch-milliseconds. Normalize
+    to an ISO string so ``created_at`` keeps the same shape (string) as the
+    other network backends. Missing values pass through as ``None``; values
+    that are already ISO strings pass through unchanged.
+    """
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    try:
+        millis = int(value)
+    except (TypeError, ValueError):
+        return None
+    return datetime.fromtimestamp(millis / 1000, tz=timezone.utc).isoformat()
 
 
 class LinkedIn(SocialNetwork):
@@ -315,7 +335,7 @@ class LinkedIn(SocialNetwork):
             "text": raw.get("commentary") or raw.get("text"),
             "media": await self._resolve_media(raw),
             "author": {"id": author_urn, "name": None} if author_urn else None,
-            "created_at": raw.get("createdAt") or raw.get("created_at"),
+            "created_at": _normalize_linkedin_created_at(raw.get("createdAt") or raw.get("created_at")),
             "metadata": {},
         }
         self._output_content(content)
@@ -353,11 +373,47 @@ class LinkedIn(SocialNetwork):
             "text": text,
             "media": await self._resolve_media(raw),
             "author": {"id": actor, "name": None} if actor else None,
-            "created_at": raw.get("created") or raw.get("createdAt") or raw.get("created_at"),
+            "created_at": _normalize_linkedin_created_at(
+                raw.get("created") or raw.get("createdAt") or raw.get("created_at")
+            ),
             "metadata": {"parent_post_id": parent_post_id},
         }
         self._output_content(content)
         return content
+
+    async def list_posts(self, limit):
+        """
+        List the authenticated user's recent posts and return normalized content.
+
+        Args:
+            limit (int): Maximum number of posts to return
+
+        Returns:
+            list: Normalized content dicts
+        """
+        if not self.api:
+            raise Exception("LinkedIn API not initialized")
+
+        if limit == 0:
+            self._output_list([])
+            return []
+
+        raw_items = await self.api.list_posts(limit)
+        items = []
+        for raw in raw_items:
+            author_urn = raw.get("author")
+            items.append(
+                {
+                    "id": str(raw.get("id")),
+                    "text": raw.get("commentary") or raw.get("text"),
+                    "media": await self._resolve_media(raw),
+                    "author": {"id": author_urn, "name": None} if author_urn else None,
+                    "created_at": _normalize_linkedin_created_at(raw.get("createdAt") or raw.get("created_at")),
+                    "metadata": {},
+                }
+            )
+        self._output_list(items)
+        return items
 
     async def _resolve_media(self, raw):
         """

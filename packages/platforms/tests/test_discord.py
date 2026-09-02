@@ -436,6 +436,64 @@ async def test_discord_get_reply_proxies_get_post(mock_api_class):
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.discord.wrapper.DiscordAPI')
+async def test_discord_list_posts_returns_normalized_items(mock_api_class):
+    """Test Discord list_posts emits normalized items via api.list_posts."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.list_posts = AsyncMock(
+        return_value=[
+            {"id": "1", "text": "hello", "author": {"id": "u1", "name": "Bot"}, "created_at": None, "media": []},
+            {"id": "2", "text": "world", "author": None, "created_at": None, "media": []},
+        ]
+    )
+    mock_api_class.return_value = mock_api
+
+    discord = Discord(
+        discord_bot_token='token',
+        discord_server_name='Server',
+        discord_channel_name='Channel',
+    )
+
+    await discord._initialize_client()
+
+    with patch.object(discord, '_output_list') as mock_out:
+        result = await discord.list_posts(2)
+
+    assert len(result) == 2
+    assert result[0]["id"] == "1"
+    assert result[0]["author"]["name"] == "Bot"
+    assert result[1]["id"] == "2"
+    mock_api.list_posts.assert_called_once_with(2)
+    mock_out.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.discord.wrapper.DiscordAPI')
+async def test_discord_list_posts_limit_zero_returns_empty(mock_api_class):
+    """Test Discord list_posts with limit=0 returns an empty list without an API call."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.list_posts = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    discord = Discord(
+        discord_bot_token='token',
+        discord_server_name='Server',
+        discord_channel_name='Channel',
+    )
+
+    await discord._initialize_client()
+
+    with patch.object(discord, '_output_list') as mock_out:
+        result = await discord.list_posts(0)
+
+    assert result == []
+    mock_api.list_posts.assert_not_called()
+    mock_out.assert_called_once_with([])
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.discord.wrapper.DiscordAPI')
 async def test_discord_delete_reply_no_post_id(mock_api_class):
     """Test Discord delete_reply raises when no post ID provided."""
     mock_api = MagicMock()

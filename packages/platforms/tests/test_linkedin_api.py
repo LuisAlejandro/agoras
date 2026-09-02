@@ -231,6 +231,23 @@ async def test_linkedin_api_get_reply_refreshes_auth(linkedin_api):
     )
 
 
+@pytest.mark.asyncio
+async def test_linkedin_api_list_posts(linkedin_api):
+    """Test LinkedInAPI list_posts calls client.list_posts with the author URN."""
+    linkedin_api.client.list_posts = AsyncMock(
+        return_value=[{"id": "urn:li:share:1", "commentary": "hello"}]
+    )
+
+    result = await linkedin_api.list_posts(5)
+
+    assert len(result) == 1
+    assert result[0]["id"] == "urn:li:share:1"
+    linkedin_api.auth_manager.ensure_authenticated.assert_called_once()
+    linkedin_api.client.list_posts.assert_called_once_with(
+        author_urn="urn:li:person:user_id", limit=5
+    )
+
+
 # Error Handling Tests
 
 @pytest.mark.asyncio

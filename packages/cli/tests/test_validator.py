@@ -109,4 +109,5 @@ def test_get_supported_actions():
         'reply',
         'get-post',
         'get-reply',
+        'list-posts',
     }

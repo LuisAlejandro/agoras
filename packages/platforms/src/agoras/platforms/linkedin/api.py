@@ -448,3 +448,29 @@ class LinkedInAPI(BaseAPI):
         except Exception as e:
             self._handle_api_error(e, "LinkedIn get-media")
             raise
+
+    async def list_posts(self, limit: int) -> List[Dict[str, Any]]:
+        """
+        List the authenticated user's recent posts.
+
+        Args:
+            limit (int): Maximum number of posts to return
+
+        Returns:
+            list: Post entities
+
+        Raises:
+            Exception: If the posts cannot be read
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client or not self.object_id:
+            raise Exception("LinkedIn API not authenticated")
+
+        await self._rate_limit_check("list_posts", 0.5)
+
+        try:
+            return await self.client.list_posts(author_urn=f"urn:li:person:{self.object_id}", limit=limit)
+        except Exception as e:
+            self._handle_api_error(e, "LinkedIn list-posts")
+            raise

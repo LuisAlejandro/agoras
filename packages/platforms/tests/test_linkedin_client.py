@@ -959,3 +959,58 @@ async def test_linkedin_client_get_media_returns_download_url(mock_to_thread):
         version_string=client.api_version,
         access_token="access_token",
     )
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.linkedin.client.asyncio.to_thread")
+async def test_linkedin_client_list_posts(mock_to_thread):
+    """Test list_posts returns the author's recent posts."""
+    client = LinkedInAPIClient("access_token")
+    mock_restli = MagicMock()
+    mock_request = MagicMock()
+    mock_request.status_code = 200
+    mock_request.entity = {
+        "elements": [
+            {"id": "urn:li:share:1", "commentary": "hello"},
+            {"id": "urn:li:share:2", "commentary": "world"},
+        ]
+    }
+    mock_restli.get.return_value = mock_request
+    client.restli_client = mock_restli
+    client._authenticated = True
+
+    def execute_sync(func):
+        return func()
+
+    mock_to_thread.side_effect = execute_sync
+
+    result = await client.list_posts("urn:li:person:42", 2)
+
+    assert len(result) == 2
+    assert result[0]["id"] == "urn:li:share:1"
+    assert result[1]["id"] == "urn:li:share:2"
+    mock_restli.get.assert_called_once_with(
+        resource_path="/posts",
+        query_params={"author": "urn:li:person:42", "count": 2},
+        version_string=client.api_version,
+        access_token="access_token",
+    )
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.linkedin.client.asyncio.to_thread")
+async def test_linkedin_client_list_posts_no_author(mock_to_thread):
+    """Test list_posts raises when the author URN is missing."""
+    client = LinkedInAPIClient("access_token")
+    client.restli_client = MagicMock()
+    client._authenticated = True
+
+    def execute_sync(func):
+        return func()
+
+    mock_to_thread.side_effect = execute_sync
+
+    with pytest.raises(Exception, match="author URN is required"):
+        await client.list_posts("", 2)
+
+    client.restli_client.get.assert_not_called()

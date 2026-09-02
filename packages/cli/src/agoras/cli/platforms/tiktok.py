@@ -90,6 +90,13 @@ def create_tiktok_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     )
     get_reply.add_argument("--post-id", required=True, metavar="<id>", help="TikTok reply ID to read")
 
+    # List-posts action
+    list_posts = actions.add_parser(
+        "list-posts",
+        help='List recent TikTok posts (not supported). Requires prior authorization via "agoras tiktok authorize".',
+    )
+    _add_limit_option(list_posts)
+
     # Set handler
     parser.set_defaults(command=_handle_tiktok_command)
 
@@ -217,6 +224,16 @@ def _add_post_id_option(parser: ArgumentParser):
         parser: ArgumentParser to add options to
     """
     parser.add_argument("--post-id", required=True, metavar="<id>", help="TikTok video ID to interact with")
+
+
+def _add_limit_option(parser: ArgumentParser):
+    """
+    Add limit option for list-posts action.
+
+    Args:
+        parser: ArgumentParser to add options to
+    """
+    parser.add_argument("--limit", type=int, metavar="<n>", help="Maximum number of posts to list")
 
 
 def _handle_tiktok_command(args: Namespace):

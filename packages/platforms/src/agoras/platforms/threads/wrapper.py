@@ -384,6 +384,50 @@ class Threads(SocialNetwork):
         """
         return await self.get_post(post_id)
 
+    async def list_posts(self, limit):
+        """
+        List the authenticated user's recent posts and return normalized content.
+
+        Args:
+            limit (int): Maximum number of posts to return
+
+        Returns:
+            list: Normalized content dicts
+        """
+        if not self.api:
+            raise Exception("Threads API not initialized")
+
+        if limit == 0:
+            self._output_list([])
+            return []
+
+        raw_items = await self.api.list_posts(limit)
+        items = []
+        for raw in raw_items:
+            media = []
+            media_url = raw.get("media_url")
+            media_type = (raw.get("media_type") or "").upper()
+            if media_url:
+                media.append(
+                    {
+                        "type": "video" if media_type in ("VIDEO", "REELS") else "image",
+                        "url": media_url,
+                    }
+                )
+            username = raw.get("username")
+            items.append(
+                {
+                    "id": str(raw.get("id")),
+                    "text": raw.get("text"),
+                    "media": media,
+                    "author": {"id": None, "name": username} if username else None,
+                    "created_at": raw.get("timestamp"),
+                    "metadata": {"permalink": raw.get("permalink")} if raw.get("permalink") else {},
+                }
+            )
+        self._output_list(items)
+        return items
+
     async def share(self, post_id):
         """
         Share/repost a Threads post.
@@ -583,6 +627,7 @@ class Threads(SocialNetwork):
             "delete-reply": self._handle_delete_reply_action,
             "get-post": self._handle_get_post_action,
             "get-reply": self._handle_get_reply_action,
+            "list-posts": self._handle_list_posts_action,
             "last-from-feed": self._handle_last_from_feed_action,
             "random-from-feed": self._handle_random_from_feed_action,
             "schedule": self._handle_schedule_action,

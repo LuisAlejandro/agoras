@@ -815,6 +815,66 @@ async def test_x_get_post_requires_explicit_post_id(mock_api_class):
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_list_posts_returns_normalized_items(mock_api_class):
+    """Test X list_posts emits normalized items via api.list_posts."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.list_posts = AsyncMock(
+        return_value=[
+            {"id": "1", "text": "hello", "author_id": "user-1", "created_at": "2026-01-01T00:00:00Z"},
+            {"id": "2", "text": "world", "author_id": "user-1", "created_at": "2026-01-02T00:00:00Z"},
+        ]
+    )
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret',
+    )
+
+    await x._initialize_client()
+
+    with patch.object(x, '_output_list') as mock_out:
+        result = await x.list_posts(2)
+
+    assert len(result) == 2
+    assert result[0]["id"] == "1"
+    assert result[0]["author"]["id"] == "user-1"
+    assert result[1]["id"] == "2"
+    mock_api.list_posts.assert_called_once_with(2)
+    mock_out.assert_called_once_with(result)
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_list_posts_limit_zero_returns_empty(mock_api_class):
+    """Test X list_posts with limit=0 returns an empty list without an API call."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.list_posts = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret',
+    )
+
+    await x._initialize_client()
+
+    with patch.object(x, '_output_list') as mock_out:
+        result = await x.list_posts(0)
+
+    assert result == []
+    mock_api.list_posts.assert_not_called()
+    mock_out.assert_called_once_with([])
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
 async def test_x_delete_reply_no_post_id(mock_api_class):
     """Test X delete_reply raises when no post ID provided."""
     mock_api = MagicMock()

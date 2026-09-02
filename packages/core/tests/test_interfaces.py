@@ -186,6 +186,15 @@ async def test_get_reply_method_default_raises_exception():
         await network.get_reply('post-123')
 
 
+@pytest.mark.asyncio
+async def test_list_posts_method_default_raises_exception():
+    """Test list_posts method raises not supported exception by default."""
+    network = ConcreteSocialNetwork()
+
+    with pytest.raises(Exception, match='List posts not supported'):
+        await network.list_posts(10)
+
+
 def test_get_config_value_from_config():
     """Test _get_config_value retrieves from config dict."""
     network = ConcreteSocialNetwork(api_key='config_key', secret='config_secret')
@@ -280,6 +289,32 @@ def test_output_content(mock_print):
     assert '"id":"p1"' in output
     assert '"text":"hello"' in output
     assert '"media":[]' in output
+
+
+@patch('builtins.print')
+def test_output_list(mock_print):
+    """Test _output_list prints a JSON array of normalized items."""
+    network = ConcreteSocialNetwork()
+
+    network._output_list([{"id": "p1", "text": "hello"}, {"id": "p2", "text": "world"}])
+
+    mock_print.assert_called_once()
+    output = mock_print.call_args[0][0]
+    assert '"id":"p1"' in output
+    assert '"id":"p2"' in output
+    assert '"media":[]' in output
+
+
+@patch('builtins.print')
+def test_output_list_empty(mock_print):
+    """Test _output_list prints an empty JSON array for empty input."""
+    network = ConcreteSocialNetwork()
+
+    network._output_list([])
+
+    mock_print.assert_called_once()
+    output = mock_print.call_args[0][0]
+    assert output == '[]'
 
 
 # Media Method Tests
@@ -508,6 +543,25 @@ async def test_execute_action_get_reply_missing_post_id_default():
 
     with pytest.raises(Exception, match='Get reply not supported'):
         await network.execute_action('get-reply')
+
+
+@pytest.mark.asyncio
+async def test_execute_action_list_posts():
+    """Test execute_action routes 'list-posts' action correctly."""
+    network = ConcreteSocialNetwork(limit=5)
+
+    with patch.object(network, 'list_posts', new_callable=AsyncMock) as mock_list_posts:
+        await network.execute_action('list-posts')
+        mock_list_posts.assert_called_once_with(5)
+
+
+@pytest.mark.asyncio
+async def test_execute_action_list_posts_missing_limit_default():
+    """Unimplemented list_posts surfaces 'not supported' before a missing-limit error."""
+    network = ConcreteSocialNetwork()
+
+    with pytest.raises(Exception, match='List posts not supported'):
+        await network.execute_action('list-posts')
 
 
 @pytest.mark.asyncio
@@ -830,6 +884,45 @@ async def test_handle_get_reply_action_missing_post_id_default():
 
     with pytest.raises(Exception, match='Get reply not supported'):
         await network._handle_get_reply_action()
+
+
+@pytest.mark.asyncio
+async def test_handle_list_posts_action():
+    """Test _handle_list_posts_action delegates to list_posts with limit."""
+    network = ConcreteSocialNetwork(limit=5)
+
+    with patch.object(network, 'list_posts', new_callable=AsyncMock) as mock_list_posts:
+        await network._handle_list_posts_action()
+        mock_list_posts.assert_called_once_with(5)
+
+
+@pytest.mark.asyncio
+async def test_handle_list_posts_action_default_limit():
+    """Test _handle_list_posts_action defaults limit to 10 when absent."""
+    network = ConcreteSocialNetwork()
+
+    with patch.object(network, 'list_posts', new_callable=AsyncMock) as mock_list_posts:
+        await network._handle_list_posts_action()
+        mock_list_posts.assert_called_once_with(10)
+
+
+@pytest.mark.asyncio
+async def test_handle_list_posts_action_zero_limit():
+    """Test _handle_list_posts_action passes through an explicit limit of 0."""
+    network = ConcreteSocialNetwork(limit=0)
+
+    with patch.object(network, 'list_posts', new_callable=AsyncMock) as mock_list_posts:
+        await network._handle_list_posts_action()
+        mock_list_posts.assert_called_once_with(0)
+
+
+@pytest.mark.asyncio
+async def test_handle_list_posts_action_missing_limit_default():
+    """Unimplemented list_posts surfaces 'not supported' before a missing-limit error."""
+    network = ConcreteSocialNetwork()
+
+    with pytest.raises(Exception, match='List posts not supported'):
+        await network._handle_list_posts_action()
 
 
 @pytest.mark.asyncio

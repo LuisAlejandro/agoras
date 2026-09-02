@@ -32,6 +32,7 @@ Available Actions
 * ``delete-reply`` - Delete a comment you posted
 * ``get-post`` - Read a post/message by ID
 * ``get-reply`` - Read a reply/comment by ID
+* ``list-posts`` - List recent posts from a page/profile (requires ``--object-id``)
 
 Authorization
 -------------

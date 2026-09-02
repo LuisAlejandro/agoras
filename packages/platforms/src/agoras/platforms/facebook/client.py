@@ -321,7 +321,7 @@ class FacebookAPIClient:
                 data["attached_media"] = json.dumps(attached_media)
 
             response = self.post_object(object_id=object_id, connection="feed", data=data)
-            return response["id"].split("_")[1]
+            return response["id"]
 
         return await asyncio.to_thread(_sync_create_post)
 

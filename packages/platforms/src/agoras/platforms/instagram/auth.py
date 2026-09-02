@@ -80,7 +80,7 @@ class InstagramAuthManager(BaseAuthManager):
         self.oauth_session = OAuth2Session(
             client_id=self.client_id,
             client_secret=self.client_secret,
-            scope="instagram_basic,instagram_content_publish,pages_read_engagement,pages_show_list",
+            scope="instagram_basic,instagram_content_publish,instagram_manage_comments,pages_read_engagement,pages_show_list",
             redirect_uri="https://localhost:3456/callback",
         )
 
@@ -108,7 +108,7 @@ class InstagramAuthManager(BaseAuthManager):
             self.oauth_session = OAuth2Session(
                 client_id=self.client_id,
                 client_secret=self.client_secret,
-                scope="instagram_basic,instagram_content_publish,pages_read_engagement,pages_show_list",
+                scope="instagram_basic,instagram_content_publish,instagram_manage_comments,pages_read_engagement,pages_show_list",
                 redirect_uri="https://localhost:3456/callback",
             )
             # Apply Facebook-specific compliance fixes for Instagram

@@ -273,6 +273,32 @@ class DiscordAPI(BaseAPI):
             self._handle_api_error(e, "Discord get-post")
             raise
 
+    async def list_posts(self, limit):
+        """
+        List recent messages in the configured channel.
+
+        Args:
+            limit (int): Maximum number of messages to return
+
+        Returns:
+            list: Message content fields
+
+        Raises:
+            Exception: If the messages cannot be read
+        """
+        if not self._authenticated:
+            await self.authenticate()
+
+        if not self.client:
+            raise Exception("Discord client not available")
+
+        await self._rate_limit_check("list_posts", 0.5)
+        try:
+            return await self.client.list_messages(limit)
+        except Exception as e:
+            self._handle_api_error(e, "Discord list-posts")
+            raise
+
     async def upload_file(self, file_content, filename, content=None, embeds=None):
         """
         Upload a file to Discord.

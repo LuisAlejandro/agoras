@@ -1002,3 +1002,65 @@ async def test_youtube_video_rejects_description_utf8_over_limit(mock_api_class)
     assert exc_info.value.counting == 'utf8_bytes'
     mock_download.assert_not_called()
     mock_api.upload_video.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
+async def test_youtube_list_posts_returns_normalized_items(mock_api_class):
+    """Test YouTube list_posts emits normalized items via api.list_posts."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.list_posts = AsyncMock(
+        return_value=[
+            {
+                "id": "vid1",
+                "title": "Video One",
+                "description": "Desc One",
+                "published_at": "2026-01-01T00:00:00Z",
+                "thumbnails": {"high": {"url": "https://example.com/1.jpg"}},
+            },
+            {
+                "id": "vid2",
+                "title": "Video Two",
+                "description": "Desc Two",
+                "published_at": "2026-01-02T00:00:00Z",
+                "thumbnails": {},
+            },
+        ]
+    )
+    mock_api_class.return_value = mock_api
+
+    youtube = YouTube(**YOUTUBE_KWARGS)
+    await youtube._initialize_client()
+
+    with patch.object(youtube, '_output_list') as mock_out:
+        result = await youtube.list_posts(2)
+
+    assert len(result) == 2
+    assert result[0]["id"] == "vid1"
+    assert result[0]["text"] == "Video One\n\nDesc One"
+    assert result[0]["media"] == [{"type": "image", "url": "https://example.com/1.jpg"}]
+    assert result[1]["id"] == "vid2"
+    assert result[1]["media"] == []
+    mock_api.list_posts.assert_called_once_with(2)
+    mock_out.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.youtube.wrapper.YouTubeAPI')
+async def test_youtube_list_posts_limit_zero_returns_empty(mock_api_class):
+    """Test YouTube list_posts with limit=0 returns an empty list without an API call."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.list_posts = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    youtube = YouTube(**YOUTUBE_KWARGS)
+    await youtube._initialize_client()
+
+    with patch.object(youtube, '_output_list') as mock_out:
+        result = await youtube.list_posts(0)
+
+    assert result == []
+    mock_api.list_posts.assert_not_called()
+    mock_out.assert_called_once_with([])

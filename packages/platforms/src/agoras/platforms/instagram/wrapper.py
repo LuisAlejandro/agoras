@@ -520,6 +520,53 @@ class Instagram(SocialNetwork):
         self._output_content(content)
         return content
 
+    async def list_posts(self, limit):
+        """
+        List recent media from the configured account and return normalized content.
+
+        Args:
+            limit (int): Maximum number of media items to return
+
+        Returns:
+            list: Normalized content dicts
+        """
+        if not self.api:
+            raise Exception("Instagram API not initialized")
+
+        if not self.instagram_object_id:
+            raise Exception("Instagram object ID is required for list-posts action.")
+
+        if limit == 0:
+            self._output_list([])
+            return []
+
+        raw_items = await self.api.list_posts(self.instagram_object_id, limit)
+        items = []
+        for raw in raw_items:
+            media = []
+            media_url = raw.get("media_url")
+            media_type = (raw.get("media_type") or "").upper()
+            if media_url:
+                media.append(
+                    {
+                        "type": "video" if media_type in ("VIDEO", "REELS") else "image",
+                        "url": media_url,
+                    }
+                )
+            username = raw.get("username")
+            items.append(
+                {
+                    "id": str(raw.get("id")),
+                    "text": raw.get("caption"),
+                    "media": media,
+                    "author": {"id": None, "name": username} if username else None,
+                    "created_at": raw.get("timestamp"),
+                    "metadata": {"permalink": raw.get("permalink")} if raw.get("permalink") else {},
+                }
+            )
+        self._output_list(items)
+        return items
+
     async def authorize_credentials(self):
         """
         Authorize and store Instagram credentials for future use.

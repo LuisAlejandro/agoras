@@ -20,12 +20,14 @@ Complete Support Matrix
      - delete-reply
      - get-post
      - get-reply
+     - list-posts
      - template
      - authorize
    * - X
      - ✓
      - ✓
      - ✓ [4]
+     - ✓
      - ✓
      - ✓
      - ✓
@@ -44,6 +46,7 @@ Complete Support Matrix
      - ✓
      - ✓
      - ✓
+     - ✓
      - ✗
      - ✓
    * - Instagram
@@ -56,12 +59,14 @@ Complete Support Matrix
      - ✓
      - ✓
      - ✓
+     - ✓
      - ✗
      - ✓
    * - LinkedIn
      - ✓
      - ✓
      - ✗
+     - ✓
      - ✓
      - ✓
      - ✓
@@ -80,6 +85,7 @@ Complete Support Matrix
      - ✓
      - ✓
      - ✓
+     - ✓
      - ✗
      - ✓
    * - YouTube
@@ -88,6 +94,7 @@ Complete Support Matrix
      - ✗
      - ✓
      - ✗
+     - ✓
      - ✓
      - ✓
      - ✓
@@ -104,6 +111,7 @@ Complete Support Matrix
      - ✗
      - ✗ [5]
      - ✗ [5]
+     - ✗ [5]
      - ✗
      - ✓
    * - Threads
@@ -111,6 +119,7 @@ Complete Support Matrix
      - ✓
      - ✓ [4]
      - ✗
+     - ✓
      - ✓
      - ✓
      - ✓
@@ -128,6 +137,7 @@ Complete Support Matrix
      - ✓
      - ✗ [5]
      - ✗ [5]
+     - ✗ [5]
      - ✗
      - ✓
    * - WhatsApp
@@ -138,6 +148,7 @@ Complete Support Matrix
      - ✗
      - ✗
      - ✗
+     - ✗ [5]
      - ✗ [5]
      - ✗ [5]
      - ✓
@@ -160,8 +171,9 @@ Complete Support Matrix
 [6] Mutating actions (``post``, ``reply``, ``delete``, etc.) print a compact
    status object ``{"id": "<id>"}``. Read actions ``get-post`` and ``get-reply``
    print the full normalized six-key content object (``id``, ``text``, ``media``,
-   ``author``, ``created_at``, ``metadata``) via ``_output_content``. Automation
-   must branch on action type when parsing stdout.
+   ``author``, ``created_at``, ``metadata``) via ``_output_content``. ``list-posts``
+   prints a JSON array of the same normalized six-key objects via ``_output_list``.
+   Automation must branch on action type when parsing stdout.
 
 .. note::
    The deprecated ``twitter`` CLI alias exposes the same actions as ``x``.

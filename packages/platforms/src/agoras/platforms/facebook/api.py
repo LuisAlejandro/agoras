@@ -382,7 +382,7 @@ class FacebookAPI(BaseAPI):
             return await asyncio.to_thread(
                 self.client.get_object,
                 post_id,
-                "id,message,created_time,from,full_picture,permalink_url,type,source,attachments{media,type,media_type,url,subattachments}",
+                "id,message,created_time,from,full_picture,permalink_url",
             )
         except Exception as e:
             self._handle_api_error(e, "Facebook get-post")
@@ -416,6 +416,39 @@ class FacebookAPI(BaseAPI):
             )
         except Exception as e:
             self._handle_api_error(e, "Facebook get-reply")
+            raise
+
+    async def list_posts(self, object_id: str, limit: int) -> List[Dict[str, Any]]:
+        """
+        List recent posts from a Facebook object's feed.
+
+        Args:
+            object_id (str): Facebook object ID (page/user)
+            limit (int): Maximum number of posts to return
+
+        Returns:
+            list: Post fields from the Graph API
+
+        Raises:
+            Exception: If the posts cannot be read
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("Facebook API not authenticated")
+
+        await self._rate_limit_check("list_posts", 0.5)
+
+        try:
+            result = await asyncio.to_thread(
+                self.client.get_object,
+                f"{object_id}/feed",
+                "id,message,created_time,from,full_picture,permalink_url,type,source,attachments{media,type,media_type,url,subattachments}",
+            )
+            data = result.get("data") or []
+            return data[:limit]
+        except Exception as e:
+            self._handle_api_error(e, "Facebook list-posts")
             raise
 
     async def share(self, profile_id: str, object_id: str, post_id: str) -> str:

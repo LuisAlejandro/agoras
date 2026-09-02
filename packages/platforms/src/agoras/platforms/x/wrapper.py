@@ -480,6 +480,44 @@ class X(SocialNetwork):
         """
         return await self.get_post(post_id)
 
+    async def list_posts(self, limit):
+        """
+        List the authenticated user's recent tweets and return normalized content.
+
+        Args:
+            limit (int): Maximum number of tweets to return
+
+        Returns:
+            list: Normalized content dicts
+        """
+        if not self.api:
+            raise Exception("X API not initialized")
+
+        if limit == 0:
+            self._output_list([])
+            return []
+
+        raw_items = await self.api.list_posts(limit)
+        items = []
+        for raw in raw_items:
+            metadata = {}
+            media = raw.get("media") or []
+            attachments = raw.get("attachments")
+            if attachments and not media:
+                metadata["attachments"] = attachments
+            items.append(
+                {
+                    "id": raw.get("id"),
+                    "text": raw.get("text"),
+                    "media": media,
+                    "author": {"id": raw.get("author_id"), "name": None} if raw.get("author_id") else None,
+                    "created_at": raw.get("created_at"),
+                    "metadata": metadata,
+                }
+            )
+        self._output_list(items)
+        return items
+
     async def share(self, tweet_id=None):
         """
         Share a tweet (retweet).

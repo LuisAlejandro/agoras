@@ -101,6 +101,13 @@ def create_youtube_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     )
     get_reply.add_argument("--post-id", required=True, metavar="<id>", help="YouTube comment ID to read")
 
+    # List-posts action
+    list_posts = actions.add_parser(
+        "list-posts",
+        help='List recent YouTube uploads. Requires prior authorization via "agoras youtube authorize".',
+    )
+    _add_limit_option(list_posts)
+
     # Set handler
     parser.set_defaults(command=_handle_youtube_command)
 
@@ -154,6 +161,16 @@ def _add_video_id_option(parser: ArgumentParser):
         parser: ArgumentParser to add options to
     """
     parser.add_argument("--video-id", required=True, metavar="<id>", help="YouTube video ID to interact with")
+
+
+def _add_limit_option(parser: ArgumentParser):
+    """
+    Add limit option for list-posts action.
+
+    Args:
+        parser: ArgumentParser to add options to
+    """
+    parser.add_argument("--limit", type=int, metavar="<n>", help="Maximum number of posts to list")
 
 
 def _handle_youtube_command(args: Namespace):

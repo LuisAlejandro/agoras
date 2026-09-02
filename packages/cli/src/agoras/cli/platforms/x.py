@@ -110,6 +110,12 @@ def create_x_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     )
     _add_post_id_option(get_reply)
 
+    # List-posts action
+    list_posts = actions.add_parser(
+        "list-posts", help='List recent tweets. Requires prior authorization via "agoras x authorize".'
+    )
+    _add_limit_option(list_posts)
+
     parser.set_defaults(command=_handle_x_command)
 
     return parser
@@ -141,6 +147,16 @@ def _add_post_id_option(parser: ArgumentParser):
         parser: ArgumentParser to add options to
     """
     parser.add_argument("--post-id", required=True, metavar="<id>", help="Tweet ID to interact with")
+
+
+def _add_limit_option(parser: ArgumentParser):
+    """
+    Add limit option for list-posts action.
+
+    Args:
+        parser: ArgumentParser to add options to
+    """
+    parser.add_argument("--limit", type=int, metavar="<n>", help="Maximum number of posts to list")
 
 
 def _handle_x_command(args: Namespace):
@@ -269,6 +285,12 @@ def create_twitter_parser_alias(subparsers: _SubParsersAction) -> ArgumentParser
         "get-reply", help='Read a reply tweet. Requires prior authorization via "agoras twitter authorize".'
     )
     _add_post_id_option(get_reply)
+
+    # List-posts action
+    list_posts = actions.add_parser(
+        "list-posts", help='List recent tweets. Requires prior authorization via "agoras twitter authorize".'
+    )
+    _add_limit_option(list_posts)
 
     parser.set_defaults(command=_handle_twitter_command)
 

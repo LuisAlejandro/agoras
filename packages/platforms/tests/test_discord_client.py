@@ -714,3 +714,60 @@ async def test_discord_client_get_message_uses_embed_text_when_content_empty():
         result = await client.get_message('888')
 
     assert result['text'] == 'Embed title\n\nEmbed body'
+
+
+@pytest.mark.asyncio
+async def test_discord_client_list_messages():
+    """Test list_messages reads recent messages from the configured channel."""
+    client = DiscordAPIClient('bot_token', 'server_name', 'channel_name')
+    client._authenticated = True
+    client.client = MagicMock()
+
+    mock_author = MagicMock()
+    mock_author.id = 42
+    mock_author.display_name = 'Bot'
+
+    mock_message = MagicMock()
+    mock_message.id = 111
+    mock_message.content = 'hello'
+    mock_message.attachments = []
+    mock_message.embeds = []
+    mock_message.created_at = None
+    mock_message.author = mock_author
+
+    mock_channel = MagicMock()
+
+    async def _history(limit=None):
+        yield mock_message
+
+    mock_channel.history = _history
+
+    with patch.object(client, '_get_channel', return_value=mock_channel):
+        result = await client.list_messages(5)
+
+    assert len(result) == 1
+    assert result[0]['id'] == '111'
+    assert result[0]['text'] == 'hello'
+    assert result[0]['author']['id'] == '42'
+    assert result[0]['author']['name'] == 'Bot'
+
+
+@pytest.mark.asyncio
+async def test_discord_client_list_messages_empty():
+    """Test list_messages returns an empty list when the channel has no messages."""
+    client = DiscordAPIClient('bot_token', 'server_name', 'channel_name')
+    client._authenticated = True
+    client.client = MagicMock()
+
+    mock_channel = MagicMock()
+
+    async def _history(limit=None):
+        if False:  # pragma: no cover - makes this an empty async generator
+            yield
+
+    mock_channel.history = _history
+
+    with patch.object(client, '_get_channel', return_value=mock_channel):
+        result = await client.list_messages(5)
+
+    assert result == []

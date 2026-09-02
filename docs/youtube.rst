@@ -31,6 +31,7 @@ Available Actions
 * ``delete-reply`` - Delete a YouTube comment
 * ``get-post`` - Read a post/message by ID
 * ``get-reply`` - Read a reply/comment by ID
+* ``list-posts`` - List recent uploads from the authenticated channel
 
 Authorization
 -------------
@@ -51,6 +52,7 @@ This will:
 After authorization, you can perform actions without providing credentials. They are automatically refreshed when needed.
 
 For CI/CD environments, see :doc:`credentials/youtube` for unattended execution setup.
+
 
 Upload a video to YouTube
 -------------------------

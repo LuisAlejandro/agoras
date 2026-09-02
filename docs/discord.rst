@@ -34,6 +34,7 @@ Available Actions
 * ``delete-reply`` - Delete a reply message
 * ``get-post`` - Read a post/message by ID
 * ``get-reply`` - Read a reply/comment by ID
+* ``list-posts`` - List recent messages in the configured channel
 
 Authorization
 -------------

@@ -98,6 +98,16 @@ def create_telegram_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     )
     _add_post_id_option(get_reply)
 
+    # List-posts action
+    list_posts = actions.add_parser(
+        "list-posts",
+        help=(
+            "List recent Telegram messages (not supported). Requires prior "
+            'authorization via "agoras telegram authorize".'
+        ),
+    )
+    _add_limit_option(list_posts)
+
     # Set handler
     parser.set_defaults(command=_handle_telegram_command)
 
@@ -143,6 +153,16 @@ def _add_post_id_option(parser: ArgumentParser):
         parser: ArgumentParser to add options to
     """
     parser.add_argument("--post-id", required=True, metavar="<id>", help="Telegram message ID to delete")
+
+
+def _add_limit_option(parser: ArgumentParser):
+    """
+    Add limit option for list-posts action.
+
+    Args:
+        parser: ArgumentParser to add options to
+    """
+    parser.add_argument("--limit", type=int, metavar="<n>", help="Maximum number of posts to list")
 
 
 def _handle_telegram_command(args: Namespace):

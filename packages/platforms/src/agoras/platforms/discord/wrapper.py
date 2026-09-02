@@ -643,6 +643,39 @@ class Discord(SocialNetwork):
         """
         return await self.get_post(post_id)
 
+    async def list_posts(self, limit):
+        """
+        List recent messages in the configured channel and return normalized content.
+
+        Args:
+            limit (int): Maximum number of messages to return
+
+        Returns:
+            list: Normalized content dicts
+        """
+        if not self.api:
+            raise Exception("Discord API not initialized")
+
+        if limit == 0:
+            self._output_list([])
+            return []
+
+        raw_items = await self.api.list_posts(limit)
+        items = []
+        for raw in raw_items:
+            items.append(
+                {
+                    "id": raw.get("id"),
+                    "text": raw.get("text"),
+                    "media": raw.get("media") or [],
+                    "author": raw.get("author"),
+                    "created_at": raw.get("created_at"),
+                    "metadata": {},
+                }
+            )
+        self._output_list(items)
+        return items
+
     async def share(self, discord_post_id):
         """
         Share is not supported for Discord.

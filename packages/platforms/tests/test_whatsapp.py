@@ -422,3 +422,22 @@ async def test_whatsapp_execute_action_reply(mock_api_class):
             status_image_url_1=None, status_image_url_2=None,
             status_image_url_3=None, status_image_url_4=None, video_url=None,
         )
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.whatsapp.wrapper.WhatsAppAPI")
+async def test_whatsapp_execute_action_list_posts_not_supported(mock_api_class):
+    """WhatsApp execute_action('list-posts') raises action-not-supported (no handler key)."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    whatsapp = WhatsApp(
+        whatsapp_access_token="token",
+        whatsapp_phone_number_id="123",
+        whatsapp_recipient="1234567890",
+    )
+    await whatsapp._initialize_client()
+
+    with pytest.raises(Exception, match='list-posts" action not supported'):
+        await whatsapp.execute_action("list-posts")

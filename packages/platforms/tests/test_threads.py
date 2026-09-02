@@ -213,6 +213,21 @@ async def test_threads_execute_action_get_reply_dispatch(threads_with_real_api):
 
 
 @pytest.mark.asyncio
+async def test_threads_execute_action_list_posts_dispatch(threads_with_real_api):
+    """Threads execute_action override dispatches 'list-posts' to list_posts."""
+    threads, api = threads_with_real_api
+    threads.config['limit'] = 5
+
+    with (
+        patch.object(threads, '_initialize_client', new_callable=AsyncMock),
+        patch.object(threads, 'list_posts', new_callable=AsyncMock) as mock_list_posts,
+    ):
+        await threads.execute_action('list-posts')
+
+    mock_list_posts.assert_called_once_with(5)
+
+
+@pytest.mark.asyncio
 async def test_threads_get_post_requires_explicit_post_id(threads_with_real_api):
     """Test Threads get_post does not fall back to instance threads_post_id."""
     threads, api = threads_with_real_api
@@ -257,6 +272,53 @@ async def test_threads_get_post_maps_video_media(threads_with_real_api):
         result = await threads.get_post('post-v')
 
     assert result['media'] == [{'type': 'video', 'url': 'https://example.com/v.mp4'}]
+
+
+@pytest.mark.asyncio
+async def test_threads_list_posts_returns_normalized_items(threads_with_real_api):
+    """Test Threads list_posts emits normalized items via api.list_posts."""
+    threads, api = threads_with_real_api
+    api.list_posts = AsyncMock(
+        return_value=[
+            {
+                "id": "1",
+                "text": "hello",
+                "media_url": "https://example.com/a.jpg",
+                "media_type": "IMAGE",
+                "username": "alice",
+                "timestamp": "2026-01-01T00:00:00Z",
+                "permalink": "https://threads.net/1",
+            },
+            {"id": "2", "text": "world", "media_url": None, "media_type": "TEXT", "username": "alice"},
+        ]
+    )
+
+    with patch.object(threads, '_output_list') as mock_out:
+        result = await threads.list_posts(2)
+
+    assert len(result) == 2
+    assert result[0]["id"] == "1"
+    assert result[0]["media"] == [{"type": "image", "url": "https://example.com/a.jpg"}]
+    assert result[0]["author"]["name"] == "alice"
+    assert result[0]["metadata"] == {"permalink": "https://threads.net/1"}
+    assert result[1]["id"] == "2"
+    assert result[1]["media"] == []
+    api.list_posts.assert_called_once_with(2)
+    mock_out.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_threads_list_posts_limit_zero_returns_empty(threads_with_real_api):
+    """Test Threads list_posts with limit=0 returns an empty list without an API call."""
+    threads, api = threads_with_real_api
+    api.list_posts = AsyncMock()
+
+    with patch.object(threads, '_output_list') as mock_out:
+        result = await threads.list_posts(0)
+
+    assert result == []
+    api.list_posts.assert_not_called()
+    mock_out.assert_called_once_with([])
 
 
 @pytest.mark.asyncio

@@ -628,6 +628,65 @@ class Facebook(SocialNetwork):
         self._output_content(content)
         return content
 
+    async def list_posts(self, limit):
+        """
+        List recent posts from the configured object's feed and return normalized content.
+
+        Args:
+            limit (int): Maximum number of posts to return
+
+        Returns:
+            list: Normalized content dicts
+        """
+        if not self.api:
+            raise Exception("Facebook API not initialized")
+
+        if not self.facebook_object_id:
+            raise Exception("Facebook object ID is required for list-posts action.")
+
+        if limit == 0:
+            self._output_list([])
+            return []
+
+        raw_items = await self.api.list_posts(self.facebook_object_id, limit)
+        items = []
+        for raw in raw_items:
+            from_user = raw.get("from") or {}
+            media = []
+            seen_urls = set()
+
+            def _append_media(entry):
+                url = entry.get("url")
+                if url and url not in seen_urls:
+                    seen_urls.add(url)
+                    media.append(entry)
+
+            if raw.get("full_picture"):
+                _append_media({"type": "image", "url": raw["full_picture"]})
+            if raw.get("source"):
+                _append_media({"type": "video", "url": raw["source"]})
+            for attachment in (raw.get("attachments") or {}).get("data") or []:
+                if not isinstance(attachment, dict):
+                    continue
+                att_media = attachment.get("media") or {}
+                image_src = (att_media.get("image") or {}).get("src")
+                if image_src:
+                    _append_media({"type": "image", "url": image_src})
+                elif att_media.get("source"):
+                    _append_media({"type": "video", "url": att_media["source"]})
+            items.append(
+                {
+                    "id": str(raw.get("id")),
+                    "text": raw.get("message"),
+                    "media": media,
+                    "author": {"id": from_user.get("id"), "name": from_user.get("name")} if from_user else None,
+                    "created_at": raw.get("created_time"),
+                    "metadata": {"permalink_url": raw.get("permalink_url")} if raw.get("permalink_url") else {},
+                }
+            )
+        self._output_list(items)
+        return items
+
     async def share(self, facebook_post_id=None):
         """
         Share a Facebook post.

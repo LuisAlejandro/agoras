@@ -221,6 +221,21 @@ async def test_youtube_api_error_handling(youtube_api):
         await youtube_api.like('video-123')
 
 
+@pytest.mark.asyncio
+async def test_youtube_api_list_posts(youtube_api):
+    """Test YouTubeAPI list_posts calls client.list_uploads."""
+    youtube_api.client.list_uploads = AsyncMock(
+        return_value=[{"id": "vid1", "title": "Video One"}]
+    )
+
+    result = await youtube_api.list_posts(5)
+
+    assert len(result) == 1
+    assert result[0]["id"] == "vid1"
+    youtube_api.auth_manager.ensure_authenticated.assert_called_once()
+    youtube_api.client.list_uploads.assert_called_once_with(5)
+
+
 # Property Tests
 
 def test_youtube_api_properties():

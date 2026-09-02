@@ -55,7 +55,8 @@ def test_get_supported_actions_x():
     assert 'reply' in actions
     assert 'get-post' in actions
     assert 'get-reply' in actions
-    assert len(actions) == 11
+    assert 'list-posts' in actions
+    assert len(actions) == 12
 
 
 def test_get_supported_actions_twitter_alias():
@@ -181,6 +182,29 @@ def test_get_post_reply_actions_present_across_all_networks():
         )
         assert PlatformRegistry.validate_action(platform, "get-reply") is True, (
             f"get-reply missing from {platform} supported actions"
+        )
+
+
+LIST_POSTS_NETWORKS = [
+    "x",
+    "twitter",
+    "facebook",
+    "instagram",
+    "linkedin",
+    "discord",
+    "youtube",
+    "tiktok",
+    "threads",
+    "telegram",
+    "whatsapp",
+]
+
+
+def test_list_posts_action_present_across_all_networks():
+    """Test list-posts is registered on all 10 networks plus the twitter alias (R8)."""
+    for platform in LIST_POSTS_NETWORKS:
+        assert PlatformRegistry.validate_action(platform, "list-posts") is True, (
+            f"list-posts missing from {platform} supported actions"
         )
 
 

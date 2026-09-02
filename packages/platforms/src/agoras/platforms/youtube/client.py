@@ -21,7 +21,7 @@ import asyncio
 import http.client as httplib
 import random
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import httplib2
 from apiclient import discovery, errors, http
@@ -430,6 +430,60 @@ class YouTubeAPIClient:
             }
 
         return await asyncio.to_thread(_sync_get_video_info)
+
+    async def list_uploads(self, limit: int) -> List[Dict[str, Any]]:
+        """
+        List recent uploads from the authenticated user's channel.
+
+        Resolves the channel's uploads playlist ID via ``channels().list``,
+        then reads the playlist items via ``playlistItems().list``.
+
+        Args:
+            limit (int): Maximum number of videos to return
+
+        Returns:
+            list: Video fields (id, title, description, published_at, thumbnails)
+
+        Raises:
+            Exception: If the uploads cannot be read
+        """
+
+        def _sync_list_uploads():
+            if not self.youtube_client:
+                raise Exception("YouTube client not initialized")
+
+            channel_request = self.youtube_client.channels().list(part="contentDetails", mine=True)
+            channel_response = channel_request.execute()
+            if not channel_response.get("items"):
+                raise Exception("No YouTube channel found for authenticated user")
+
+            uploads_playlist_id = (
+                channel_response["items"][0].get("contentDetails", {}).get("relatedPlaylists", {}).get("uploads")
+            )
+            if not uploads_playlist_id:
+                raise Exception("Unable to resolve uploads playlist for YouTube channel")
+
+            request = self.youtube_client.playlistItems().list(
+                part="snippet", playlistId=uploads_playlist_id, maxResults=limit
+            )
+            response = request.execute()
+
+            items = []
+            for item in response.get("items") or []:
+                snippet = item.get("snippet") or {}
+                thumbnails = snippet.get("thumbnails") or {}
+                items.append(
+                    {
+                        "id": snippet.get("resourceId", {}).get("videoId"),
+                        "title": snippet.get("title"),
+                        "description": snippet.get("description"),
+                        "published_at": snippet.get("publishedAt"),
+                        "thumbnails": thumbnails,
+                    }
+                )
+            return items
+
+        return await asyncio.to_thread(_sync_list_uploads)
 
     async def search_videos(self, query: str, max_results: int = 25) -> Dict[str, Any]:
         """

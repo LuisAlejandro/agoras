@@ -357,3 +357,39 @@ class ThreadsAPIClient:
             return response.json()
         except Exception as e:
             raise Exception(f"Failed to get post: {str(e)}")
+
+    def list_posts(
+        self,
+        limit: int,
+        fields: str = "id,text,timestamp,username,media_type,media_url,permalink",
+    ) -> List[Dict[str, Any]]:
+        """
+        List the authenticated user's recent posts.
+
+        Args:
+            limit (int): Maximum number of posts to return
+            fields (str): Comma-separated fields to request
+
+        Returns:
+            list: Post fields from the Threads API
+
+        Raises:
+            Exception: If the posts cannot be read or not authenticated
+        """
+        if not self.access_token:
+            raise Exception("No access token available")
+
+        if not self.user_id:
+            raise Exception("No user ID available")
+
+        try:
+            response = requests.get(
+                f"{self.base_url}/{self.user_id}/threads",
+                params={"fields": fields, "limit": limit, "access_token": self.access_token},
+                timeout=30,
+            )
+            self._check_response(response)
+            data = response.json()
+            return data.get("data") or []
+        except Exception as e:
+            raise Exception(f"Failed to list posts: {str(e)}")

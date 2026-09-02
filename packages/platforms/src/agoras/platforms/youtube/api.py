@@ -17,7 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.youtube.api module."""
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from agoras.core.api_base import BaseAPI
 from agoras.core.auth import raise_authentication_error_from_manager
@@ -336,4 +336,30 @@ class YouTubeAPI(BaseAPI):
             return await self.client.get_comment(comment_id)
         except Exception as e:
             self._handle_api_error(e, "YouTube get-reply")
+            raise
+
+    async def list_posts(self, limit: int) -> List[Dict[str, Any]]:
+        """
+        List recent uploads from the authenticated user's channel.
+
+        Args:
+            limit (int): Maximum number of videos to return
+
+        Returns:
+            list: Video fields
+
+        Raises:
+            Exception: If the uploads cannot be read
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("YouTube API not authenticated")
+
+        await self._rate_limit_check("list_posts", 1.0)
+
+        try:
+            return await self.client.list_uploads(limit)
+        except Exception as e:
+            self._handle_api_error(e, "YouTube list-posts")
             raise

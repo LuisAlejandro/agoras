@@ -401,6 +401,73 @@ class XAPIClient:
         result = await asyncio.to_thread(_sync_delete)
         return result
 
+    async def get_users_tweets(self, user_id: str, limit: int) -> List[Dict[str, Any]]:
+        """
+        List recent tweets from a user using v2 API.
+
+        Args:
+            user_id (str): User ID whose tweets to list
+            limit (int): Maximum number of tweets to return
+
+        Returns:
+            list: Tweet fields (id, text, author_id, created_at, media)
+
+        Raises:
+            Exception: If the tweets cannot be read
+        """
+        if not self.client_v2:
+            raise Exception("X v2 client not initialized")
+
+        def _sync_get_users_tweets():
+            response = self.client_v2.get_users_tweets(  # type: ignore
+                user_id,
+                max_results=limit,
+                tweet_fields=["created_at", "author_id", "attachments"],
+                expansions=["attachments.media_keys"],
+                media_fields=["url", "preview_image_url", "type", "variants"],
+            )
+            response_data = getattr(response, "data", None)
+            if response_data is None:
+                return []
+            includes = getattr(response, "includes", None)
+            items = []
+            for item in response_data:
+                if hasattr(item, "data"):
+                    item = item.data
+                if isinstance(item, dict):
+                    attachments = item.get("attachments")
+                    media = _x_media_from_includes(includes, attachments)
+                    items.append(
+                        {
+                            "id": str(item.get("id")),
+                            "text": item.get("text"),
+                            "author_id": item.get("author_id"),
+                            "created_at": (str(item.get("created_at")) if item.get("created_at") is not None else None),
+                            "attachments": attachments,
+                            "media": media,
+                        }
+                    )
+                else:
+                    attachments = getattr(item, "attachments", None)
+                    media = _x_media_from_includes(includes, attachments)
+                    items.append(
+                        {
+                            "id": str(getattr(item, "id")),
+                            "text": getattr(item, "text", None),
+                            "author_id": getattr(item, "author_id", None),
+                            "created_at": (
+                                str(getattr(item, "created_at"))
+                                if getattr(item, "created_at", None) is not None
+                                else None
+                            ),
+                            "attachments": attachments,
+                            "media": media,
+                        }
+                    )
+            return items
+
+        return await asyncio.to_thread(_sync_get_users_tweets)
+
     async def get_tweet(self, tweet_id: str) -> Dict[str, Any]:
         """
         Read a tweet by ID using v2 API.

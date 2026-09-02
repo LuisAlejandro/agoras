@@ -23,6 +23,7 @@ from argparse import ArgumentParser, Namespace
 
 import pytest
 
+from agoras.cli.converter import ParameterConverter
 from agoras.cli.platforms.discord import create_discord_parser
 from agoras.cli.platforms.facebook import create_facebook_parser
 from agoras.cli.platforms.instagram import create_instagram_parser
@@ -31,6 +32,7 @@ from agoras.cli.platforms.telegram import create_telegram_parser
 from agoras.cli.platforms.threads import create_threads_parser
 from agoras.cli.platforms.tiktok import _handle_tiktok_command, create_tiktok_parser
 from agoras.cli.platforms.whatsapp import create_whatsapp_parser
+from agoras.cli.platforms.x import create_x_parser
 from agoras.cli.platforms.youtube import create_youtube_parser
 
 
@@ -822,3 +824,135 @@ def test_get_reply_requires_post_id(create_parser, platform, extra):
 
     with pytest.raises(SystemExit):
         root_parser.parse_args([platform, 'get-reply', *extra])
+
+
+# ---------------------------------------------------------------------------
+# list-posts parser tests (R7: --limit on all 10 networks, --object-id on IG/FB)
+# ---------------------------------------------------------------------------
+
+
+def test_x_list_posts_action():
+    """Test X list-posts parses --limit."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_x_parser(subparsers)
+
+    args = root_parser.parse_args(['x', 'list-posts', '--limit', '5'])
+
+    assert args.action == 'list-posts'
+    assert args.limit == 5
+
+
+def test_x_list_posts_no_limit():
+    """Test X list-posts parses with --limit absent."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_x_parser(subparsers)
+
+    args = root_parser.parse_args(['x', 'list-posts'])
+
+    assert args.action == 'list-posts'
+    assert args.limit is None
+
+
+def test_x_list_posts_non_integer_limit_fails():
+    """Test X list-posts rejects a non-integer --limit."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_x_parser(subparsers)
+
+    with pytest.raises(SystemExit):
+        root_parser.parse_args(['x', 'list-posts', '--limit', 'abc'])
+
+
+def test_instagram_list_posts_object_id_and_limit():
+    """Test Instagram list-posts parses --object-id and --limit."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_instagram_parser(subparsers)
+
+    args = root_parser.parse_args(['instagram', 'list-posts', '--object-id', 'user123', '--limit', '5'])
+
+    assert args.action == 'list-posts'
+    assert args.object_id == 'user123'
+    assert args.limit == 5
+
+
+def test_facebook_list_posts_object_id_and_limit():
+    """Test Facebook list-posts parses --object-id and --limit."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_facebook_parser(subparsers)
+
+    args = root_parser.parse_args(['facebook', 'list-posts', '--object-id', 'page123', '--limit', '5'])
+
+    assert args.action == 'list-posts'
+    assert args.object_id == 'page123'
+    assert args.limit == 5
+
+
+@pytest.mark.parametrize(
+    'create_parser,platform',
+    [
+        (create_linkedin_parser, 'linkedin'),
+        (create_discord_parser, 'discord'),
+        (create_youtube_parser, 'youtube'),
+        (create_tiktok_parser, 'tiktok'),
+        (create_threads_parser, 'threads'),
+        (create_telegram_parser, 'telegram'),
+        (create_whatsapp_parser, 'whatsapp'),
+    ],
+)
+def test_list_posts_parses_for_remaining_platforms(create_parser, platform):
+    """Test list-posts subcommand parses for the remaining platforms."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_parser(subparsers)
+
+    args = root_parser.parse_args([platform, 'list-posts', '--limit', '3'])
+
+    assert args.action == 'list-posts'
+    assert args.limit == 3
+
+
+def test_list_posts_e2e_emits_parseable_json_array():
+    """End-to-end: list-posts dispatch emits a parseable 6-key JSON array (plan U5)."""
+    import asyncio
+    import json as _json
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_x_parser(subparsers)
+
+    args = root_parser.parse_args(['x', 'list-posts', '--limit', '2'])
+    assert args.action == 'list-posts'
+    assert args.limit == 2
+
+    # Drive the real handler -> list_posts -> _output_list path. Set up an X
+    # wrapper with a stubbed api.list_posts so no network runs; capture the
+    # _output_list argument to assert the emitted JSON.
+    from agoras.platforms.x.wrapper import X as XWrapper
+
+    x = XWrapper(
+        twitter_consumer_key='key', twitter_consumer_secret='secret',
+        twitter_oauth_token='token', twitter_oauth_secret='secret',
+    )
+    x.config = {'limit': '2'}
+    x.api = MagicMock()
+    x.api.list_posts = AsyncMock(return_value=[
+        {'id': '1', 'text': 'hello', 'author_id': 'user-1', 'created_at': '2026-01-01T00:00:00Z'},
+        {'id': '2', 'text': 'world', 'author_id': None, 'created_at': '2026-01-02T00:00:00Z'},
+    ])
+
+    async def run():
+        with patch.object(x, '_output_list') as mock_out:
+            await x._handle_list_posts_action()
+            return mock_out.call_args.args[0]
+
+    emitted = asyncio.run(run())
+    parsed = _json.loads(_json.dumps(emitted))
+    assert isinstance(parsed, list)
+    assert len(parsed) == 2
+    for item in parsed:
+        assert set(item.keys()) == {'id', 'text', 'media', 'author', 'created_at', 'metadata'}

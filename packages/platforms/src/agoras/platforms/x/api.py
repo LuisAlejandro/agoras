@@ -321,3 +321,31 @@ class XAPI(BaseAPI):
         except Exception as e:
             self._handle_api_error(e, "X get-post")
             raise
+
+    async def list_posts(self, limit: int) -> List[Dict[str, Any]]:
+        """
+        List the authenticated user's recent tweets.
+
+        Args:
+            limit (int): Maximum number of tweets to return
+
+        Returns:
+            list: Tweet content fields
+
+        Raises:
+            Exception: If the tweets cannot be read
+        """
+        if not self._authenticated or not self.client:
+            raise Exception("X API not authenticated")
+
+        await self._rate_limit_check("list_posts", 0.5)
+
+        try:
+            user_info = await self.client.get_user_info()
+            user_id = user_info.get("user_id")
+            if not user_id:
+                raise Exception("Unable to resolve X user id for list-posts.")
+            return await self.client.get_users_tweets(user_id, limit)
+        except Exception as e:
+            self._handle_api_error(e, "X list-posts")
+            raise

@@ -413,6 +413,47 @@ class YouTube(SocialNetwork):
         self._output_content(content)
         return content
 
+    async def list_posts(self, limit):
+        """
+        List recent uploads from the authenticated user's channel and return normalized content.
+
+        Args:
+            limit (int): Maximum number of videos to return
+
+        Returns:
+            list: Normalized content dicts
+        """
+        if not self.api:
+            raise Exception("YouTube API not initialized")
+
+        if limit == 0:
+            self._output_list([])
+            return []
+
+        raw_items = await self.api.list_posts(limit)
+        items = []
+        for raw in raw_items:
+            text_parts = [part for part in (raw.get("title"), raw.get("description")) if part]
+            thumbnails = raw.get("thumbnails") or {}
+            thumbnail_url = None
+            for size in ("high", "medium", "default"):
+                thumb = thumbnails.get(size) or {}
+                if thumb.get("url"):
+                    thumbnail_url = thumb["url"]
+                    break
+            items.append(
+                {
+                    "id": str(raw.get("id")),
+                    "text": "\n\n".join(text_parts) if text_parts else None,
+                    "media": [{"type": "image", "url": thumbnail_url}] if thumbnail_url else [],
+                    "author": None,
+                    "created_at": raw.get("published_at"),
+                    "metadata": {},
+                }
+            )
+        self._output_list(items)
+        return items
+
     # YouTube-specific feed methods that work with videos instead of posts
     async def last_from_feed(self, feed_url, max_count, post_lookback):
         """

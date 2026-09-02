@@ -68,7 +68,7 @@ class LinkedInAuthManager(BaseAuthManager):
         self.oauth_session = OAuth2Session(
             client_id=self.client_id,
             client_secret=self.client_secret,
-            scope="openid profile email w_member_social",
+            scope="openid profile email w_member_social_feed",
             redirect_uri="https://localhost:3456/callback",
         )
 

@@ -436,3 +436,35 @@ class InstagramAPI(BaseAPI):
         except Exception as e:
             self._handle_api_error(e, "Instagram get-reply")
             raise
+
+    async def list_posts(self, object_id: str, limit: int) -> List[Dict[str, Any]]:
+        """
+        List recent media from an Instagram account.
+
+        Args:
+            object_id (str): Instagram object ID
+            limit (int): Maximum number of media items to return
+
+        Returns:
+            list: Media fields from the Graph API
+
+        Raises:
+            Exception: If the media cannot be read
+        """
+        self.auth_manager.ensure_authenticated()
+
+        if not self.client:
+            raise Exception("Instagram API not authenticated")
+
+        await self._rate_limit_check("list_posts", 0.5)
+
+        try:
+            result = await self.client.get_user_media(
+                object_id,
+                fields="id,caption,timestamp,username,media_type,media_url,permalink",
+                limit=limit,
+            )
+            return result.get("data") or []
+        except Exception as e:
+            self._handle_api_error(e, "Instagram list-posts")
+            raise

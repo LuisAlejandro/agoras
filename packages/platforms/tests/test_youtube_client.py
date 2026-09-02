@@ -480,3 +480,83 @@ async def test_youtube_client_search_videos_not_initialized():
 
     with pytest.raises(Exception, match='YouTube client not initialized'):
         await client.search_videos('test query')
+
+
+@pytest.mark.asyncio
+async def test_youtube_client_list_uploads_success():
+    """Test YouTubeAPIClient list_uploads resolves the uploads playlist and lists items."""
+    mock_channel_list = MagicMock()
+    mock_channel_list.execute.return_value = {
+        'items': [{
+            'contentDetails': {
+                'relatedPlaylists': {'uploads': 'UU123'}
+            }
+        }]
+    }
+    mock_channels = MagicMock()
+    mock_channels.list.return_value = mock_channel_list
+
+    mock_playlist_list = MagicMock()
+    mock_playlist_list.execute.return_value = {
+        'items': [
+            {
+                'snippet': {
+                    'resourceId': {'videoId': 'vid1'},
+                    'title': 'Video One',
+                    'description': 'Desc One',
+                    'publishedAt': '2026-01-01T00:00:00Z',
+                    'thumbnails': {'high': {'url': 'https://example.com/1.jpg'}},
+                }
+            },
+            {
+                'snippet': {
+                    'resourceId': {'videoId': 'vid2'},
+                    'title': 'Video Two',
+                    'description': 'Desc Two',
+                    'publishedAt': '2026-01-02T00:00:00Z',
+                    'thumbnails': {},
+                }
+            },
+        ]
+    }
+    mock_playlist_items = MagicMock()
+    mock_playlist_items.list.return_value = mock_playlist_list
+
+    mock_youtube_client = MagicMock()
+    mock_youtube_client.channels.return_value = mock_channels
+    mock_youtube_client.playlistItems.return_value = mock_playlist_items
+
+    client = YouTubeAPIClient('access_token')
+    client.youtube_client = mock_youtube_client
+    client._authenticated = True
+
+    result = await client.list_uploads(2)
+
+    assert len(result) == 2
+    assert result[0]['id'] == 'vid1'
+    assert result[0]['title'] == 'Video One'
+    assert result[0]['thumbnails']['high']['url'] == 'https://example.com/1.jpg'
+    assert result[1]['id'] == 'vid2'
+    mock_channels.list.assert_called_once_with(part='contentDetails', mine=True)
+    mock_playlist_items.list.assert_called_once_with(
+        part='snippet', playlistId='UU123', maxResults=2
+    )
+
+
+@pytest.mark.asyncio
+async def test_youtube_client_list_uploads_no_channel():
+    """Test YouTubeAPIClient list_uploads raises when no channel is found."""
+    mock_channel_list = MagicMock()
+    mock_channel_list.execute.return_value = {'items': []}
+    mock_channels = MagicMock()
+    mock_channels.list.return_value = mock_channel_list
+
+    mock_youtube_client = MagicMock()
+    mock_youtube_client.channels.return_value = mock_channels
+
+    client = YouTubeAPIClient('access_token')
+    client.youtube_client = mock_youtube_client
+    client._authenticated = True
+
+    with pytest.raises(Exception, match='No YouTube channel found'):
+        await client.list_uploads(5)
