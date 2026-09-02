@@ -22,9 +22,7 @@ import functools
 import re
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Awaitable, Callable, NoReturn, TypeVar
-
-from typing_extensions import Concatenate, ParamSpec
+from typing import Any, Awaitable, Callable, Concatenate, NoReturn, ParamSpec, TypeVar
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -46,7 +44,7 @@ def guard_auth_attempt(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Calla
             await self.authenticate()  # type: ignore[attr-defined]
         return await func(self, *args, **kwargs)
 
-    return wrapper  # type: ignore[return-value]
+    return wrapper
 
 
 def guard_assert_auth(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Callable[Concatenate[T, P], Awaitable[R]]:
@@ -63,7 +61,7 @@ def guard_assert_auth(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Callab
             raise Exception(self._not_authenticated_message)  # type: ignore[attr-defined]
         return await func(self, *args, **kwargs)
 
-    return wrapper  # type: ignore[return-value]
+    return wrapper
 
 
 def guard_ensure_auth_manager(
@@ -82,7 +80,7 @@ def guard_ensure_auth_manager(
         self.auth_manager.ensure_authenticated()  # type: ignore[attr-defined]
         return await func(self, *args, **kwargs)
 
-    return wrapper  # type: ignore[return-value]
+    return wrapper
 
 
 def guard_token_presence(
@@ -110,7 +108,7 @@ def guard_token_presence(
                 raise Exception(self._not_authenticated_message)  # type: ignore[attr-defined]
             return await func(self, *args, **kwargs)
 
-        return wrapper  # type: ignore[return-value]
+        return wrapper
 
     return decorate
 
@@ -129,13 +127,12 @@ def guard_client_presence(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Ca
             raise Exception(self._client_not_available_message)  # type: ignore[attr-defined]
         return await func(self, *args, **kwargs)
 
-    return wrapper  # type: ignore[return-value]
+    return wrapper
 
 
 def guard_rate_limit(
     operation_key: str,
     min_interval: float,
-    rate_limit_cache_attr: str = "_rate_limit_cache",
 ) -> Callable[[Callable[Concatenate[T, P], Awaitable[R]]], Callable[Concatenate[T, P], Awaitable[R]]]:
     """
     Guard decorator: wait the operation's minimum interval before the client call.
@@ -150,14 +147,13 @@ def guard_rate_limit(
             await self._rate_limit_check(operation_key, min_interval)  # type: ignore[attr-defined]
             return await func(self, *args, **kwargs)
 
-        return wrapper  # type: ignore[return-value]
+        return wrapper
 
     return decorate
 
 
 def guard_error_wrap(
     operation_name: str,
-    error_handler_attr: str = "_handle_api_error",
 ) -> Callable[[Callable[Concatenate[T, P], Awaitable[R]]], Callable[Concatenate[T, P], Awaitable[R]]]:
     """
     Guard decorator: normalize and sanitize exceptions from the client-call segment.
@@ -174,10 +170,10 @@ def guard_error_wrap(
             try:
                 return await func(self, *args, **kwargs)
             except Exception as e:
-                getattr(self, error_handler_attr)(e, operation_name)
+                self._handle_api_error(e, operation_name)  # type: ignore[attr-defined]
                 raise
 
-        return wrapper  # type: ignore[return-value]
+        return wrapper
 
     return decorate
 

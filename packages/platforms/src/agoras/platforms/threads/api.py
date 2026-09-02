@@ -208,6 +208,7 @@ class ThreadsAPI(BaseAPI):
         Raises:
             Exception: If API call fails
         """
+
         def _sync_get_profile():
             if not self.client:
                 raise Exception("Threads client not available")
@@ -293,6 +294,7 @@ class ThreadsAPI(BaseAPI):
     @guard_ensure_auth_manager
     @guard_token_presence(token_attr="auth_manager.access_token")
     @guard_client_presence
+    @guard_rate_limit("create_video_post", 2.0)
     async def create_video_post(
         self,
         post_text: str,
@@ -388,6 +390,7 @@ class ThreadsAPI(BaseAPI):
         Raises:
             Exception: If repost fails
         """
+
         def _sync_repost():
             if not self.client:
                 raise Exception("Threads client not available")
@@ -431,6 +434,7 @@ class ThreadsAPI(BaseAPI):
     @guard_ensure_auth_manager
     @guard_token_presence(token_attr="auth_manager.access_token")
     @guard_client_presence
+    @guard_rate_limit("delete_post", 1.0)
     async def delete(self, post_id: str) -> str:
         """
         Delete a Threads post.
@@ -464,6 +468,7 @@ class ThreadsAPI(BaseAPI):
     @guard_ensure_auth_manager
     @guard_token_presence(token_attr="auth_manager.access_token")
     @guard_client_presence
+    @guard_rate_limit("get_post", 1.0)
     async def get_post(self, post_id: str) -> Dict[str, Any]:
         """
         Read a Threads post by ID.
@@ -511,6 +516,7 @@ class ThreadsAPI(BaseAPI):
         Raises:
             Exception: If the posts cannot be read
         """
+
         def _sync_list():
             if not self.client:
                 raise Exception("Threads client not available")

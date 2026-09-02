@@ -146,7 +146,6 @@ class TelegramAPI(BaseAPI):
     @guard_auth_attempt
     @guard_client_presence
     @guard_rate_limit("send_photo", 1.0)
-    @guard_error_wrap("Telegram send photo")
     async def send_photo(
         self,
         chat_id: str,
@@ -199,19 +198,22 @@ class TelegramAPI(BaseAPI):
         if not photo_content:
             raise Exception("No photo content available")
 
-        response = await self.client.send_photo(
-            chat_id=chat_id,
-            photo=photo_content,
-            caption=caption,
-            parse_mode=parse_mode,
-            reply_to_message_id=reply_to_message_id,
-        )
+        try:
+            response = await self.client.send_photo(
+                chat_id=chat_id,
+                photo=photo_content,
+                caption=caption,
+                parse_mode=parse_mode,
+                reply_to_message_id=reply_to_message_id,
+            )
+        except Exception as e:
+            self._handle_api_error(e, "Telegram send photo")
+            raise
         return str(response["message_id"])
 
     @guard_auth_attempt
     @guard_client_presence
     @guard_rate_limit("send_video", 1.0)
-    @guard_error_wrap("Telegram send video")
     async def send_video(
         self,
         chat_id: str,
@@ -257,13 +259,17 @@ class TelegramAPI(BaseAPI):
         if not video_content:
             raise Exception("No video content available")
 
-        response = await self.client.send_video(
-            chat_id=chat_id,
-            video=video_content,
-            caption=caption,
-            parse_mode=parse_mode,
-            reply_to_message_id=reply_to_message_id,
-        )
+        try:
+            response = await self.client.send_video(
+                chat_id=chat_id,
+                video=video_content,
+                caption=caption,
+                parse_mode=parse_mode,
+                reply_to_message_id=reply_to_message_id,
+            )
+        except Exception as e:
+            self._handle_api_error(e, "Telegram send video")
+            raise
         return str(response["message_id"])
 
     @guard_auth_attempt

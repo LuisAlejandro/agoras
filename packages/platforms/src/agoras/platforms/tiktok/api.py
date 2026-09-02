@@ -133,6 +133,7 @@ class TikTokAPI(BaseAPI):
         Raises:
             Exception: If the query fails, the creator cannot post, or usernames mismatch
         """
+
         def _sync_refresh():
             if not self.client:
                 raise Exception("TikTok client not available")
@@ -191,6 +192,7 @@ class TikTokAPI(BaseAPI):
         Raises:
             Exception: If upload fails
         """
+
         def _sync_upload():
             if not self.client:
                 raise Exception("TikTok client not available")
@@ -249,6 +251,7 @@ class TikTokAPI(BaseAPI):
         Raises:
             Exception: If upload fails
         """
+
         def _sync_upload():
             if not self.client:
                 raise Exception("TikTok client not available")
@@ -306,6 +309,7 @@ class TikTokAPI(BaseAPI):
         Raises:
             Exception: If upload fails
         """
+
         def _sync_upload():
             if not self.client:
                 raise Exception("TikTok client not available")

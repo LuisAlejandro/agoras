@@ -237,9 +237,7 @@ class WhatsAppAPI(BaseAPI):
         assert client is not None
 
         def _sync_send():
-            response = client.send_image(
-                to, image_url=image_url, caption=caption, image_id=image_id, context=context
-            )
+            response = client.send_image(to, image_url=image_url, caption=caption, image_id=image_id, context=context)
             return response["message_id"]
 
         return await asyncio.to_thread(_sync_send)
@@ -276,9 +274,7 @@ class WhatsAppAPI(BaseAPI):
         assert client is not None
 
         def _sync_send():
-            response = client.send_video(
-                to, video_url=video_url, caption=caption, video_id=video_id, context=context
-            )
+            response = client.send_video(to, video_url=video_url, caption=caption, video_id=video_id, context=context)
             return response["message_id"]
 
         return await asyncio.to_thread(_sync_send)

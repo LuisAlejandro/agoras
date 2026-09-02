@@ -111,7 +111,6 @@ class LinkedInAPI(BaseAPI):
 
     @guard_ensure_auth_manager
     @guard_client_presence
-    @guard_rate_limit("upload_video", 2.0)
     async def upload_video(self, video_content: bytes) -> str:
         """
         Upload a video to LinkedIn.
@@ -128,6 +127,8 @@ class LinkedInAPI(BaseAPI):
         if not self.object_id:
             raise Exception("LinkedIn API not authenticated")
 
+        await self._rate_limit_check("upload_video", 2.0)
+
         try:
             assert self.client is not None
             return await self.client.upload_video(
@@ -139,7 +140,6 @@ class LinkedInAPI(BaseAPI):
 
     @guard_ensure_auth_manager
     @guard_client_presence
-    @guard_rate_limit("upload_image", 1.0)
     async def upload_image(self, image_content: bytes) -> str:
         """
         Upload an image to LinkedIn.
@@ -155,6 +155,8 @@ class LinkedInAPI(BaseAPI):
         """
         if not self.object_id:
             raise Exception("LinkedIn API not authenticated")
+
+        await self._rate_limit_check("upload_image", 1.0)
 
         try:
             assert self.client is not None
@@ -210,7 +212,6 @@ class LinkedInAPI(BaseAPI):
         )
 
     @guard_client_presence
-    @guard_rate_limit("like", 0.5)
     async def like(self, post_id: str) -> str:
         """
         Like a LinkedIn post.
@@ -227,6 +228,8 @@ class LinkedInAPI(BaseAPI):
         if not self.object_id:
             raise Exception("LinkedIn API not authenticated")
 
+        await self._rate_limit_check("like", 0.5)
+
         try:
             assert self.client is not None
             return await self.client.like_post(post_id=post_id, actor_urn=f"urn:li:person:{self.object_id}")
@@ -235,7 +238,6 @@ class LinkedInAPI(BaseAPI):
             raise
 
     @guard_client_presence
-    @guard_rate_limit("reply", 0.5)
     async def reply(self, post_id: str, text: str, image_ids: Optional[List[str]] = None) -> str:
         """
         Comment on a LinkedIn post.
@@ -253,6 +255,8 @@ class LinkedInAPI(BaseAPI):
         """
         if not self.object_id:
             raise Exception("LinkedIn API not authenticated")
+
+        await self._rate_limit_check("reply", 0.5)
 
         try:
             assert self.client is not None
@@ -389,7 +393,6 @@ class LinkedInAPI(BaseAPI):
 
     @guard_ensure_auth_manager
     @guard_client_presence
-    @guard_rate_limit("list_posts", 0.5)
     async def list_posts(self, limit: int) -> List[Dict[str, Any]]:
         """
         List the authenticated user's recent posts.
@@ -405,6 +408,8 @@ class LinkedInAPI(BaseAPI):
         """
         if not self.object_id:
             raise Exception("LinkedIn API not authenticated")
+
+        await self._rate_limit_check("list_posts", 0.5)
 
         try:
             assert self.client is not None
