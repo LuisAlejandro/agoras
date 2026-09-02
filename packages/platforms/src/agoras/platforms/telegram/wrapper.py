@@ -75,8 +75,8 @@ class Telegram(SocialNetwork):
         Tries to load credentials from storage if not provided via parameters.
         """
         # Get configuration values
-        self.telegram_bot_token = self._get_config_value("telegram_bot_token", "TELEGRAM_BOT_TOKEN")
-        self.telegram_chat_id = normalize_chat_id(self._get_config_value("telegram_chat_id", "TELEGRAM_CHAT_ID"))
+        self.telegram_bot_token = self._get_auth_config_value("telegram_bot_token", "TELEGRAM_BOT_TOKEN")
+        self.telegram_chat_id = normalize_chat_id(self._get_auth_config_value("telegram_chat_id", "TELEGRAM_CHAT_ID"))
         self.telegram_parse_mode = self._get_config_value("telegram_parse_mode", "TELEGRAM_PARSE_MODE") or "HTML"
         self.telegram_reply_to_message_id = self._get_config_value(
             "telegram_reply_to_message_id", "TELEGRAM_REPLY_TO_MESSAGE_ID"
@@ -87,7 +87,11 @@ class Telegram(SocialNetwork):
         if not all([self.telegram_bot_token, self.telegram_chat_id]):
             from .auth import TelegramAuthManager
 
-            auth_manager = TelegramAuthManager(bot_token=self.telegram_bot_token, chat_id=self.telegram_chat_id)
+            auth_manager = TelegramAuthManager(
+                bot_token=self.telegram_bot_token,
+                chat_id=self.telegram_chat_id,
+                profile=self._get_config_value("profile"),
+            )
 
             if auth_manager._load_credentials_from_storage():
                 # Fill in missing credentials from storage
@@ -462,7 +466,11 @@ class Telegram(SocialNetwork):
         bot_token = self._get_config_value("telegram_bot_token", "TELEGRAM_BOT_TOKEN")
         chat_id = self._get_config_value("telegram_chat_id", "TELEGRAM_CHAT_ID")
 
-        auth_manager = TelegramAuthManager(bot_token=bot_token, chat_id=chat_id)
+        auth_manager = TelegramAuthManager(
+            bot_token=bot_token,
+            chat_id=chat_id,
+            profile=self._get_config_value("profile"),
+        )
 
         result = await auth_manager.authorize()
         if result:

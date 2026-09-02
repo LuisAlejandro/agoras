@@ -109,9 +109,9 @@ class Threads(SocialNetwork):
         Tries to load credentials from CLI params, environment variables, or storage.
         """
         # Try params/environment first
-        self.threads_app_id = self._get_config_value("threads_app_id", "THREADS_APP_ID")
-        self.threads_app_secret = self._get_config_value("threads_app_secret", "THREADS_APP_SECRET")
-        self.threads_refresh_token = self._get_config_value("threads_refresh_token", "THREADS_REFRESH_TOKEN")
+        self.threads_app_id = self._get_auth_config_value("threads_app_id", "THREADS_APP_ID")
+        self.threads_app_secret = self._get_auth_config_value("threads_app_secret", "THREADS_APP_SECRET")
+        self.threads_refresh_token = self._get_auth_config_value("threads_refresh_token", "THREADS_REFRESH_TOKEN")
         # Configuration options
         self.threads_who_can_reply = (
             self._get_config_value("threads_who_can_reply", "THREADS_WHO_CAN_REPLY") or "everyone"
@@ -125,7 +125,9 @@ class Threads(SocialNetwork):
             from .auth import ThreadsAuthManager
 
             auth_manager = ThreadsAuthManager(
-                app_id=self.threads_app_id or "", app_secret=self.threads_app_secret or ""
+                app_id=self.threads_app_id or "",
+                app_secret=self.threads_app_secret or "",
+                profile=self._get_config_value("profile"),
             )
 
             if auth_manager._load_credentials_from_storage():
@@ -592,7 +594,11 @@ class Threads(SocialNetwork):
         app_id = self._get_config_value("threads_app_id", "THREADS_APP_ID")
         app_secret = self._get_config_value("threads_app_secret", "THREADS_APP_SECRET")
 
-        auth_manager = ThreadsAuthManager(app_id=app_id, app_secret=app_secret)
+        auth_manager = ThreadsAuthManager(
+            app_id=app_id,
+            app_secret=app_secret,
+            profile=self._get_config_value("profile"),
+        )
 
         result = await auth_manager.authorize()
         if result:

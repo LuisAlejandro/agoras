@@ -34,6 +34,7 @@ class WhatsAppAuthManager(BaseAuthManager):
         access_token: Optional[str] = None,
         phone_number_id: Optional[str] = None,
         business_account_id: Optional[str] = None,
+        profile: Optional[str] = None,
     ):
         """
         Initialize WhatsApp authentication manager.
@@ -42,8 +43,10 @@ class WhatsAppAuthManager(BaseAuthManager):
             access_token (str, optional): Meta Graph API access token
             phone_number_id (str, optional): WhatsApp Business phone number ID
             business_account_id (str, optional): WhatsApp Business Account ID
+            profile (str, optional): Explicit profile composite (app-derived key)
         """
         super().__init__()
+        self.profile = profile
         # Try loading from storage first if credentials not provided
         if not access_token or not phone_number_id:
             loaded = self._load_credentials_from_storage()
@@ -237,9 +240,11 @@ class WhatsAppAuthManager(BaseAuthManager):
         Returns:
             str: Phone number ID as unique identifier
         """
+        if self.profile:
+            return self.profile
         if self.phone_number_id:
             return self.phone_number_id
-        return "default"
+        return "unbound"
 
     def _save_credentials_to_storage(
         self, access_token: str, phone_number_id: str, business_account_id: Optional[str] = None
@@ -262,8 +267,6 @@ class WhatsAppAuthManager(BaseAuthManager):
         }
 
         self.token_storage.save_token(platform_name, identifier, token_data)
-        # Also save as default so it becomes the primary credential loaded
-        self.token_storage.save_token(platform_name, "default", token_data)
 
     def _load_credentials_from_storage(self) -> bool:
         """
@@ -274,17 +277,8 @@ class WhatsAppAuthManager(BaseAuthManager):
         """
         platform_name = self._get_platform_name()
 
-        # Try to load with default identifier first
-        identifier = "default"
+        identifier = self._get_token_identifier()
         token_data = self.token_storage.load_token(platform_name, identifier)
-
-        if not token_data:
-            # If no default, try to find any stored token
-            tokens = self.token_storage.list_tokens(platform_name)
-            if tokens:
-                # Use the first available token
-                identifier = tokens[0][1]
-                token_data = self.token_storage.load_token(platform_name, identifier)
 
         if token_data:
             self.access_token = token_data.get("access_token")

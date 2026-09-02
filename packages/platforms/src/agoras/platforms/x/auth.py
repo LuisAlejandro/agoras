@@ -44,6 +44,7 @@ class XAuthManager(BaseAuthManager):
         consumer_secret: Optional[str] = None,
         oauth_token: Optional[str] = None,
         oauth_secret: Optional[str] = None,
+        profile: Optional[str] = None,
     ):
         """
         Initialize X authentication manager.
@@ -53,8 +54,10 @@ class XAuthManager(BaseAuthManager):
             consumer_secret (str): X consumer secret
             oauth_token (str, optional): X OAuth token (if already obtained)
             oauth_secret (str, optional): X OAuth secret (if already obtained)
+            profile (str, optional): Explicit profile composite (app-derived key)
         """
         super().__init__()
+        self.profile = profile
         self.consumer_key = consumer_key
         self.consumer_secret = consumer_secret
         self.oauth_token = oauth_token
@@ -264,9 +267,11 @@ class XAuthManager(BaseAuthManager):
         """Get token identifier (use consumer key hash)."""
         import hashlib
 
+        if self.profile:
+            return self.profile
         if self.consumer_key:
             return hashlib.md5(self.consumer_key.encode(), usedforsecurity=False).hexdigest()[:8]
-        return "default"
+        return "unbound"
 
     def _save_credentials_to_storage(self):
         """Save all X credentials to secure storage."""
@@ -282,16 +287,12 @@ class XAuthManager(BaseAuthManager):
         }
 
         self.token_storage.save_token(platform_name, identifier, token_data)
-        # Also save as default so it becomes the primary credential loaded
-        self.token_storage.save_token(platform_name, "default", token_data)
 
     def load_subscription_type_from_storage(self) -> Optional[str]:
         """Load stored subscription_type without requiring full re-auth."""
         platform_name = self._get_platform_name()
         identifier = self._get_token_identifier()
         token_data = self.token_storage.load_token(platform_name, identifier)
-        if not token_data:
-            token_data = self.token_storage.load_token(platform_name, "default")
         if not token_data:
             return None
         return token_data.get("subscription_type")
@@ -310,8 +311,6 @@ class XAuthManager(BaseAuthManager):
         identifier = self._get_token_identifier()
         token_data = self.token_storage.load_token(platform_name, identifier)
         if not token_data:
-            token_data = self.token_storage.load_token(platform_name, "default")
-        if not token_data:
             return None
 
         if token_data.get("oauth_token") != self.oauth_token or token_data.get("oauth_secret") != self.oauth_secret:
@@ -323,16 +322,8 @@ class XAuthManager(BaseAuthManager):
         """Load X credentials from secure storage."""
         platform_name = self._get_platform_name()
 
-        # Try default identifier first
         identifier = self._get_token_identifier()
         token_data = self.token_storage.load_token(platform_name, identifier)
-
-        if not token_data:
-            # Try to find any stored token
-            tokens = self.token_storage.list_tokens(platform_name)
-            if tokens:
-                identifier = tokens[0][1]
-                token_data = self.token_storage.load_token(platform_name, identifier)
 
         if token_data:
             self.consumer_key = token_data.get("consumer_key")

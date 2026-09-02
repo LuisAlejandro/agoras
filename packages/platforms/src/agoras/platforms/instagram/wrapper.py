@@ -86,10 +86,10 @@ class Instagram(SocialNetwork):
         Tries to load credentials from CLI params, environment variables, or storage.
         """
         # Try params/environment first
-        self.instagram_access_token = self._get_config_value("instagram_access_token", "INSTAGRAM_ACCESS_TOKEN")
-        self.instagram_client_id = self._get_config_value("instagram_client_id", "INSTAGRAM_CLIENT_ID")
-        self.instagram_client_secret = self._get_config_value("instagram_client_secret", "INSTAGRAM_CLIENT_SECRET")
-        self.instagram_refresh_token = self._get_config_value("instagram_refresh_token", "INSTAGRAM_REFRESH_TOKEN")
+        self.instagram_access_token = self._get_auth_config_value("instagram_access_token", "INSTAGRAM_ACCESS_TOKEN")
+        self.instagram_client_id = self._get_auth_config_value("instagram_client_id", "INSTAGRAM_CLIENT_ID")
+        self.instagram_client_secret = self._get_auth_config_value("instagram_client_secret", "INSTAGRAM_CLIENT_SECRET")
+        self.instagram_refresh_token = self._get_auth_config_value("instagram_refresh_token", "INSTAGRAM_REFRESH_TOKEN")
         self.instagram_object_id = self._get_config_value("instagram_object_id", "INSTAGRAM_OBJECT_ID")
         self.instagram_post_id = self._get_config_value("instagram_post_id", "INSTAGRAM_POST_ID")
         self.instagram_video_type = self._get_config_value("instagram_video_type", "INSTAGRAM_VIDEO_TYPE")
@@ -112,6 +112,7 @@ class Instagram(SocialNetwork):
                 user_id=self.instagram_object_id or "",
                 client_id=self.instagram_client_id or "",
                 client_secret=self.instagram_client_secret or "",
+                profile=self._get_config_value("profile"),
             )
 
             if auth_manager._load_credentials_from_storage():
@@ -134,6 +135,7 @@ class Instagram(SocialNetwork):
                 client_id=self.instagram_client_id,
                 client_secret=self.instagram_client_secret,
                 refresh_token=self.instagram_refresh_token,
+                profile=self._get_config_value("profile"),
             )
             authenticated = await auth_manager.authenticate()
             if authenticated:
@@ -580,7 +582,12 @@ class Instagram(SocialNetwork):
         client_id = self._get_config_value("instagram_client_id", "INSTAGRAM_CLIENT_ID")
         client_secret = self._get_config_value("instagram_client_secret", "INSTAGRAM_CLIENT_SECRET")
 
-        auth_manager = InstagramAuthManager(user_id=object_id, client_id=client_id, client_secret=client_secret)
+        auth_manager = InstagramAuthManager(
+            user_id=object_id,
+            client_id=client_id,
+            client_secret=client_secret,
+            profile=self._get_config_value("profile"),
+        )
 
         result = await auth_manager.authorize()
         if result:

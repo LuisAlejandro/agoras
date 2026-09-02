@@ -196,6 +196,8 @@ def test_cli_youtube_video_local_path_reaches_platform(mock_youtube_main, tmp_pa
     from agoras.cli.main import main as cli_main
 
     monkeypatch.chdir(tmp_path)
+    # Isolate credential storage so profile resolution does not read real ~/.agoras
+    monkeypatch.setenv("AGORAS_STORAGE_DIR", str(tmp_path / "storage"))
     video = tmp_path / "clip.mp4"
     video.write_bytes(b"video")
     mock_youtube_main.return_value = 0

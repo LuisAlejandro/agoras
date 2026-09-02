@@ -77,8 +77,10 @@ class WhatsApp(SocialNetwork):
         Tries to load credentials from storage if not provided via parameters.
         """
         # Get configuration using existing pattern
-        self.whatsapp_access_token = self._get_config_value("whatsapp_access_token", "WHATSAPP_ACCESS_TOKEN")
-        self.whatsapp_phone_number_id = self._get_config_value("whatsapp_phone_number_id", "WHATSAPP_PHONE_NUMBER_ID")
+        self.whatsapp_access_token = self._get_auth_config_value("whatsapp_access_token", "WHATSAPP_ACCESS_TOKEN")
+        self.whatsapp_phone_number_id = self._get_auth_config_value(
+            "whatsapp_phone_number_id", "WHATSAPP_PHONE_NUMBER_ID"
+        )
         self.whatsapp_business_account_id = self._get_config_value(
             "whatsapp_business_account_id", "WHATSAPP_BUSINESS_ACCOUNT_ID"
         )
@@ -95,6 +97,7 @@ class WhatsApp(SocialNetwork):
                 access_token=self.whatsapp_access_token,
                 phone_number_id=self.whatsapp_phone_number_id,
                 business_account_id=self.whatsapp_business_account_id,
+                profile=self._get_config_value("profile"),
             )
 
             if auth_manager._load_credentials_from_storage():
@@ -493,7 +496,10 @@ class WhatsApp(SocialNetwork):
         business_account_id = self._get_config_value("whatsapp_business_account_id", "WHATSAPP_BUSINESS_ACCOUNT_ID")
 
         auth_manager = WhatsAppAuthManager(
-            access_token=access_token, phone_number_id=phone_number_id, business_account_id=business_account_id
+            access_token=access_token,
+            phone_number_id=phone_number_id,
+            business_account_id=business_account_id,
+            profile=self._get_config_value("profile"),
         )
 
         result = await auth_manager.authorize()

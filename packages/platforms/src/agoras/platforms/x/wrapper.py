@@ -114,6 +114,7 @@ class X(SocialNetwork):
             consumer_secret=self.twitter_consumer_secret,
             oauth_token=self.twitter_oauth_token,
             oauth_secret=self.twitter_oauth_secret,
+            profile=self._get_config_value("profile"),
         )
         # Bind tier to active oauth only — never adopt unrelated stored tokens
         self._subscription_type = auth_manager.load_subscription_type_for_active_oauth()
@@ -148,10 +149,10 @@ class X(SocialNetwork):
         Tries to load credentials from CLI params, environment variables, or storage.
         """
         # Try params/environment first
-        self.twitter_consumer_key = self._get_config_value("twitter_consumer_key", "TWITTER_CONSUMER_KEY")
-        self.twitter_consumer_secret = self._get_config_value("twitter_consumer_secret", "TWITTER_CONSUMER_SECRET")
-        self.twitter_oauth_token = self._get_config_value("twitter_oauth_token", "TWITTER_OAUTH_TOKEN")
-        self.twitter_oauth_secret = self._get_config_value("twitter_oauth_secret", "TWITTER_OAUTH_SECRET")
+        self.twitter_consumer_key = self._get_auth_config_value("twitter_consumer_key", "TWITTER_CONSUMER_KEY")
+        self.twitter_consumer_secret = self._get_auth_config_value("twitter_consumer_secret", "TWITTER_CONSUMER_SECRET")
+        self.twitter_oauth_token = self._get_auth_config_value("twitter_oauth_token", "TWITTER_OAUTH_TOKEN")
+        self.twitter_oauth_secret = self._get_auth_config_value("twitter_oauth_secret", "TWITTER_OAUTH_SECRET")
         self.tweet_id = self._get_config_value("tweet_id", "TWEET_ID")
 
         # If any credentials missing, try loading from storage
@@ -166,7 +167,9 @@ class X(SocialNetwork):
             from .auth import XAuthManager
 
             auth_manager = XAuthManager(
-                consumer_key=self.twitter_consumer_key, consumer_secret=self.twitter_consumer_secret
+                consumer_key=self.twitter_consumer_key,
+                consumer_secret=self.twitter_consumer_secret,
+                profile=self._get_config_value("profile"),
             )
 
             if auth_manager._load_credentials_from_storage():
@@ -219,6 +222,7 @@ class X(SocialNetwork):
             consumer_secret=consumer_secret,
             oauth_token=oauth_token,
             oauth_secret=oauth_secret,
+            profile=self._get_config_value("profile"),
         )
 
         result = await auth_manager.authorize()

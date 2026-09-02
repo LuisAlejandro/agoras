@@ -25,7 +25,7 @@ from argparse import SUPPRESS, ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.instagram.wrapper import main as instagram_main
 
-from ..base import add_common_content_options, prepare_content_args
+from ..base import add_common_content_options, add_profile_to_all, prepare_content_args, resolve_action_profile
 from ..content import add_content_file_option
 from ..converter import ParameterConverter
 from ..media_help import video_url_help
@@ -122,6 +122,8 @@ def create_instagram_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     # Set handler
     parser.set_defaults(command=_handle_instagram_command)
 
+    add_profile_to_all(actions)
+
     return parser
 
 
@@ -215,6 +217,9 @@ def _handle_instagram_command(args: Namespace):
     # Convert new args to legacy format
     converter = ParameterConverter("instagram")
     legacy_args = converter.convert_to_legacy(args)
+
+    # Resolve and inject the credential profile for non-authorize actions
+    resolve_action_profile("instagram", args, legacy_args)
 
     # Call core Instagram module
     return instagram_main(legacy_args)
