@@ -24,7 +24,7 @@ from unittest.mock import patch
 
 import pytest
 
-from agoras.core.auth.storage import SecureTokenStorage
+from agoras.core.auth.storage import SecureTokenStorage, build_composite_key, validate_identifier
 
 
 @pytest.fixture
@@ -368,3 +368,76 @@ def test_multiple_identifiers_same_platform(temp_storage):
     # List should show all three
     tokens = temp_storage.list_tokens(platform='facebook')
     assert len(tokens) == 3
+
+
+# Composite Profile Key Tests (U1)
+
+def test_build_composite_key_joins_app_and_account():
+    """Test build_composite_key joins app and account with the delimiter."""
+    assert build_composite_key("app123", "user456") == "app123@user456"
+
+
+def test_build_composite_key_rejects_reserved_component():
+    """Test build_composite_key rejects the reserved 'default' component."""
+    with pytest.raises(ValueError):
+        build_composite_key("default", "user456")
+    with pytest.raises(ValueError):
+        build_composite_key("app123", "default")
+
+
+def test_build_composite_key_rejects_path_separators():
+    """Test build_composite_key rejects path separators and dot components."""
+    for bad in ("../evil", "a/b", "a\\b", ".", ".."):
+        with pytest.raises(ValueError):
+            build_composite_key(bad, "user456")
+        with pytest.raises(ValueError):
+            build_composite_key("app123", bad)
+
+
+def test_build_composite_key_rejects_delimiter_in_component():
+    """Test build_composite_key rejects a component containing the delimiter."""
+    with pytest.raises(ValueError):
+        build_composite_key("app@x", "user456")
+
+
+def test_validate_identifier_rejects_reserved_and_paths():
+    """Test validate_identifier rejects reserved names and path separators."""
+    for bad in ("default", "../evil", "a/b", "a\\b", ".", "..", ""):
+        with pytest.raises(ValueError):
+            validate_identifier(bad)
+
+
+def test_validate_identifier_allows_composite_delimiter():
+    """Test validate_identifier allows the composite delimiter inside a key."""
+    assert validate_identifier("app123@user456") == "app123@user456"
+
+
+def test_composite_keyed_token_round_trip(temp_storage):
+    """Test save/load/delete/list a composite-keyed token round-trips."""
+    composite = build_composite_key("app123", "user456")
+    temp_storage.save_token("linkedin", composite, {"refresh_token": "tok"})
+
+    assert temp_storage.load_token("linkedin", composite)["refresh_token"] == "tok"
+
+    tokens = temp_storage.list_tokens(platform="linkedin")
+    assert (("linkedin", composite)) in tokens
+
+    assert temp_storage.delete_token("linkedin", composite) is True
+    assert temp_storage.load_token("linkedin", composite) is None
+
+
+def test_list_tokens_parses_composite_delimiter(temp_storage):
+    """Test list_tokens parses a composite containing '@' without mis-splitting."""
+    temp_storage.save_token("linkedin", "app123@user456", {"refresh_token": "tok"})
+    temp_storage.save_token("linkedin", "app789@user456", {"refresh_token": "tok2"})
+
+    tokens = temp_storage.list_tokens(platform="linkedin")
+    assert len(tokens) == 2
+    assert ("linkedin", "app123@user456") in tokens
+    assert ("linkedin", "app789@user456") in tokens
+
+
+def test_default_identifier_rejected_on_save(temp_storage):
+    """Test saving under the reserved 'default' identifier is rejected."""
+    with pytest.raises(ValueError):
+        temp_storage.save_token("linkedin", "default", {"refresh_token": "tok"})
