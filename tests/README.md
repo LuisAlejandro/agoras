@@ -53,13 +53,6 @@ Same `unattended.env` and CI guard as the unattended suite, but exercises the de
 2. Fill `unattended.env`
 3. Run:
 
-```bash
-tests/test-legacy-unattended.sh all
-# or: tests/test-legacy-unattended.sh x
-# or: tests/test-legacy-unattended.sh twitter   # alias for x
-```
-
-Clears storage at start, runs per-platform post/video cases via `agoras publish`, then legacy feed (`last-from-feed`, `random-from-feed`) and schedule actions. Does not run tokens-list smoke. Patches `*_REFRESH_TOKEN` lines in `unattended.env` on exit (same as unattended suite).
 
 ## CI guard
 
