@@ -111,7 +111,7 @@ class TestFindMetatags(unittest.TestCase):
         """Test successful meta tag extraction."""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.content = b'<html><meta property="og:title" content="My Title"></html>'
+        mock_response.text = '<html><meta property="og:title" content="My Title"></html>'
         mock_get.return_value = mock_response
 
         result = find_metatags('https://example.com', ['og:title'])
@@ -127,7 +127,7 @@ class TestFindMetatags(unittest.TestCase):
         </html>'''
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.content = html.encode()
+        mock_response.text = html
         mock_get.return_value = mock_response
 
         result = find_metatags('https://example.com',
@@ -151,7 +151,7 @@ class TestFindMetatags(unittest.TestCase):
         """Test HTML without matching meta tags."""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.content = b'<html><p>No meta tags here</p></html>'
+        mock_response.text = '<html><p>No meta tags here</p></html>'
         mock_get.return_value = mock_response
 
         result = find_metatags('https://example.com', ['og:title'])
@@ -163,7 +163,7 @@ class TestFindMetatags(unittest.TestCase):
         html = '<html><meta name="twitter:title" content="Twitter Title"></html>'
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.content = html.encode()
+        mock_response.text = html
         mock_get.return_value = mock_response
 
         result = find_metatags('https://example.com', ['twitter:title'])
@@ -261,7 +261,7 @@ class TestFindMetatagsParserEdgeCases(unittest.TestCase):
         """Attribute order does not affect extraction."""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.content = b'<html><meta content="Ordered" property="og:title"></html>'
+        mock_response.text = '<html><meta content="Ordered" property="og:title"></html>'
         mock_get.return_value = mock_response
         result = find_metatags('https://example.com', ['og:title'])
         self.assertEqual(result, {'og:title': 'Ordered'})
@@ -271,7 +271,7 @@ class TestFindMetatagsParserEdgeCases(unittest.TestCase):
         """Uppercase attribute names are lowercased by the parser."""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.content = b'<html><meta PROPERTY="og:title" CONTENT="Upper"></html>'
+        mock_response.text = '<html><meta PROPERTY="og:title" CONTENT="Upper"></html>'
         mock_get.return_value = mock_response
         result = find_metatags('https://example.com', ['og:title'])
         self.assertEqual(result, {'og:title': 'Upper'})
@@ -281,7 +281,7 @@ class TestFindMetatagsParserEdgeCases(unittest.TestCase):
         """Malformed HTML parses without raising."""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.content = b'<html><meta property="og:title" content="Broken"<div>'
+        mock_response.text = '<html><meta property="og:title" content="Broken"<div>'
         mock_get.return_value = mock_response
         result = find_metatags('https://example.com', ['og:title'])
         self.assertEqual(result, {'og:title': 'Broken'})
@@ -291,7 +291,7 @@ class TestFindMetatagsParserEdgeCases(unittest.TestCase):
         """Meta tags without content are ignored (metatag filter parity)."""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.content = b'<html><meta property="og:title"><meta property="og:image" content="img.jpg"></html>'
+        mock_response.text = '<html><meta property="og:title"><meta property="og:image" content="img.jpg"></html>'
         mock_get.return_value = mock_response
         result = find_metatags('https://example.com', ['og:title', 'og:image'])
         self.assertEqual(result, {'og:image': 'img.jpg'})

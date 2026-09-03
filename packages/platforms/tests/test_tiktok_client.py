@@ -50,7 +50,7 @@ def test_file_upload_chunk_params_last_chunk_fits():
     assert sum(len(chunk) for _, _, chunk in chunks) == size
 
 
-@patch("agoras.platforms.tiktok.client._build_upload_session")
+@patch("agoras.platforms.tiktok.client.build_upload_session")
 @patch("agoras.platforms.tiktok.client.requests.post")
 def test_upload_video_file_single_chunk(mock_post, mock_session_factory):
     """FILE_UPLOAD init + one PUT for a small local video."""
@@ -95,7 +95,7 @@ def test_upload_video_file_single_chunk(mock_post, mock_session_factory):
     assert put_kwargs["data"] == file_content
 
 
-@patch("agoras.platforms.tiktok.client._build_upload_session")
+@patch("agoras.platforms.tiktok.client.build_upload_session")
 @patch("agoras.platforms.tiktok.client.requests.post")
 def test_upload_video_file_multi_chunk(mock_post, mock_session_factory):
     """FILE_UPLOAD sends sequential PUTs for videos larger than 64MB."""
@@ -148,7 +148,7 @@ def test_upload_video_file_requires_token(mock_post):
     mock_post.assert_not_called()
 
 
-@patch("agoras.platforms.tiktok.client._build_upload_session")
+@patch("agoras.platforms.tiktok.client.build_upload_session")
 @patch("agoras.platforms.tiktok.client.requests.post")
 def test_upload_video_file_put_failure(mock_post, mock_session_factory):
     """FILE_UPLOAD raises when a chunk PUT returns a non-success status."""
@@ -191,9 +191,9 @@ def test_iter_file_upload_chunks_uses_memoryview():
 
 def test_upload_session_retry_config():
     """The upload session pins the previous retry contract."""
-    from agoras.platforms.tiktok.client import _build_upload_session
+    from agoras.common.utils import build_upload_session
 
-    with _build_upload_session(3, {429, 500, 502, 503, 504}) as session:
+    with build_upload_session(3, {429, 500, 502, 503, 504}, ["PUT"]) as session:
         adapter = session.get_adapter("https://")
         retry = adapter.max_retries
         assert retry.total == 2
@@ -204,14 +204,13 @@ def test_upload_session_retry_config():
         assert list(retry.allowed_methods) == ["PUT"]
         assert retry.backoff_factor == 1.0
         assert retry.respect_retry_after_header is False
+        assert retry.raise_on_status is False
 
 
-@patch("agoras.platforms.tiktok.client._build_upload_session")
+@patch("agoras.platforms.tiktok.client.build_upload_session")
 @patch("agoras.platforms.tiktok.client.requests.post")
-def test_upload_video_file_put_retry_exhaustion_raises(mock_post, mock_session_factory):
-    """Exhausted status retries surface the last HTTP status."""
-    from urllib3.exceptions import MaxRetryError
-
+def test_upload_video_file_put_failure_status_surfaces(mock_post, mock_session_factory):
+    """A final non-2xx status (retryable or not) surfaces the HTTP status."""
     client = TikTokAPIClient(access_token="token")
     init_response = MagicMock()
     init_response.json.return_value = {
@@ -224,15 +223,12 @@ def test_upload_video_file_put_retry_exhaustion_raises(mock_post, mock_session_f
     mock_post.return_value = init_response
 
     mock_session = MagicMock()
-    exhausted = MaxRetryError(MagicMock(), "too many retries")
-    exhausted.response = MagicMock(status_code=503)
-    mock_session.put.side_effect = exhausted
+    mock_session.put.return_value = MagicMock(status_code=503)
     mock_session.__enter__.return_value = mock_session
     mock_session_factory.return_value = mock_session
 
     with pytest.raises(Exception, match="Error uploading video chunk: HTTP 503"):
         client.upload_video_file(b"video-bytes", "title", "SELF_ONLY")
-
 
 @patch("agoras.platforms.tiktok.client.requests.put")
 @patch("agoras.platforms.tiktok.client.requests.post")

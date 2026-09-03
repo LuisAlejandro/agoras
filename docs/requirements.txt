@@ -10,7 +10,6 @@ alabaster==1.0.0
     #   sphinx
 babel==2.15.0
     # via sphinx
-    # via -r requirements.in
 certifi==2024.7.4
     # via requests
 charset-normalizer==3.2.0
@@ -35,7 +34,6 @@ roman-numerals==4.1.0
     # via sphinx
 snowballstemmer==2.2.0
     # via sphinx
-soupsieve==2.8.4
 sphinx==9.1.0
     # via
     #   -r requirements.in
@@ -54,6 +52,5 @@ sphinxcontrib-qthelp==1.0.6
     # via sphinx
 sphinxcontrib-serializinghtml==1.1.9
     # via sphinx
-typing-extensions==4.15.0
 urllib3==2.7.0
     # via requests

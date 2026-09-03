@@ -21,43 +21,16 @@ import asyncio
 import time
 from typing import Any, Dict, List, Optional
 
-import requests
 from pyfacebook import GraphAPI
-from requests.adapters import HTTPAdapter
-from urllib3.exceptions import MaxRetryError
-from urllib3.util.retry import Retry
 
 from agoras.common import __version__
+from agoras.common.utils import build_upload_session
 
 
 def _resumable_upload_timeout(video_file_size: int) -> int:
     """Scale rupload POST timeout with file size, capped at 10 minutes."""
     megabytes = max(0, video_file_size) // (1024 * 1024)
     return max(30, min(600, megabytes * 2 or 30))
-
-
-def _build_upload_session(max_attempts, retry_statuses):
-    """Session whose rupload retries match the previous hand-rolled loop.
-
-    Response-status retries only (429/5xx set): connect and read retries
-    are disabled so the full-body rupload POST never re-sends on a lost
-    connection, and Retry-After headers are ignored so the capped
-    exponential backoff envelope is preserved. POST is in allowed_methods
-    because the rupload call is a POST.
-    """
-    retry = Retry(
-        total=max_attempts - 1,
-        connect=0,
-        read=0,
-        status=max_attempts - 1,
-        status_forcelist=sorted(retry_statuses),
-        allowed_methods=["POST"],
-        backoff_factor=1.0,
-        respect_retry_after_header=False,
-    )
-    session = requests.Session()
-    session.mount("https://", HTTPAdapter(max_retries=retry))
-    return session
 
 
 class InstagramAPIClient:
@@ -349,14 +322,8 @@ class InstagramAPIClient:
             "User-Agent": f"Agoras/{__version__}",
         }
         timeout = _resumable_upload_timeout(len(video_content))
-        try:
-            with _build_upload_session(self._RUPLOAD_MAX_ATTEMPTS, self._RUPLOAD_RETRY_STATUSES) as session:
-                response = session.post(url, headers=headers, data=video_content, timeout=timeout)
-        except MaxRetryError as e:
-            response = getattr(e, "response", None)
-            if response is not None:
-                raise Exception(f"Instagram resumable video upload failed: HTTP {response.status_code}") from None
-            raise
+        with build_upload_session(self._RUPLOAD_MAX_ATTEMPTS, self._RUPLOAD_RETRY_STATUSES, ["POST"]) as session:
+            response = session.post(url, headers=headers, data=video_content, timeout=timeout)
         if response.status_code not in (200, 201):
             raise Exception(f"Instagram resumable video upload failed: HTTP {response.status_code}")
 

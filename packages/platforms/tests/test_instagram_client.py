@@ -30,7 +30,7 @@ def test_resumable_upload_timeout_scales_and_caps():
 
 
 @pytest.mark.asyncio
-@patch("agoras.platforms.instagram.client._build_upload_session")
+@patch("agoras.platforms.instagram.client.build_upload_session")
 @patch("agoras.platforms.instagram.client.GraphAPI")
 async def test_create_resumable_video_inits_and_uploads_bytes(mock_graph_api_class, mock_session_factory):
     """Resumable init omits video_url and POSTs bytes to rupload.facebook.com."""
@@ -75,9 +75,9 @@ async def test_create_resumable_video_inits_and_uploads_bytes(mock_graph_api_cla
 
 def test_upload_session_retry_config():
     """The rupload session pins the previous retry contract."""
-    from agoras.platforms.instagram.client import _build_upload_session
+    from agoras.common.utils import build_upload_session
 
-    with _build_upload_session(3, {429, 500, 502, 503, 504}) as session:
+    with build_upload_session(3, {429, 500, 502, 503, 504}, ["POST"]) as session:
         adapter = session.get_adapter("https://")
         retry = adapter.max_retries
         assert retry.total == 2
@@ -88,10 +88,11 @@ def test_upload_session_retry_config():
         assert list(retry.allowed_methods) == ["POST"]
         assert retry.backoff_factor == 1.0
         assert retry.respect_retry_after_header is False
+        assert retry.raise_on_status is False
 
 
 @pytest.mark.asyncio
-@patch("agoras.platforms.instagram.client._build_upload_session")
+@patch("agoras.platforms.instagram.client.build_upload_session")
 @patch("agoras.platforms.instagram.client.GraphAPI")
 async def test_create_resumable_video_rupload_failure_raises(mock_graph_api_class, mock_session_factory):
     """A non-retryable rupload status raises immediately."""

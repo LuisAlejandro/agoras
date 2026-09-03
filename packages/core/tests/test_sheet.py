@@ -901,3 +901,36 @@ async def test_schedulesheet_nonstring_date_warns_and_skips(mock_datetime):
             posts = await sheet.process_scheduled_posts()
             assert len(posts) == 0
             mock_logger.warning.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_schedulesheet_real_strptime_selects_due_post():
+    """The real %d-%m-%Y parse selects a valid due row (no strptime mock)."""
+    sheet = ScheduleSheet('sheet-id', 'email@example.com', 'key')
+
+    row_data = SheetRow([
+        'Post text', 'http://link.com', '', '', '', '',
+        datetime.datetime.now().strftime("%d-%m-%Y"), datetime.datetime.now().strftime("%H"), '',
+    ])
+    with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
+        with patch.object(sheet, 'write_all', new_callable=AsyncMock) as mock_write:
+            mock_read.return_value = [row_data]
+            posts = await sheet.process_scheduled_posts()
+            assert len(posts) == 1
+            assert posts[0]['_sheet_row'] == 1
+            mock_write.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_schedulesheet_datetime_typed_cell_parses():
+    """A datetime-typed cell (normalized before strptime) still selects."""
+    sheet = ScheduleSheet('sheet-id', 'email@example.com', 'key')
+
+    row_data = SheetRow([
+        'Post text', 'http://link.com', '', '', '', '',
+        datetime.datetime.now(), datetime.datetime.now().strftime("%H"), '',
+    ])
+    with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
+        mock_read.return_value = [row_data]
+        posts = await sheet.process_scheduled_posts()
+        assert len(posts) == 1

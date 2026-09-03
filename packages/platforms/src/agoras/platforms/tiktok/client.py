@@ -21,34 +21,9 @@ import json
 from typing import Any, Dict, List, Optional
 
 import requests
-from requests.adapters import HTTPAdapter
-from urllib3.exceptions import MaxRetryError
-from urllib3.util.retry import Retry
 
 from agoras.common import __version__
-
-
-def _build_upload_session(max_attempts, retry_statuses):
-    """Session whose upload retries match the previous hand-rolled loop.
-
-    Response-status retries only (429/5xx set): connect and read retries
-    are disabled so non-idempotent full-body uploads never re-send on a
-    lost connection, and Retry-After headers are ignored so the capped
-    exponential backoff envelope is preserved.
-    """
-    retry = Retry(
-        total=max_attempts - 1,
-        connect=0,
-        read=0,
-        status=max_attempts - 1,
-        status_forcelist=sorted(retry_statuses),
-        allowed_methods=["PUT"],
-        backoff_factor=1.0,
-        respect_retry_after_header=False,
-    )
-    session = requests.Session()
-    session.mount("https://", HTTPAdapter(max_retries=retry))
-    return session
+from agoras.common.utils import build_upload_session
 
 
 class TikTokAPIClient:
@@ -256,18 +231,10 @@ class TikTokAPIClient:
             "Content-Type": "video/mp4",
             "Content-Length": str(len(chunk)),
         }
-        try:
-            with _build_upload_session(
-                self._FILE_UPLOAD_PUT_MAX_ATTEMPTS, self._FILE_UPLOAD_PUT_RETRY_STATUSES
-            ) as session:
-                chunk_response = session.put(upload_url, headers=headers, data=chunk, timeout=120)
-        except MaxRetryError as e:
-            response = getattr(e, "response", None)
-            if response is not None:
-                raise Exception(
-                    f"Error uploading video chunk: HTTP {response.status_code} (bytes {start}-{end}/{video_size})"
-                ) from None
-            raise
+        with build_upload_session(
+            self._FILE_UPLOAD_PUT_MAX_ATTEMPTS, self._FILE_UPLOAD_PUT_RETRY_STATUSES, ["PUT"]
+        ) as session:
+            chunk_response = session.put(upload_url, headers=headers, data=chunk, timeout=120)
         if chunk_response.status_code not in (200, 201, 206):
             raise Exception(
                 f"Error uploading video chunk: HTTP {chunk_response.status_code} (bytes {start}-{end}/{video_size})"

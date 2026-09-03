@@ -26,6 +26,8 @@ from html.parser import HTMLParser
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 
 def add_url_timestamp(url, timestamp):
@@ -38,7 +40,7 @@ def add_url_timestamp(url, timestamp):
 
 
 def metatag(tag):
-    """Return whether a BeautifulSoup tag is a content-bearing meta tag."""
+    """Return whether a tag (duck-typed: name + has_attr) is a content-bearing meta tag."""
     return tag.name == "meta" and tag.has_attr("content") and (tag.has_attr("property") or tag.has_attr("name"))
 
 
@@ -67,6 +69,33 @@ class _MetaTag:
         return key in self._attrs
 
 
+def build_upload_session(max_attempts, retry_statuses, allowed_methods):
+    """
+    Build a requests session whose upload retries match the hand-rolled loops this replaces.
+
+    Response-status retries only (the given 429/5xx set): connect and read
+    retries are disabled so non-idempotent full-body uploads never re-send
+    on a lost connection, and Retry-After headers are ignored so the
+    exponential backoff envelope stays capped. ``raise_on_status`` is False
+    so retry exhaustion returns the last response and callers surface the
+    real HTTP status themselves.
+    """
+    retry = Retry(
+        total=max_attempts - 1,
+        connect=0,
+        read=0,
+        status=max_attempts - 1,
+        status_forcelist=sorted(retry_statuses),
+        allowed_methods=allowed_methods,
+        backoff_factor=1.0,
+        respect_retry_after_header=False,
+        raise_on_status=False,
+    )
+    session = requests.Session()
+    session.mount("https://", HTTPAdapter(max_retries=retry))
+    return session
+
+
 def find_metatags(url, search):
     """Fetch a URL and return matching Open Graph or Twitter meta tag values."""
     found = {}
@@ -77,8 +106,7 @@ def find_metatags(url, search):
         return found
 
     parser = _MetaTagParser()
-    html_text = response.text if isinstance(response.text, str) else response.content.decode("utf-8", errors="replace")
-    parser.feed(html_text)
+    parser.feed(response.text)
 
     for target in search:
         for meta_tag in parser.meta_tags:

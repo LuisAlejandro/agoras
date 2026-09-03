@@ -1109,3 +1109,43 @@ def test_parse_rss_bytes_invalid_xml_raises():
 
     with pytest.raises(FeedParseError):
         parse_rss_bytes(b"<rss><channel>")
+
+
+def test_parse_rss_bytes_strips_padded_text():
+    """Whitespace-padded element text is stripped (atoma parity)."""
+    from agoras.core.feed.feed import parse_rss_bytes
+
+    rss = b"""<?xml version="1.0"?>
+<rss version="2.0"><channel><title>  Padded  </title>
+  <item><title>  Item  </title><link>  https://a.example/1  </link></item>
+</channel></rss>"""
+    feed = parse_rss_bytes(rss)
+    assert feed.title == "Padded"
+    assert feed.items[0].title == "Item"
+    assert feed.items[0].link == "https://a.example/1"
+
+
+def test_parse_rss_bytes_ampm_date():
+    """AM/PM pubDates parse with the correct 12-hour shift."""
+    from agoras.core.feed.feed import parse_rss_bytes
+
+    rss = b"""<?xml version="1.0"?>
+<rss version="2.0"><channel><title>t</title>
+  <item><title>a</title><pubDate>Tue, 02 Oct 2024 1:30:00 PM GMT</pubDate></item>
+</channel></rss>"""
+    feed = parse_rss_bytes(rss)
+    assert feed.items[0].pub_date is not None
+    assert feed.items[0].pub_date.hour == 13
+    assert feed.items[0].pub_date.tzinfo is not None
+
+
+def test_parse_rss_bytes_entity_marker_in_comment_not_rejected():
+    """A comment merely mentioning <!ENTITY is not an entity definition."""
+    from agoras.core.feed.feed import parse_rss_bytes
+
+    rss = b"""<?xml version="1.0"?>
+<rss version="2.0"><channel><title>t</title>
+  <item><title>a</title><description><!-- this doc mentions <!ENTITY in prose -->body</description></item>
+</channel></rss>"""
+    feed = parse_rss_bytes(rss)
+    assert len(feed.items) == 1

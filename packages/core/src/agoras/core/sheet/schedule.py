@@ -18,6 +18,7 @@
 """agoras.core.sheet.schedule module."""
 
 import datetime
+import datetime as _real_datetime
 import logging
 
 from .sheet import Sheet
@@ -82,7 +83,12 @@ class ScheduleSheet(Sheet):
             try:
                 # Parse the scheduled date (documented DD-MM-YYYY contract)
                 try:
-                    row_date = datetime.datetime.strptime(str(date).strip(), "%d-%m-%Y")
+                    if isinstance(date, _real_datetime.datetime):
+                        row_date = date
+                    elif isinstance(date, _real_datetime.date):
+                        row_date = _real_datetime.datetime(date.year, date.month, date.day)
+                    else:
+                        row_date = datetime.datetime.strptime(str(date).strip(), "%d-%m-%Y")
                 except ValueError:
                     logging.getLogger(__name__).warning(
                         "Skipping sheet row %d: invalid date %r (expected DD-MM-YYYY)",

@@ -23,7 +23,7 @@ import datetime
 import email.utils
 import random
 import re
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # nosec B405 - entity definitions rejected before parsing
 from urllib.request import Request, urlopen
 
 from agoras.common import __version__
@@ -93,7 +93,7 @@ def _find_children(element, name):
 def _child_text(element, name):
     for child in _find_children(element, name):
         if child.text:
-            return child.text
+            return child.text.strip()
     return None
 
 
@@ -118,17 +118,45 @@ def _parse_date(value):
     """Parse an RSS date leniently, matching atoma's semantics."""
     if not value:
         return None
+    stripped = value.strip()
+    # AM/PM dates: parsedate_to_datetime ignores the meridiem (12-hour shift),
+    # so handle them explicitly before falling through to the RFC2822 path.
+    if "PM" in stripped.upper() or "AM" in stripped.upper():
+        try:
+            parsed = _parse_ampm(stripped)
+        except (TypeError, ValueError):
+            return None
+        return parsed.replace(tzinfo=datetime.timezone.utc)
     try:
         parsed = email.utils.parsedate_to_datetime(value)
     except (TypeError, ValueError):
         try:
-            iso = value.strip().replace("Z", "+00:00")
+            iso = stripped.replace("Z", "+00:00")
             parsed = datetime.datetime.fromisoformat(iso)
         except (TypeError, ValueError):
             return None
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=datetime.timezone.utc)
     return parsed
+
+
+def _parse_ampm(value):
+    """Parse an AM/PM date with an explicit strptime format, tz-agnostic."""
+    text = value.strip()
+    # Strip a trailing timezone token so the %p format matches cleanly.
+    parts = text.rsplit(" ", 1)
+    candidate = parts[0] if len(parts) == 2 and parts[1].isalpha() else text
+    for fmt in (
+        "%a, %d %b %Y %I:%M:%S %p",
+        "%a, %d %b %Y %I:%M %p",
+        "%d %b %Y %I:%M:%S %p",
+        "%d %b %Y %I:%M %p",
+    ):
+        try:
+            return datetime.datetime.strptime(candidate, fmt)
+        except (TypeError, ValueError):
+            continue
+    raise ValueError(f"unrecognized AM/PM date: {value!r}")
 
 
 def parse_rss_bytes(data: bytes) -> FeedData:
@@ -140,10 +168,10 @@ def parse_rss_bytes(data: bytes) -> FeedData:
     accepted for parity with the previous defusedxml-backed parser.
     """
     text = _decode_xml(data)
-    if "<!ENTITY" in text.upper():
+    if re.search(r"<!DOCTYPE[^>]*\[[^\]]*<!ENTITY", text, re.I):
         raise FeedParseError("Feed contains entity definitions")
     try:
-        root = ET.fromstring(text)
+        root = ET.fromstring(text)  # nosec B314 - the <!ENTITY pre-check above rejects entity definitions
     except ET.ParseError as e:
         raise FeedParseError(f"Not a valid XML document: {e}") from None
 
