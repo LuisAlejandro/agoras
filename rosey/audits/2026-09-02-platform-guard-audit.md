@@ -344,7 +344,7 @@ Guard-phase raise sites are bare `raise Exception(<template>)` with no chained c
 | `check_if_page` | 0.1 | facebook |
 | `upload_media` | 1.0 | x, facebook, whatsapp |
 | `post` | 1.0 | x, discord, facebook, instagram, linkedin, whatsapp |
-| `reply` | 1.0 | discord, facebook, linkedin, youtube |
+| `reply` | 1.0 | discord, facebook, linkedin, youtube (x: shares `post` bucket) |
 | `reply` | 0.5 | x, instagram |
 | `like` | 0.5 | x, discord, facebook, instagram, linkedin |
 | `like` | 1.0 | youtube |

@@ -22,6 +22,7 @@ import os
 from pathlib import Path
 from typing import List, Optional
 
+from agoras.core.api_base import sanitize_error_text
 from agoras.core.interfaces import SocialNetwork
 from agoras.core.text_limits import validate_text
 from agoras.media.paths import media_is_local
@@ -458,7 +459,7 @@ class WhatsApp(SocialNetwork):
             try:
                 parsed = json.loads(components_raw)
             except json.JSONDecodeError as exc:
-                raise Exception(f"Invalid WhatsApp template components JSON: {exc}") from exc
+                raise Exception(f"Invalid WhatsApp template components JSON: {sanitize_error_text(str(exc))}") from None
             if parsed is not None and not isinstance(parsed, list):
                 raise Exception("WhatsApp template components must be a JSON list")
             components = parsed

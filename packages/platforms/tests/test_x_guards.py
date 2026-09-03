@@ -64,3 +64,23 @@ async def test_authenticated_with_client_passes_guards():
 class _StubClient:
     async def get_tweet(self, tweet_id):
         return {"id": tweet_id}
+
+    async def create_tweet(self, text, media_ids=None, in_reply_to_tweet_id=None):
+        return "tweet-123"
+
+
+@pytest.mark.asyncio
+async def test_reply_shares_post_rate_limit_bucket():
+    """reply throttles on the 'post' bucket key, not a reply key."""
+    from unittest.mock import AsyncMock
+
+    api = _make_api()
+    api._authenticated = True
+    api.client = _StubClient()
+    api._rate_limit_check = AsyncMock()
+
+    await api.post("hello")
+    await api.reply("hello", in_reply_to_tweet_id="tweet-1")
+
+    calls = [c.args[0] for c in api._rate_limit_check.call_args_list]
+    assert calls == ["post", "post"], f"expected shared 'post' bucket, got {calls}"

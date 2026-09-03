@@ -22,6 +22,7 @@ import json
 import os
 import sys
 
+from agoras.core.api_base import sanitize_error_text
 from agoras.core.interfaces import SocialNetwork
 from agoras.core.text_limits import validate_text
 from agoras.media.paths import is_local_media_source, media_is_local
@@ -221,14 +222,14 @@ class TikTok(SocialNetwork):
         try:
             info = await self.api.refresh_creator_info()
         except Exception as exc:
-            message = str(exc)
+            message = sanitize_error_text(str(exc))
             if "Username mismatch" in message:
-                raise
+                raise Exception(message) from None
             if "not authenticated" in message.lower():
-                raise
+                raise Exception(message) from None
             if "try again later" in message.lower():
-                raise
-            raise Exception(CREATOR_TRY_LATER) from exc
+                raise Exception(message) from None
+            raise Exception(CREATOR_TRY_LATER) from None
         if not info:
             raise Exception(CREATOR_TRY_LATER)
         return info

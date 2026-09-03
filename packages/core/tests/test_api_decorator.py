@@ -17,6 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """Tests for the composable guard decorators in agoras.core.api_base."""
 
+import asyncio
 import inspect
 import time
 
@@ -198,11 +199,31 @@ async def test_guard_error_wrap_severs_chained_cause():
     with pytest.raises(Exception) as excinfo:
         await decorated(api, "value")
     assert excinfo.value.__cause__ is None
+    assert excinfo.value.__suppress_context__ is True
     import traceback
 
     rendered = "".join(traceback.format_exception(excinfo.value))
     assert "secret123" not in rendered
     assert "Bearer [REDACTED]" in str(excinfo.value)
+
+
+@pytest.mark.asyncio
+async def test_disconnect_resets_state_when_hook_raises():
+    """A raising disconnect hook must not leave stale authenticated state."""
+    api = _StubAPI()
+    api.client = object()
+    api._authenticated = True
+
+    def raising_hook():
+        raise ConnectionError("client disconnect failed")
+
+    api._disconnect_hook = raising_hook
+
+    with pytest.raises(ConnectionError):
+        await BaseAPI.disconnect(api)
+
+    assert api.client is None
+    assert api._authenticated is False
 
 
 @pytest.mark.asyncio
@@ -305,3 +326,60 @@ def test_baseapi_error_handler_is_noreturn_and_severs_cause():
         api._handle_api_error(ValueError("Bearer tok123"), "op")
     assert excinfo.value.__cause__ is None
     assert "Bearer [REDACTED]" in str(excinfo.value)
+
+
+@pytest.mark.asyncio
+async def test_guard_error_wrap_failsafe_sanitizes_when_handler_returns():
+    """A non-raising _handle_api_error override must not re-raise the raw exception."""
+    api = _StubAPI()
+
+    def returning_handler(error, operation_name):
+        return None  # violates the NoReturn contract
+
+    api._handle_api_error = returning_handler
+
+    async def op(self, value):
+        raise ValueError("Bearer tok123")
+
+    decorated = guard_error_wrap("stub op")(op)
+    with pytest.raises(Exception) as excinfo:
+        await decorated(api, "value")
+    assert excinfo.value.__cause__ is None
+    assert "Bearer [REDACTED]" in str(excinfo.value)
+    assert "tok123" not in str(excinfo.value)
+
+
+@pytest.mark.asyncio
+async def test_concurrent_first_calls_authenticate_once():
+    """Concurrent auto-auth first calls produce exactly one authenticate."""
+    api = _StubAPI()
+    api._auth_ok = True
+    attempts = 0
+
+    async def counting_authenticate():
+        nonlocal attempts
+        attempts += 1
+        await asyncio.sleep(0)
+        api._authenticated = True
+
+    api.authenticate = counting_authenticate
+
+    decorated = guard_auth_attempt(_StubAPI.op)
+    await asyncio.gather(decorated(api, "a"), decorated(api, "b"))
+    assert attempts == 1
+
+
+@pytest.mark.asyncio
+async def test_concurrent_shared_bucket_fires_serialized():
+    """Two callers in one window must fire at least min_interval apart."""
+    api = _StubAPI()
+    decorated = guard_rate_limit("post", 0.2)(_StubAPI.op)
+
+    async def timed_call(value):
+        start = time.time()
+        await decorated(api, value)
+        return time.time() - start
+
+    t1, t2 = await asyncio.gather(timed_call("a"), timed_call("b"))
+    gap = abs(t1 - t2)
+    assert gap >= 0.15, f"burst window: fires {gap:.3f}s apart (expected >= 0.2)"

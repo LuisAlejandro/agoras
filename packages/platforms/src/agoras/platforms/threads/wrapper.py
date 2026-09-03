@@ -20,6 +20,7 @@
 import asyncio
 from typing import Any, Dict, List, Optional
 
+from agoras.core.api_base import sanitize_error_text
 from agoras.core.interfaces import SocialNetwork, _entry_images
 from agoras.core.text_limits import validate_text
 from agoras.core.threading import (
@@ -254,9 +255,9 @@ class Threads(SocialNetwork):
                     ids,
                     failed_index=index,
                     outcome=outcome,
-                    error=str(exc),
+                    error=sanitize_error_text(str(exc)),
                 )
-                raise ThreadPublishError(result) from exc
+                raise ThreadPublishError(result) from None
 
             ids.append(str(post_id))
             previous_id = str(post_id)

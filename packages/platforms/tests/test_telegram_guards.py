@@ -81,3 +81,28 @@ async def test_like_share_raise_without_auth_attempt():
     assert str(excinfo.value) == "Share not supported for Telegram"
 
     assert api._authenticated is False
+
+
+@pytest.mark.asyncio
+async def test_send_photo_media_prep_error_surfaces_unwrapped():
+    """Media-prep errors ('No photo content available') must not gain a wrap prefix."""
+    api = _make_api()
+    api._authenticated = True
+    api.client = AsyncMock()
+    with pytest.raises(Exception) as excinfo:
+        await api.send_photo(chat_id="chat-1", photo_url=None, photo_content=None)
+    assert str(excinfo.value) == "No photo content available"
+    assert not str(excinfo.value).startswith("Telegram send photo failed")
+
+
+@pytest.mark.asyncio
+async def test_send_photo_client_call_error_is_wrapped():
+    """Client-call errors are still wrapped with the operation prefix."""
+    api = _make_api()
+    api._authenticated = True
+    api.client = AsyncMock()
+    api.client.send_photo.side_effect = Exception("Bearer tok123")
+    with pytest.raises(Exception) as excinfo:
+        await api.send_photo(chat_id="chat-1", photo_url=None, photo_content=b"data")
+    assert str(excinfo.value).startswith("Telegram send photo failed:")
+    assert "Bearer [REDACTED]" in str(excinfo.value)
