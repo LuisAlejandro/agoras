@@ -18,8 +18,7 @@
 """agoras.core.sheet.schedule module."""
 
 import datetime
-
-from dateutil import parser
+import logging
 
 from .sheet import Sheet
 
@@ -81,20 +80,25 @@ class ScheduleSheet(Sheet):
                 continue
 
             try:
-                # Parse the scheduled date
-                row_date = parser.parse(date)
-                normalized_current = parser.parse(current_time.strftime("%d-%m-%Y"))
-                normalized_row = parser.parse(row_date.strftime("%d-%m-%Y"))
+                # Parse the scheduled date (documented DD-MM-YYYY contract)
+                try:
+                    row_date = datetime.datetime.strptime(str(date).strip(), "%d-%m-%Y")
+                except ValueError:
+                    logging.getLogger(__name__).warning(
+                        "Skipping sheet row %d: invalid date %r (expected DD-MM-YYYY)",
+                        row_index + 1,
+                        repr(date)[:60],
+                    )
+                    continue
+                normalized_current = current_time.date()
+                normalized_row = row_date.date()
 
                 # Skip past dates (not due / expired relative to today)
                 if normalized_row < normalized_current:
                     continue
 
                 # For today's posts, check the hour
-                if (
-                    current_time.strftime("%d-%m-%Y") == row_date.strftime("%d-%m-%Y")
-                    and current_time.strftime("%H") != hour
-                ):
+                if normalized_current == normalized_row and current_time.strftime("%H") != hour:
                     continue
 
                 # This post should be published (caller marks after success)
