@@ -23,6 +23,7 @@ from typing import Any, Dict, List, Optional
 import discord
 
 from agoras.common.utils import parse_metatags
+from agoras.core.api_base import sanitize_error_text
 from agoras.core.interfaces import SocialNetwork, _entry_images, _is_uncertain_publish_error
 from agoras.core.text_limits import validate_discord_embeds, validate_text
 from agoras.core.threading import (
@@ -471,7 +472,9 @@ class Discord(SocialNetwork):
             ids.append(str(starter_id))
         except Exception as exc:
             outcome = "unknown" if _is_uncertain_publish_error(exc) else "failed"
-            raise ThreadPublishError(partial_result(ids, failed_index=0, outcome=outcome, error=str(exc))) from exc
+            raise ThreadPublishError(
+                partial_result(ids, failed_index=0, outcome=outcome, error=sanitize_error_text(str(exc)))
+            ) from None
         finally:
             if cleanup:
                 cleanup()
@@ -484,8 +487,10 @@ class Discord(SocialNetwork):
         except Exception as exc:
             outcome = "unknown" if _is_uncertain_publish_error(exc) else "failed"
             raise ThreadPublishError(
-                partial_result(ids, failed_index=0, outcome=outcome, error=str(exc), thread_id=thread_id)
-            ) from exc
+                partial_result(
+                    ids, failed_index=0, outcome=outcome, error=sanitize_error_text(str(exc)), thread_id=thread_id
+                )
+            ) from None
 
         # Remaining entries → thread channel
         for index, entry in enumerate(entries[1:], start=1):
@@ -506,10 +511,10 @@ class Discord(SocialNetwork):
                         ids,
                         failed_index=index,
                         outcome=outcome,
-                        error=str(exc),
+                        error=sanitize_error_text(str(exc)),
                         thread_id=thread_id,
                     )
-                ) from exc
+                ) from None
             finally:
                 if cleanup:
                     cleanup()

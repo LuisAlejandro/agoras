@@ -219,6 +219,42 @@ def guard_error_wrap(
     return decorate
 
 
+_REDACT_PATTERNS = (
+    (re.compile(r"Bearer\s+\S+", re.I), "Bearer [REDACTED]"),
+    (re.compile(r"Bot\s+\S+", re.I), "Bot [REDACTED]"),
+    (re.compile(r"bot\d+:[A-Za-z0-9_-]+", re.I), "bot[REDACTED]"),
+    (re.compile(r"access_token[=:]\s*\S+", re.I), "access_token=[REDACTED]"),
+    (re.compile(r"refresh_token[=:]\s*\S+", re.I), "refresh_token=[REDACTED]"),
+    (re.compile(r"client_secret[=:]\s*\S+", re.I), "client_secret=[REDACTED]"),
+    (re.compile(r"oauth_token[=:]\s*\S+", re.I), "oauth_token=[REDACTED]"),
+    (re.compile(r"app_secret[=:]\s*\S+", re.I), "app_secret=[REDACTED]"),
+    (re.compile(r"(?<![a-z_])token[=:]\s*\S+", re.I), "token=[REDACTED]"),
+    (re.compile(r"key=AIza[0-9A-Za-z_-]{20,}", re.I), "key=[REDACTED]"),
+    (re.compile(r"X-API-Key:\s*\S+", re.I), "X-API-Key: [REDACTED]"),
+    (re.compile(r"(?<![A-Za-z0-9_-])api[_-]?key[=:]\s*\S+", re.I), "api_key=[REDACTED]"),
+    (re.compile(r"Basic\s+[A-Za-z0-9+/=]{8,}", re.I), "Basic [REDACTED]"),
+    (re.compile(r"Authorization:\s*(?:Basic\s+[A-Za-z0-9+/=]+|\S+)", re.I), "Authorization: [REDACTED]"),
+    (
+        re.compile(
+            r"[?&](?:X-Amz-Signature|Signature|sig|AWSAccessKeyId|X-Goog-Signature|GoogleAccessId|Policy|X-Amz-Credential|Expires)=[^&\s]+",
+            re.I,
+        ),
+        "[REDACTED]",
+    ),
+)
+
+
+def sanitize_error_text(text: str) -> str:
+    """
+    Redact credential-bearing shapes from error text.
+
+    Single source of truth for the redaction patterns; used by
+    ``BaseAPI._sanitize_error_message`` and by the wrapper re-chain sites.
+    """
+    sanitized = text
+    for pattern, replacement in _REDACT_PATTERNS:
+        sanitized = pattern.sub(replacement, sanitized)
+    return sanitized
 class BaseAPI(ABC):
     """
     Abstract base class for social network API implementations.
@@ -226,6 +262,11 @@ class BaseAPI(ABC):
     Provides common functionality and patterns for API interactions
     including authentication, rate limiting, and error handling.
     """
+
+    @classmethod
+    def _sanitize_error_message(cls, message: str) -> str:
+        """Delegate to the module-level sanitizer (single source of truth)."""
+        return sanitize_error_text(message)
 
     def __init__(self, **credentials):
         """
@@ -324,29 +365,6 @@ class BaseAPI(ABC):
         if next_slot - current_time > 0:
             await asyncio.sleep(next_slot - current_time)
 
-    _REDACT_PATTERNS = (
-        (re.compile(r"Bearer\s+\S+", re.I), "Bearer [REDACTED]"),
-        (re.compile(r"Bot\s+\S+", re.I), "Bot [REDACTED]"),
-        (re.compile(r"bot\d+:[A-Za-z0-9_-]+", re.I), "bot[REDACTED]"),
-        (re.compile(r"access_token[=:]\s*\S+", re.I), "access_token=[REDACTED]"),
-        (re.compile(r"refresh_token[=:]\s*\S+", re.I), "refresh_token=[REDACTED]"),
-        (re.compile(r"client_secret[=:]\s*\S+", re.I), "client_secret=[REDACTED]"),
-        (re.compile(r"oauth_token[=:]\s*\S+", re.I), "oauth_token=[REDACTED]"),
-        (re.compile(r"app_secret[=:]\s*\S+", re.I), "app_secret=[REDACTED]"),
-        (re.compile(r"(?<![a-z_])token[=:]\s*\S+", re.I), "token=[REDACTED]"),
-        (re.compile(r"key=AIza[0-9A-Za-z_-]{20,}", re.I), "key=[REDACTED]"),
-        (re.compile(r"X-API-Key:\s*\S+", re.I), "X-API-Key: [REDACTED]"),
-        (re.compile(r"(?<![A-Za-z0-9_-])api[_-]?key[=:]\s*\S+", re.I), "api_key=[REDACTED]"),
-        (re.compile(r"Basic\s+[A-Za-z0-9+/=]{8,}", re.I), "Basic [REDACTED]"),
-        (re.compile(r"Authorization:\s*(?:Basic\s+[A-Za-z0-9+/=]+|\S+)", re.I), "Authorization: [REDACTED]"),
-    )
-
-    @classmethod
-    def _sanitize_error_message(cls, message: str) -> str:
-        sanitized = message
-        for pattern, replacement in cls._REDACT_PATTERNS:
-            sanitized = pattern.sub(replacement, sanitized)
-        return sanitized
 
     # Guard message templates, overridden per platform. Read by the guard
     # decorators so the not-authenticated and not-available messages stay
