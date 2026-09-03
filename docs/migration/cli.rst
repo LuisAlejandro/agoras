@@ -115,7 +115,7 @@ Within platform commands, platform prefixes are removed:
    Credential parameters in the table above apply to ``agoras <platform> authorize`` only.
    Platform action commands no longer accept credential or identity CLI flags.
 
-**Note**: Utils commands use the same auth model as platform actions since 2.1.0. Run ``agoras <platform> authorize`` or set environment variables; credential CLI flags are not accepted on utils. Legacy ``agoras publish`` still accepts prefixed credential flags until 3.0.
+**Note**: Utils commands use the same auth model as platform actions since 2.1.0. Run ``agoras <platform> authorize`` or set environment variables; credential CLI flags are not accepted on utils. Legacy ``agoras publish`` accepted prefixed credential flags through 2.x and was removed in Agoras 3.0.
 
 Content Parameters
 ------------------
