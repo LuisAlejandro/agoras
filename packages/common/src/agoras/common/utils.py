@@ -22,10 +22,10 @@ agoras.common.utils.
 This module contains common and low level functions to all modules in agoras.
 """
 
+from html.parser import HTMLParser
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import requests
-from bs4 import BeautifulSoup
 
 
 def add_url_timestamp(url, timestamp):
@@ -42,6 +42,31 @@ def metatag(tag):
     return tag.name == "meta" and tag.has_attr("content") and (tag.has_attr("property") or tag.has_attr("name"))
 
 
+class _MetaTagParser(HTMLParser):
+    """Collect content-bearing meta tags from an HTML document."""
+
+    def __init__(self):
+        super().__init__()
+        self.meta_tags = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "meta":
+            attrs_dict = dict(attrs)
+            if metatag(_MetaTag(attrs_dict)):
+                self.meta_tags.append(attrs_dict)
+
+
+class _MetaTag:
+    """Minimal tag stand-in for the metatag filter."""
+
+    def __init__(self, attrs):
+        self.name = "meta"
+        self._attrs = attrs
+
+    def has_attr(self, key):
+        return key in self._attrs
+
+
 def find_metatags(url, search):
     """Fetch a URL and return matching Open Graph or Twitter meta tag values."""
     found = {}
@@ -51,15 +76,12 @@ def find_metatags(url, search):
     if response.status_code != 200:
         return found
 
-    soup = BeautifulSoup(response.content, "html.parser")
+    parser = _MetaTagParser()
+    html_text = response.text if isinstance(response.text, str) else response.content.decode("utf-8", errors="replace")
+    parser.feed(html_text)
 
     for target in search:
-        found_meta_tag = soup.find_all(metatag)
-
-        if not found_meta_tag:
-            continue
-
-        for meta_tag in found_meta_tag:
+        for meta_tag in parser.meta_tags:
             prop = meta_tag.get("property", "")
             name = meta_tag.get("name", "")
 

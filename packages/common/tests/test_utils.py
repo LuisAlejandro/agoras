@@ -21,8 +21,6 @@ import sys
 import unittest
 from unittest.mock import Mock, patch
 
-from bs4 import BeautifulSoup
-
 from agoras.common.utils import add_url_timestamp, find_metatags, metatag, parse_metatags
 
 
@@ -65,48 +63,44 @@ class TestAddUrlTimestamp(unittest.TestCase):
         self.assertIn("#section", result)
 
 
+class _FakeMetaTag:
+    """Minimal tag stand-in for testing the metatag filter."""
+
+    def __init__(self, name, attrs):
+        self.name = name
+        self._attrs = attrs
+
+    def has_attr(self, key):
+        return key in self._attrs
+
+
 class TestMetatag(unittest.TestCase):
     """Tests for metatag function."""
 
     def test_valid_meta_tag_with_property(self):
         """Test with valid meta tag that has property attribute."""
-        html = '<meta property="og:title" content="Test">'
-        soup = BeautifulSoup(html, 'html.parser')
-        tag = soup.find('meta')
-        result = metatag(tag)
-        self.assertTrue(result)
+        tag = _FakeMetaTag("meta", {"property": "og:title", "content": "Test"})
+        self.assertTrue(metatag(tag))
 
     def test_valid_meta_tag_with_name(self):
         """Test with valid meta tag that has name attribute."""
-        html = '<meta name="description" content="Test">'
-        soup = BeautifulSoup(html, 'html.parser')
-        tag = soup.find('meta')
-        result = metatag(tag)
-        self.assertTrue(result)
+        tag = _FakeMetaTag("meta", {"name": "description", "content": "Test"})
+        self.assertTrue(metatag(tag))
 
     def test_invalid_tag_not_meta(self):
         """Test with invalid tag (not meta)."""
-        html = '<div content="Test">Text</div>'
-        soup = BeautifulSoup(html, 'html.parser')
-        tag = soup.find('div')
-        result = metatag(tag)
-        self.assertFalse(result)
+        tag = _FakeMetaTag("div", {"content": "Test"})
+        self.assertFalse(metatag(tag))
 
     def test_meta_tag_without_content(self):
         """Test with meta tag without content attribute."""
-        html = '<meta property="og:title">'
-        soup = BeautifulSoup(html, 'html.parser')
-        tag = soup.find('meta')
-        result = metatag(tag)
-        self.assertFalse(result)
+        tag = _FakeMetaTag("meta", {"property": "og:title"})
+        self.assertFalse(metatag(tag))
 
     def test_meta_tag_without_property_or_name(self):
         """Test with meta tag without property or name attribute."""
-        html = '<meta content="Test">'
-        soup = BeautifulSoup(html, 'html.parser')
-        tag = soup.find('meta')
-        result = metatag(tag)
-        self.assertFalse(result)
+        tag = _FakeMetaTag("meta", {"content": "Test"})
+        self.assertFalse(metatag(tag))
 
 
 class TestFindMetatags(unittest.TestCase):
@@ -257,3 +251,47 @@ def load_tests(loader, tests, pattern):
 
 if __name__ == '__main__':
     sys.exit(unittest.main())
+
+
+class TestFindMetatagsParserEdgeCases(unittest.TestCase):
+    """Parser edge cases: attribute order, case, malformed HTML."""
+
+    @patch('agoras.common.utils.requests.get')
+    def test_attribute_order_variation(self, mock_get):
+        """Attribute order does not affect extraction."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.content = b'<html><meta content="Ordered" property="og:title"></html>'
+        mock_get.return_value = mock_response
+        result = find_metatags('https://example.com', ['og:title'])
+        self.assertEqual(result, {'og:title': 'Ordered'})
+
+    @patch('agoras.common.utils.requests.get')
+    def test_uppercase_attribute_names(self, mock_get):
+        """Uppercase attribute names are lowercased by the parser."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.content = b'<html><meta PROPERTY="og:title" CONTENT="Upper"></html>'
+        mock_get.return_value = mock_response
+        result = find_metatags('https://example.com', ['og:title'])
+        self.assertEqual(result, {'og:title': 'Upper'})
+
+    @patch('agoras.common.utils.requests.get')
+    def test_malformed_html_does_not_raise(self, mock_get):
+        """Malformed HTML parses without raising."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.content = b'<html><meta property="og:title" content="Broken"<div>'
+        mock_get.return_value = mock_response
+        result = find_metatags('https://example.com', ['og:title'])
+        self.assertEqual(result, {'og:title': 'Broken'})
+
+    @patch('agoras.common.utils.requests.get')
+    def test_meta_without_content_not_collected(self, mock_get):
+        """Meta tags without content are ignored (metatag filter parity)."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.content = b'<html><meta property="og:title"><meta property="og:image" content="img.jpg"></html>'
+        mock_get.return_value = mock_response
+        result = find_metatags('https://example.com', ['og:title', 'og:image'])
+        self.assertEqual(result, {'og:image': 'img.jpg'})
