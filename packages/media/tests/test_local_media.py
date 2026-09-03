@@ -24,7 +24,7 @@ from PIL import Image as PILImage
 
 from agoras.media.constraints import MediaConstraints
 from agoras.media.errors import MediaValidationError
-from agoras.media.factory import MediaFactory
+from agoras.media import create_image, create_video, download_images, download_video_and_images
 from agoras.media.image import Image
 from agoras.media.paths import is_local_media_source, media_is_local, normalize_media_path
 from agoras.media.preflight import preflight_url_for_platform
@@ -59,7 +59,7 @@ async def test_local_image_download_reads_from_disk(tmp_path):
     image_path = tmp_path / "test.jpg"
     PILImage.new("RGB", (32, 32), color="red").save(image_path, format="JPEG")
 
-    image = MediaFactory.create_image(str(image_path))
+    image = create_image(str(image_path))
     temp_file, content, file_type = await image.download()
 
     assert image._is_local is True
@@ -74,7 +74,7 @@ async def test_local_image_file_uri_download(tmp_path):
     image_path = tmp_path / "test.jpg"
     PILImage.new("RGB", (16, 16), color="blue").save(image_path, format="JPEG")
 
-    image = MediaFactory.create_image(f"file://{image_path}")
+    image = create_image(f"file://{image_path}")
     await image.download()
 
     assert image._is_local is True
@@ -83,7 +83,7 @@ async def test_local_image_file_uri_download(tmp_path):
 
 @pytest.mark.asyncio
 async def test_local_image_missing_file_raises(tmp_path):
-    image = MediaFactory.create_image(str(tmp_path / "missing.jpg"))
+    image = create_image(str(tmp_path / "missing.jpg"))
     with pytest.raises(FileNotFoundError):
         await image.download()
 
@@ -93,7 +93,7 @@ async def test_local_image_cleanup_preserves_source(tmp_path):
     image_path = tmp_path / "keep.jpg"
     PILImage.new("RGB", (8, 8), color="green").save(image_path, format="JPEG")
 
-    image = MediaFactory.create_image(str(image_path))
+    image = create_image(str(image_path))
     await image.download()
     image.cleanup()
 
@@ -141,7 +141,7 @@ async def test_local_image_guesses_type_from_bytes(tmp_path):
     PILImage.new("RGB", (8, 8), color="red").save(image_path, format="JPEG")
     content = image_path.read_bytes()
 
-    image = MediaFactory.create_image(str(image_path))
+    image = create_image(str(image_path))
     with patch("agoras.media.base.filetype.guess") as mock_guess:
         mock_type = mock_guess.return_value
         mock_type.mime = "image/jpeg"

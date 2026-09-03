@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, mock_open, patch
 import pytest
 
 from agoras.media.errors import MediaValidationError
-from agoras.media.factory import MediaFactory
+from agoras.media import create_image, create_video, download_images, download_video_and_images
 from agoras.media.video import Video
 
 
@@ -175,7 +175,7 @@ def test_validate_content_exceeds_max_duration(mock_capture, mock_cleanup):
     mock_cap.get.side_effect = [30.0, 30.0 * 700, 640, 480]
     mock_capture.return_value = mock_cap
 
-    video = MediaFactory.create_video('https://example.com/video.mp4', 'tiktok')
+    video = create_video('https://example.com/video.mp4', 'tiktok')
     video.content = b'x' * 1024
     video._downloaded = True
     video.temp_file = '/tmp/video.mp4'
@@ -194,7 +194,7 @@ def test_validate_content_below_min_duration(mock_capture, mock_cleanup):
     mock_cap.get.side_effect = [30.0, 60.0, 640, 480]
     mock_capture.return_value = mock_cap
 
-    video = MediaFactory.create_video('https://example.com/video.mp4', 'tiktok')
+    video = create_video('https://example.com/video.mp4', 'tiktok')
     video.content = b'x' * 1024
     video._downloaded = True
     video.temp_file = '/tmp/video.mp4'
@@ -216,11 +216,11 @@ def test_validate_content_below_min_duration(mock_capture, mock_cleanup):
     ('tiktok', 2 * 1024 * 1024 * 1024),
 ])
 def test_factory_platform_video_limits(platform, expected_bytes):
-    video = MediaFactory.create_video('https://example.com/video.mp4', platform)
+    video = create_video('https://example.com/video.mp4', platform)
     assert video.max_size == expected_bytes
     assert video.platform_key == platform
 
 
 def test_factory_youtube_quicktime_allowed():
-    video = MediaFactory.create_video('https://example.com/video.mp4', 'youtube')
+    video = create_video('https://example.com/video.mp4', 'youtube')
     assert 'video/quicktime' in video.allowed_types

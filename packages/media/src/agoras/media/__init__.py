@@ -23,7 +23,7 @@ Contains:
 - Media: Abstract base class for media handling
 - Image: Handles image media files
 - Video: Handles video media files with platform-specific limits
-- MediaFactory: Factory for creating and managing media instances
+- create_image/create_video/download_images/download_video_and_images: media factory functions
 - constraints: Shared per-platform MIME/size/duration limits
 """
 
@@ -42,7 +42,7 @@ from .constraints import (
     video_limits,
 )
 from .errors import MediaValidationError, format_limit_error
-from .factory import MediaFactory
+from .factory import create_image, create_video, download_images, download_video_and_images
 from .image import Image
 from .preflight import preflight_url, preflight_url_for_platform
 from .video import Video
@@ -51,7 +51,10 @@ __all__ = [
     "Media",
     "Image",
     "Video",
-    "MediaFactory",
+    "create_image",
+    "create_video",
+    "download_images",
+    "download_video_and_images",
     "MediaConstraints",
     "MediaValidationError",
     "IMAGE",

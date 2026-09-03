@@ -104,7 +104,7 @@ class ScheduleSheet(Sheet):
                     continue
 
                 # For today's posts, check the hour
-                if normalized_current == normalized_row and current_time.strftime("%H") != hour:
+                if normalized_current == normalized_row and f"{current_time.hour:02d}" != hour:
                     continue
 
                 # This post should be published (caller marks after success)

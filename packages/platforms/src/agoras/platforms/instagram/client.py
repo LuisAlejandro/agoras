@@ -25,12 +25,7 @@ from pyfacebook import GraphAPI
 
 from agoras.common import __version__
 from agoras.common.utils import build_upload_session
-
-
-def _resumable_upload_timeout(video_file_size: int) -> int:
-    """Scale rupload POST timeout with file size, capped at 10 minutes."""
-    megabytes = max(0, video_file_size) // (1024 * 1024)
-    return max(30, min(600, megabytes * 2 or 30))
+from agoras.platforms._upload import video_upload_timeout
 
 
 class InstagramAPIClient:
@@ -321,7 +316,7 @@ class InstagramAPIClient:
             "file_size": str(len(video_content)),
             "User-Agent": f"Agoras/{__version__}",
         }
-        timeout = _resumable_upload_timeout(len(video_content))
+        timeout = video_upload_timeout(len(video_content))
         with build_upload_session(self._RUPLOAD_MAX_ATTEMPTS, self._RUPLOAD_RETRY_STATUSES, ["POST"]) as session:
             response = session.post(url, headers=headers, data=video_content, timeout=timeout)
         if response.status_code not in (200, 201):

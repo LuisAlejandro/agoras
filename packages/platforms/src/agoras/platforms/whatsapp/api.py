@@ -28,7 +28,7 @@ from agoras.core.api_base import (
     guard_rate_limit,
 )
 from agoras.core.auth import raise_authentication_error_from_manager
-from agoras.media.factory import MediaFactory
+from agoras.media import create_video, download_images
 
 from .auth import WhatsAppAuthManager
 
@@ -108,7 +108,7 @@ class WhatsAppAPI(BaseAPI):
         # Handle video message
         if video_url:
             # Download and validate video using Media system
-            video = MediaFactory.create_video(video_url, platform="whatsapp")
+            video = create_video(video_url, platform="whatsapp")
             try:
                 await video.download()
                 if video.content and video.file_type:
@@ -125,7 +125,7 @@ class WhatsAppAPI(BaseAPI):
         # Handle image message
         elif image_url:
             # Download and validate image using Media system
-            images = await MediaFactory.download_images(
+            images = await download_images(
                 [image_url],
                 platform="whatsapp",
             )

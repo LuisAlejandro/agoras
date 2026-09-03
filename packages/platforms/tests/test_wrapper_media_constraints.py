@@ -103,7 +103,7 @@ async def test_threads_api_video_rejects_mime_outside_contract(mock_auth_class):
     mock_video.url = 'https://example.com/v.mp4'
     mock_video.download = AsyncMock()
 
-    with patch('agoras.platforms.threads.api.MediaFactory') as mock_factory:
-        mock_factory.create_video.return_value = mock_video
+    with patch('agoras.platforms.threads.api.create_video') as mock_factory:
+        mock_factory.return_value = mock_video
         with pytest.raises(MediaValidationError, match='threads'):
             await api.create_video_post('caption', 'https://example.com/v.mp4')

@@ -21,7 +21,7 @@ from unittest.mock import patch
 import pytest
 
 from agoras.media.errors import MediaValidationError
-from agoras.media.factory import MediaFactory
+from agoras.media import create_image, create_video, download_images, download_video_and_images
 from agoras.media.image import Image
 
 
@@ -41,7 +41,7 @@ def test_image_allowed_types():
 
 def test_image_for_linkedin():
     """Test LinkedIn-specific image creation."""
-    image = MediaFactory.create_image('https://example.com/image.jpg', platform='linkedin')
+    image = create_image('https://example.com/image.jpg', platform='linkedin')
     assert isinstance(image, Image)
     assert image.platform_key == 'linkedin'
     assert image.constraints.max_bytes == 5 * 1024 * 1024
@@ -57,7 +57,7 @@ def test_image_get_dimensions():
 @patch('agoras.media.image.Image.get_dimensions', return_value=(7000, 7000))
 def test_validate_content_exceeds_max_width(mock_dimensions, mock_cleanup):
     """Test _validate_content rejects images over platform max width."""
-    image = MediaFactory.create_image('https://example.com/image.jpg', platform='linkedin')
+    image = create_image('https://example.com/image.jpg', platform='linkedin')
     image.content = b'x' * 1024
     image._downloaded = True
 
