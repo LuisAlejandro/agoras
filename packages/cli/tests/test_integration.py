@@ -51,13 +51,6 @@ def test_utils_command_accessible():
     assert exc_info.value.code == 0
 
 
-def test_legacy_publish_still_works():
-    """Test that legacy publish command still works."""
-    with pytest.raises(SystemExit) as exc_info:
-        parser, args = commandline(['publish', '--help'])
-    assert exc_info.value.code == 0
-
-
 def test_x_post_complete_flow():
     """Test complete X post command parsing without auth flags."""
     parser, args = commandline([
@@ -279,21 +272,6 @@ def test_action_validation_integration():
     # Invalid: TikTok like (not supported)
     with pytest.raises(ValueError):
         ActionValidator.validate('tiktok', 'like')
-
-
-def test_legacy_publish_with_migration_flag():
-    """Test legacy publish with --show-migration flag."""
-    parser, args = commandline([
-        'publish',
-        '--network', 'twitter',
-        '--action', 'post',
-        '--twitter-consumer-key', 'key',
-        '--show-migration'
-    ])
-
-    assert args.network == 'twitter'
-    assert args.action == 'post'
-    assert args.show_migration is True
 
 
 def test_x_reply_parses_media_flags():

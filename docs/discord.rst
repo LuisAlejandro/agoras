@@ -82,7 +82,7 @@ Parameters:
 **Note**: You must provide at least one of ``--text``, ``--link``, or ``--image-1``.
 
 .. deprecated:: 2.0
-   The ``agoras publish --network "discord"`` command is deprecated. Use ``agoras discord post`` instead.
+   The ``agoras publish --network "discord"`` command was deprecated in 2.0 and removed in Agoras 3.0. Use ``agoras discord post`` instead.
 
 Publish a Discord thread
 ------------------------

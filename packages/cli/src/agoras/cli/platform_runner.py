@@ -33,8 +33,7 @@ def execute_platform_action(**kwargs):
     """
     Route a legacy-shaped kwargs dict to the correct platform wrapper.
 
-    Deprecation warnings for the twitter network alias belong in publish_main
-    (legacy publish only); this function maps twitter to x silently.
+    This function maps the twitter network alias to x silently.
     """
     network = kwargs.get("network")
 
