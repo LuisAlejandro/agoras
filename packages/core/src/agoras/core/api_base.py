@@ -22,11 +22,37 @@ import functools
 import re
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Awaitable, Callable, Concatenate, NoReturn, ParamSpec, TypeVar
+from typing import Any, Awaitable, Callable, Concatenate, NoReturn, ParamSpec, Protocol, TypeVar, runtime_checkable
 
 P = ParamSpec("P")
 R = TypeVar("R")
-T = TypeVar("T")
+
+
+@runtime_checkable
+class GuardableAPI(Protocol):
+    """
+    Structural contract the guard decorators operate on.
+
+    Any platform api class (BaseAPI subclass or test stub) that provides
+    the guarded attributes and methods satisfies this protocol, so the
+    decorators can be typed against a bound TypeVar and pyright verifies
+    attribute access without runtime checks.
+    """
+
+    _authenticated: bool
+    client: Any
+    auth_manager: Any
+    _not_authenticated_message: str
+    _client_not_available_message: str
+
+    async def authenticate(self) -> "GuardableAPI": ...
+
+    async def _rate_limit_check(self, operation_type: str = "default", min_interval: float = 1.0) -> None: ...
+
+    def _handle_api_error(self, error, operation_name) -> NoReturn: ...
+
+
+T = TypeVar("T", bound=GuardableAPI)
 
 
 def guard_auth_attempt(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Callable[Concatenate[T, P], Awaitable[R]]:
@@ -40,8 +66,8 @@ def guard_auth_attempt(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Calla
 
     @functools.wraps(func)
     async def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
-        if not self._authenticated:  # type: ignore[attr-defined]
-            await self.authenticate()  # type: ignore[attr-defined]
+        if not self._authenticated:
+            await self.authenticate()
         return await func(self, *args, **kwargs)
 
     return wrapper
@@ -57,8 +83,8 @@ def guard_assert_auth(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Callab
 
     @functools.wraps(func)
     async def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
-        if not self._authenticated or not self.client:  # type: ignore[attr-defined]
-            raise Exception(self._not_authenticated_message)  # type: ignore[attr-defined]
+        if not self._authenticated or not self.client:
+            raise Exception(self._not_authenticated_message)
         return await func(self, *args, **kwargs)
 
     return wrapper
@@ -77,7 +103,7 @@ def guard_ensure_auth_manager(
 
     @functools.wraps(func)
     async def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
-        self.auth_manager.ensure_authenticated()  # type: ignore[attr-defined]
+        self.auth_manager.ensure_authenticated()
         return await func(self, *args, **kwargs)
 
     return wrapper
@@ -109,7 +135,7 @@ def guard_token_presence(
         @functools.wraps(func)
         async def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
             if not resolve_token(self):
-                raise Exception(self._not_authenticated_message)  # type: ignore[attr-defined]
+                raise Exception(self._not_authenticated_message)
             return await func(self, *args, **kwargs)
 
         return wrapper
@@ -127,8 +153,8 @@ def guard_client_presence(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Ca
 
     @functools.wraps(func)
     async def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
-        if not self.client:  # type: ignore[attr-defined]
-            raise Exception(self._client_not_available_message)  # type: ignore[attr-defined]
+        if not self.client:
+            raise Exception(self._client_not_available_message)
         return await func(self, *args, **kwargs)
 
     return wrapper
@@ -148,7 +174,7 @@ def guard_rate_limit(
     def decorate(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Callable[Concatenate[T, P], Awaitable[R]]:
         @functools.wraps(func)
         async def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
-            await self._rate_limit_check(operation_key, min_interval)  # type: ignore[attr-defined]
+            await self._rate_limit_check(operation_key, min_interval)
             return await func(self, *args, **kwargs)
 
         return wrapper
@@ -174,7 +200,7 @@ def guard_error_wrap(
             try:
                 return await func(self, *args, **kwargs)
             except Exception as e:
-                self._handle_api_error(e, operation_name)  # type: ignore[attr-defined]
+                self._handle_api_error(e, operation_name)
                 raise
 
         return wrapper
@@ -222,7 +248,7 @@ class BaseAPI(ABC):
             Exception: If authentication fails
         """
         await self._post_authenticate()
-        self.client = self.auth_manager.client  # type: ignore[attr-defined]
+        self.client = self.auth_manager.client
         self._authenticated = True
         return self
 
@@ -256,8 +282,8 @@ class BaseAPI(ABC):
         """
         if self.client:
             self.client.disconnect()
-        if self.auth_manager:  # type: ignore[attr-defined]
-            self.auth_manager.access_token = None  # type: ignore[attr-defined]
+        if self.auth_manager:
+            self.auth_manager.access_token = None
 
     def is_authenticated(self):
         """
