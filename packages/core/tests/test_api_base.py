@@ -200,3 +200,32 @@ def test_handle_api_error_redacts_api_keys_and_headers():
     assert "X-API-Key: [REDACTED]" in message
     assert "Authorization: [REDACTED]" in message
     assert "api_key=[REDACTED]" in message
+
+
+def test_handle_api_error_redacts_signed_url_and_json_shapes():
+    """Signed URLs and quoted JSON credential shapes are redacted."""
+    api = ConcreteAPI()
+    original_error = ValueError(
+        "fetch failed: https://cdn.example.com/v.mp4?X-Amz-Signature=abc123&sig=xyz789 "
+        'payload {"Signature": "tok999"} collected'
+    )
+
+    with pytest.raises(Exception) as exc_info:
+        api._handle_api_error(original_error, "op")
+
+    message = str(exc_info.value)
+    assert "abc123" not in message
+    assert "xyz789" not in message
+    assert "tok999" not in message
+    assert "[REDACTED]" in message
+
+
+def test_handle_api_error_leaves_benign_prose_intact():
+    """Unquoted prose diagnostics are not redacted as credentials."""
+    api = ConcreteAPI()
+    original_error = ValueError("Signature verification failed: signature=invalid")
+
+    with pytest.raises(Exception) as exc_info:
+        api._handle_api_error(original_error, "op")
+
+    assert str(exc_info.value) == "op failed: Signature verification failed: signature=invalid"

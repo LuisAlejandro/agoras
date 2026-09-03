@@ -26,6 +26,7 @@ from typing import Optional
 
 from authlib.integrations.requests_client import OAuth2Session
 
+from agoras.core.api_base import sanitize_error_text
 from agoras.core.auth import BaseAuthManager
 from agoras.core.auth.callback_server import OAuthCallbackServer
 from agoras.core.auth.failure import env_has_refresh_token
@@ -207,7 +208,7 @@ class LinkedInAuthManager(BaseAuthManager):
                 )
                 return token_data
             except Exception as exc:
-                raise Exception(f"Token refresh failed: 401 {exc}") from exc
+                raise Exception(f"Token refresh failed: 401 {sanitize_error_text(str(exc))}") from None
 
         return await asyncio.to_thread(_sync_refresh)
 

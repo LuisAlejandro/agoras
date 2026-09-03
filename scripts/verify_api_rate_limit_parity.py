@@ -163,10 +163,14 @@ def _method_rate_limit(src, method):
         if m:
             return (m.group(1), m.group(2))
 
-    # Inline form within the method body (until the next top-level def)
-    for line in lines[dline + 1 :]:
+    # Inline form within the method body (until the next top-level def).
+    # Comment-only lines are skipped so a commented-out call cannot satisfy
+    # the gate.
+    for line in lines[dline + 1:]:
         if re.match(r"^    (async )?def ", line):
             break
+        if line.strip().startswith("#"):
+            continue
         m = re.search(r'_rate_limit_check\("([a-z_]+)", ([0-9.]+)\)', line)
         if m:
             return (m.group(1), m.group(2))
@@ -228,6 +232,21 @@ def self_test():
     f = check_api_source("fake", wrong)
     if not any('expected ("post", 2.0)' in item for item in f):
         failures.append("self-test: wrong interval not flagged")
+
+    # Scenario 4: a commented-out call must not satisfy the gate
+    EXPECTED = {
+        "fake": [
+            ("archive", "archive", "1.0"),
+        ]
+    }
+    commented = (
+        "    async def archive(self):\n"
+        '        # await self._rate_limit_check("archive", 1.0)\n'
+        "        return 1\n"
+    )
+    f = check_api_source("fake", commented)
+    if not any("but none found" in item for item in f):
+        failures.append("self-test: commented-out rate limit not flagged as missing")
 
     EXPECTED = saved
     if not failures:

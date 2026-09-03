@@ -41,6 +41,7 @@ RESERVED_CONTENT_KEYS: FrozenSet[str] = frozenset(
     }
 )
 
+
 @dataclass(frozen=True)
 class FieldSpec:
     """One content field allowed for a platform action."""

@@ -147,7 +147,6 @@ class Sheet:
 
         return [SheetRow(row, headers) for row in data_rows]
 
-
     async def write_all(self, data, clear_first=True, table_range="A1"):
         """
         Write all data to the worksheet.
@@ -233,7 +232,6 @@ class Sheet:
 
         await asyncio.to_thread(_sync_update)
 
-
     async def clear(self):
         """Clear all data from the worksheet."""
         if not self._worksheet:
@@ -260,7 +258,3 @@ class Sheet:
         """
         all_rows = await self.read_all()
         return [row for row in all_rows if condition(row)]
-
-
-
-

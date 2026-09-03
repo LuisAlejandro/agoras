@@ -344,8 +344,6 @@ class Feed:
 
         return random.choice(available_items)
 
-
-
     def to_dict(self):
         """
         Convert feed to dictionary representation.
