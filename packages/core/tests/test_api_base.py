@@ -97,23 +97,6 @@ def test_initialization_without_credentials():
 
 # Authentication Tests
 
-@pytest.mark.asyncio
-async def test_is_authenticated_initial_state():
-    """Test is_authenticated returns False initially."""
-    api = ConcreteAPI()
-
-    assert api.is_authenticated() is False
-
-
-@pytest.mark.asyncio
-async def test_is_authenticated_after_auth():
-    """Test is_authenticated returns True after authentication."""
-    api = ConcreteAPI()
-
-    await api.authenticate()
-
-    assert api.is_authenticated() is True
-
 
 # Rate Limiting Tests
 

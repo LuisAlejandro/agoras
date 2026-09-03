@@ -657,25 +657,6 @@ class SocialNetwork(ABC):
             return self.config.get(key)
         return self._get_config_value(key, env_key)
 
-    def _require_config_value(self, key, env_key=None) -> str:
-        """
-        Get a required configuration value from kwargs or environment.
-
-        Args:
-            key (str): Configuration key
-            env_key (str, optional): Environment variable key
-
-        Returns:
-            str: Configuration value
-
-        Raises:
-            ValueError: If the configuration value is missing or empty
-        """
-        value = self._get_config_value(key, env_key)
-        if value is None or value == "":
-            raise ValueError(f"Missing required configuration for {key}")
-        return str(value)
-
     async def execute_action(self, action):
         """
         Execute the specified action asynchronously.

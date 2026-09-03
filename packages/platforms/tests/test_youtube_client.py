@@ -388,35 +388,6 @@ async def test_youtube_client_get_video_info_no_items():
 
 
 @pytest.mark.asyncio
-async def test_youtube_client_search_videos_success():
-    """Test YouTubeAPIClient search_videos success."""
-    mock_search_list = MagicMock()
-    mock_search_list.execute.return_value = {'items': [], 'pageInfo': {}}
-    mock_search = MagicMock()
-    mock_search.list.return_value = mock_search_list
-    mock_youtube_client = MagicMock()
-    mock_youtube_client.search.return_value = mock_search
-
-    client = YouTubeAPIClient('access_token')
-    client.youtube_client = mock_youtube_client
-    client._authenticated = True
-
-    result = await client.search_videos('test query')
-
-    assert 'items' in result
-    assert 'pageInfo' in result
-
-
-@pytest.mark.asyncio
-async def test_youtube_client_search_videos_not_initialized():
-    """Test YouTubeAPIClient search_videos raises when not initialized."""
-    client = YouTubeAPIClient('access_token')
-
-    with pytest.raises(Exception, match='YouTube client not initialized'):
-        await client.search_videos('test query')
-
-
-@pytest.mark.asyncio
 async def test_youtube_client_list_uploads_success():
     """Test YouTubeAPIClient list_uploads resolves the uploads playlist and lists items."""
     mock_channel_list = MagicMock()

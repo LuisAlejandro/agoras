@@ -106,20 +106,6 @@ class TikTokAPI(BaseAPI):
             self.auth_manager.user_info = None
             self.auth_manager.client = None
 
-    async def get_creator_info(self) -> Dict[str, Any]:
-        """
-        Get live creator information from TikTok API.
-
-        Re-queries ``creator_info`` rather than returning the login cache.
-
-        Returns:
-            dict: Creator information
-
-        Raises:
-            Exception: If API call fails
-        """
-        return await self.refresh_creator_info()
-
     @guard_ensure_auth_manager
     @guard_token_presence(token_attr="auth_manager.access_token")
     @guard_client_presence

@@ -461,40 +461,6 @@ class InstagramAPIClient:
         # Then publish it
         return await self.publish_media(object_id=object_id, creation_id=media_id)
 
-    async def create_carousel_post(
-        self, object_id: str, media_items: List[Dict[str, Any]], caption: Optional[str] = None
-    ) -> str:
-        """
-        Create and publish a carousel post with multiple media items.
-
-        Args:
-            object_id (str): Instagram object ID
-            media_items (list): List of media items, each with 'image_url' or 'video_url'
-            caption (str, optional): Carousel caption
-
-        Returns:
-            str: Published carousel post ID
-
-        Raises:
-            Exception: If carousel creation fails
-        """
-        # Create individual media items
-        media_ids = []
-        for item in media_items:
-            media_id = await self.create_media(
-                object_id=object_id,
-                image_url=item.get("image_url"),
-                video_url=item.get("video_url"),
-                is_carousel_item=True,
-            )
-            media_ids.append(media_id)
-
-        # Create carousel
-        carousel_id = await self.create_carousel(object_id=object_id, media_ids=media_ids, caption=caption)
-
-        # Publish carousel
-        return await self.publish_media(object_id=object_id, creation_id=carousel_id)
-
     async def get_user_media(self, object_id: str, fields: Optional[str] = None, limit: int = 25) -> Dict[str, Any]:
         """
         Get user's Instagram media.
@@ -520,23 +486,3 @@ class InstagramAPIClient:
             return self.graph_api.get_object(object_id=f"{object_id}/media", fields=query_fields, limit=limit)
 
         return await asyncio.to_thread(_sync_get_user_media)
-
-    async def get_media_insights(self, media_id: str, metrics: List[str]) -> Dict[str, Any]:
-        """
-        Get insights for a specific Instagram media item.
-
-        Args:
-            media_id (str): Instagram media ID
-            metrics (list): List of metrics to retrieve
-
-        Returns:
-            dict: Insights data from Instagram API
-
-        Raises:
-            Exception: If insights retrieval fails
-        """
-
-        def _sync_get_media_insights():
-            return self.get_object(object_id=f"{media_id}/insights", fields=f"metric={','.join(metrics)}")
-
-        return await asyncio.to_thread(_sync_get_media_insights)

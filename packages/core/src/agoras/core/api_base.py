@@ -350,15 +350,6 @@ class BaseAPI(ABC):
         if self.auth_manager:
             self.auth_manager.access_token = None
 
-    def is_authenticated(self):
-        """
-        Check if API is authenticated.
-
-        Returns:
-            bool: True if authenticated, False otherwise
-        """
-        return self._authenticated
-
     async def _rate_limit_check(self, operation_type="default", min_interval=1.0):
         """
         Perform rate limiting check before API operations.

@@ -53,18 +53,6 @@ async def test_auto_auth_dialect_authenticates_before_client_check():
 
 
 @pytest.mark.asyncio
-async def test_get_bot_info_has_no_rate_limit():
-    api = _make_api()
-    api._authenticated = True
-    api.client = MagicMock()
-    api.client.get_me = AsyncMock(return_value={"id": 123, "username": "testbot"})
-    api._rate_limit_check = AsyncMock()
-    result = await api.get_bot_info()
-    assert result == {"id": 123, "username": "testbot"}
-    api._rate_limit_check.assert_not_called()
-
-
-@pytest.mark.asyncio
 async def test_like_share_raise_without_auth_attempt():
     api = _make_api()
 

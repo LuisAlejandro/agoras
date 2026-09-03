@@ -78,15 +78,6 @@ async def test_telegram_api_disconnect(telegram_api):
     assert telegram_api.client is None
 
 
-@pytest.mark.asyncio
-async def test_telegram_api_get_bot_info(telegram_api):
-    """Test TelegramAPI get_bot_info method."""
-    result = await telegram_api.get_bot_info()
-
-    assert result == {'id': 123, 'username': 'testbot'}
-    telegram_api.client.get_me.assert_called_once()
-
-
 # Messaging Tests
 
 @pytest.mark.asyncio
@@ -490,7 +481,7 @@ async def test_telegram_api_all_methods_use_rate_limiting(telegram_api):
     await telegram_api.send_video('chat_id', video_content=b'data')
     await telegram_api.send_media_group('chat_id', [{'type': 'photo', 'media': 'http://img.jpg'}])
     await telegram_api.delete_message('chat_id', 123)
-    # get_bot_info doesn't use rate limiting, so we expect 5 calls
+    # all methods here use rate limiting, so we expect 5 calls
 
     # Rate limit should be called for methods that use it
     assert telegram_api._rate_limit_check.call_count == 5
