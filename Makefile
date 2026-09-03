@@ -77,6 +77,10 @@ build: start
 lint: start
 	@$(exec_on_docker) tox -e lint
 
+verify-wrapper-parity: start
+	@$(exec_on_docker) python scripts/verify_wrapper_parity.py --self-test
+	@$(exec_on_docker) python scripts/verify_wrapper_parity.py
+
 format: start
 	@$(exec_on_docker) tox -e format
 
@@ -193,7 +197,7 @@ undo-release:
 	@VERSION=$${VERSION} ./scripts/rollback.sh release
 
 .PHONY: clean clean-pyc clean-build clean-test clean-docs \
-	help lint format lint-and-format test test-all functional-test coverage \
+	help lint format lint-and-format verify-wrapper-parity test test-all functional-test coverage \
 	docs servedocs build dependencies install console virtualenv \
 	image start stop down destroy cataplum \
 	release release-patch release-minor release-major release-preflight undo-release

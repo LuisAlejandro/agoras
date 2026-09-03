@@ -78,10 +78,9 @@ def check_overrides(name, src, failures):
 CHECK_IMPORTS = False
 
 
-def check_platform(name):
+def check_wrapper_source(name, src):
+    """Run all structural checks against a wrapper module's source text."""
     failures = []
-    wrapper = WRAPPER_DIR / name / "wrapper.py"
-    src = wrapper.read_text()
 
     # 1. Guard message literal (real class names — capitalize() is wrong
     # for youtube/tiktok/linkedin/whatsapp)
@@ -90,8 +89,7 @@ def check_platform(name):
         if literal in src:
             failures.append(f"guard literal '{literal}' still present in migrated wrapper")
     else:
-        if "self._require_api()" not in src and literal not in src:
-            failures.append(f"guard literal '{literal}' absent but wrapper not migrated")
+        failures.append(f"{name} does not use _require_api (guard migration incomplete)")
 
     # 2. Import seams (requires the installed packages + SDK deps)
     if CHECK_IMPORTS:
@@ -111,14 +109,67 @@ def check_platform(name):
     check_proxy_flags(name, src, failures)
     check_overrides(name, src, failures)
 
+    # 7. Unbound-dispatch coupling guard: a wrapper subclass defining
+    # run_main_async would be silently bypassed by the unbound shims.
+    if re.search(r"async def run_main_async", src):
+        failures.append(f"{name} defines run_main_async — would be bypassed by the unbound shims")
+
     return failures
+
+
+def self_test():
+    """Negative self-test: the checks must fail on unmigrated/regressed sources."""
+    failures = []
+    unmigrated = (
+        "class X(SocialNetwork):\n"
+        "    async def disconnect(self):\n"
+        "        if self.api:\n"
+        "            await self.api.disconnect()\n"
+        "    async def post(self, *a):\n"
+        "        if not self.api:\n"
+        '            raise Exception("X API not initialized")\n'
+        "        return 1\n"
+    )
+    f = check_wrapper_source("x", unmigrated)
+    if not any("_require_api" in item for item in f):
+        failures.append("self-test: unmigrated wrapper not flagged")
+    if not any("disconnect" in item for item in f):
+        failures.append("self-test: inherited-disconnect regression not flagged")
+    overridden = (
+        "class X(SocialNetwork):\n"
+        "    _proxy_delete_reply = True\n"
+        "    _proxy_get_reply = True\n"
+        "    async def run_main_async(self, kwargs):\n"
+        "        return 0\n"
+        "    def main(self):\n"
+        "        pass\n"
+        "    async def main_async(self):\n"
+        "        pass\n"
+    )
+    f = check_wrapper_source("x", overridden)
+    if not any("run_main_async" in item for item in f):
+        failures.append("self-test: run_main_async override not flagged")
+    if not failures:
+        print("Self-test passed: the gate catches unmigrated wrappers and bypassed overrides.")
+        return 0
+    for item in failures:
+        print(f"[FAIL] {item}")
+    return 1
+
+
+def check_platform(name):
+    wrapper = WRAPPER_DIR / name / "wrapper.py"
+    return check_wrapper_source(name, wrapper.read_text())
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("platforms", nargs="*", help="platform names; default: all ten")
     parser.add_argument("--check-imports", action="store_true", help="also import each wrapper module (needs SDK deps)")
+    parser.add_argument("--self-test", action="store_true", help="run negative self-tests and exit")
     args = parser.parse_args()
+    if args.self_test:
+        return self_test()
     global CHECK_IMPORTS
     CHECK_IMPORTS = args.check_imports
 

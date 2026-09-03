@@ -97,6 +97,13 @@ jobs:
         run: |
           tox -e lint
 
+      - name: Verifying wrapper-skeleton parity
+        run: |
+          python3 -m pip install -e packages/core
+          python3 -m pip install -e packages/platforms
+          python3 scripts/verify_wrapper_parity.py --self-test
+          python3 scripts/verify_wrapper_parity.py
+
   lint-skip:
     name: Linting
     needs: [filter]
