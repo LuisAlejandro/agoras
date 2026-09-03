@@ -143,9 +143,12 @@ def _parse_date(value):
 def _parse_ampm(value):
     """Parse an AM/PM date with an explicit strptime format, tz-agnostic."""
     text = value.strip()
-    # Strip a trailing timezone token so the %p format matches cleanly.
+    # Strip a trailing timezone token only when it is not the meridiem, so
+    # timezone-less AM/PM dates still parse with the %p token intact.
     parts = text.rsplit(" ", 1)
-    candidate = parts[0] if len(parts) == 2 and parts[1].isalpha() else text
+    candidate = text
+    if len(parts) == 2 and parts[1].isalpha() and parts[1].upper() not in ("AM", "PM"):
+        candidate = parts[0]
     for fmt in (
         "%a, %d %b %Y %I:%M:%S %p",
         "%a, %d %b %Y %I:%M %p",
@@ -168,7 +171,11 @@ def parse_rss_bytes(data: bytes) -> FeedData:
     accepted for parity with the previous defusedxml-backed parser.
     """
     text = _decode_xml(data)
-    if re.search(r"<!DOCTYPE[^>]*\[[^\]]*<!ENTITY", text, re.I):
+    # Strip comments and CDATA so content merely mentioning <!ENTITY is not
+    # mistaken for a declaration, and scan the remaining text so a '>' inside
+    # a SYSTEM/PUBLIC literal cannot hide the internal subset.
+    cleaned = re.sub(r"<!--.*?-->|<\!\[CDATA\[.*?\]\]>", "", text, flags=re.S)
+    if "<!ENTITY" in cleaned.upper():
         raise FeedParseError("Feed contains entity definitions")
     try:
         root = ET.fromstring(text)  # nosec B314 - the <!ENTITY pre-check above rejects entity definitions

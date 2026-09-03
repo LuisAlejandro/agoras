@@ -545,8 +545,9 @@ async def test_youtube_client_upload_video_http_error_raises(mock_media_upload_c
     client.youtube_client = mock_youtube_client
     client._authenticated = True
 
-    with pytest.raises(Exception, match='YouTube upload failed: HTTP 403'):
+    with pytest.raises(errors.HttpError) as excinfo:
         await client.upload_video('video.mp4', 'Title', 'Description', '22', 'public')
+    assert excinfo.value.resp.status == 403
 
 
 @pytest.mark.asyncio

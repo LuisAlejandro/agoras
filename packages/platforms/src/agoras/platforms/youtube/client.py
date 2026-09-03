@@ -39,8 +39,9 @@ class _AuthErrorConvertingHttp:
     """
     Wrap AuthorizedHttp so an expired token surfaces as a 401 HttpError.
 
-    google_auth_httplib2 refreshes on 401/403; token-only Credentials
-    cannot refresh and raise RefreshError. Today an expired token surfaced
+    google_auth_httplib2 refreshes on the configured status codes; we
+    pin refresh_status_codes=(401,) so quota 403s pass through untouched.
+    Token-only Credentials cannot refresh and raise RefreshError. Today an expired token surfaced
     as a 401 HttpError from the API. Converting keeps that error surface,
     so upload retry classification and callers see the same failure shape.
     """
@@ -111,7 +112,11 @@ class YouTubeAPIClient:
                 # Token-only credentials (the auth flow mints a bare token).
                 credentials = Credentials(token=self.access_token)
                 http_instance = httplib2.Http()
-                authorized_http = AuthorizedHttp(credentials=credentials, http=http_instance)
+                authorized_http = AuthorizedHttp(
+                    credentials=credentials,
+                    http=http_instance,
+                    refresh_status_codes=(401,),
+                )
 
                 # Build YouTube API client with the authorized HTTP transport
                 return discovery.build("youtube", "v3", http=_AuthErrorConvertingHttp(authorized_http))
@@ -179,11 +184,12 @@ class YouTubeAPIClient:
 
             # googleapiclient's native resumable retry: 5xx, 429, and
             # retryable-reason 403s are retried with jittered backoff over
-            # the httplib2 transport; exhaustion raises errors.HttpError.
-            try:
-                _, response = request.next_chunk(num_retries=self.MAX_RETRIES)
-            except errors.HttpError as e:
-                raise Exception(f"YouTube upload failed: HTTP {e.resp.status}: {e.content}") from None
+            # the httplib2 transport; exhaustion raises errors.HttpError
+            # unchanged, preserving the pre-diff error surface. Retried
+            # exception classes narrow: ssl/socket/ConnectionError/OSError
+            # are covered, while http.client BadStatusLine/IncompleteRead
+            # are no longer retried.
+            _, response = request.next_chunk(num_retries=self.MAX_RETRIES)
 
             if response is None:
                 raise Exception("YouTube upload failed: no response received")

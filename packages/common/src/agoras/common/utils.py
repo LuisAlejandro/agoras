@@ -22,6 +22,7 @@ agoras.common.utils.
 This module contains common and low level functions to all modules in agoras.
 """
 
+import re
 from html.parser import HTMLParser
 from urllib.parse import parse_qs, urlencode, urlparse
 
@@ -75,10 +76,11 @@ def build_upload_session(max_attempts, retry_statuses, allowed_methods):
 
     Response-status retries only (the given 429/5xx set): connect and read
     retries are disabled so non-idempotent full-body uploads never re-send
-    on a lost connection, and Retry-After headers are ignored so the
-    exponential backoff envelope stays capped. ``raise_on_status`` is False
-    so retry exhaustion returns the last response and callers surface the
-    real HTTP status themselves.
+    on a lost connection, and Retry-After headers are ignored. ``raise_on_status``
+    is False so retry exhaustion returns the last response and callers surface
+    the real HTTP status themselves. Note urllib3's backoff (1s, 2s, 4s, ...)
+    is unbounded, so parity with the old min(2**(n-1), 4) cap holds exactly
+    at the current 3-attempt constants and only there.
     """
     retry = Retry(
         total=max_attempts - 1,
@@ -96,6 +98,24 @@ def build_upload_session(max_attempts, retry_statuses, allowed_methods):
     return session
 
 
+def _decode_html_content(content):
+    """
+    Decode HTML bytes for parsing.
+
+    Meta-charset declaration wins (the BeautifulSoup behavior this
+    replaces); otherwise UTF-8 with replacement, never the ISO-8859-1
+    default requests would apply to charset-less text/html.
+    """
+    head = content[:2048]
+    match = re.search(rb"<meta[^>]+charset=[\"']?([a-zA-Z0-9_\-:]+)", head, re.I)
+    if match:
+        try:
+            return content.decode(match.group(1).decode("ascii"))
+        except (LookupError, UnicodeDecodeError):
+            pass
+    return content.decode("utf-8", errors="replace")
+
+
 def find_metatags(url, search):
     """Fetch a URL and return matching Open Graph or Twitter meta tag values."""
     found = {}
@@ -106,7 +126,7 @@ def find_metatags(url, search):
         return found
 
     parser = _MetaTagParser()
-    parser.feed(response.text)
+    parser.feed(_decode_html_content(response.content))
 
     for target in search:
         for meta_tag in parser.meta_tags:

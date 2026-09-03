@@ -934,3 +934,20 @@ async def test_schedulesheet_datetime_typed_cell_parses():
         mock_read.return_value = [row_data]
         posts = await sheet.process_scheduled_posts()
         assert len(posts) == 1
+
+
+@pytest.mark.asyncio
+async def test_schedulesheet_day_first_ambiguity_pinned():
+    """DD-MM-YYYY is the pinned contract: 05-12-2026 means 5 December."""
+    sheet = ScheduleSheet('sheet-id', 'email@example.com', 'key')
+
+    row_data = SheetRow([
+        'Post text', 'http://link.com', '', '', '', '',
+        '05-12-2026', '10', '',
+    ])
+    with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
+        with patch.object(sheet, 'write_all', new_callable=AsyncMock) as mock_write:
+            mock_read.return_value = [row_data]
+            posts = await sheet.process_scheduled_posts()
+            assert len(posts) == 1
+            assert posts[0]['_sheet_row'] == 1

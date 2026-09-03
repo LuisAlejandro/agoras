@@ -59,6 +59,7 @@ setup(
     install_requires=[
         # From agoras-common
         'requests==2.34.2',
+        'urllib3>=1.26,<3',
         # From agoras-media
         'filetype==1.2.0',
         'opencv-python-headless==5.0.0.93',
