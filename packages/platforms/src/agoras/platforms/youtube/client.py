@@ -18,13 +18,49 @@
 """agoras.platforms.youtube.client module."""
 
 import asyncio
-import http.client as httplib
-import random
-import time
 from typing import Any, Dict, List, Optional
 
 import httplib2
 from apiclient import discovery, errors, http
+from google.auth.exceptions import RefreshError
+from google.oauth2.credentials import Credentials
+from google_auth_httplib2 import AuthorizedHttp
+
+
+class _HttpErrorResponse:
+    """Minimal response stand-in for a synthesized 401 HttpError."""
+
+    def __init__(self, status, reason):
+        self.status = status
+        self.reason = reason
+
+
+class _AuthErrorConvertingHttp:
+    """
+    Wrap AuthorizedHttp so an expired token surfaces as a 401 HttpError.
+
+    google_auth_httplib2 refreshes on the configured status codes; we
+    pin refresh_status_codes=(401,) so quota 403s pass through untouched.
+    Token-only Credentials cannot refresh and raise RefreshError. Today an expired token surfaced
+    as a 401 HttpError from the API. Converting keeps that error surface,
+    so upload retry classification and callers see the same failure shape.
+    """
+
+    def __init__(self, http_obj):
+        self._http = http_obj
+
+    def request(self, uri, method="GET", body=None, headers=None, **kwargs):
+        try:
+            return self._http.request(uri, method, body, headers, **kwargs)
+        except RefreshError as e:
+            raise errors.HttpError(
+                _HttpErrorResponse(401, "Unauthorized"),
+                str(e).encode(),
+                uri=uri,
+            ) from None
+
+    def __getattr__(self, name):
+        return getattr(self._http, name)
 
 
 class YouTubeAPIClient:
@@ -35,20 +71,10 @@ class YouTubeAPIClient:
     including video uploads, likes, deletions, and channel operations.
     """
 
-    # Constants for retry logic
+    # Native resumable-upload retry budget (googleapiclient num_retries).
+    # Note googleapiclient retries all 5xx plus 429 and retryable-reason
+    # 403s, and the budget applies per chunk.
     MAX_RETRIES = 10
-    RETRIABLE_EXCEPTIONS = (
-        httplib2.HttpLib2Error,
-        IOError,
-        httplib.NotConnected,
-        httplib.IncompleteRead,
-        httplib.ImproperConnectionState,
-        httplib.CannotSendRequest,
-        httplib.CannotSendHeader,
-        httplib.ResponseNotReady,
-        httplib.BadStatusLine,
-    )
-    RETRIABLE_STATUS_CODES = [500, 502, 503, 504]
 
     def __init__(self, access_token: str):
         """
@@ -83,30 +109,17 @@ class YouTubeAPIClient:
         try:
 
             def _sync_create():
-                # Create a custom HTTP object that includes the Bearer token
+                # Token-only credentials (the auth flow mints a bare token).
+                credentials = Credentials(token=self.access_token)
                 http_instance = httplib2.Http()
+                authorized_http = AuthorizedHttp(
+                    credentials=credentials,
+                    http=http_instance,
+                    refresh_status_codes=(401,),
+                )
 
-                # Create a custom credentials-like object for Google API client
-                class AuthorizedHttp:
-                    def __init__(self, http_obj, access_token):
-                        self.http = http_obj
-                        self.access_token = access_token
-
-                    def request(self, uri, method="GET", body=None, headers=None, **kwargs):
-                        if headers is None:
-                            headers = {}
-                        # Add authorization header
-                        headers["Authorization"] = f"Bearer {self.access_token}"
-                        return self.http.request(uri, method, body, headers, **kwargs)
-
-                    def __getattr__(self, name):
-                        # Delegate other attributes to the underlying http object
-                        return getattr(self.http, name)
-
-                authorized_http = AuthorizedHttp(http_instance, self.access_token)
-
-                # Build YouTube API client with authorized HTTP
-                return discovery.build("youtube", "v3", http=authorized_http)
+                # Build YouTube API client with the authorized HTTP transport
+                return discovery.build("youtube", "v3", http=_AuthErrorConvertingHttp(authorized_http))
 
             self.youtube_client = await asyncio.to_thread(_sync_create)
             self._authenticated = True
@@ -120,38 +133,6 @@ class YouTubeAPIClient:
         """
         self.youtube_client = None
         self._authenticated = False
-
-    def _simplify_upload_method(self, request, retry: int, error: str) -> tuple:
-        """Helper method to reduce complexity of upload_video."""
-        try:
-            _, response = request.next_chunk()
-            if response is not None:
-                if "id" in response:
-                    return response, None, retry
-                else:
-                    raise Exception(f"Upload failed with unexpected response: {response}")
-        except errors.HttpError as e:
-            if e.resp.status in self.RETRIABLE_STATUS_CODES:
-                error = f"A retriable HTTP error {e.resp.status} occurred:\n{e.content}"
-                return None, error, retry
-            else:
-                raise
-        except self.RETRIABLE_EXCEPTIONS as e:
-            error = f"A retriable error occurred: {e}"
-            return None, error, retry
-
-        return None, None, retry
-
-    def _handle_upload_retry(self, retry: int, error: str) -> int:
-        """Helper method to handle upload retries."""
-        retry += 1
-        if retry > self.MAX_RETRIES:
-            raise Exception("No longer attempting to retry.")
-
-        max_sleep = 2**retry
-        sleep_seconds = random.random() * max_sleep
-        time.sleep(sleep_seconds)
-        return retry
 
     async def upload_video(
         self,
@@ -184,9 +165,6 @@ class YouTubeAPIClient:
             if not self.youtube_client:
                 raise Exception("YouTube client not initialized")
 
-            retry = 0
-            response = None
-            error = ""  # Initialize as empty string instead of None
             tags = None
 
             if keywords:
@@ -204,16 +182,19 @@ class YouTubeAPIClient:
                 media_body=http.MediaFileUpload(video_file_path, chunksize=-1, resumable=True),
             )
 
-            while response is None:
-                response, new_error, retry = self._simplify_upload_method(request, retry, error)
+            # googleapiclient's native resumable retry: 5xx, 429, and
+            # retryable-reason 403s are retried with jittered backoff over
+            # the httplib2 transport; exhaustion raises errors.HttpError
+            # unchanged, preserving the pre-diff error surface. Retried
+            # exception classes narrow: ssl/socket/ConnectionError/OSError
+            # are covered, while http.client BadStatusLine/IncompleteRead
+            # are no longer retried.
+            _, response = request.next_chunk(num_retries=self.MAX_RETRIES)
 
-                if response is not None:
-                    break
-
-                if new_error is not None:
-                    retry = self._handle_upload_retry(retry, new_error)
-                    error = ""  # Reset error for next iteration
-
+            if response is None:
+                raise Exception("YouTube upload failed: no response received")
+            if "id" not in response:
+                raise Exception(f"Upload failed with unexpected response: {response}")
             return response
 
         return await asyncio.to_thread(_sync_upload)
