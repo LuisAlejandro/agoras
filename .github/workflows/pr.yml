@@ -103,6 +103,8 @@ jobs:
           python3 -m pip install -e packages/platforms
           python3 scripts/verify_wrapper_parity.py --self-test
           python3 scripts/verify_wrapper_parity.py
+          python3 scripts/verify_api_guard_order.py --self-test
+          python3 scripts/verify_api_guard_order.py
 
   lint-skip:
     name: Linting
