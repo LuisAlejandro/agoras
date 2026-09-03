@@ -19,14 +19,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from agoras.platforms.instagram.client import InstagramAPIClient, _resumable_upload_timeout
+from agoras.platforms._upload import video_upload_timeout
+from agoras.platforms.instagram.client import InstagramAPIClient
 
 
-def test_resumable_upload_timeout_scales_and_caps():
+def test_video_upload_timeout_scales_and_caps():
     """Timeout grows with file size and stays between 30s and 10 minutes."""
-    assert _resumable_upload_timeout(0) == 30
-    assert _resumable_upload_timeout(20 * 1024 * 1024) == 40
-    assert _resumable_upload_timeout(10 * 1024 * 1024 * 1024) == 600
+    assert video_upload_timeout(0) == 30
+    assert video_upload_timeout(20 * 1024 * 1024) == 40
+    assert video_upload_timeout(10 * 1024 * 1024 * 1024) == 600
 
 
 @pytest.mark.asyncio
