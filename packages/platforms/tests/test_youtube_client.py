@@ -35,12 +35,8 @@ def test_youtube_client_init():
 
 @pytest.mark.asyncio
 @patch('apiclient.discovery.build')
-@patch('agoras.platforms.youtube.client.httplib2.Http')
-async def test_youtube_client_authenticate_success(mock_http_class, mock_discovery_build):
+async def test_youtube_client_authenticate_success(mock_discovery_build):
     """Test YouTubeAPIClient authenticate success."""
-    mock_http = MagicMock()
-    mock_http_class.return_value = mock_http
-
     mock_youtube_client = MagicMock()
     mock_discovery_build.return_value = mock_youtube_client
 
@@ -77,8 +73,7 @@ async def test_youtube_client_authenticate_no_token():
 
 @pytest.mark.asyncio
 @patch('apiclient.discovery.build')
-@patch('agoras.platforms.youtube.client.httplib2.Http')
-async def test_youtube_client_authenticate_failure(mock_http_class, mock_discovery_build):
+async def test_youtube_client_authenticate_failure(mock_discovery_build):
     """Test YouTubeAPIClient authenticate handles discovery errors."""
     mock_discovery_build.side_effect = Exception('Discovery error')
 
@@ -560,3 +555,33 @@ async def test_youtube_client_list_uploads_no_channel():
 
     with pytest.raises(Exception, match='No YouTube channel found'):
         await client.list_uploads(5)
+
+
+def test_auth_error_converting_http_turns_refresh_error_into_401():
+    """An expired token surfaces as a 401 HttpError, not RefreshError."""
+    from google.auth.exceptions import RefreshError
+
+    from agoras.platforms.youtube.client import _AuthErrorConvertingHttp
+
+    class _RaisingTransport:
+        def request(self, uri, method="GET", body=None, headers=None, **kwargs):
+            raise RefreshError("invalid_grant: Token has been expired or revoked.")
+
+    wrapped = _AuthErrorConvertingHttp(_RaisingTransport())
+    with pytest.raises(errors.HttpError) as excinfo:
+        wrapped.request("https://www.googleapis.com/upload/youtube/v3/videos")
+    assert excinfo.value.resp.status == 401
+
+
+def test_auth_error_converting_http_passes_through_success():
+    """Successful transport responses pass through unchanged."""
+    from agoras.platforms.youtube.client import _AuthErrorConvertingHttp
+
+    class _OkTransport:
+        def request(self, uri, method="GET", body=None, headers=None, **kwargs):
+            return ("resp", b"content")
+
+    wrapped = _AuthErrorConvertingHttp(_OkTransport())
+    resp, content = wrapped.request("https://example.com")
+    assert resp == "resp"
+    assert content == b"content"

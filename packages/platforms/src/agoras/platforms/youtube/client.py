@@ -25,6 +25,44 @@ from typing import Any, Dict, List, Optional
 
 import httplib2
 from apiclient import discovery, errors, http
+from google.auth.exceptions import RefreshError
+from google.oauth2.credentials import Credentials
+from google_auth_httplib2 import AuthorizedHttp
+
+
+class _HttpErrorResponse:
+    """Minimal response stand-in for a synthesized 401 HttpError."""
+
+    def __init__(self, status, reason):
+        self.status = status
+        self.reason = reason
+
+
+class _AuthErrorConvertingHttp:
+    """
+    Wrap AuthorizedHttp so an expired token surfaces as a 401 HttpError.
+
+    google_auth_httplib2 refreshes on 401/403; token-only Credentials
+    cannot refresh and raise RefreshError. Today an expired token surfaced
+    as a 401 HttpError from the API. Converting keeps that error surface,
+    so upload retry classification and callers see the same failure shape.
+    """
+
+    def __init__(self, http_obj):
+        self._http = http_obj
+
+    def request(self, uri, method="GET", body=None, headers=None, **kwargs):
+        try:
+            return self._http.request(uri, method, body, headers, **kwargs)
+        except RefreshError as e:
+            raise errors.HttpError(
+                _HttpErrorResponse(401, "Unauthorized"),
+                str(e).encode(),
+                uri=uri,
+            ) from None
+
+    def __getattr__(self, name):
+        return getattr(self._http, name)
 
 
 class YouTubeAPIClient:
@@ -83,30 +121,13 @@ class YouTubeAPIClient:
         try:
 
             def _sync_create():
-                # Create a custom HTTP object that includes the Bearer token
+                # Token-only credentials (the auth flow mints a bare token).
+                credentials = Credentials(token=self.access_token)
                 http_instance = httplib2.Http()
+                authorized_http = AuthorizedHttp(credentials=credentials, http=http_instance)
 
-                # Create a custom credentials-like object for Google API client
-                class AuthorizedHttp:
-                    def __init__(self, http_obj, access_token):
-                        self.http = http_obj
-                        self.access_token = access_token
-
-                    def request(self, uri, method="GET", body=None, headers=None, **kwargs):
-                        if headers is None:
-                            headers = {}
-                        # Add authorization header
-                        headers["Authorization"] = f"Bearer {self.access_token}"
-                        return self.http.request(uri, method, body, headers, **kwargs)
-
-                    def __getattr__(self, name):
-                        # Delegate other attributes to the underlying http object
-                        return getattr(self.http, name)
-
-                authorized_http = AuthorizedHttp(http_instance, self.access_token)
-
-                # Build YouTube API client with authorized HTTP
-                return discovery.build("youtube", "v3", http=authorized_http)
+                # Build YouTube API client with the authorized HTTP transport
+                return discovery.build("youtube", "v3", http=_AuthErrorConvertingHttp(authorized_http))
 
             self.youtube_client = await asyncio.to_thread(_sync_create)
             self._authenticated = True
