@@ -18,12 +18,37 @@
 """agoras.platforms.tiktok.client module."""
 
 import json
-import time
 from typing import Any, Dict, List, Optional
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.exceptions import MaxRetryError
+from urllib3.util.retry import Retry
 
 from agoras.common import __version__
+
+
+def _build_upload_session(max_attempts, retry_statuses):
+    """Session whose upload retries match the previous hand-rolled loop.
+
+    Response-status retries only (429/5xx set): connect and read retries
+    are disabled so non-idempotent full-body uploads never re-send on a
+    lost connection, and Retry-After headers are ignored so the capped
+    exponential backoff envelope is preserved.
+    """
+    retry = Retry(
+        total=max_attempts - 1,
+        connect=0,
+        read=0,
+        status=max_attempts - 1,
+        status_forcelist=sorted(retry_statuses),
+        allowed_methods=["PUT"],
+        backoff_factor=1.0,
+        respect_retry_after_header=False,
+    )
+    session = requests.Session()
+    session.mount("https://", HTTPAdapter(max_retries=retry))
+    return session
 
 
 class TikTokAPIClient:
@@ -226,25 +251,27 @@ class TikTokAPIClient:
 
     def _put_file_upload_chunk(self, upload_url: str, start: int, end: int, chunk, video_size: int) -> None:
         """PUT one FILE_UPLOAD chunk, retrying transient 5xx/429 responses."""
-        last_status = None
-        for attempt in range(1, self._FILE_UPLOAD_PUT_MAX_ATTEMPTS + 1):
-            chunk_response = requests.put(
-                upload_url,
-                headers={
-                    "Content-Range": f"bytes {start}-{end}/{video_size}",
-                    "Content-Type": "video/mp4",
-                    "Content-Length": str(len(chunk)),
-                },
-                data=chunk,
-                timeout=120,
+        headers = {
+            "Content-Range": f"bytes {start}-{end}/{video_size}",
+            "Content-Type": "video/mp4",
+            "Content-Length": str(len(chunk)),
+        }
+        try:
+            with _build_upload_session(
+                self._FILE_UPLOAD_PUT_MAX_ATTEMPTS, self._FILE_UPLOAD_PUT_RETRY_STATUSES
+            ) as session:
+                chunk_response = session.put(upload_url, headers=headers, data=chunk, timeout=120)
+        except MaxRetryError as e:
+            response = getattr(e, "response", None)
+            if response is not None:
+                raise Exception(
+                    f"Error uploading video chunk: HTTP {response.status_code} (bytes {start}-{end}/{video_size})"
+                ) from None
+            raise
+        if chunk_response.status_code not in (200, 201, 206):
+            raise Exception(
+                f"Error uploading video chunk: HTTP {chunk_response.status_code} (bytes {start}-{end}/{video_size})"
             )
-            last_status = chunk_response.status_code
-            if last_status in (200, 201, 206):
-                return
-            retryable = last_status in self._FILE_UPLOAD_PUT_RETRY_STATUSES
-            if not retryable or attempt == self._FILE_UPLOAD_PUT_MAX_ATTEMPTS:
-                raise Exception(f"Error uploading video chunk: HTTP {last_status} (bytes {start}-{end}/{video_size})")
-            time.sleep(min(2 ** (attempt - 1), 4))
 
     def upload_video_file(
         self,
