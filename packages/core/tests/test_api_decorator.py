@@ -198,11 +198,31 @@ async def test_guard_error_wrap_severs_chained_cause():
     with pytest.raises(Exception) as excinfo:
         await decorated(api, "value")
     assert excinfo.value.__cause__ is None
+    assert excinfo.value.__suppress_context__ is True
     import traceback
 
     rendered = "".join(traceback.format_exception(excinfo.value))
     assert "secret123" not in rendered
     assert "Bearer [REDACTED]" in str(excinfo.value)
+
+
+@pytest.mark.asyncio
+async def test_disconnect_resets_state_when_hook_raises():
+    """A raising disconnect hook must not leave stale authenticated state."""
+    api = _StubAPI()
+    api.client = object()
+    api._authenticated = True
+
+    def raising_hook():
+        raise ConnectionError("client disconnect failed")
+
+    api._disconnect_hook = raising_hook
+
+    with pytest.raises(ConnectionError):
+        await BaseAPI.disconnect(api)
+
+    assert api.client is None
+    assert api._authenticated is False
 
 
 @pytest.mark.asyncio

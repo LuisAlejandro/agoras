@@ -154,3 +154,23 @@ async def test_like_with_client_and_object_id_passes():
     api.client = _StubClient()
     result = await api.like("post-1")
     assert result == "like-123"
+
+
+@pytest.mark.asyncio
+async def test_object_id_raise_before_rate_limit_wait():
+    """Missing object_id must raise before consuming the rate-limit bucket."""
+    import time
+
+    api = _make_api(auth_manager=_OkAuthManager())
+    api.client = _StubClient()
+    # Prime the bucket so a wait would be long if the check ran after it.
+    api._rate_limit_cache["like"] = time.time() - 0.05
+    api.auth_manager.user_info = {}  # object_id missing
+
+    start = time.time()
+    with pytest.raises(Exception) as excinfo:
+        await api.like("post-1")
+    elapsed = time.time() - start
+
+    assert str(excinfo.value) == "LinkedIn API not authenticated"
+    assert elapsed < 0.04, f"rate-limit wait ran before the object_id raise ({elapsed:.3f}s)"
