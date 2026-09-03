@@ -84,6 +84,8 @@ verify-wrapper-parity: start
 	@$(exec_on_docker) python scripts/verify_api_guard_order.py
 	@$(exec_on_docker) python scripts/verify_api_rate_limit_parity.py --self-test
 	@$(exec_on_docker) python scripts/verify_api_rate_limit_parity.py
+	@$(exec_on_docker) python scripts/verify_dead_code.py --self-test
+	@$(exec_on_docker) python scripts/verify_dead_code.py
 
 format: start
 	@$(exec_on_docker) tox -e format
