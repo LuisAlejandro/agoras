@@ -181,3 +181,24 @@ def test_linkedin_reauthorize_different_object_id_does_not_duplicate(temp_storag
     other.token_storage = temp_storage
     assert other._get_token_identifier() == "posting_app@account456"
     assert other._get_token_identifier() != manager._get_token_identifier()
+
+
+@pytest.mark.asyncio
+async def test_linkedin_refresh_failure_sanitizes_sdk_error():
+    """Token-refresh SDK errors must not leak credentials into the raised message."""
+    manager = LinkedInAuthManager(
+        user_id="user123",
+        client_id="client123",
+        client_secret="secret123",
+        refresh_token="stored-refresh-token",
+    )
+    manager.oauth_session = MagicMock()
+    manager.oauth_session.refresh_token.side_effect = Exception(
+        "invalid_grant: refresh_token=SECRET-TOKEN-123"
+    )
+    with pytest.raises(Exception) as excinfo:
+        await manager._refresh_access_token_with_authlib()
+    message = str(excinfo.value)
+    assert "SECRET-TOKEN-123" not in message
+    assert "refresh_token=[REDACTED]" in message
+    assert excinfo.value.__cause__ is None

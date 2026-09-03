@@ -20,6 +20,7 @@
 import asyncio
 import inspect
 import time
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -336,7 +337,7 @@ async def test_guard_error_wrap_failsafe_sanitizes_when_handler_returns():
     def returning_handler(error, operation_name):
         return None  # violates the NoReturn contract
 
-    api._handle_api_error = returning_handler
+    api._handle_api_error = returning_handler  # type: ignore[assignment]  # deliberate contract violation under test
 
     async def op(self, value):
         raise ValueError("Bearer tok123")
@@ -383,3 +384,30 @@ async def test_concurrent_shared_bucket_fires_serialized():
     t1, t2 = await asyncio.gather(timed_call("a"), timed_call("b"))
     gap = abs(t1 - t2)
     assert gap >= 0.15, f"burst window: fires {gap:.3f}s apart (expected >= 0.2)"
+
+
+@pytest.mark.asyncio
+async def test_disconnect_during_authenticate_leaves_clean_state():
+    """A disconnect racing an in-flight first-auth must not leave stale state."""
+    api = _StubAPI()
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def slow_authenticate():
+        started.set()
+        await release.wait()
+        api._authenticated = True
+        api.client = MagicMock()
+
+    api.authenticate = slow_authenticate
+    decorated = guard_auth_attempt(_StubAPI.op)
+
+    task = asyncio.create_task(decorated(api, "a"))
+    await asyncio.wait_for(started.wait(), timeout=5)
+    dtask = asyncio.create_task(BaseAPI.disconnect(api))  # type: ignore[arg-type]  # explicit unbound call on stub
+    await asyncio.sleep(0.05)
+    release.set()
+    await asyncio.gather(task, dtask)
+
+    assert api.client is None
+    assert api._authenticated is False

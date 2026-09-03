@@ -101,21 +101,6 @@ class TelegramAPI(BaseAPI):
 
     @guard_auth_attempt
     @guard_client_presence
-    @guard_error_wrap("Telegram get bot info")
-    async def get_bot_info(self) -> Dict[str, Any]:
-        """
-        Get information about the bot.
-
-        Returns:
-            dict: Bot information
-
-        Raises:
-            Exception: If API call fails
-        """
-        return await self.client.get_me()
-
-    @guard_auth_attempt
-    @guard_client_presence
     @guard_rate_limit("send_message", 1.0)
     @guard_error_wrap("Telegram send message")
     async def send_message(

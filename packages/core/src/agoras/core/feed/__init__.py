@@ -22,7 +22,6 @@ Feed module providing RSS feed processing capabilities.
 Contains:
 - FeedItem: Represents individual RSS feed items
 - Feed: Handles single RSS feeds
-- FeedManager: Manages multiple feeds
 - RSSItem/FeedData: Parsed RSS structures
 - FeedParseError: Raised on unparseable feed content
 - parse_rss_bytes: Parse RSS 2.0 bytes into a FeedData
@@ -30,6 +29,5 @@ Contains:
 
 from .feed import Feed, FeedData, FeedParseError, RSSItem, parse_rss_bytes
 from .item import FeedItem
-from .manager import FeedManager
 
-__all__ = ["FeedItem", "Feed", "FeedManager", "RSSItem", "FeedData", "FeedParseError", "parse_rss_bytes"]
+__all__ = ["FeedItem", "Feed", "RSSItem", "FeedData", "FeedParseError", "parse_rss_bytes"]

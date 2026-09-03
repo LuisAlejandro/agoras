@@ -247,7 +247,7 @@ _REDACT_PATTERNS = (
     ),
     (
         re.compile(
-            r"(?:X-Amz-Signature|Signature|sig|AWSAccessKeyId|X-Goog-Signature|GoogleAccessId|Policy|X-Amz-Credential|Expires)[\s'\"]*[=:][\s'\"]*[^&\s'\"]+",
+            r"(?:X-Amz-Signature|Signature|sig|AWSAccessKeyId|X-Goog-Signature|GoogleAccessId|Policy|X-Amz-Credential|Expires)[\s'\"]*[=:][\s'\"]*[\"'][^\"']*[\"']",
             re.I,
         ),
         "[REDACTED]",
@@ -329,7 +329,21 @@ class BaseAPI(ABC):
     async def disconnect(self):
         """
         Disconnect from the API and clean up resources.
+
+        Acquires the auth lock when one exists so a disconnect cannot
+        interleave with an in-flight ``authenticate()`` and leave the
+        instance half-authenticated (flag set with a torn-down client).
+        Like the guard, ``disconnect`` must not be called from inside
+        ``authenticate()`` or ``_post_authenticate`` on the same instance.
         """
+        lock = getattr(self, "_auth_lock", None)
+        if lock is None:
+            return await self._disconnect_locked()
+        async with lock:
+            return await self._disconnect_locked()
+
+    async def _disconnect_locked(self):
+        """Run the disconnect hook and reset auth state; caller holds the lock."""
         try:
             self._disconnect_hook()
         finally:
@@ -349,15 +363,6 @@ class BaseAPI(ABC):
             self.client.disconnect()
         if self.auth_manager:
             self.auth_manager.access_token = None
-
-    def is_authenticated(self):
-        """
-        Check if API is authenticated.
-
-        Returns:
-            bool: True if authenticated, False otherwise
-        """
-        return self._authenticated
 
     async def _rate_limit_check(self, operation_type="default", min_interval=1.0):
         """

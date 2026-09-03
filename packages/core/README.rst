@@ -35,9 +35,7 @@ Usage
    # Download RSS feed
    async def get_feed_items():
        feed = Feed('https://example.com/feed.xml')
-       await feed.download()
-       items = feed.get_latest_items(5)
-       return items
+       return (await feed.download()).items
 
    # Use OAuth callback server
    async def oauth_flow():

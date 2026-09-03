@@ -21,7 +21,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from agoras.core.sheet import ScheduleSheet, Sheet, SheetManager, SheetRow
+from agoras.core.sheet import ScheduleSheet, Sheet, SheetRow
 
 # SheetRow Tests
 
@@ -420,29 +420,6 @@ async def test_sheet_read_all_auto_gets_worksheet(mock_creds, mock_authorize):
 @pytest.mark.asyncio
 @patch('agoras.core.sheet.sheet.gspread.authorize')
 @patch('agoras.core.sheet.sheet.Credentials.from_service_account_info')
-async def test_sheet_read_range(mock_creds, mock_authorize):
-    """Test Sheet read_range."""
-    mock_client = MagicMock()
-    mock_spreadsheet = MagicMock()
-    mock_worksheet = MagicMock()
-    mock_worksheet.get.return_value = [['A1', 'B1'], ['A2', 'B2']]
-    mock_spreadsheet.get_worksheet.return_value = mock_worksheet
-    mock_client.open_by_key.return_value = mock_spreadsheet
-    mock_authorize.return_value = mock_client
-
-    sheet = Sheet('sheet-id', 'email@example.com', 'key')
-    await sheet.authenticate()
-    await sheet.get_worksheet()
-
-    data = await sheet.read_range('A1:B2')
-
-    assert len(data) == 2
-    mock_worksheet.get.assert_called_once_with('A1:B2')
-
-
-@pytest.mark.asyncio
-@patch('agoras.core.sheet.sheet.gspread.authorize')
-@patch('agoras.core.sheet.sheet.Credentials.from_service_account_info')
 async def test_sheet_write_all_with_clear(mock_creds, mock_authorize):
     """Test Sheet write_all with clear_first=True."""
     mock_client = MagicMock()
@@ -527,27 +504,6 @@ async def test_sheet_update_cell(mock_creds, mock_authorize):
     await sheet.update_cell(1, 1, 'new value')
 
     mock_worksheet.update_cell.assert_called_once_with(1, 1, 'new value')
-
-
-@pytest.mark.asyncio
-@patch('agoras.core.sheet.sheet.gspread.authorize')
-@patch('agoras.core.sheet.sheet.Credentials.from_service_account_info')
-async def test_sheet_write_row(mock_creds, mock_authorize):
-    """Test Sheet update_range method for writing a row."""
-    mock_client = MagicMock()
-    mock_spreadsheet = MagicMock()
-    mock_worksheet = MagicMock()
-    mock_spreadsheet.get_worksheet.return_value = mock_worksheet
-    mock_client.open_by_key.return_value = mock_spreadsheet
-    mock_authorize.return_value = mock_client
-
-    sheet = Sheet('sheet-id', 'email@example.com', 'key')
-    await sheet.authenticate()
-    await sheet.get_worksheet()
-
-    await sheet.update_range('A5:B5', [['row', 'data']])
-
-    mock_worksheet.update.assert_called_once_with('A5:B5', [['row', 'data']])
 
 
 # ScheduleSheet Tests
@@ -720,140 +676,6 @@ async def test_schedulesheet_process_does_not_mark_published_on_select(mock_date
             assert len(posts) == 1
             mock_update.assert_not_called()
 
-
-def test_sheetmanager_instantiation():
-    """Test SheetManager can be instantiated."""
-    manager = SheetManager()
-    assert manager.sheets == {}
-
-
-@pytest.mark.asyncio
-@patch('agoras.core.sheet.manager.Sheet')
-async def test_sheetmanager_add_sheet(mock_sheet_class):
-    """Test SheetManager add_sheet."""
-    mock_sheet = MagicMock()
-    mock_sheet.authenticate = AsyncMock()
-    mock_sheet_class.return_value = mock_sheet
-
-    manager = SheetManager()
-
-    result = await manager.add_sheet(
-        'my_sheet', 'sheet-id', 'email@example.com', 'key', 'Sheet1'
-    )
-
-    assert 'my_sheet' in manager.sheets
-    assert manager.sheets['my_sheet'] is mock_sheet
-    mock_sheet.authenticate.assert_called_once()
-    assert result is mock_sheet
-
-
-def test_sheetmanager_get_sheet():
-    """Test SheetManager get_sheet."""
-    manager = SheetManager()
-    mock_sheet = MagicMock()
-    manager.sheets['test'] = mock_sheet
-
-    result = manager.get_sheet('test')
-
-    assert result is mock_sheet
-
-
-def test_sheetmanager_get_sheet_unknown():
-    """Test SheetManager get_sheet returns None for unknown."""
-    manager = SheetManager()
-
-    result = manager.get_sheet('nonexistent')
-
-    assert result is None
-
-
-@pytest.mark.asyncio
-async def test_sheetmanager_read_all_sheets():
-    """Test SheetManager read_all_sheets concurrently."""
-    manager = SheetManager()
-
-    mock_sheet1 = MagicMock()
-    mock_sheet1.read_all = AsyncMock(return_value=[['data1']])
-
-    mock_sheet2 = MagicMock()
-    mock_sheet2.read_all = AsyncMock(return_value=[['data2']])
-
-    manager.sheets['sheet1'] = mock_sheet1
-    manager.sheets['sheet2'] = mock_sheet2
-
-    results = await manager.read_all_sheets()
-
-    assert 'sheet1' in results
-    assert 'sheet2' in results
-    mock_sheet1.read_all.assert_called_once()
-    mock_sheet2.read_all.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_sheetmanager_read_all_sheets_handles_exceptions():
-    """Test SheetManager read_all_sheets handles exceptions."""
-    manager = SheetManager()
-
-    mock_sheet_success = MagicMock()
-    mock_sheet_success.read_all = AsyncMock(return_value=[['data']])
-
-    mock_sheet_fail = MagicMock()
-    mock_sheet_fail.read_all = AsyncMock(side_effect=Exception('Read failed'))
-
-    manager.sheets['success'] = mock_sheet_success
-    manager.sheets['failure'] = mock_sheet_fail
-
-    results = await manager.read_all_sheets()
-
-    assert 'success' in results
-    assert 'failure' in results
-    assert isinstance(results['failure'], Exception)
-
-
-@pytest.mark.asyncio
-async def test_sheetmanager_write_to_multiple_sheets():
-    """Test SheetManager write_to_multiple_sheets."""
-    manager = SheetManager()
-
-    mock_sheet1 = MagicMock()
-    mock_sheet1.write_all = AsyncMock()
-
-    mock_sheet2 = MagicMock()
-    mock_sheet2.write_all = AsyncMock()
-
-    manager.sheets['sheet1'] = mock_sheet1
-    manager.sheets['sheet2'] = mock_sheet2
-
-    data_map = {
-        'sheet1': [['data1']],
-        'sheet2': [['data2']]
-    }
-
-    await manager.write_to_multiple_sheets(data_map)
-
-    mock_sheet1.write_all.assert_called_once_with([['data1']])
-    mock_sheet2.write_all.assert_called_once_with([['data2']])
-
-
-@pytest.mark.asyncio
-async def test_sheetmanager_write_skips_unknown_sheets():
-    """Test SheetManager write_to_multiple_sheets skips unknown sheets."""
-    manager = SheetManager()
-
-    mock_sheet = MagicMock()
-    mock_sheet.write_all = AsyncMock()
-
-    manager.sheets['known'] = mock_sheet
-
-    data_map = {
-        'known': [['data1']],
-        'unknown': [['data2']]  # This sheet doesn't exist
-    }
-
-    await manager.write_to_multiple_sheets(data_map)
-
-    # Should only write to known sheet
-    mock_sheet.write_all.assert_called_once()
 
 
 @pytest.mark.asyncio

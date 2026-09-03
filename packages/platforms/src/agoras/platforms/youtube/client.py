@@ -465,27 +465,3 @@ class YouTubeAPIClient:
             return items
 
         return await asyncio.to_thread(_sync_list_uploads)
-
-    async def search_videos(self, query: str, max_results: int = 25) -> Dict[str, Any]:
-        """
-        Search for videos on YouTube.
-
-        Args:
-            query (str): Search query
-            max_results (int): Maximum number of results to return
-
-        Returns:
-            dict: Search results
-
-        Raises:
-            Exception: If search fails
-        """
-
-        def _sync_search():
-            if not self.youtube_client:
-                raise Exception("YouTube client not initialized")
-
-            request = self.youtube_client.search().list(part="snippet", type="video", q=query, maxResults=max_results)
-            return request.execute()
-
-        return await asyncio.to_thread(_sync_search)

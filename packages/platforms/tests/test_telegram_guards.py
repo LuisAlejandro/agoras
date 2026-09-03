@@ -23,7 +23,7 @@ attempts authentication first (auto-auth dialect), then raises its
 not-available message when no client is present.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -50,18 +50,6 @@ async def test_auto_auth_dialect_authenticates_before_client_check():
         await api.send_message("chat_id", "hello")
     assert str(excinfo.value) == "Telegram client not available"
     assert api._authenticated is True
-
-
-@pytest.mark.asyncio
-async def test_get_bot_info_has_no_rate_limit():
-    api = _make_api()
-    api._authenticated = True
-    api.client = MagicMock()
-    api.client.get_me = AsyncMock(return_value={"id": 123, "username": "testbot"})
-    api._rate_limit_check = AsyncMock()
-    result = await api.get_bot_info()
-    assert result == {"id": 123, "username": "testbot"}
-    api._rate_limit_check.assert_not_called()
 
 
 @pytest.mark.asyncio

@@ -96,9 +96,7 @@ These imports remain the same in v2.0:
 .. code-block:: python
 
     from agoras.core.feed import Feed
-    from agoras.core.feed.manager import FeedManager
     from agoras.core.sheet import Sheet
-    from agoras.core.sheet.manager import SheetManager
 
 CLI Commands
 ------------

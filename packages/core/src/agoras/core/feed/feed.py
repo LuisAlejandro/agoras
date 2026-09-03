@@ -344,56 +344,6 @@ class Feed:
 
         return random.choice(available_items)
 
-    def get_latest_items(self, count=1):
-        """
-        Get the most recent items from the feed.
-
-        Args:
-            count (int): Number of items to return
-
-        Returns:
-            list: List of the most recent FeedItem instances
-        """
-        if not self._downloaded:
-            raise Exception("Feed must be downloaded before selecting items")
-
-        # Sort by publication date (newest first), handling None values
-        items_with_dates = [item for item in self.items if item.pub_date]
-        sorted_items = sorted(items_with_dates, key=lambda x: x.pub_date or datetime.datetime.min, reverse=True)
-
-        return sorted_items[:count]
-
-    def filter_items(self, title_contains=None, has_image=None, custom_filter=None):
-        """
-        Filter items based on various criteria.
-
-        Args:
-            title_contains (str, optional): Filter by title content
-            has_image (bool, optional): Filter by presence of image
-            custom_filter (callable, optional): Custom filter function
-
-        Returns:
-            list: List of filtered FeedItem instances
-        """
-        if not self._downloaded:
-            raise Exception("Feed must be downloaded before filtering items")
-
-        filtered_items = self.items
-
-        if title_contains:
-            filtered_items = [item for item in filtered_items if title_contains.lower() in item.title.lower()]
-
-        if has_image is not None:
-            if has_image:
-                filtered_items = [item for item in filtered_items if item.image_url]
-            else:
-                filtered_items = [item for item in filtered_items if not item.image_url]
-
-        if custom_filter:
-            filtered_items = [item for item in filtered_items if custom_filter(item)]
-
-        return filtered_items
-
     def to_dict(self):
         """
         Convert feed to dictionary representation.

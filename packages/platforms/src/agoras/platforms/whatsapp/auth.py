@@ -145,25 +145,6 @@ class WhatsAppAuthManager(BaseAuthManager):
         except Exception as exc:
             return self._authentication_failed(exc)
 
-    async def get_phone_info(self) -> Dict[str, Any]:
-        """
-        Retrieve phone number details via Graph API.
-
-        Returns:
-            dict: Phone number information from Graph API
-
-        Raises:
-            Exception: If phone info retrieval fails
-        """
-
-        def _sync_get_phone_info():
-            from pyfacebook import GraphAPI
-
-            graph_api = GraphAPI(access_token=self._require_access_token(), version="23.0")
-            return graph_api.get_object(self._require_phone_number_id())
-
-        return await asyncio.to_thread(_sync_get_phone_info)
-
     def _create_client(self, access_token: str) -> WhatsAppAPIClient:
         """
         Create WhatsApp API client instance.

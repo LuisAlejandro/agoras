@@ -216,23 +216,3 @@ def test_platform_exists():
     assert PlatformRegistry.platform_exists('telegram') is True
     assert PlatformRegistry.platform_exists('whatsapp') is True
     assert PlatformRegistry.platform_exists('nonexistent') is False
-
-
-def test_get_platform_info():
-    """Test getting platform information."""
-    info = PlatformRegistry.get_platform_info('x')
-
-    assert info['name'] == 'X'
-    assert 'X' in info['description']
-    assert 'actions' in info
-    assert 'module' in info
-
-
-def test_get_platform_info_twitter_alias():
-    """Test getting platform information for Twitter alias."""
-    info = PlatformRegistry.get_platform_info('twitter')
-
-    # Twitter alias should point to X
-    assert 'X' in info['name'] or 'Twitter' in info['name']
-    assert 'actions' in info
-    assert 'module' in info

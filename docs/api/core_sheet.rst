@@ -5,15 +5,6 @@ agoras.core.sheet subpackage
     :members:
     :private-members:
     :special-members:
-
-agoras.core.sheet.manager module
---------------------------------
-
-.. automodule:: agoras.core.sheet.manager
-    :members:
-    :private-members:
-    :special-members:
-
 agoras.core.sheet.row module
 ----------------------------
 

@@ -109,6 +109,8 @@ jobs:
           python3 scripts/verify_api_guard_order.py
           python3 scripts/verify_api_rate_limit_parity.py --self-test
           python3 scripts/verify_api_rate_limit_parity.py
+          python3 scripts/verify_dead_code.py --self-test
+          python3 scripts/verify_dead_code.py
 
   lint-skip:
     name: Linting
