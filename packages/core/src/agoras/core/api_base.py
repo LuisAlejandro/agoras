@@ -247,7 +247,7 @@ _REDACT_PATTERNS = (
     ),
     (
         re.compile(
-            r"(?:X-Amz-Signature|Signature|sig|AWSAccessKeyId|X-Goog-Signature|GoogleAccessId|Policy|X-Amz-Credential|Expires)[=:][\s'\"]*[^&\s'\"]+",
+            r"(?:X-Amz-Signature|Signature|sig|AWSAccessKeyId|X-Goog-Signature|GoogleAccessId|Policy|X-Amz-Credential|Expires)[\s'\"]*[=:][\s'\"]*[^&\s'\"]+",
             re.I,
         ),
         "[REDACTED]",
@@ -260,7 +260,7 @@ def sanitize_error_text(text: str) -> str:
     Redact credential-bearing shapes from error text.
 
     Single source of truth for the redaction patterns; used by
-    ``BaseAPI._sanitize_error_message`` and by the wrapper re-chain sites.
+    ``BaseAPI._handle_api_error`` and by the wrapper re-chain sites.
     """
     sanitized = text
     for pattern, replacement in _REDACT_PATTERNS:
@@ -275,6 +275,11 @@ class BaseAPI(ABC):
     Provides common functionality and patterns for API interactions
     including authentication, rate limiting, and error handling.
     """
+
+    @classmethod
+    def _sanitize_error_message(cls, message: str) -> str:
+        """Redact credential shapes from error text (delegates to the module sanitizer)."""
+        return sanitize_error_text(message)
 
     def __init__(self, **credentials):
         """
@@ -374,7 +379,8 @@ class BaseAPI(ABC):
             try:
                 await asyncio.sleep(next_slot - current_time)
             except asyncio.CancelledError:
-                self._rate_limit_cache[operation_type] = last_time
+                if self._rate_limit_cache.get(operation_type) == next_slot:
+                    self._rate_limit_cache[operation_type] = last_time
                 raise
 
     # Guard message templates, overridden per platform. Read by the guard

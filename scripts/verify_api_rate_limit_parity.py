@@ -248,6 +248,14 @@ def main():
     all_failures = []
     for name in EXPECTED:
         src = (API_DIR / name / "api.py").read_text()
+        # Unknown-key alert: rate-limit keys in code that the inventory does
+        # not record (new methods/sites) are flagged so the gate is not
+        # one-directional — code can never silently outgrow the audit.
+        known_keys = {key for _, key, _ in EXPECTED[name]}
+        for line in src.split("\n"):
+            for m in re.finditer(r'(?:guard_rate_limit|_rate_limit_check)\("([a-z_]+)"', line):
+                if m.group(1) not in known_keys:
+                    all_failures.append(f'{name}: un-audited rate-limit key "{m.group(1)}" at {line.strip()[:60]}')
         failures = check_api_source(name, src)
         if failures:
             for f in failures:
