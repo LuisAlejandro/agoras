@@ -11,7 +11,7 @@ from agoras.media.constraints import (
     transfer_mode,
     video_limits,
 )
-from agoras.media.factory import MediaFactory
+from agoras.media import create_image, create_video, download_images, download_video_and_images
 
 
 @pytest.mark.parametrize('alias,expected', [
@@ -48,18 +48,18 @@ def test_transfer_mode_tiktok_video_defaults_upload():
 
 
 def test_factory_video_matches_contract():
-    video = MediaFactory.create_video('https://example.com/v.mp4', 'discord')
+    video = create_video('https://example.com/v.mp4', 'discord')
     assert video.max_size == video_limits('discord').max_bytes
     assert video.platform_key == 'discord'
 
 
 def test_factory_video_x_uses_twitter_limits():
-    video = MediaFactory.create_video('https://example.com/v.mp4', 'X')
+    video = create_video('https://example.com/v.mp4', 'X')
     assert video.max_size == video_limits('twitter').max_bytes
 
 
 def test_factory_image_linkedin_limits():
-    image = MediaFactory.create_image('https://example.com/i.jpg', 'linkedin')
+    image = create_image('https://example.com/i.jpg', 'linkedin')
     assert image.constraints.max_bytes == 5 * 1024 * 1024
 
 

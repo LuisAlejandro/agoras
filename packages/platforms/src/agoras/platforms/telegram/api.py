@@ -157,9 +157,9 @@ class TelegramAPI(BaseAPI):
         """
         # If URL provided, download using Media system
         if photo_url:
-            from agoras.media import MediaFactory
+            from agoras.media import download_images
 
-            images = await MediaFactory.download_images(
+            images = await download_images(
                 [photo_url],
                 platform="telegram",
             )
@@ -223,9 +223,9 @@ class TelegramAPI(BaseAPI):
         """
         # If URL provided, download using Media system
         if video_url:
-            from agoras.media import MediaFactory
+            from agoras.media import create_video
 
-            video = MediaFactory.create_video(video_url, platform="telegram")
+            video = create_video(video_url, platform="telegram")
             try:
                 await video.download()
                 if video.content and video.file_type:

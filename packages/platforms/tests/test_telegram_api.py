@@ -110,7 +110,7 @@ async def test_telegram_api_send_photo(telegram_api):
 
 
 @pytest.mark.asyncio
-@patch('agoras.media.MediaFactory')
+@patch('agoras.media.download_images', new_callable=AsyncMock)
 async def test_telegram_api_send_photo_with_url(mock_media_factory, telegram_api):
     """Test TelegramAPI send_photo with URL."""
     mock_image = MagicMock()
@@ -120,7 +120,7 @@ async def test_telegram_api_send_photo_with_url(mock_media_factory, telegram_api
     mock_image.file_type = mock_file_type
     mock_image.url = 'http://image.jpg'
     mock_image.cleanup = MagicMock()
-    mock_media_factory.download_images = AsyncMock(return_value=[mock_image])
+    mock_media_factory.return_value = [mock_image]
 
     result = await telegram_api.send_photo('chat_id', photo_url='http://image.jpg')
 
@@ -144,7 +144,7 @@ async def test_telegram_api_send_video(telegram_api):
 
 
 @pytest.mark.asyncio
-@patch('agoras.media.MediaFactory')
+@patch('agoras.media.create_video', new_callable=MagicMock)
 async def test_telegram_api_send_video_with_url(mock_media_factory, telegram_api):
     """Test TelegramAPI send_video with URL."""
     mock_video = MagicMock()
@@ -155,7 +155,7 @@ async def test_telegram_api_send_video_with_url(mock_media_factory, telegram_api
     mock_video.url = 'http://video.mp4'
     mock_video.cleanup = MagicMock()
     mock_video.download = AsyncMock()  # Mock download to avoid actual HTTP call
-    mock_media_factory.create_video = MagicMock(return_value=mock_video)
+    mock_media_factory.return_value = mock_video
 
     result = await telegram_api.send_video('chat_id', video_url='http://video.mp4')
 
@@ -366,7 +366,7 @@ async def test_telegram_api_send_media_group_mixed_types(telegram_api):
 
 
 @pytest.mark.asyncio
-@patch('agoras.media.MediaFactory')
+@patch('agoras.media.download_images', new_callable=AsyncMock)
 async def test_telegram_api_send_photo_with_parse_mode(mock_media_factory, telegram_api):
     """Test TelegramAPI send_photo with parse mode in caption."""
     mock_image = MagicMock()
@@ -376,7 +376,7 @@ async def test_telegram_api_send_photo_with_parse_mode(mock_media_factory, teleg
     mock_image.file_type = mock_file_type
     mock_image.url = 'http://image.jpg'
     mock_image.cleanup = MagicMock()
-    mock_media_factory.download_images = AsyncMock(return_value=[mock_image])
+    mock_media_factory.return_value = [mock_image]
 
     result = await telegram_api.send_photo('chat_id', photo_url='http://image.jpg', caption='<b>Caption</b>', parse_mode='HTML')
 
@@ -387,7 +387,7 @@ async def test_telegram_api_send_photo_with_parse_mode(mock_media_factory, teleg
 
 
 @pytest.mark.asyncio
-@patch('agoras.media.MediaFactory')
+@patch('agoras.media.create_video', new_callable=MagicMock)
 async def test_telegram_api_send_video_with_parse_mode(mock_media_factory, telegram_api):
     """Test TelegramAPI send_video with parse mode in caption."""
     mock_video = MagicMock()
@@ -398,7 +398,7 @@ async def test_telegram_api_send_video_with_parse_mode(mock_media_factory, teleg
     mock_video.url = 'http://video.mp4'
     mock_video.cleanup = MagicMock()
     mock_video.download = AsyncMock()
-    mock_media_factory.create_video = MagicMock(return_value=mock_video)
+    mock_media_factory.return_value = mock_video
 
     result = await telegram_api.send_video('chat_id', video_url='http://video.mp4', caption='*Bold* caption', parse_mode='Markdown')
 
@@ -423,17 +423,17 @@ async def test_telegram_api_send_message_markdown_v2(telegram_api):
 
 
 @pytest.mark.asyncio
-@patch('agoras.media.MediaFactory')
+@patch('agoras.media.download_images', new_callable=AsyncMock)
 async def test_telegram_api_send_photo_download_failure(mock_media_factory, telegram_api):
     """Test TelegramAPI send_photo handles download failure."""
-    mock_media_factory.download_images = AsyncMock(return_value=[])  # Empty list
+    mock_media_factory.return_value = []  # Empty list
 
     with pytest.raises(Exception, match='Failed to download image'):
         await telegram_api.send_photo('chat_id', photo_url='http://image.jpg')
 
 
 @pytest.mark.asyncio
-@patch('agoras.media.MediaFactory')
+@patch('agoras.media.create_video', new_callable=MagicMock)
 async def test_telegram_api_send_video_download_failure(mock_media_factory, telegram_api):
     """Test TelegramAPI send_video handles download failure."""
     mock_video = MagicMock()
@@ -442,7 +442,7 @@ async def test_telegram_api_send_video_download_failure(mock_media_factory, tele
     mock_video.url = 'http://video.mp4'
     mock_video.cleanup = MagicMock()
     mock_video.download = AsyncMock()
-    mock_media_factory.create_video = MagicMock(return_value=mock_video)
+    mock_media_factory.return_value = mock_video
 
     with pytest.raises(Exception, match='Failed to validate video'):
         await telegram_api.send_video('chat_id', video_url='http://video.mp4')

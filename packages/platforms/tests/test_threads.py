@@ -50,7 +50,7 @@ def threads_with_real_api():
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.threads.api.MediaFactory')
+@patch('agoras.platforms.threads.api.create_video', new_callable=MagicMock)
 async def test_threads_video_rejects_local_video_path(mock_media_factory, threads_with_real_api):
     """Local video paths are rejected before download or Threads client calls."""
     threads, api = threads_with_real_api
@@ -61,7 +61,7 @@ async def test_threads_video_rejects_local_video_path(mock_media_factory, thread
     ):
         await threads.video('E2E test video', '/tmp/clip.mp4', 'E2E test video')
 
-    mock_media_factory.create_video.assert_not_called()
+    mock_media_factory.assert_not_called()
     api.client.create_video_post.assert_not_called()
 
 

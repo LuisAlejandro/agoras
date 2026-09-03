@@ -29,7 +29,7 @@ from agoras.core.api_base import (
     guard_token_presence,
 )
 from agoras.core.auth import raise_authentication_error_from_manager
-from agoras.media import MediaFactory
+from agoras.media import create_video, download_images
 from agoras.media.errors import MediaValidationError
 from agoras.media.paths import is_local_media_source
 
@@ -169,7 +169,7 @@ class ThreadsAPI(BaseAPI):
         allowed_images = image_limits("threads").mime_types
 
         try:
-            images = await MediaFactory.download_images(
+            images = await download_images(
                 valid_file_urls,
                 platform="threads",
             )
@@ -329,7 +329,7 @@ class ThreadsAPI(BaseAPI):
 
         video = None
         try:
-            video = MediaFactory.create_video(video_url, platform="threads")
+            video = create_video(video_url, platform="threads")
             await video.download()
 
             if not video.content or not video.file_type:

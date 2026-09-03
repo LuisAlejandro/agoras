@@ -350,7 +350,7 @@ def test_output_list_empty(mock_print):
 # Media Method Tests
 
 @pytest.mark.asyncio
-@patch('agoras.core.interfaces.MediaFactory.download_images')
+@patch('agoras.core.interfaces.download_images')
 async def test_download_images(mock_download):
     """Test download_images calls MediaFactory."""
     mock_download.return_value = AsyncMock()
@@ -363,7 +363,7 @@ async def test_download_images(mock_download):
 
 
 @pytest.mark.asyncio
-@patch('agoras.core.interfaces.MediaFactory.create_video')
+@patch('agoras.core.interfaces.create_video')
 async def test_download_video(mock_create_video):
     """Test download_video creates and downloads video with platform name."""
     mock_video = MagicMock()

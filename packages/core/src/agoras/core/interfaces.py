@@ -29,7 +29,7 @@ from typing import Any, Dict, List
 
 from agoras.core.feed import Feed
 from agoras.core.sheet import ScheduleSheet
-from agoras.media import MediaFactory
+from agoras.media import create_video, download_images
 from agoras.media.constraints import resolve_platform
 
 
@@ -392,7 +392,7 @@ class SocialNetwork(ABC):
             list: List of downloaded Image instances
         """
         platform = resolve_platform(self.get_platform_name())
-        return await MediaFactory.download_images(image_urls, platform=platform)
+        return await download_images(image_urls, platform=platform)
 
     async def download_video(self, video_url):
         """
@@ -405,7 +405,7 @@ class SocialNetwork(ABC):
             Video: Downloaded Video instance
         """
         platform = resolve_platform(self.get_platform_name())
-        video = MediaFactory.create_video(video_url, platform)
+        video = create_video(video_url, platform)
         await video.download()
         return video
 

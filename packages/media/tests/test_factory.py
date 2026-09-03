@@ -20,33 +20,33 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from agoras.media import MediaFactory
+from agoras.media import create_image, create_video, download_images, download_video_and_images
 from agoras.media.image import Image
 from agoras.media.video import Video
 
 
 def test_create_image():
     """Test MediaFactory creates Image instance."""
-    image = MediaFactory.create_image('https://example.com/image.jpg')
+    image = create_image('https://example.com/image.jpg')
     assert isinstance(image, Image)
     assert image.url == 'https://example.com/image.jpg'
 
 
 def test_create_image_for_linkedin():
     """Test MediaFactory creates LinkedIn-optimized image."""
-    image = MediaFactory.create_image('https://example.com/image.jpg', platform='linkedin')
+    image = create_image('https://example.com/image.jpg', platform='linkedin')
     assert isinstance(image, Image)
 
 
 def test_create_image_for_linkedin_case_insensitive():
     """Test MediaFactory handles LinkedIn platform case-insensitively."""
-    image = MediaFactory.create_image('https://example.com/image.jpg', platform='LINKEDIN')
+    image = create_image('https://example.com/image.jpg', platform='LINKEDIN')
     assert isinstance(image, Image)
 
 
 def test_create_video():
     """Test MediaFactory creates Video instance."""
-    video = MediaFactory.create_video('https://example.com/video.mp4', platform='facebook')
+    video = create_video('https://example.com/video.mp4', platform='facebook')
     assert isinstance(video, Video)
     assert video.url == 'https://example.com/video.mp4'
     assert video.platform_key == 'facebook'
@@ -54,7 +54,7 @@ def test_create_video():
 
 def test_create_video_with_size_limit():
     """Test MediaFactory creates Video with size limit."""
-    video = MediaFactory.create_video('https://example.com/video.mp4', platform='twitter', max_size=512 * 1024 * 1024)
+    video = create_video('https://example.com/video.mp4', platform='twitter', max_size=512 * 1024 * 1024)
     assert isinstance(video, Video)
     assert video.max_size == 512 * 1024 * 1024
 
@@ -62,8 +62,8 @@ def test_create_video_with_size_limit():
 def test_create_video_platform_limits():
     """Test platform-specific size limits in MediaFactory."""
     # Test that MediaFactory applies correct limits per platform
-    fb_video = MediaFactory.create_video('https://example.com/video.mp4', platform='facebook')
-    tw_video = MediaFactory.create_video('https://example.com/video.mp4', platform='twitter')
+    fb_video = create_video('https://example.com/video.mp4', platform='facebook')
+    tw_video = create_video('https://example.com/video.mp4', platform='twitter')
 
     assert fb_video.platform_key == 'facebook'
     assert tw_video.platform_key == 'twitter'
@@ -73,44 +73,44 @@ def test_create_video_platform_limits():
 
 def test_create_video_for_discord():
     """Test MediaFactory creates Discord-specific video."""
-    video = MediaFactory.create_video('https://example.com/video.mp4', platform='discord')
+    video = create_video('https://example.com/video.mp4', platform='discord')
     assert isinstance(video, Video)
     assert video.platform_key == 'discord'
 
 
 def test_create_video_for_instagram():
     """Test MediaFactory creates Instagram-specific video."""
-    video = MediaFactory.create_video('https://example.com/video.mp4', platform='instagram')
+    video = create_video('https://example.com/video.mp4', platform='instagram')
     assert isinstance(video, Video)
     assert video.platform_key == 'instagram'
 
 
 def test_create_video_for_youtube():
     """Test MediaFactory creates YouTube-specific video."""
-    video = MediaFactory.create_video('https://example.com/video.mp4', platform='youtube')
+    video = create_video('https://example.com/video.mp4', platform='youtube')
     assert isinstance(video, Video)
     assert video.platform_key == 'youtube'
 
 
 def test_create_video_for_tiktok():
     """Test MediaFactory creates TikTok-specific video."""
-    video = MediaFactory.create_video('https://example.com/video.mp4', platform='tiktok')
+    video = create_video('https://example.com/video.mp4', platform='tiktok')
     assert isinstance(video, Video)
     assert video.platform_key == 'tiktok'
 
 
 def test_create_video_for_generic_platform():
     """Test MediaFactory creates generic video for unknown platform."""
-    video = MediaFactory.create_video('https://example.com/video.mp4', platform='unknown')
+    video = create_video('https://example.com/video.mp4', platform='unknown')
     assert isinstance(video, Video)
     assert video.platform_key == 'unknown'
 
 
 def test_create_video_case_insensitive():
     """Test MediaFactory handles platform names case-insensitively."""
-    video_lower = MediaFactory.create_video('https://example.com/video.mp4', platform='discord')
-    video_upper = MediaFactory.create_video('https://example.com/video.mp4', platform='DISCORD')
-    video_mixed = MediaFactory.create_video('https://example.com/video.mp4', platform='DiScOrD')
+    video_lower = create_video('https://example.com/video.mp4', platform='discord')
+    video_upper = create_video('https://example.com/video.mp4', platform='DISCORD')
+    video_mixed = create_video('https://example.com/video.mp4', platform='DiScOrD')
 
     assert video_lower.platform_key == 'discord'
     assert video_upper.platform_key == 'discord'
@@ -120,7 +120,7 @@ def test_create_video_case_insensitive():
 def test_create_video_max_size_override():
     """Test max_size parameter overrides platform defaults."""
     custom_size = 999 * 1024 * 1024
-    video = MediaFactory.create_video('https://example.com/video.mp4',
+    video = create_video('https://example.com/video.mp4',
                                       platform='facebook',
                                       max_size=custom_size)
     assert video.max_size == custom_size
@@ -131,7 +131,7 @@ def test_create_video_max_size_override():
 @pytest.mark.asyncio
 async def test_download_images_empty_list():
     """Test download_images with empty list."""
-    images = await MediaFactory.download_images([])
+    images = await download_images([])
     assert images == []
 
 
@@ -141,7 +141,7 @@ async def test_download_images_with_urls(mock_download):
     """Test download_images with valid URLs."""
     urls = ['https://example.com/1.jpg', 'https://example.com/2.jpg', 'https://example.com/3.jpg']
 
-    images = await MediaFactory.download_images(urls)
+    images = await download_images(urls)
 
     assert len(images) == 3
     assert all(isinstance(img, Image) for img in images)
@@ -154,7 +154,7 @@ async def test_download_images_filters_none(mock_download):
     """Test download_images filters None and empty string URLs."""
     urls = ['https://example.com/1.jpg', None, '', 'https://example.com/2.jpg']
 
-    images = await MediaFactory.download_images(urls)
+    images = await download_images(urls)
 
     # Should only create images for valid URLs
     assert len(images) == 2
@@ -167,7 +167,7 @@ async def test_download_images_concurrent(mock_download):
     """Test download_images downloads concurrently."""
     urls = ['url1.jpg', 'url2.jpg', 'url3.jpg']
 
-    images = await MediaFactory.download_images(urls)
+    images = await download_images(urls)
 
     # Verify concurrent execution (all should be called)
     assert len(images) == 3
@@ -182,7 +182,7 @@ async def test_download_video_and_images_both(mock_image_download, mock_video_do
     video_url = 'https://example.com/video.mp4'
     image_urls = ['https://example.com/1.jpg', 'https://example.com/2.jpg']
 
-    video, images = await MediaFactory.download_video_and_images(video_url, image_urls, platform='facebook')
+    video, images = await download_video_and_images(video_url, image_urls, platform='facebook')
 
     assert isinstance(video, Video)
     assert len(images) == 2
@@ -198,7 +198,7 @@ async def test_download_video_and_images_no_video(mock_image_download):
     video_url = None
     image_urls = ['https://example.com/1.jpg', 'https://example.com/2.jpg']
 
-    video, images = await MediaFactory.download_video_and_images(video_url, image_urls)
+    video, images = await download_video_and_images(video_url, image_urls)
 
     assert video is None
     assert len(images) == 2
@@ -212,7 +212,7 @@ async def test_download_video_and_images_no_images(mock_video_download):
     video_url = 'https://example.com/video.mp4'
     image_urls = []
 
-    video, images = await MediaFactory.download_video_and_images(video_url, image_urls, platform='twitter')
+    video, images = await download_video_and_images(video_url, image_urls, platform='twitter')
 
     assert isinstance(video, Video)
     assert len(images) == 0
@@ -226,7 +226,7 @@ async def test_download_video_and_images_filters_none_images(mock_image_download
     video_url = None
     image_urls = ['https://example.com/1.jpg', None, '', 'https://example.com/2.jpg']
 
-    video, images = await MediaFactory.download_video_and_images(video_url, image_urls)
+    video, images = await download_video_and_images(video_url, image_urls)
 
     assert video is None
     assert len(images) == 2
@@ -239,7 +239,7 @@ async def test_download_video_and_images_empty():
     video_url = None
     image_urls = []
 
-    video, images = await MediaFactory.download_video_and_images(video_url, image_urls)
+    video, images = await download_video_and_images(video_url, image_urls)
 
     assert video is None
     assert images == []
@@ -253,6 +253,6 @@ async def test_download_video_and_images_platform_passed(mock_image_download, mo
     video_url = 'https://example.com/video.mp4'
     image_urls = ['https://example.com/1.jpg']
 
-    video, images = await MediaFactory.download_video_and_images(video_url, image_urls, platform='instagram')
+    video, images = await download_video_and_images(video_url, image_urls, platform='instagram')
 
     assert video.platform_key == 'instagram'

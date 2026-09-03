@@ -77,7 +77,7 @@ async def test_threads_api_disconnect(threads_api):
 # Post Tests
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.threads.api.MediaFactory')
+@patch('agoras.platforms.threads.api.download_images', new_callable=AsyncMock)
 async def test_threads_api_create_post_with_text(mock_media_factory, threads_api):
     """Test ThreadsAPI create_post with text."""
     result = await threads_api.create_post('Test post text')
@@ -88,7 +88,7 @@ async def test_threads_api_create_post_with_text(mock_media_factory, threads_api
 
 @pytest.mark.asyncio
 @patch('agoras.media.preflight.preflight_url_for_platform')
-@patch('agoras.platforms.threads.api.MediaFactory')
+@patch('agoras.platforms.threads.api.download_images', new_callable=AsyncMock)
 async def test_threads_api_create_post_with_images(
     mock_media_factory, mock_preflight, threads_api,
 ):
@@ -100,7 +100,7 @@ async def test_threads_api_create_post_with_images(
     mock_image.file_type.mime = 'image/jpeg'
     mock_image.url = 'http://image.jpg'
     mock_image.cleanup = MagicMock()
-    mock_media_factory.download_images = AsyncMock(return_value=[mock_image])
+    mock_media_factory.return_value = [mock_image]
 
     result = await threads_api.create_post('Test post', files=['http://image.jpg'])
 
@@ -111,7 +111,7 @@ async def test_threads_api_create_post_with_images(
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.threads.api.MediaFactory')
+@patch('agoras.platforms.threads.api.download_images', new_callable=AsyncMock)
 async def test_threads_api_create_post_rejects_local_image(mock_media_factory, threads_api):
     """Local image paths are rejected before download or Threads API calls."""
     with pytest.raises(
@@ -120,12 +120,12 @@ async def test_threads_api_create_post_rejects_local_image(mock_media_factory, t
     ):
         await threads_api.create_post('Test post', files=['/tmp/cat.jpg'])
 
-    mock_media_factory.download_images.assert_not_called()
+    mock_media_factory.assert_not_called()
     threads_api.client.create_post.assert_not_called()
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.threads.api.MediaFactory')
+@patch('agoras.platforms.threads.api.create_video', new_callable=MagicMock)
 async def test_threads_api_create_video_post_rejects_local_video(mock_media_factory, threads_api):
     """Local video paths are rejected before download or Threads API calls."""
     with pytest.raises(
@@ -134,12 +134,12 @@ async def test_threads_api_create_video_post_rejects_local_video(mock_media_fact
     ):
         await threads_api.create_video_post('Video caption', '/tmp/clip.mp4')
 
-    mock_media_factory.create_video.assert_not_called()
+    mock_media_factory.assert_not_called()
     threads_api.client.create_video_post.assert_not_called()
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.threads.api.MediaFactory')
+@patch('agoras.platforms.threads.api.download_images', new_callable=AsyncMock)
 async def test_threads_api_post_wrapper(mock_media_factory, threads_api):
     """Test ThreadsAPI post wrapper method."""
     result = await threads_api.post('Test post text')
@@ -149,7 +149,7 @@ async def test_threads_api_post_wrapper(mock_media_factory, threads_api):
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.threads.api.MediaFactory')
+@patch('agoras.platforms.threads.api.download_images', new_callable=AsyncMock)
 async def test_threads_api_create_post_with_hashtags(mock_media_factory, threads_api):
     """Test ThreadsAPI create_post with hashtags."""
     result = await threads_api.create_post('Test post #hashtag #test')
@@ -159,7 +159,7 @@ async def test_threads_api_create_post_with_hashtags(mock_media_factory, threads
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.threads.api.MediaFactory')
+@patch('agoras.platforms.threads.api.create_video', new_callable=MagicMock)
 async def test_threads_api_create_video_post(mock_media_factory, threads_api):
     """Test ThreadsAPI create_video_post with video validation."""
     mock_video = MagicMock()
@@ -169,7 +169,7 @@ async def test_threads_api_create_video_post(mock_media_factory, threads_api):
     mock_video.url = 'http://video.mp4'
     mock_video.download = AsyncMock()
     mock_video.cleanup = MagicMock()
-    mock_media_factory.create_video = MagicMock(return_value=mock_video)
+    mock_media_factory.return_value = mock_video
 
     result = await threads_api.create_video_post('Video caption', 'http://video.mp4')
 
@@ -232,7 +232,7 @@ async def test_threads_api_get_profile(threads_api):
 
 @pytest.mark.asyncio
 @patch('agoras.media.preflight.preflight_url_for_platform')
-@patch('agoras.platforms.threads.api.MediaFactory')
+@patch('agoras.platforms.threads.api.download_images', new_callable=AsyncMock)
 async def test_threads_api_validate_and_download_images(
     mock_media_factory, mock_preflight, threads_api,
 ):
@@ -244,13 +244,13 @@ async def test_threads_api_validate_and_download_images(
     mock_image.file_type.mime = 'image/jpeg'
     mock_image.url = 'http://image.jpg'
     mock_image.cleanup = MagicMock()
-    mock_media_factory.download_images = AsyncMock(return_value=[mock_image])
+    mock_media_factory.return_value = [mock_image]
 
     validated_files, validated_captions, images = await threads_api._validate_and_download_images(
         ['http://image.jpg'], ['Caption']
     )
 
-    mock_media_factory.download_images.assert_called_once_with(
+    mock_media_factory.assert_called_once_with(
         ['http://image.jpg'], platform='threads',
     )
     assert len(validated_files) == 1
@@ -273,7 +273,7 @@ async def test_threads_api_not_authenticated(threads_api):
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.threads.api.MediaFactory')
+@patch('agoras.platforms.threads.api.download_images', new_callable=AsyncMock)
 async def test_threads_api_post_error(mock_media_factory, threads_api):
     """Test ThreadsAPI handles post errors."""
     threads_api.client.create_post = MagicMock(side_effect=Exception('Post failed'))
