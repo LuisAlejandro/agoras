@@ -39,6 +39,7 @@ class _Enclosure:
     """Media enclosure attached to an RSS item."""
 
     def __init__(self, url):
+        """Store the enclosure URL."""
         self.url = url
 
 
@@ -46,6 +47,7 @@ class RSSItem:
     """A parsed RSS 2.0 item, shaped like atoma's item objects."""
 
     def __init__(self):
+        """Initialize an empty parsed RSS item."""
         self.title = None
         self.link = None
         self.guid = None
@@ -55,6 +57,7 @@ class RSSItem:
 
     @classmethod
     def from_element(cls, element):
+        """Build an RSSItem from an XML item element."""
         item = cls()
         item.title = _child_text(element, "title")
         item.link = _child_text(element, "link")
@@ -72,6 +75,7 @@ class FeedData:
     """A parsed RSS 2.0 document: title, description, and items."""
 
     def __init__(self):
+        """Initialize an empty feed document."""
         self.title = ""
         self.description = ""
         self.items = []

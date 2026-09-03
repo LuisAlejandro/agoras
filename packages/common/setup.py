@@ -35,7 +35,6 @@ setup(
     python_requires='>=3.10',
     install_requires=[
         'requests==2.34.2',
-        'beautifulsoup4==4.15.0',
     ],
 
     classifiers=[
