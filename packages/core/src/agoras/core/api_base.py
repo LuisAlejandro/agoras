@@ -201,7 +201,12 @@ def guard_error_wrap(
                 return await func(self, *args, **kwargs)
             except Exception as e:
                 self._handle_api_error(e, operation_name)
-                raise
+                # Fail-safe: _handle_api_error is declared NoReturn and must
+                # raise. If an override ever returns, degrade to a sanitized
+                # error instead of re-raising the raw token-bearing exception.
+                raise Exception(
+                    f"{operation_name} failed: {self._sanitize_error_message(str(e))}"
+                ) from None
 
         return wrapper
 

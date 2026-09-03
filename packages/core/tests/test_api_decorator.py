@@ -305,3 +305,24 @@ def test_baseapi_error_handler_is_noreturn_and_severs_cause():
         api._handle_api_error(ValueError("Bearer tok123"), "op")
     assert excinfo.value.__cause__ is None
     assert "Bearer [REDACTED]" in str(excinfo.value)
+
+
+@pytest.mark.asyncio
+async def test_guard_error_wrap_failsafe_sanitizes_when_handler_returns():
+    """A non-raising _handle_api_error override must not re-raise the raw exception."""
+    api = _StubAPI()
+
+    def returning_handler(error, operation_name):
+        return None  # violates the NoReturn contract
+
+    api._handle_api_error = returning_handler
+
+    async def op(self, value):
+        raise ValueError("Bearer tok123")
+
+    decorated = guard_error_wrap("stub op")(op)
+    with pytest.raises(Exception) as excinfo:
+        await decorated(api, "value")
+    assert excinfo.value.__cause__ is None
+    assert "Bearer [REDACTED]" in str(excinfo.value)
+    assert "tok123" not in str(excinfo.value)
