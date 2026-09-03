@@ -85,7 +85,7 @@ Parameters:
 **Note**: You must provide at least one of ``--text``, ``--link``, or ``--image-1``.
 
 .. deprecated:: 2.0
-   The ``agoras publish --network "telegram"`` command is deprecated. Use ``agoras telegram post`` instead.
+   The ``agoras publish --network "telegram"`` command was deprecated in 2.0 and removed in Agoras 3.0. Use ``agoras telegram post`` instead.
 
 Publish a Telegram video
 -------------------------

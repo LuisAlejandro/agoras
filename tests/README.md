@@ -45,15 +45,6 @@ Clears storage at start, seeds from env vars, runs utils (feed last/random, sche
 
 On exit, refresh-capable OAuth credentials are refreshed noninteractively, then rotated `*_REFRESH_TOKEN` values in `unattended.env` are patched from tokens saved during the run. Manual re-export still required if env was stale before any successful auth: `agoras utils tokens unattended-format`.
 
-## Legacy publish-path run
-
-Same `unattended.env` and CI guard as the unattended suite, but exercises the deprecated `agoras publish` command instead of platform subcommands.
-
-1. Export `AGORAS_STORAGE_DIR`
-2. Fill `unattended.env`
-3. Run:
-
-
 ## CI guard
 
 Scripts exit when `CI` or `GITHUB_ACTIONS` is set.
@@ -67,7 +58,6 @@ Scripts exit when `CI` or `GITHUB_ACTIONS` is set.
 | discord video | yes | yes |
 | tiktok post (slideshow) | skip if unavailable | skip if unavailable |
 | utils feed/schedule | no | yes |
-| legacy publish feed/schedule | no | yes (legacy suite only) |
 | utils tokens list (preflight) | yes | no (env vars only; storage cleared at start) |
 
 ## Skip policy

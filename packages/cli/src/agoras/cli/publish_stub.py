@@ -18,6 +18,7 @@
 """Stub for the legacy ``agoras publish`` command, removed in 3.0."""
 
 import argparse
+import functools
 import sys
 
 MIGRATION_POINTER = (
@@ -36,23 +37,20 @@ class _RemovedPublishHelp(argparse.Action):
         parser.exit(1)
 
 
-class _RemovedPublishParser(argparse.ArgumentParser):
-    """Parser whose every failure (unknown args, parse errors) prints the pointer."""
+def _removed_error(parser, message):
+    """Print the pointer for any parse failure and exit non-zero."""
+    print(REMOVED_MESSAGE, file=sys.stderr)
+    parser.exit(1)
 
-    def error(self, message):
-        print(REMOVED_MESSAGE, file=sys.stderr)
-        self.exit(1)
 
-    def parse_known_args(self, args=None, namespace=None):
-        # Absorb every remaining token (including option-like legacy flags)
-        # into the args positional, so the parent parser never re-errors on
-        # leftovers the stub cannot recognize.
-        namespace, argv = super().parse_known_args(args, namespace)
-        if hasattr(namespace, "args"):
-            namespace.args = list(namespace.args) + argv
-        else:
-            namespace.args = argv
-        return namespace, []
+def _absorb_remaining(parser, args=None, namespace=None):
+    """Parse, absorbing remaining tokens (including option-like legacy flags)."""
+    namespace, argv = argparse.ArgumentParser.parse_known_args(parser, args, namespace)
+    if hasattr(namespace, "args"):
+        namespace.args = list(namespace.args) + argv
+    else:
+        namespace.args = argv
+    return namespace, []
 
 
 def _publish_removed(args):
@@ -75,12 +73,19 @@ def create_legacy_publish_stub(subparsers):
     Returns:
         ArgumentParser for the stub
     """
-    parser = _RemovedPublishParser(
+    parser = subparsers.add_parser(
+        "publish",
+        help="Removed in Agoras 3.0 - use per-platform commands instead.",
         prog="agoras publish",
         description="Removed in Agoras 3.0 - use per-platform commands instead.",
         add_help=False,
     )
-    subparsers._name_parser_map["publish"] = parser
+    # Override error handling and arg absorption on the instance via
+    # functools.partial (public attribute assignment; parser_class was
+    # removed from add_parser in 3.11, and instance attributes are not
+    # bound, so partial supplies the parser explicitly).
+    parser.error = functools.partial(_removed_error, parser)
+    parser.parse_known_args = functools.partial(_absorb_remaining, parser)
     parser.add_argument(
         "-h",
         "--help",

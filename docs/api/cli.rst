@@ -11,7 +11,6 @@ This package provides:
 - Main entry point (`agoras.cli.main`) for the ``agoras`` command-line tool
 - Platform-specific command parsers for all 10 supported platforms
 - Utility commands for feed automation and scheduling
-- Legacy command support for backward compatibility
 - Platform registry for managing platform actions
 
 **Dependencies:** Requires ``agoras-platforms>=2.0.0``.
@@ -78,16 +77,6 @@ agoras.cli.commands package
     :undoc-members:
     :show-inheritance:
 
-agoras.cli.commands.publish module
-------------------------------------
-
-Publish command for posting to social networks.
-
-.. automodule:: agoras.cli.commands.publish
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 agoras.cli.utils package
 -------------------------
 
@@ -141,22 +130,9 @@ Conversion utilities for CLI data formats.
     :undoc-members:
     :show-inheritance:
 
-agoras.cli.migration module
-----------------------------
+agoras.cli.publish_stub module
+-----------------------------
 
-Migration utilities for CLI configuration.
+Pointer stub for the legacy ``agoras publish`` command, removed in Agoras 3.0.
 
-.. automodule:: agoras.cli.migration
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-agoras.cli.legacy module
-------------------------
-
-Legacy command support for backward compatibility.
-
-.. automodule:: agoras.cli.legacy
-    :members:
-    :undoc-members:
-    :show-inheritance:
+.. automodule:: agoras.cli.publish_stub

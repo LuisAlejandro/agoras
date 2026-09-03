@@ -284,3 +284,20 @@ def test_convert_youtube_reply_to_legacy():
     assert legacy['status_text'] == 'A comment'
 
 
+
+
+def test_convert_to_legacy_feed_params_pass_through_as_new_names():
+    """Post-removal contract: feed params emit new-style names, not the
+    removed feed_max_* keys."""
+    from argparse import Namespace
+
+    converter = ParameterConverter("x")
+    legacy = converter.convert_to_legacy(
+        Namespace(action="post", text="hi", max_count=2, post_lookback=3600, max_post_age=7)
+    )
+    assert legacy.get("max_count") == 2
+    assert legacy.get("post_lookback") == 3600
+    assert legacy.get("max_post_age") == 7
+    assert "feed_max_count" not in legacy
+    assert "feed_post_lookback" not in legacy
+    assert "feed_max_post_age" not in legacy

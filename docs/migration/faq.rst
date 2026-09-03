@@ -35,7 +35,7 @@ A: No — the legacy ``agoras publish`` command was removed in Agoras 3.0. Migra
 Q: What's the difference between platform commands and utils commands?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A: **Platform commands** (e.g., ``agoras x post``) are for direct platform operations and use simplified **content** parameter names (``--text``, ``--image-1``). **Utils commands** (e.g., ``agoras utils feed-publish``) automate feeds and schedules. Since **2.1.0**, both use the same auth model: run ``agoras <platform> authorize`` or set platform environment variables. Credential CLI flags are not accepted on actions or utils (legacy ``agoras publish`` still accepts them until 3.0).
+A: **Platform commands** (e.g., ``agoras x post``) are for direct platform operations and use simplified **content** parameter names (``--text``, ``--image-1``). **Utils commands** (e.g., ``agoras utils feed-publish``) automate feeds and schedules. Since **2.1.0**, both use the same auth model: run ``agoras <platform> authorize`` or set platform environment variables. Credential CLI flags are not accepted on actions or utils (the legacy ``agoras publish`` command, which accepted them, was removed in Agoras 3.0).
 
 Q: Why do utils commands use prefixed parameters?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -118,7 +118,7 @@ Migration Timeline
 Q: How long will legacy commands be supported?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A: The legacy ``agoras publish`` command is supported with deprecation warnings through all Agoras 2.x releases and will be removed in Agoras 3.0. We recommend migrating as soon as possible.
+A: The legacy ``agoras publish`` command was supported with deprecation warnings through all Agoras 2.x releases and was removed in Agoras 3.0. Migrate your commands to the new format.
 
 Q: When should I migrate?
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -216,7 +216,7 @@ A: Old scripts using ``agoras publish`` stopped working in Agoras 3.0, when the 
 Q: I see deprecation warnings
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A: Deprecation warnings indicate you're using old commands or parameters that will be removed in Agoras 3.0 (legacy ``agoras publish`` is supported through all 2.x releases). Update your commands to the new format. The warnings won't break your scripts, but you should migrate before upgrading to 3.0.
+A: The deprecation warnings in Agoras 2.x indicated old commands or parameters that would be removed in Agoras 3.0. The legacy ``agoras publish`` command was removed in 3.0; update your commands to the new format.
 
 Q: OAuth authorization fails
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
