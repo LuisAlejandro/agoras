@@ -61,7 +61,6 @@ class WhatsApp(SocialNetwork):
         # WhatsApp-specific settings
         self.whatsapp_recipient = None
         self.whatsapp_message_id = None
-        self.api = None
 
     def _require_recipient(self) -> str:
         recipient = self.whatsapp_recipient
@@ -130,13 +129,6 @@ class WhatsApp(SocialNetwork):
         # Authenticate with provided credentials
         await self.api.authenticate()
 
-    async def disconnect(self):
-        """
-        Disconnect from WhatsApp API and clean up resources.
-        """
-        if self.api:
-            await self.api.disconnect()
-
     async def post(
         self,
         status_text,
@@ -160,8 +152,7 @@ class WhatsApp(SocialNetwork):
         Returns:
             str: Message ID
         """
-        if not self.api:
-            raise Exception("WhatsApp API not initialized")
+        self._require_api()
 
         # Combine text and link
         message_text = f"{status_text}\n{status_link}".strip() if status_link else status_text
@@ -240,8 +231,7 @@ class WhatsApp(SocialNetwork):
         Returns:
             str: Reply message ID
         """
-        if not self.api:
-            raise Exception("WhatsApp API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("WhatsApp message ID is required for reply action.")
@@ -349,8 +339,7 @@ class WhatsApp(SocialNetwork):
         Returns:
             str: Message ID
         """
-        if not self.api:
-            raise Exception("WhatsApp API not initialized")
+        self._require_api()
 
         if not video_url:
             raise Exception("Video URL is required.")
@@ -410,8 +399,7 @@ class WhatsApp(SocialNetwork):
         Returns:
             str: Message ID
         """
-        if not self.api:
-            raise Exception("WhatsApp API not initialized")
+        self._require_api()
 
         if not template_name:
             raise Exception("Template name is required.")
@@ -558,6 +546,12 @@ class WhatsApp(SocialNetwork):
 async def main_async(kwargs):
     """
     Async main function to execute WhatsApp actions.
+
+    Kept as a local runner instead of the base ``run_main_async`` template:
+    WhatsApp handles authorize inside ``execute_action`` (raising "WhatsApp
+    authorization failed." on failure) and skips disconnect for authorize;
+    migrating to the template would change authorize-failure semantics from
+    raise to return 1.
 
     Args:
         kwargs (dict): Configuration arguments

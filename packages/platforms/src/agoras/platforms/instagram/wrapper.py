@@ -77,7 +77,6 @@ class Instagram(SocialNetwork):
         self.instagram_video_type = None
         self.instagram_video_url = None
         self.instagram_video_caption = None
-        self.api = None
 
     async def _initialize_client(self):
         """
@@ -161,13 +160,6 @@ class Instagram(SocialNetwork):
         )
         await self.api.authenticate()
 
-    async def disconnect(self):
-        """
-        Disconnect from Instagram API and clean up resources.
-        """
-        if self.api:
-            await self.api.disconnect()
-
     async def post(
         self,
         status_text,
@@ -191,8 +183,7 @@ class Instagram(SocialNetwork):
         Returns:
             str: Post ID
         """
-        if not self.api:
-            raise Exception("Instagram API not initialized")
+        self._require_api()
 
         if not self.instagram_object_id:
             raise Exception("Instagram object ID is required.")
@@ -282,8 +273,7 @@ class Instagram(SocialNetwork):
         Raises:
             Exception: If deletion fails
         """
-        if not self.api:
-            raise Exception("Instagram API not initialized")
+        self._require_api()
 
         if not instagram_post_id:
             instagram_post_id = self._get_config_value("instagram_post_id", "INSTAGRAM_POST_ID")
@@ -318,8 +308,7 @@ class Instagram(SocialNetwork):
         Returns:
             str: Post ID
         """
-        if not self.api:
-            raise Exception("Instagram API not initialized")
+        self._require_api()
 
         if not self.instagram_object_id:
             raise Exception("Instagram object ID is required.")
@@ -405,8 +394,7 @@ class Instagram(SocialNetwork):
         Returns:
             str: Comment ID
         """
-        if not self.api:
-            raise Exception("Instagram API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("Instagram post ID is required for reply action.")
@@ -437,8 +425,7 @@ class Instagram(SocialNetwork):
         Returns:
             str: Deleted comment ID
         """
-        if not self.api:
-            raise Exception("Instagram API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("Instagram comment ID is required for delete-reply action.")
@@ -457,8 +444,7 @@ class Instagram(SocialNetwork):
         Returns:
             dict: Normalized content
         """
-        if not self.api:
-            raise Exception("Instagram API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("Instagram post ID is required.")
@@ -497,8 +483,7 @@ class Instagram(SocialNetwork):
         Returns:
             dict: Normalized content
         """
-        if not self.api:
-            raise Exception("Instagram API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("Instagram comment ID is required for get-reply action.")
@@ -532,8 +517,7 @@ class Instagram(SocialNetwork):
         Returns:
             list: Normalized content dicts
         """
-        if not self.api:
-            raise Exception("Instagram API not initialized")
+        self._require_api()
 
         if not self.instagram_object_id:
             raise Exception("Instagram object ID is required for list-posts action.")
@@ -627,30 +611,23 @@ async def main_async(kwargs):
     """
     Async main function to execute Instagram actions.
 
+    Thin shim: delegates to the base template runner via unbound dispatch,
+    so test mocks of ``Instagram`` (which stub ``execute_action``/``disconnect``/
+    ``authorize_credentials`` but not the base method) keep working. The
+    name is kept module-level because tests and the CLI import it.
+
     Args:
         kwargs (dict): Configuration arguments
     """
-    action = kwargs.get("action", "")
-
-    if action == "":
-        raise Exception("Action is a required argument.")
-
-    # Create Instagram instance with configuration
     instance = Instagram(**kwargs)
-
-    # Handle authorize action separately (doesn't need client initialization)
-    if action == "authorize":
-        success = await instance.authorize_credentials()
-        return 0 if success else 1
-
-    # Execute other actions using the base class method
-    await instance.execute_action(action)
-    await instance.disconnect()
+    return await SocialNetwork.run_main_async(instance, kwargs)
 
 
 def main(kwargs):
     """
-    Main function to execute Instagram actions.
+    Main function to execute Instagram actions (for backwards compatibility).
+
+    Thin shim kept module-level because the CLI imports it.
 
     Args:
         kwargs (dict): Configuration arguments

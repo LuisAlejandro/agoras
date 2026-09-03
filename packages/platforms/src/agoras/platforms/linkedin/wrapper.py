@@ -79,7 +79,6 @@ class LinkedIn(SocialNetwork):
         self.linkedin_refresh_token = None
         self.linkedin_object_id = None
         self.linkedin_post_id = None
-        self.api = None
 
     async def _initialize_client(self):
         """
@@ -166,13 +165,6 @@ class LinkedIn(SocialNetwork):
         # Authenticate with provided credentials
         await self.api.authenticate()
 
-    async def disconnect(self):
-        """
-        Disconnect from LinkedIn API and clean up resources.
-        """
-        if self.api:
-            await self.api.disconnect()
-
     async def post(
         self,
         status_text,
@@ -196,8 +188,7 @@ class LinkedIn(SocialNetwork):
         Returns:
             str: Post ID
         """
-        if not self.api:
-            raise Exception("LinkedIn API not initialized")
+        self._require_api()
 
         status_link_title = ""
         status_link_description = ""
@@ -251,8 +242,7 @@ class LinkedIn(SocialNetwork):
         Returns:
             str: Post ID
         """
-        if not self.api:
-            raise Exception("LinkedIn API not initialized")
+        self._require_api()
 
         post_id = linkedin_post_id or self.linkedin_post_id
         if not post_id:
@@ -273,8 +263,7 @@ class LinkedIn(SocialNetwork):
         Returns:
             str: Post ID
         """
-        if not self.api:
-            raise Exception("LinkedIn API not initialized")
+        self._require_api()
 
         post_id = linkedin_post_id or self.linkedin_post_id
         if not post_id:
@@ -299,8 +288,7 @@ class LinkedIn(SocialNetwork):
         Returns:
             str: Deleted comment ID
         """
-        if not self.api:
-            raise Exception("LinkedIn API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("LinkedIn comment ID is required for delete-reply action.")
@@ -323,8 +311,7 @@ class LinkedIn(SocialNetwork):
         Returns:
             dict: Normalized content
         """
-        if not self.api:
-            raise Exception("LinkedIn API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("LinkedIn post ID is required.")
@@ -356,8 +343,7 @@ class LinkedIn(SocialNetwork):
         Returns:
             dict: Normalized content
         """
-        if not self.api:
-            raise Exception("LinkedIn API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("LinkedIn comment ID is required for get-reply action.")
@@ -393,8 +379,7 @@ class LinkedIn(SocialNetwork):
         Returns:
             list: Normalized content dicts
         """
-        if not self.api:
-            raise Exception("LinkedIn API not initialized")
+        self._require_api()
 
         if limit == 0:
             self._output_list([])
@@ -474,8 +459,7 @@ class LinkedIn(SocialNetwork):
         Returns:
             str: New post ID
         """
-        if not self.api:
-            raise Exception("LinkedIn API not initialized")
+        self._require_api()
 
         post_id = linkedin_post_id or self.linkedin_post_id
         if not post_id:
@@ -495,8 +479,7 @@ class LinkedIn(SocialNetwork):
         Returns:
             list: List of uploaded media IDs.
         """
-        if not self.api:
-            raise Exception("LinkedIn API not initialized")
+        self._require_api()
 
         media_ids = []
         if not source_media:
@@ -541,8 +524,7 @@ class LinkedIn(SocialNetwork):
         Returns:
             str: Comment ID
         """
-        if not self.api:
-            raise Exception("LinkedIn API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("LinkedIn post ID is required.")
@@ -578,8 +560,7 @@ class LinkedIn(SocialNetwork):
         Returns:
             str: Post ID
         """
-        if not self.api:
-            raise Exception("LinkedIn API not initialized")
+        self._require_api()
 
         if not video_url:
             raise Exception("LinkedIn video URL is required.")
@@ -684,30 +665,23 @@ async def main_async(kwargs):
     """
     Async main function to execute LinkedIn actions.
 
+    Thin shim: delegates to the base template runner via unbound dispatch,
+    so test mocks of ``LinkedIn`` (which stub ``execute_action``/``disconnect``/
+    ``authorize_credentials`` but not the base method) keep working. The
+    name is kept module-level because tests and the CLI import it.
+
     Args:
         kwargs (dict): Configuration arguments
     """
-    action = kwargs.get("action", "")
-
-    if action == "":
-        raise Exception("Action is a required argument.")
-
-    # Create LinkedIn instance with configuration
     instance = LinkedIn(**kwargs)
-
-    # Handle authorize action separately (doesn't need client initialization)
-    if action == "authorize":
-        success = await instance.authorize_credentials()
-        return 0 if success else 1
-
-    # Execute other actions using the base class method
-    await instance.execute_action(action)
-    await instance.disconnect()
+    return await SocialNetwork.run_main_async(instance, kwargs)
 
 
 def main(kwargs):
     """
     Main function to execute LinkedIn actions (for backwards compatibility).
+
+    Thin shim kept module-level because the CLI imports it.
 
     Args:
         kwargs (dict): Configuration arguments

@@ -288,13 +288,18 @@ class BaseAPI(ABC):
     _REDACT_PATTERNS = (
         (re.compile(r"Bearer\s+\S+", re.I), "Bearer [REDACTED]"),
         (re.compile(r"Bot\s+\S+", re.I), "Bot [REDACTED]"),
+        (re.compile(r"bot\d+:[A-Za-z0-9_-]+", re.I), "bot[REDACTED]"),
         (re.compile(r"access_token[=:]\s*\S+", re.I), "access_token=[REDACTED]"),
         (re.compile(r"refresh_token[=:]\s*\S+", re.I), "refresh_token=[REDACTED]"),
         (re.compile(r"client_secret[=:]\s*\S+", re.I), "client_secret=[REDACTED]"),
         (re.compile(r"oauth_token[=:]\s*\S+", re.I), "oauth_token=[REDACTED]"),
         (re.compile(r"app_secret[=:]\s*\S+", re.I), "app_secret=[REDACTED]"),
         (re.compile(r"(?<![a-z_])token[=:]\s*\S+", re.I), "token=[REDACTED]"),
-        (re.compile(r"Authorization:\s*\S+", re.I), "Authorization: [REDACTED]"),
+        (re.compile(r"key=AIza[0-9A-Za-z_-]{20,}", re.I), "key=[REDACTED]"),
+        (re.compile(r"X-API-Key:\s*\S+", re.I), "X-API-Key: [REDACTED]"),
+        (re.compile(r"(?<![A-Za-z0-9_-])api[_-]?key[=:]\s*\S+", re.I), "api_key=[REDACTED]"),
+        (re.compile(r"Basic\s+[A-Za-z0-9+/=]{8,}", re.I), "Basic [REDACTED]"),
+        (re.compile(r"Authorization:\s*(?:Basic\s+[A-Za-z0-9+/=]+|\S+)", re.I), "Authorization: [REDACTED]"),
     )
 
     @classmethod

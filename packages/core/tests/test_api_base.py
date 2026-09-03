@@ -182,3 +182,38 @@ def test_handle_api_error_redacts_sensitive_tokens():
     assert "abc123" not in message
     assert "Bearer [REDACTED]" in message
     assert "access_token=[REDACTED]" in message
+
+
+def test_handle_api_error_redacts_telegram_bot_token_in_url():
+    """Telegram bot tokens appear as bot<id>:<token> in library URLs (no space)."""
+    api = ConcreteAPI()
+    original_error = ValueError("Failed to reach https://api.telegram.org/bot123456789:AAbCdEfGhIjKlMnOpQrStUvWxYz/sendMessage")
+
+    with pytest.raises(Exception) as exc_info:
+        api._handle_api_error(original_error, "Telegram send message")
+
+    message = str(exc_info.value)
+    assert "AAbCdEfGhIjKlMnOpQrStUvWxYz" not in message
+    assert "bot[REDACTED]" in message
+
+
+def test_handle_api_error_redacts_api_keys_and_headers():
+    """Google API keys, api_key params, X-API-Key headers, and Basic auth."""
+    api = ConcreteAPI()
+    original_error = ValueError(
+        "GET https://example.com/?key=AIzaSyD1234567890abcdefghijklmnopqrstuvwxyz "
+        "X-API-Key: sekrit-header Authorization: Basic dXNlcjpwYXNzd29yZA== api_key=sekrit-param"
+    )
+
+    with pytest.raises(Exception) as exc_info:
+        api._handle_api_error(original_error, "op")
+
+    message = str(exc_info.value)
+    assert "AIzaSyD1234567890abcdefghijklmnopqrstuvwxyz" not in message
+    assert "sekrit-header" not in message
+    assert "dXNlcjpwYXNzd29yZA==" not in message
+    assert "sekrit-param" not in message
+    assert "key=[REDACTED]" in message
+    assert "X-API-Key: [REDACTED]" in message
+    assert "Authorization: [REDACTED]" in message
+    assert "api_key=[REDACTED]" in message

@@ -65,7 +65,6 @@ class YouTube(SocialNetwork):
         self.youtube_keywords = None
         self.youtube_video_url = None
         self.youtube_refresh_token = None
-        self.api = None
 
     async def _initialize_client(self):
         """
@@ -117,13 +116,6 @@ class YouTube(SocialNetwork):
         # Authenticate with provided credentials
         await self.api.authenticate()
 
-    async def disconnect(self):
-        """
-        Disconnect from YouTube API and clean up resources.
-        """
-        if self.api:
-            await self.api.disconnect()
-
     async def post(
         self,
         status_text,
@@ -160,8 +152,7 @@ class YouTube(SocialNetwork):
         Returns:
             str: Video ID
         """
-        if not self.api:
-            raise Exception("YouTube API not initialized")
+        self._require_api()
 
         video_id = youtube_video_id or self.youtube_video_id
         if not video_id:
@@ -182,8 +173,7 @@ class YouTube(SocialNetwork):
         Returns:
             str: Video ID
         """
-        if not self.api:
-            raise Exception("YouTube API not initialized")
+        self._require_api()
 
         video_id = youtube_video_id or self.youtube_video_id
         if not video_id:
@@ -217,8 +207,7 @@ class YouTube(SocialNetwork):
         Returns:
             str: Video ID
         """
-        if not self.api:
-            raise Exception("YouTube API not initialized")
+        self._require_api()
 
         if not video_title or not video_url:
             raise Exception("Video title and URL are required.")
@@ -299,8 +288,7 @@ class YouTube(SocialNetwork):
         Returns:
             str: Comment ID
         """
-        if not self.api:
-            raise Exception("YouTube API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("YouTube video ID is required for reply action.")
@@ -331,8 +319,7 @@ class YouTube(SocialNetwork):
         Returns:
             str: Deleted comment ID
         """
-        if not self.api:
-            raise Exception("YouTube API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("YouTube comment ID is required for delete-reply action.")
@@ -351,8 +338,7 @@ class YouTube(SocialNetwork):
         Returns:
             dict: Normalized content
         """
-        if not self.api:
-            raise Exception("YouTube API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("YouTube video ID is required.")
@@ -391,8 +377,7 @@ class YouTube(SocialNetwork):
         Returns:
             dict: Normalized content
         """
-        if not self.api:
-            raise Exception("YouTube API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("YouTube comment ID is required for get-reply action.")
@@ -424,8 +409,7 @@ class YouTube(SocialNetwork):
         Returns:
             list: Normalized content dicts
         """
-        if not self.api:
-            raise Exception("YouTube API not initialized")
+        self._require_api()
 
         if limit == 0:
             self._output_list([])
@@ -627,32 +611,25 @@ async def main_async(kwargs):
     """
     Async main function to execute YouTube actions.
 
+    Thin shim: delegates to the base template runner via unbound dispatch,
+    so test mocks of ``YouTube`` (which stub ``execute_action``/``disconnect``/
+    ``authorize_credentials`` but not the base method) keep working. The
+    name is kept module-level because tests and the CLI import it.
+
     Args:
         kwargs (dict): Configuration parameters
     """
-    action = kwargs.get("action", "")
-
-    if action == "":
-        raise Exception("Action is a required argument.")
-
-    # Create YouTube instance with configuration
     instance = YouTube(**kwargs)
-
-    # Handle authorize action separately (doesn't need client initialization)
-    if action == "authorize":
-        success = await instance.authorize_credentials()
-        return 0 if success else 1
-
-    # Execute other actions using the base class method
-    await instance.execute_action(action)
-    await instance.disconnect()
+    return await SocialNetwork.run_main_async(instance, kwargs)
 
 
 def main(kwargs):
     """
-    Main function to execute YouTube actions.
+    Main function to execute YouTube actions (for backwards compatibility).
+
+    Thin shim kept module-level because the CLI imports it.
 
     Args:
-        kwargs (dict): Configuration arguments
+        kwargs (dict): Configuration parameters
     """
     asyncio.run(main_async(kwargs))

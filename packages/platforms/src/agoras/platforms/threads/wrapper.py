@@ -20,7 +20,7 @@
 import asyncio
 from typing import Any, Dict, List, Optional
 
-from agoras.core.interfaces import SocialNetwork
+from agoras.core.interfaces import SocialNetwork, _entry_images
 from agoras.core.text_limits import validate_text
 from agoras.core.threading import (
     ThreadPublishError,
@@ -31,21 +31,6 @@ from agoras.core.threading import (
 from agoras.platforms.threads.client import ThreadsContainerTimeoutError
 
 from .api import ThreadsAPI
-
-
-def _entry_images(entry: Dict[str, Any]) -> List[str]:
-    """Collect flattened image_1..image_4 URLs from a thread entry."""
-    return list(
-        filter(
-            None,
-            [
-                entry.get("image_1"),
-                entry.get("image_2"),
-                entry.get("image_3"),
-                entry.get("image_4"),
-            ],
-        )
-    )
 
 
 def _compose_post_text(entry: Dict[str, Any]) -> str:
@@ -75,6 +60,10 @@ class Threads(SocialNetwork):
     images, videos, replies, and managing Threads interactions asynchronously.
     """
 
+    # Pure-proxy platform: delete_reply/get_reply delegate to delete/get_post
+    _proxy_delete_reply = True
+    _proxy_get_reply = True
+
     def __init__(self, **kwargs):
         """
         Initialize Threads instance.
@@ -100,7 +89,6 @@ class Threads(SocialNetwork):
         self.threads_who_can_reply = None
         # Action-specific attributes
         self.threads_post_id = None
-        self.api = None
 
     async def _initialize_client(self):
         """
@@ -155,13 +143,6 @@ class Threads(SocialNetwork):
         # Authenticate with provided credentials
         await self.api.authenticate()
 
-    async def disconnect(self):
-        """
-        Disconnect from Threads API and clean up resources.
-        """
-        if self.api:
-            await self.api.disconnect()
-
     async def post(
         self,
         status_text,
@@ -185,8 +166,7 @@ class Threads(SocialNetwork):
         Returns:
             str: Post ID
         """
-        if not self.api:
-            raise Exception("Threads API not initialized")
+        self._require_api()
 
         # Combine text and link
         post_text = f"{status_text} {status_link}".strip()
@@ -217,8 +197,7 @@ class Threads(SocialNetwork):
         Raises:
             ThreadPublishError: On partial or failed publish with structured result
         """
-        if not self.api:
-            raise Exception("Threads API not initialized")
+        self._require_api()
 
         if not entries or not isinstance(entries, list):
             raise Exception("Thread entries are required.")
@@ -306,8 +285,7 @@ class Threads(SocialNetwork):
         Returns:
             str: Deleted post ID
         """
-        if not self.api:
-            raise Exception("Threads API not initialized")
+        self._require_api()
 
         if not post_id:
             post_id = self.threads_post_id
@@ -319,20 +297,6 @@ class Threads(SocialNetwork):
         self._output_status(result)
         return result
 
-    async def delete_reply(self, post_id):
-        """
-        Delete a reply post.
-
-        A reply is a post on Threads, so deletion is a proxy of ``delete``.
-
-        Args:
-            post_id (str): ID of the reply post to delete
-
-        Returns:
-            str: Deleted post ID
-        """
-        return await self.delete(post_id)
-
     async def get_post(self, post_id):
         """
         Read a Threads post by ID and return normalized content.
@@ -343,8 +307,7 @@ class Threads(SocialNetwork):
         Returns:
             dict: Normalized content
         """
-        if not self.api:
-            raise Exception("Threads API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("Post ID is required for get-post action.")
@@ -372,20 +335,6 @@ class Threads(SocialNetwork):
         self._output_content(content)
         return content
 
-    async def get_reply(self, post_id):
-        """
-        Read a reply post by ID.
-
-        A reply is a post on Threads, so reading is a proxy of ``get_post``.
-
-        Args:
-            post_id (str): Reply post ID to read
-
-        Returns:
-            dict: Normalized content
-        """
-        return await self.get_post(post_id)
-
     async def list_posts(self, limit):
         """
         List the authenticated user's recent posts and return normalized content.
@@ -396,8 +345,7 @@ class Threads(SocialNetwork):
         Returns:
             list: Normalized content dicts
         """
-        if not self.api:
-            raise Exception("Threads API not initialized")
+        self._require_api()
 
         if limit == 0:
             self._output_list([])
@@ -440,8 +388,7 @@ class Threads(SocialNetwork):
         Returns:
             str: Repost ID
         """
-        if not self.api:
-            raise Exception("Threads API not initialized")
+        self._require_api()
 
         # Get post_id from parameter or instance attribute
         if not post_id:
@@ -498,8 +445,7 @@ class Threads(SocialNetwork):
         Returns:
             str: Post ID
         """
-        if not self.api:
-            raise Exception("Threads API not initialized")
+        self._require_api()
 
         if not video_url:
             raise Exception("Threads video URL is required.")
@@ -539,8 +485,7 @@ class Threads(SocialNetwork):
         Returns:
             str: Reply post ID
         """
-        if not self.api:
-            raise Exception("Threads API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("Threads post ID is required for reply action.")
@@ -648,31 +593,23 @@ async def main_async(kwargs):
     """
     Async main function to execute Threads actions.
 
+    Thin shim: delegates to the base template runner via unbound dispatch,
+    so test mocks of ``Threads`` (which stub ``execute_action``/``disconnect``/
+    ``authorize_credentials`` but not the base method) keep working. The
+    name is kept module-level because tests and the CLI import it.
+
     Args:
         kwargs (dict): Configuration arguments
     """
-    action = kwargs.get("action", "")
-
-    if action == "":
-        raise Exception("Action is a required argument.")
-
-    # Create Threads instance with configuration
     instance = Threads(**kwargs)
-
-    # Handle authorize action separately (doesn't need client initialization)
-    if action == "authorize":
-        success = await instance.authorize_credentials()
-        return 0 if success else 1
-
-    try:
-        await instance.execute_action(action)
-    finally:
-        await instance.disconnect()
+    return await SocialNetwork.run_main_async(instance, kwargs)
 
 
 def main(kwargs):
     """
-    Main function to execute Threads actions.
+    Main function to execute Threads actions (for backwards compatibility).
+
+    Thin shim kept module-level because the CLI imports it.
 
     Args:
         kwargs (dict): Configuration arguments

@@ -35,6 +35,9 @@ class Telegram(SocialNetwork):
     images, videos, and managing Telegram interactions asynchronously.
     """
 
+    # Pure-proxy platform: delete_reply/get_reply delegate to delete/get_post
+    _proxy_delete_reply = True
+
     def __init__(self, **kwargs):
         """
         Initialize Telegram instance.
@@ -59,7 +62,6 @@ class Telegram(SocialNetwork):
         # Action-specific attributes
         self.telegram_message_id = None
         self.telegram_reply_to_message_id = None
-        self.api = None
 
     def _require_chat_id(self) -> str:
         chat_id = self.telegram_chat_id
@@ -115,13 +117,6 @@ class Telegram(SocialNetwork):
         # Authenticate with provided credentials
         await self.api.authenticate()
 
-    async def disconnect(self):
-        """
-        Disconnect from Telegram API and clean up resources.
-        """
-        if self.api:
-            await self.api.disconnect()
-
     async def post(
         self,
         status_text,
@@ -145,8 +140,7 @@ class Telegram(SocialNetwork):
         Returns:
             str: Message ID
         """
-        if not self.api:
-            raise Exception("Telegram API not initialized")
+        self._require_api()
 
         # Combine text and link
         message_text = f"{status_text}\n{status_link}".strip() if status_link else status_text
@@ -259,8 +253,7 @@ class Telegram(SocialNetwork):
         Returns:
             str: Reply message ID
         """
-        if not self.api:
-            raise Exception("Telegram API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("Message ID is required for reply action.")
@@ -312,9 +305,8 @@ class Telegram(SocialNetwork):
         """
         # Download all images
         images = await self.download_images(image_urls)
+        self._require_api()
         api = self.api
-        if not api:
-            raise Exception("Telegram API not initialized")
         chat_id = self._require_chat_id()
         try:
             # Prepare media items for Telegram API
@@ -357,8 +349,7 @@ class Telegram(SocialNetwork):
         Returns:
             str: Message ID
         """
-        if not self.api:
-            raise Exception("Telegram API not initialized")
+        self._require_api()
 
         if not video_url:
             raise Exception("Video URL is required.")
@@ -417,8 +408,7 @@ class Telegram(SocialNetwork):
         Returns:
             str: Message ID
         """
-        if not self.api:
-            raise Exception("Telegram API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("Message ID is required for deletion")
@@ -427,20 +417,6 @@ class Telegram(SocialNetwork):
 
         self._output_status(message_id)
         return message_id
-
-    async def delete_reply(self, post_id):
-        """
-        Delete a reply message.
-
-        A reply is a message on Telegram, so deletion is a proxy of ``delete``.
-
-        Args:
-            post_id (str): ID of the reply message to delete
-
-        Returns:
-            str: Deleted message ID
-        """
-        return await self.delete(post_id)
 
     async def share(self, post_id):
         """
@@ -483,30 +459,23 @@ async def main_async(kwargs):
     """
     Async main function to execute Telegram actions.
 
+    Thin shim: delegates to the base template runner via unbound dispatch,
+    so test mocks of ``Telegram`` (which stub ``execute_action``/``disconnect``/
+    ``authorize_credentials`` but not the base method) keep working. The
+    name is kept module-level because tests and the CLI import it.
+
     Args:
         kwargs (dict): Configuration arguments
     """
-    action = kwargs.get("action", "")
-
-    if action == "":
-        raise Exception("Action is a required argument.")
-
-    # Create Telegram instance with configuration
     instance = Telegram(**kwargs)
-
-    # Handle authorize action separately (doesn't need client initialization)
-    if action == "authorize":
-        success = await instance.authorize_credentials()
-        return 0 if success else 1
-
-    # Execute other actions using the base class method
-    await instance.execute_action(action)
-    await instance.disconnect()
+    return await SocialNetwork.run_main_async(instance, kwargs)
 
 
 def main(kwargs):
     """
-    Main function to execute Telegram actions.
+    Main function to execute Telegram actions (for backwards compatibility).
+
+    Thin shim kept module-level because the CLI imports it.
 
     Args:
         kwargs (dict): Configuration arguments

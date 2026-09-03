@@ -21,7 +21,7 @@ import asyncio
 import sys
 from typing import Any, Dict, List, Optional
 
-from agoras.core.interfaces import SocialNetwork
+from agoras.core.interfaces import SocialNetwork, _entry_images, _is_uncertain_publish_error
 from agoras.core.text_limits import validate_text, x_mode_for_subscription
 from agoras.core.threading import (
     ThreadPublishError,
@@ -31,21 +31,6 @@ from agoras.core.threading import (
 )
 
 from .api import XAPI
-
-
-def _entry_images(entry: Dict[str, Any]) -> List[str]:
-    """Collect flattened image_1..image_4 URLs from a thread entry."""
-    return list(
-        filter(
-            None,
-            [
-                entry.get("image_1"),
-                entry.get("image_2"),
-                entry.get("image_3"),
-                entry.get("image_4"),
-            ],
-        )
-    )
 
 
 def _compose_tweet_text(entry: Dict[str, Any]) -> str:
@@ -61,14 +46,6 @@ def _compose_tweet_text(entry: Dict[str, Any]) -> str:
     return f"{text} {link}".strip()
 
 
-def _is_uncertain_publish_error(exc: BaseException) -> bool:
-    """Classify timeout/uncertain errors after a publish dispatch."""
-    if isinstance(exc, (TimeoutError, asyncio.TimeoutError)):
-        return True
-    message = str(exc).lower()
-    return any(token in message for token in ("timeout", "timed out", "temporarily unavailable"))
-
-
 class X(SocialNetwork):
     """
     X social network implementation.
@@ -76,6 +53,10 @@ class X(SocialNetwork):
     This class provides X-specific functionality for posting tweets,
     images, videos, and managing X interactions asynchronously.
     """
+
+    # Pure-proxy platform: delete_reply/get_reply delegate to delete/get_post
+    _proxy_delete_reply = True
+    _proxy_get_reply = True
 
     def __init__(self, **kwargs):
         """
@@ -101,7 +82,6 @@ class X(SocialNetwork):
         self.twitter_oauth_token = None
         self.twitter_oauth_secret = None
         self.tweet_id = None
-        self.api = None
         self._subscription_type = None
         self._subscription_resolved = False
 
@@ -231,13 +211,6 @@ class X(SocialNetwork):
             return True
         return False
 
-    async def disconnect(self):
-        """
-        Disconnect from X API and clean up resources.
-        """
-        if self.api:
-            await self.api.disconnect()
-
     async def post(
         self,
         status_text,
@@ -261,8 +234,7 @@ class X(SocialNetwork):
         Returns:
             str: Tweet ID
         """
-        if not self.api:
-            raise Exception("X API not initialized")
+        self._require_api()
 
         media_ids = []
         source_media = self._collect_status_image_urls(
@@ -287,8 +259,7 @@ class X(SocialNetwork):
 
     async def _upload_source_media(self, source_media) -> List[str]:
         """Download and upload a list of media URLs, returning their media IDs."""
-        if not self.api:
-            raise Exception("X API not initialized")
+        self._require_api()
         media_ids = []
         for media_url in source_media:
             try:
@@ -338,8 +309,7 @@ class X(SocialNetwork):
         Returns:
             str: Reply tweet ID
         """
-        if not self.api:
-            raise Exception("X API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("Tweet ID is required for reply action.")
@@ -390,8 +360,7 @@ class X(SocialNetwork):
         Returns:
             str: Tweet ID
         """
-        if not self.api:
-            raise Exception("X API not initialized")
+        self._require_api()
 
         post_id = tweet_id or self.tweet_id
         if not post_id:
@@ -412,8 +381,7 @@ class X(SocialNetwork):
         Returns:
             str: Tweet ID
         """
-        if not self.api:
-            raise Exception("X API not initialized")
+        self._require_api()
 
         post_id = tweet_id or self.tweet_id
         if not post_id:
@@ -422,20 +390,6 @@ class X(SocialNetwork):
         result = await self.api.delete(post_id)
         self._output_status(result)
         return result
-
-    async def delete_reply(self, post_id):
-        """
-        Delete a reply tweet.
-
-        A reply is a tweet on X, so deletion is a proxy of ``delete``.
-
-        Args:
-            post_id (str): ID of the reply tweet to delete
-
-        Returns:
-            str: Deleted tweet ID
-        """
-        return await self.delete(post_id)
 
     async def get_post(self, post_id):
         """
@@ -447,8 +401,7 @@ class X(SocialNetwork):
         Returns:
             dict: Normalized content
         """
-        if not self.api:
-            raise Exception("X API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("Tweet ID is required.")
@@ -470,20 +423,6 @@ class X(SocialNetwork):
         self._output_content(content)
         return content
 
-    async def get_reply(self, post_id):
-        """
-        Read a reply tweet by ID.
-
-        A reply is a tweet on X, so reading is a proxy of ``get_post``.
-
-        Args:
-            post_id (str): Reply tweet ID to read
-
-        Returns:
-            dict: Normalized content
-        """
-        return await self.get_post(post_id)
-
     async def list_posts(self, limit):
         """
         List the authenticated user's recent tweets and return normalized content.
@@ -494,8 +433,7 @@ class X(SocialNetwork):
         Returns:
             list: Normalized content dicts
         """
-        if not self.api:
-            raise Exception("X API not initialized")
+        self._require_api()
 
         if limit == 0:
             self._output_list([])
@@ -533,8 +471,7 @@ class X(SocialNetwork):
         Returns:
             str: Tweet ID
         """
-        if not self.api:
-            raise Exception("X API not initialized")
+        self._require_api()
 
         post_id = tweet_id or self.tweet_id
         if not post_id:
@@ -556,8 +493,7 @@ class X(SocialNetwork):
         Returns:
             str: Tweet ID
         """
-        if not self.api:
-            raise Exception("X API not initialized")
+        self._require_api()
 
         if not video_url:
             raise Exception("Video URL is required.")
@@ -608,8 +544,7 @@ class X(SocialNetwork):
 
     async def _upload_entry_media(self, entry: Dict[str, Any]) -> List[str]:
         """Upload images or video for one thread entry; return media IDs."""
-        if not self.api:
-            raise Exception("X API not initialized")
+        self._require_api()
 
         media_ids: List[str] = []
         images = _entry_images(entry)
@@ -663,8 +598,7 @@ class X(SocialNetwork):
             ThreadPublishError: On partial or failed publish with structured result
         """
         del kwargs  # X reply chains do not use Discord/Threads-specific options
-        if not self.api:
-            raise Exception("X API not initialized")
+        self._require_api()
 
         if not entries or not isinstance(entries, list):
             raise Exception("Thread entries are required.")
@@ -748,31 +682,23 @@ async def main_async(kwargs):
     """
     Async main function to execute X actions.
 
+    Thin shim: delegates to the base template runner via unbound dispatch,
+    so test mocks of ``X`` (which stub ``execute_action``/``disconnect``/
+    ``authorize_credentials`` but not the base method) keep working. The
+    name is kept module-level because tests and the CLI import it.
+
     Args:
         kwargs (dict): Configuration arguments
     """
-    action = kwargs.get("action", "")
-
-    if action == "":
-        raise Exception("Action is a required argument.")
-
-    # Create X instance with configuration
     instance = X(**kwargs)
-
-    # Handle authorize action separately (doesn't need client initialization)
-    if action == "authorize":
-        success = await instance.authorize_credentials()
-        return 0 if success else 1
-
-    try:
-        await instance.execute_action(action)
-    finally:
-        await instance.disconnect()
+    return await SocialNetwork.run_main_async(instance, kwargs)
 
 
 def main(kwargs):
     """
     Main function to execute X actions (for backwards compatibility).
+
+    Thin shim kept module-level because the CLI imports it.
 
     Args:
         kwargs (dict): Configuration arguments

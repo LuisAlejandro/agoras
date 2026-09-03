@@ -90,7 +90,6 @@ class TikTok(SocialNetwork):
         self.tiktok_auto_add_music = None
         self.brand_organic = None
         self.brand_content = None
-        self.api = None
         # Store action to determine appropriate defaults
         self._action = kwargs.get("action", "")
 
@@ -170,13 +169,6 @@ class TikTok(SocialNetwork):
         # Authenticate with provided credentials
         await self.api.authenticate()
 
-    async def disconnect(self):
-        """
-        Disconnect from TikTok API and clean up resources.
-        """
-        if self.api:
-            await self.api.disconnect()
-
     def _convert_bool(self, value, default=False):
         """Convert various boolean representations to bool."""
         if value is None:
@@ -225,8 +217,7 @@ class TikTok(SocialNetwork):
 
     async def _require_fresh_creator_info(self):
         """Re-query creator_info and abort when TikTok says the creator cannot post."""
-        if not self.api:
-            raise Exception("TikTok API not initialized")
+        self._require_api()
         try:
             info = await self.api.refresh_creator_info()
         except Exception as exc:
@@ -335,8 +326,7 @@ class TikTok(SocialNetwork):
         Raises:
             Exception: If post creation fails or duet/stitch not supported for photos
         """
-        if not self.api:
-            raise Exception("TikTok API not initialized")
+        self._require_api()
 
         # Validate settings for photo posts
         if self.tiktok_allow_duet:
@@ -425,8 +415,7 @@ class TikTok(SocialNetwork):
         Returns:
             str: Post ID
         """
-        if not self.api:
-            raise Exception("TikTok API not initialized")
+        self._require_api()
 
         if not video_url:
             raise Exception("Video URL is required.")
@@ -658,30 +647,23 @@ async def main_async(kwargs):
     """
     Async main function to execute TikTok actions.
 
+    Thin shim: delegates to the base template runner via unbound dispatch,
+    so test mocks of ``TikTok`` (which stub ``execute_action``/``disconnect``/
+    ``authorize_credentials`` but not the base method) keep working. The
+    name is kept module-level because tests and the CLI import it.
+
     Args:
         kwargs (dict): Configuration arguments
     """
-    action = kwargs.get("action", "")
-
-    if action == "":
-        raise Exception("Action is a required argument.")
-
-    # Create TikTok instance with configuration
     instance = TikTok(**kwargs)
-
-    # Handle authorize action separately (doesn't need client initialization)
-    if action == "authorize":
-        success = await instance.authorize_credentials()
-        return 0 if success else 1
-
-    # Execute other actions using the base class method
-    await instance.execute_action(action)
-    await instance.disconnect()
+    return await SocialNetwork.run_main_async(instance, kwargs)
 
 
 def main(kwargs):
     """
-    Main function to execute TikTok actions.
+    Main function to execute TikTok actions (for backwards compatibility).
+
+    Thin shim kept module-level because the CLI imports it.
 
     Args:
         kwargs (dict): Configuration arguments

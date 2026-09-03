@@ -63,7 +63,6 @@ class Facebook(SocialNetwork):
         self.facebook_post_id = None
         self.facebook_profile_id = None
         self.facebook_app_id = None
-        self.api = None
 
     async def _initialize_client(self):
         """
@@ -209,9 +208,8 @@ class Facebook(SocialNetwork):
         """Initialize client for page token usage."""
         from .client import FacebookAPIClient
 
+        self._require_api()
         api = self.api
-        if api is None:
-            raise Exception("Facebook API not initialized")
 
         access_token = self.facebook_access_token
         object_id = self.facebook_object_id
@@ -231,17 +229,9 @@ class Facebook(SocialNetwork):
 
     async def _initialize_user_token_client(self):
         """Initialize client for user token usage."""
+        self._require_api()
         api = self.api
-        if api is None:
-            raise Exception("Facebook API not initialized")
         await api.authenticate()
-
-    async def disconnect(self):
-        """
-        Disconnect from Facebook API and clean up resources.
-        """
-        if self.api:
-            await self.api.disconnect()
 
     @staticmethod
     def _is_local_image(image) -> bool:
@@ -255,8 +245,9 @@ class Facebook(SocialNetwork):
         return local_images, remote_images
 
     async def _post_page_local_images_only(self, local_images, status_text):
-        if not self.api or not self.facebook_object_id:
-            raise Exception("Facebook API not initialized")
+        self._require_api()
+        if not self.facebook_object_id:
+            raise Exception("Facebook object ID is required.")
         attached_media = []
         for image in local_images:
             filename = f"image.{image.file_type.extension}"
@@ -279,8 +270,9 @@ class Facebook(SocialNetwork):
         )
 
     async def _post_page_mixed_images(self, local_images, remote_images, status_text, status_link):
-        if not self.api or not self.facebook_object_id:
-            raise Exception("Facebook API not initialized")
+        self._require_api()
+        if not self.facebook_object_id:
+            raise Exception("Facebook object ID is required.")
         attached_media = []
         link_to_use = status_link
         if remote_images and not link_to_use:
@@ -306,8 +298,9 @@ class Facebook(SocialNetwork):
         )
 
     async def _post_profile_images(self, images, status_text, status_link):
-        if not self.api or not self.facebook_object_id:
-            raise Exception("Facebook API not initialized")
+        self._require_api()
+        if not self.facebook_object_id:
+            raise Exception("Facebook object ID is required.")
         attached_media = []
         for image in images:
             if not image.content or not image.file_type:
@@ -358,8 +351,7 @@ class Facebook(SocialNetwork):
         Returns:
             str: Post ID
         """
-        if not self.api:
-            raise Exception("Facebook API not initialized")
+        self._require_api()
 
         if not self.facebook_object_id:
             raise Exception("Facebook object ID is required.")
@@ -440,8 +432,7 @@ class Facebook(SocialNetwork):
         Returns:
             str: Comment ID
         """
-        if not self.api:
-            raise Exception("Facebook API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("Facebook post ID is required for reply action.")
@@ -476,8 +467,7 @@ class Facebook(SocialNetwork):
         Returns:
             str: Post ID
         """
-        if not self.api:
-            raise Exception("Facebook API not initialized")
+        self._require_api()
 
         post_id = facebook_post_id or self.facebook_post_id
         if not post_id:
@@ -500,8 +490,7 @@ class Facebook(SocialNetwork):
         Returns:
             str: Post ID
         """
-        if not self.api:
-            raise Exception("Facebook API not initialized")
+        self._require_api()
 
         post_id = facebook_post_id or self.facebook_post_id
         if not post_id:
@@ -525,8 +514,7 @@ class Facebook(SocialNetwork):
         Returns:
             str: Deleted comment ID
         """
-        if not self.api:
-            raise Exception("Facebook API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("Facebook comment ID is required for delete-reply action.")
@@ -545,8 +533,7 @@ class Facebook(SocialNetwork):
         Returns:
             dict: Normalized content
         """
-        if not self.api:
-            raise Exception("Facebook API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("Facebook post ID is required.")
@@ -597,8 +584,7 @@ class Facebook(SocialNetwork):
         Returns:
             dict: Normalized content
         """
-        if not self.api:
-            raise Exception("Facebook API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("Facebook comment ID is required for get-reply action.")
@@ -640,8 +626,7 @@ class Facebook(SocialNetwork):
         Returns:
             list: Normalized content dicts
         """
-        if not self.api:
-            raise Exception("Facebook API not initialized")
+        self._require_api()
 
         if not self.facebook_object_id:
             raise Exception("Facebook object ID is required for list-posts action.")
@@ -700,8 +685,7 @@ class Facebook(SocialNetwork):
         Returns:
             str: New post ID
         """
-        if not self.api:
-            raise Exception("Facebook API not initialized")
+        self._require_api()
 
         post_id = facebook_post_id or self.facebook_post_id
         if not post_id:
@@ -785,8 +769,7 @@ class Facebook(SocialNetwork):
         Returns:
             str: Post ID
         """
-        if not self.api:
-            raise Exception("Facebook API not initialized")
+        self._require_api()
 
         if not video_title or not status_text:
             raise Exception("Video title and description are required.")
@@ -911,30 +894,23 @@ async def main_async(kwargs):
     """
     Async main function to execute Facebook actions.
 
+    Thin shim: delegates to the base template runner via unbound dispatch,
+    so test mocks of ``Facebook`` (which stub ``execute_action``/``disconnect``/
+    ``authorize_credentials`` but not the base method) keep working. The
+    name is kept module-level because tests and the CLI import it.
+
     Args:
         kwargs (dict): Configuration arguments
     """
-    action = kwargs.get("action", "")
-
-    if action == "":
-        raise Exception("Action is a required argument.")
-
-    # Create Facebook instance with configuration
     instance = Facebook(**kwargs)
-
-    # Handle authorize action separately (doesn't need client initialization)
-    if action == "authorize":
-        success = await instance.authorize_credentials()
-        return 0 if success else 1
-
-    # Execute other actions using the base class method
-    await instance.execute_action(action)
-    await instance.disconnect()
+    return await SocialNetwork.run_main_async(instance, kwargs)
 
 
 def main(kwargs):
     """
-    Main function to execute Facebook actions.
+    Main function to execute Facebook actions (for backwards compatibility).
+
+    Thin shim kept module-level because the CLI imports it.
 
     Args:
         kwargs (dict): Configuration arguments
