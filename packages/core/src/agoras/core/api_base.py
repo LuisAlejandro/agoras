@@ -22,13 +22,12 @@ import functools
 import re
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Awaitable, Callable, Concatenate, NoReturn, ParamSpec, Protocol, TypeVar, runtime_checkable
+from typing import Any, Awaitable, Callable, Concatenate, NoReturn, ParamSpec, Protocol, TypeVar
 
 P = ParamSpec("P")
 R = TypeVar("R")
 
 
-@runtime_checkable
 class GuardableAPI(Protocol):
     """
     Structural contract the guard decorators operate on.
@@ -45,7 +44,9 @@ class GuardableAPI(Protocol):
     _not_authenticated_message: str
     _client_not_available_message: str
 
-    async def authenticate(self) -> "GuardableAPI": ...
+    async def authenticate(self) -> "GuardableAPI":
+        """Authenticate and return self for chaining."""
+        ...
 
     async def _rate_limit_check(self, operation_type: str = "default", min_interval: float = 1.0) -> None: ...
 
@@ -62,6 +63,11 @@ def guard_auth_attempt(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Calla
     Applies the auto-auth dialect: if ``self._authenticated`` is false,
     ``self.authenticate()`` is awaited first. Guard-phase errors propagate
     unmodified (never wrapped), preserving the categorized auth error.
+
+    The authenticate section runs under a per-instance non-reentrant
+    ``asyncio.Lock``: ``authenticate()`` and ``_post_authenticate`` must
+    never call a guard_auth_attempt-decorated method on the same instance,
+    or the same task deadlocks.
     """
 
     @functools.wraps(func)
@@ -210,9 +216,7 @@ def guard_error_wrap(
                 # Fail-safe: _handle_api_error is declared NoReturn and must
                 # raise. If an override ever returns, degrade to a sanitized
                 # error instead of re-raising the raw token-bearing exception.
-                raise Exception(
-                    f"{operation_name} failed: {self._sanitize_error_message(str(e))}"
-                ) from None
+                raise Exception(f"{operation_name} failed: {sanitize_error_text(str(e))}") from None
 
         return wrapper
 
@@ -228,7 +232,7 @@ _REDACT_PATTERNS = (
     (re.compile(r"client_secret[=:]\s*\S+", re.I), "client_secret=[REDACTED]"),
     (re.compile(r"oauth_token[=:]\s*\S+", re.I), "oauth_token=[REDACTED]"),
     (re.compile(r"app_secret[=:]\s*\S+", re.I), "app_secret=[REDACTED]"),
-    (re.compile(r"(?<![a-z_])token[=:]\s*\S+", re.I), "token=[REDACTED]"),
+    (re.compile(r"(?<![a-z0-9])token\s*[=:]\s*\S+", re.I), "token=[REDACTED]"),
     (re.compile(r"key=AIza[0-9A-Za-z_-]{20,}", re.I), "key=[REDACTED]"),
     (re.compile(r"X-API-Key:\s*\S+", re.I), "X-API-Key: [REDACTED]"),
     (re.compile(r"(?<![A-Za-z0-9_-])api[_-]?key[=:]\s*\S+", re.I), "api_key=[REDACTED]"),
@@ -237,6 +241,13 @@ _REDACT_PATTERNS = (
     (
         re.compile(
             r"[?&](?:X-Amz-Signature|Signature|sig|AWSAccessKeyId|X-Goog-Signature|GoogleAccessId|Policy|X-Amz-Credential|Expires)=[^&\s]+",
+            re.I,
+        ),
+        "[REDACTED]",
+    ),
+    (
+        re.compile(
+            r"(?:X-Amz-Signature|Signature|sig|AWSAccessKeyId|X-Goog-Signature|GoogleAccessId|Policy|X-Amz-Credential|Expires)[=:][\s'\"]*[^&\s'\"]+",
             re.I,
         ),
         "[REDACTED]",
@@ -255,6 +266,8 @@ def sanitize_error_text(text: str) -> str:
     for pattern, replacement in _REDACT_PATTERNS:
         sanitized = pattern.sub(replacement, sanitized)
     return sanitized
+
+
 class BaseAPI(ABC):
     """
     Abstract base class for social network API implementations.
@@ -262,11 +275,6 @@ class BaseAPI(ABC):
     Provides common functionality and patterns for API interactions
     including authentication, rate limiting, and error handling.
     """
-
-    @classmethod
-    def _sanitize_error_message(cls, message: str) -> str:
-        """Delegate to the module-level sanitizer (single source of truth)."""
-        return sanitize_error_text(message)
 
     def __init__(self, **credentials):
         """
@@ -363,8 +371,11 @@ class BaseAPI(ABC):
         self._rate_limit_cache[operation_type] = next_slot
 
         if next_slot - current_time > 0:
-            await asyncio.sleep(next_slot - current_time)
-
+            try:
+                await asyncio.sleep(next_slot - current_time)
+            except asyncio.CancelledError:
+                self._rate_limit_cache[operation_type] = last_time
+                raise
 
     # Guard message templates, overridden per platform. Read by the guard
     # decorators so the not-authenticated and not-available messages stay
@@ -383,7 +394,7 @@ class BaseAPI(ABC):
         Raises:
             Exception: Formatted exception with context
         """
-        error_msg = f"{operation_name} failed: {self._sanitize_error_message(str(error))}"
+        error_msg = f"{operation_name} failed: {sanitize_error_text(str(error))}"
         exc = Exception(error_msg)
         exc.__suppress_context__ = True
         raise exc from None

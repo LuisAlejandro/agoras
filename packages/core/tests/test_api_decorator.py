@@ -359,6 +359,7 @@ async def test_concurrent_first_calls_authenticate_once():
     async def counting_authenticate():
         nonlocal attempts
         attempts += 1
+        await asyncio.sleep(0)
         api._authenticated = True
 
     api.authenticate = counting_authenticate
@@ -372,7 +373,7 @@ async def test_concurrent_first_calls_authenticate_once():
 async def test_concurrent_shared_bucket_fires_serialized():
     """Two callers in one window must fire at least min_interval apart."""
     api = _StubAPI()
-    decorated = guard_rate_limit("post", 0.05)(_StubAPI.op)
+    decorated = guard_rate_limit("post", 0.2)(_StubAPI.op)
 
     async def timed_call(value):
         start = time.time()
@@ -381,4 +382,4 @@ async def test_concurrent_shared_bucket_fires_serialized():
 
     t1, t2 = await asyncio.gather(timed_call("a"), timed_call("b"))
     gap = abs(t1 - t2)
-    assert gap >= 0.04, f"burst window: fires {gap:.3f}s apart (expected >= 0.05)"
+    assert gap >= 0.15, f"burst window: fires {gap:.3f}s apart (expected >= 0.2)"

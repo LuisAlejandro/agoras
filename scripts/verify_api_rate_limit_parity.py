@@ -147,10 +147,7 @@ def _method_rate_limit(src, method):
     within the method body.
     """
     lines = src.split("\n")
-    def_lines = [
-        i for i, l in enumerate(lines)
-        if re.match(r"^    (async )?def " + re.escape(method) + r"\(", l)
-    ]
+    def_lines = [i for i, line in enumerate(lines) if re.match(r"^    (async )?def " + re.escape(method) + r"\(", line)]
     if not def_lines:
         return None
     dline = def_lines[0]
@@ -167,7 +164,7 @@ def _method_rate_limit(src, method):
             return (m.group(1), m.group(2))
 
     # Inline form within the method body (until the next top-level def)
-    for line in lines[dline + 1:]:
+    for line in lines[dline + 1 :]:
         if re.match(r"^    (async )?def ", line):
             break
         m = re.search(r'_rate_limit_check\("([a-z_]+)", ([0-9.]+)\)', line)
@@ -183,9 +180,7 @@ def check_api_source(name, src):
         if found is None:
             failures.append(f'{name}.{method}: expected rate limit ("{key}", {interval}) but none found')
         elif found != (key, str(interval)):
-            failures.append(
-                f'{name}.{method}: expected ("{key}", {interval}), found ("{found[0]}", {found[1]})'
-            )
+            failures.append(f'{name}.{method}: expected ("{key}", {interval}), found ("{found[0]}", {found[1]})')
     return failures
 
 
@@ -218,10 +213,7 @@ def self_test():
             ("delete", "delete", "0.5"),
         ]
     }
-    missing = (
-        "    async def delete(self):\n"
-        "        return 1\n"
-    )
+    missing = "    async def delete(self):\n        return 1\n"
     f = check_api_source("fake", missing)
     if not any("expected rate limit" in item for item in f):
         failures.append("self-test: missing rate limit not flagged")
@@ -232,11 +224,7 @@ def self_test():
             ("share", "post", "2.0"),
         ]
     }
-    wrong = (
-        '    @guard_rate_limit("post", 1.0)\n'
-        "    async def share(self):\n"
-        "        return 1\n"
-    )
+    wrong = '    @guard_rate_limit("post", 1.0)\n    async def share(self):\n        return 1\n'
     f = check_api_source("fake", wrong)
     if not any('expected ("post", 2.0)' in item for item in f):
         failures.append("self-test: wrong interval not flagged")

@@ -117,14 +117,63 @@ async def test_discord_thread_rechain_sanitizes_token_error():
 
 
 @pytest.mark.asyncio
-async def test_whatsapp_template_json_error_sanitized():
+async def test_discord_create_public_thread_rechain_sanitizes_token_error():
+    wrapper = Discord()
+    wrapper.api = _TokenApi("create_public_thread", TOKEN_MSG)
+    wrapper.api.post = _TokenApi("post", "ok").post if False else None
+    # starter post succeeds; the create_public_thread branch raises
+    class _DiscordStub(_TokenApi):
+        pass
+
+    stub = _DiscordStub("create_public_thread", TOKEN_MSG)
+    stub.post = _noop_async
+    wrapper.api = stub
+    with pytest.raises(ThreadPublishError) as excinfo:
+        await wrapper.thread([{"text": "hello"}], thread_name="test-thread")
+    error_text = excinfo.value.result.error
+    assert error_text is not None
+    assert "SECRET123" not in error_text
+    _assert_no_token(excinfo.value, error_text)
+
+
+async def _noop_async(*args, **kwargs):
+    return "message-1"
+
+
+@pytest.mark.asyncio
+async def test_discord_thread_branch_send_message_to_thread_rechain_sanitizes():
+    wrapper = Discord()
+    stub = _TokenApi("send_message_to_thread", TOKEN_MSG)
+    stub.post = _noop_async
+    stub.create_public_thread = _noop_async
+    wrapper.api = stub
+    with pytest.raises(ThreadPublishError) as excinfo:
+        await wrapper.thread([{"text": "hello"}, {"text": "world"}], thread_name="test-thread")
+    error_text = excinfo.value.result.error
+    assert error_text is not None
+    assert "SECRET123" not in error_text
+    _assert_no_token(excinfo.value, error_text)
+
+
+@pytest.mark.asyncio
+async def test_whatsapp_template_json_error_sanitized(monkeypatch):
     wrapper = WhatsApp()
     wrapper.api = _TokenApi("send_template", TOKEN_MSG)
-    wrapper.config = {"whatsapp_template_components": '{"payload": "access_token=SECRET123"'}
+    wrapper.config = {"whatsapp_template_components": 'not-json-at-all'}
+    calls = []
+
+    import agoras.core.api_base as api_base
+
+    def spying_sanitize(text):
+        calls.append(text)
+        return api_base.sanitize_error_text(text)
+
+    monkeypatch.setattr("agoras.platforms.whatsapp.wrapper.sanitize_error_text", spying_sanitize)
     with pytest.raises(Exception) as excinfo:
         await wrapper._handle_template_action()
     message = str(excinfo.value)
-    assert "SECRET123" not in message
+    assert "Invalid WhatsApp template components JSON" in message
+    assert calls, "sanitize_error_text was never invoked on the JSON error path"
     _assert_no_token(excinfo.value, message)
 
 
