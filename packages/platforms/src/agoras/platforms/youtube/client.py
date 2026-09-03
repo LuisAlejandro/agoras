@@ -18,7 +18,6 @@
 """agoras.platforms.youtube.client module."""
 
 import asyncio
-import http.client as httplib
 from typing import Any, Dict, List, Optional
 
 import httplib2
