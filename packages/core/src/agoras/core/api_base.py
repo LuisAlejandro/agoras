@@ -67,7 +67,13 @@ def guard_auth_attempt(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Calla
     @functools.wraps(func)
     async def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
         if not self._authenticated:
-            await self.authenticate()
+            lock = getattr(self, "_auth_lock", None)
+            if lock is None:
+                lock = asyncio.Lock()
+                setattr(self, "_auth_lock", lock)
+            async with lock:
+                if not self._authenticated:
+                    await self.authenticate()
         return await func(self, *args, **kwargs)
 
     return wrapper
@@ -310,11 +316,13 @@ class BaseAPI(ABC):
         current_time = time.time()
         last_time = self._rate_limit_cache.get(operation_type, 0)
 
-        if current_time - last_time < min_interval:
-            sleep_time = min_interval - (current_time - last_time)
-            await asyncio.sleep(sleep_time)
+        # Reserve the next slot before sleeping so concurrent callers claim
+        # successive windows instead of firing at the same boundary.
+        next_slot = max(current_time, last_time + min_interval)
+        self._rate_limit_cache[operation_type] = next_slot
 
-        self._rate_limit_cache[operation_type] = time.time()
+        if next_slot - current_time > 0:
+            await asyncio.sleep(next_slot - current_time)
 
     _REDACT_PATTERNS = (
         (re.compile(r"Bearer\s+\S+", re.I), "Bearer [REDACTED]"),

@@ -17,6 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """Tests for the composable guard decorators in agoras.core.api_base."""
 
+import asyncio
 import inspect
 import time
 
@@ -346,3 +347,38 @@ async def test_guard_error_wrap_failsafe_sanitizes_when_handler_returns():
     assert excinfo.value.__cause__ is None
     assert "Bearer [REDACTED]" in str(excinfo.value)
     assert "tok123" not in str(excinfo.value)
+
+
+@pytest.mark.asyncio
+async def test_concurrent_first_calls_authenticate_once():
+    """Concurrent auto-auth first calls produce exactly one authenticate."""
+    api = _StubAPI()
+    api._auth_ok = True
+    attempts = 0
+
+    async def counting_authenticate():
+        nonlocal attempts
+        attempts += 1
+        api._authenticated = True
+
+    api.authenticate = counting_authenticate
+
+    decorated = guard_auth_attempt(_StubAPI.op)
+    await asyncio.gather(decorated(api, "a"), decorated(api, "b"))
+    assert attempts == 1
+
+
+@pytest.mark.asyncio
+async def test_concurrent_shared_bucket_fires_serialized():
+    """Two callers in one window must fire at least min_interval apart."""
+    api = _StubAPI()
+    decorated = guard_rate_limit("post", 0.05)(_StubAPI.op)
+
+    async def timed_call(value):
+        start = time.time()
+        await decorated(api, value)
+        return time.time() - start
+
+    t1, t2 = await asyncio.gather(timed_call("a"), timed_call("b"))
+    gap = abs(t1 - t2)
+    assert gap >= 0.04, f"burst window: fires {gap:.3f}s apart (expected >= 0.05)"
