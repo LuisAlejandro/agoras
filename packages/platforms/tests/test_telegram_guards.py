@@ -23,7 +23,7 @@ attempts authentication first (auto-auth dialect), then raises its
 not-available message when no client is present.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 

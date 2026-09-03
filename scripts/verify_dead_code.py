@@ -42,13 +42,23 @@ def _allowed_names():
 
 
 def run_gate():
-    """Run vulture and filter allowlisted names; return the offending lines."""
+    """Run vulture and filter allowlisted names; return the offending lines.
+
+    Fails closed: a missing vulture install or a scanner error is a gate
+    failure, never a pass.
+    """
+    import importlib.util
+
+    if importlib.util.find_spec("vulture") is None:
+        return ["[FAIL] vulture is not installed -- run pip install -r requirements-dev.txt"]
     proc = subprocess.run(
         [sys.executable, "-m", "vulture", *TREES, str(ALLOWLIST), "--min-confidence", "90"],
         cwd=ROOT,
         capture_output=True,
         text=True,
     )
+    if proc.returncode != 0 and not proc.stdout.strip():
+        return [f"[FAIL] vulture scanner error (exit {proc.returncode}): {proc.stderr.strip()[:200]}"]
     allowed = _allowed_names()
     failures = []
     for line in proc.stdout.splitlines():
@@ -59,24 +69,37 @@ def run_gate():
 
 
 def self_test():
-    """Negative self-test: an unused symbol must fail the gate."""
+    """Negative self-test: run the real gate against a dirty temp tree."""
     failures = []
+    import tempfile
+
     # Unused imports report at 100% confidence — inside the enforced
     # --min-confidence 90 threshold (bare functions report at 60%).
-    bad = "import verifydeadcodeunusedprobe\n"
-    probe = ROOT / "verifydeadcodeprobe_holder.py"
-    try:
-        probe.write_text(bad)
+    with tempfile.TemporaryDirectory() as tmp:
+        dirty = Path(tmp) / "dirty_mod.py"
+        dirty.write_text("import verifydeadcodeunusedprobe\n")
         proc = subprocess.run(
-            [sys.executable, "-m", "vulture", str(probe), "--min-confidence", "90"],
+            [sys.executable, "-m", "vulture", str(dirty), "--min-confidence", "90"],
             cwd=ROOT,
             capture_output=True,
             text=True,
         )
         if "verifydeadcodeunusedprobe" not in proc.stdout:
             failures.append("self-test: unused-symbol fixture not flagged by vulture")
+
+    # The gate itself must flag the probe through its own filter path.
+    global TREES
+    saved = TREES
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            dirty = Path(tmp) / "dirty_mod.py"
+            dirty.write_text("import verifydeadcodeunusedprobe\n")
+            TREES = [str(dirty.relative_to(ROOT)) if str(dirty).startswith(str(ROOT)) else str(dirty)]
+            gate_failures = run_gate()
+            if not any("verifydeadcodeunusedprobe" in f for f in gate_failures):
+                failures.append("self-test: run_gate filter path drops the probe")
     finally:
-        probe.unlink(missing_ok=True)
+        TREES = saved
     if not failures:
         print("Self-test passed: the gate catches unused code.")
         return 0

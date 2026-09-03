@@ -17,30 +17,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from agoras.core.feed import Feed, FeedItem
-
-
-# Helper function to create mock feed items
-def create_mock_feed_item(title='Title', link='http://link.com',
-                          pub_date=None, image_url=None, guid=None):
-    """Helper to create mock feed items for testing."""
-    mock_raw = MagicMock()
-    mock_raw.title = title
-    mock_raw.link = link
-    mock_raw.guid = guid or link
-    mock_raw.pub_date = pub_date
-    mock_raw.description = f"Description for {title}"
-    mock_raw.enclosures = []
-    if image_url:
-        mock_enc = MagicMock()
-        mock_enc.url = image_url
-        mock_raw.enclosures = [mock_enc]
-    return FeedItem(mock_raw)
-
 
 # Feed Class Tests
 
@@ -591,3 +572,144 @@ def test_feeditem_to_dict():
     assert item_dict['description'] == 'Description'
     assert item_dict['pub_date'] == pub_date
     assert item_dict['timestamp'] == 20240115120000
+
+
+
+
+def test_parse_rss_bytes_happy_path():
+    """Real RSS 2.0 fixture parses to the same item fields."""
+    from agoras.core.feed.feed import parse_rss_bytes
+
+    rss = b"""<?xml version="1.0"?>
+<rss version="2.0"><channel>
+  <title>Test Feed</title><description>Feed Desc</description>
+  <item>
+    <title>Item One</title><link>https://a.example/1</link>
+    <guid>https://a.example/1</guid><description>Body</description>
+    <pubDate>Tue, 02 Oct 2024 13:00:00 GMT</pubDate>
+    <enclosure url="https://a.example/img.jpg" type="image/jpeg"/>
+  </item>
+</channel></rss>"""
+    feed = parse_rss_bytes(rss)
+    assert feed.title == "Test Feed"
+    assert feed.description == "Feed Desc"
+    assert len(feed.items) == 1
+    item = feed.items[0]
+    assert item.title == "Item One"
+    assert item.link == "https://a.example/1"
+    assert item.description == "Body"
+    assert item.pub_date is not None
+    assert item.pub_date.tzinfo is not None
+    assert item.enclosures[0].url == "https://a.example/img.jpg"
+
+    parsed = FeedItem(item)
+    assert parsed.title == "Item One"
+    assert parsed.link == "https://a.example/1"
+    assert parsed.timestamp is not None
+    assert parsed.image_url == "https://a.example/img.jpg"
+
+
+def test_parse_rss_bytes_iso8601_date_and_garbage():
+    """ISO-8601 pubDates parse via fallback; garbage yields pub_date None."""
+    from agoras.core.feed.feed import parse_rss_bytes
+
+    rss = b"""<?xml version="1.0"?>
+<rss version="2.0"><channel><title>t</title>
+  <item><title>a</title><pubDate>2024-10-02T13:00:00Z</pubDate></item>
+  <item><title>b</title><pubDate>not a date at all</pubDate></item>
+</channel></rss>"""
+    feed = parse_rss_bytes(rss)
+    assert feed.items[0].pub_date is not None
+    assert feed.items[0].pub_date.tzinfo is not None
+    assert feed.items[1].pub_date is None
+
+
+def test_parse_rss_bytes_naive_dates_normalized_and_sort_safe():
+    """Mixed naive/aware pubDates sort without TypeError."""
+    from agoras.core.feed.feed import parse_rss_bytes
+
+    rss = b"""<?xml version="1.0"?>
+<rss version="2.0"><channel><title>t</title>
+  <item><title>a</title><pubDate>Tue, 02 Oct 2024 13:00:00 GMT</pubDate></item>
+  <item><title>b</title><pubDate>Wed, 02 Oct 2024 13:00:00</pubDate></item>
+</channel></rss>"""
+    feed = parse_rss_bytes(rss)
+    items = [FeedItem(i) for i in feed.items]
+    sorted_items = sorted(items, key=lambda x: x.pub_date or datetime.datetime.min, reverse=True)
+    assert len(sorted_items) == 2
+    assert sorted_items[0].title == "a"
+
+
+def test_parse_rss_bytes_rejects_entities():
+    """Feeds with entity definitions are rejected before parsing."""
+    from agoras.core.feed.feed import FeedParseError, parse_rss_bytes
+
+    rss = b'<?xml version="1.0"?><!DOCTYPE rss [<!ENTITY x "y">]><rss/>'
+    with pytest.raises(FeedParseError):
+        parse_rss_bytes(rss)
+
+
+def test_parse_rss_bytes_accepts_entity_less_doctype():
+    """Entity-less DOCTYPE declarations (legacy RSS 0.91) still parse."""
+    from agoras.core.feed.feed import parse_rss_bytes
+
+    rss = b'<?xml version="1.0"?><!DOCTYPE rss><rss version="2.0"><channel><title>t</title></channel></rss>'
+    feed = parse_rss_bytes(rss)
+    assert feed.title == "t"
+
+
+def test_parse_rss_bytes_rejects_utf16_entities():
+    """UTF-16 encoded entity feeds cannot evade the rejection."""
+    from agoras.core.feed.feed import FeedParseError, parse_rss_bytes
+
+    rss = '<?xml version="1.0" encoding="UTF-16"?><!DOCTYPE rss [<!ENTITY x "y">]><rss/>'.encode("utf-16")
+    with pytest.raises(FeedParseError):
+        parse_rss_bytes(rss)
+
+
+def test_parse_rss_bytes_invalid_xml_raises():
+    """Malformed XML raises FeedParseError (per-feed isolation preserved)."""
+    from agoras.core.feed.feed import FeedParseError, parse_rss_bytes
+
+    with pytest.raises(FeedParseError):
+        parse_rss_bytes(b"<rss><channel>")
+
+
+def test_parse_rss_bytes_strips_padded_text():
+    """Whitespace-padded element text is stripped (atoma parity)."""
+    from agoras.core.feed.feed import parse_rss_bytes
+
+    rss = b"""<?xml version="1.0"?>
+<rss version="2.0"><channel><title>  Padded  </title>
+  <item><title>  Item  </title><link>  https://a.example/1  </link></item>
+</channel></rss>"""
+    feed = parse_rss_bytes(rss)
+    assert feed.title == "Padded"
+    assert feed.items[0].title == "Item"
+    assert feed.items[0].link == "https://a.example/1"
+
+
+def test_parse_rss_bytes_ampm_date():
+    """AM/PM pubDates parse with the correct 12-hour shift."""
+    from agoras.core.feed.feed import parse_rss_bytes
+
+    rss = b"""<?xml version="1.0"?>
+<rss version="2.0"><channel><title>t</title>
+  <item><title>a</title><pubDate>Tue, 02 Oct 2024 1:30:00 PM GMT</pubDate></item>
+</channel></rss>"""
+    feed = parse_rss_bytes(rss)
+    assert feed.items[0].pub_date is not None
+    assert feed.items[0].pub_date.hour == 13
+    assert feed.items[0].pub_date.tzinfo is not None
+
+
+def test_parse_rss_bytes_entity_marker_in_comment_not_rejected():
+    """A comment merely mentioning <!ENTITY is not an entity definition."""
+    from agoras.core.feed.feed import parse_rss_bytes
+
+    rss = b"""<?xml version="1.0"?>
+<rss version="2.0"><channel><title>t</title>
+  <item><title>a</title><description><!-- this doc mentions <!ENTITY in prose -->body</description></item>
+</channel></rss>"""
+    feed = parse_rss_bytes(rss)
+    assert len(feed.items) == 1

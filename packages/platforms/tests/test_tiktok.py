@@ -56,7 +56,6 @@ def _wire_creator_info(mock_api, info=None):
     """Attach a fresh creator_info query to a mocked TikTokAPI."""
     payload = info or _ok_creator_info()
     mock_api.refresh_creator_info = AsyncMock(return_value=payload)
-    mock_api.get_creator_info = AsyncMock(return_value=payload)
     mock_api.creator_info = payload
     return payload
 
