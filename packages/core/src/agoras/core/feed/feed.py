@@ -18,15 +18,181 @@
 """agoras.core.feed.feed module."""
 
 import asyncio
+import codecs
 import datetime
+import email.utils
 import random
+import re
+import xml.etree.ElementTree as ET  # nosec B405 - entity definitions rejected before parsing
 from urllib.request import Request, urlopen
-
-from atoma import parse_rss_bytes
 
 from agoras.common import __version__
 
 from .item import FeedItem
+
+
+class FeedParseError(Exception):
+    """Raised when a feed document cannot be parsed."""
+
+
+class _Enclosure:
+    """Media enclosure attached to an RSS item."""
+
+    def __init__(self, url):
+        """Store the enclosure URL."""
+        self.url = url
+
+
+class RSSItem:
+    """A parsed RSS 2.0 item, shaped like atoma's item objects."""
+
+    def __init__(self):
+        """Initialize an empty parsed RSS item."""
+        self.title = None
+        self.link = None
+        self.guid = None
+        self.description = None
+        self.pub_date = None
+        self.enclosures = []
+
+    @classmethod
+    def from_element(cls, element):
+        """Build an RSSItem from an XML item element."""
+        item = cls()
+        item.title = _child_text(element, "title")
+        item.link = _child_text(element, "link")
+        item.guid = _child_text(element, "guid")
+        item.description = _child_text(element, "description")
+        item.pub_date = _parse_date(_child_text(element, "pubDate"))
+        for enc in _find_children(element, "enclosure"):
+            url = enc.get("url")
+            if url:
+                item.enclosures.append(_Enclosure(url))
+        return item
+
+
+class FeedData:
+    """A parsed RSS 2.0 document: title, description, and items."""
+
+    def __init__(self):
+        """Initialize an empty feed document."""
+        self.title = ""
+        self.description = ""
+        self.items = []
+
+
+def _local_name(tag):
+    """Strip the namespace prefix from an ElementTree tag."""
+    return tag.rsplit("}", 1)[-1] if tag else tag
+
+
+def _find_children(element, name):
+    return [child for child in element if _local_name(child.tag) == name]
+
+
+def _child_text(element, name):
+    for child in _find_children(element, name):
+        if child.text:
+            return child.text.strip()
+    return None
+
+
+def _decode_xml(data):
+    """Decode feed bytes honoring BOM and XML declaration encodings."""
+    if data.startswith(codecs.BOM_UTF32_LE) or data.startswith(codecs.BOM_UTF32_BE):
+        return data.decode("utf-32")
+    if data.startswith(codecs.BOM_UTF16_LE) or data.startswith(codecs.BOM_UTF16_BE):
+        return data.decode("utf-16")
+    if data.startswith(codecs.BOM_UTF8):
+        return data.decode("utf-8-sig")
+    head = data[:200].decode("latin-1", errors="ignore")
+    m = re.search(r'encoding=["\']([A-Za-z0-9_\-]+)["\']', head)
+    encoding = m.group(1) if m else "utf-8"
+    try:
+        return data.decode(encoding)
+    except (LookupError, UnicodeDecodeError):
+        return data.decode("utf-8", errors="replace")
+
+
+def _parse_date(value):
+    """Parse an RSS date leniently, matching atoma's semantics."""
+    if not value:
+        return None
+    stripped = value.strip()
+    # AM/PM dates: parsedate_to_datetime ignores the meridiem (12-hour shift),
+    # so handle them explicitly before falling through to the RFC2822 path.
+    if "PM" in stripped.upper() or "AM" in stripped.upper():
+        try:
+            parsed = _parse_ampm(stripped)
+        except (TypeError, ValueError):
+            return None
+        return parsed.replace(tzinfo=datetime.timezone.utc)
+    try:
+        parsed = email.utils.parsedate_to_datetime(value)
+    except (TypeError, ValueError):
+        try:
+            iso = stripped.replace("Z", "+00:00")
+            parsed = datetime.datetime.fromisoformat(iso)
+        except (TypeError, ValueError):
+            return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=datetime.timezone.utc)
+    return parsed
+
+
+def _parse_ampm(value):
+    """Parse an AM/PM date with an explicit strptime format, tz-agnostic."""
+    text = value.strip()
+    # Strip a trailing timezone token only when it is not the meridiem, so
+    # timezone-less AM/PM dates still parse with the %p token intact.
+    parts = text.rsplit(" ", 1)
+    candidate = text
+    if len(parts) == 2 and parts[1].isalpha() and parts[1].upper() not in ("AM", "PM"):
+        candidate = parts[0]
+    for fmt in (
+        "%a, %d %b %Y %I:%M:%S %p",
+        "%a, %d %b %Y %I:%M %p",
+        "%d %b %Y %I:%M:%S %p",
+        "%d %b %Y %I:%M %p",
+    ):
+        try:
+            return datetime.datetime.strptime(candidate, fmt)
+        except (TypeError, ValueError):
+            continue
+    raise ValueError(f"unrecognized AM/PM date: {value!r}")
+
+
+def parse_rss_bytes(data: bytes) -> FeedData:
+    """
+    Parse RSS 2.0 bytes with the stdlib, replacing the atoma parser.
+
+    Rejects feeds carrying entity definitions (a billion-laughs vector
+    stdlib ElementTree would expand); entity-less DOCTYPE declarations are
+    accepted for parity with the previous defusedxml-backed parser.
+    """
+    text = _decode_xml(data)
+    # Strip comments and CDATA so content merely mentioning <!ENTITY is not
+    # mistaken for a declaration, and scan the remaining text so a '>' inside
+    # a SYSTEM/PUBLIC literal cannot hide the internal subset.
+    cleaned = re.sub(r"<!--.*?-->|<\!\[CDATA\[.*?\]\]>", "", text, flags=re.S)
+    if "<!ENTITY" in cleaned.upper():
+        raise FeedParseError("Feed contains entity definitions")
+    try:
+        root = ET.fromstring(text)  # nosec B314 - the <!ENTITY pre-check above rejects entity definitions
+    except ET.ParseError as e:
+        raise FeedParseError(f"Not a valid XML document: {e}") from None
+
+    channel = root
+    if _local_name(root.tag) == "rss":
+        for child in _find_children(root, "channel"):
+            channel = child
+            break
+
+    feed = FeedData()
+    feed.title = _child_text(channel, "title") or ""
+    feed.description = _child_text(channel, "description") or ""
+    feed.items = [RSSItem.from_element(el) for el in _find_children(channel, "item")]
+    return feed
 
 
 class Feed:

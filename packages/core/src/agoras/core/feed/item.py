@@ -35,7 +35,7 @@ class FeedItem:
         Initialize feed item from RSS item.
 
         Args:
-            item: RSS item from atoma parser
+            item: Parsed RSS item from the feed parser
         """
         self.raw_item = item
         self._processed = False

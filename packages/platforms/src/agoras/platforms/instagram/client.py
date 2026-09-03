@@ -21,10 +21,10 @@ import asyncio
 import time
 from typing import Any, Dict, List, Optional
 
-import requests
 from pyfacebook import GraphAPI
 
 from agoras.common import __version__
+from agoras.common.utils import build_upload_session
 
 
 def _resumable_upload_timeout(video_file_size: int) -> int:
@@ -322,16 +322,10 @@ class InstagramAPIClient:
             "User-Agent": f"Agoras/{__version__}",
         }
         timeout = _resumable_upload_timeout(len(video_content))
-        last_status = None
-        for attempt in range(1, self._RUPLOAD_MAX_ATTEMPTS + 1):
-            response = requests.post(url, headers=headers, data=video_content, timeout=timeout)
-            last_status = response.status_code
-            if last_status in (200, 201):
-                return
-            retryable = last_status in self._RUPLOAD_RETRY_STATUSES
-            if not retryable or attempt == self._RUPLOAD_MAX_ATTEMPTS:
-                raise Exception(f"Instagram resumable video upload failed: HTTP {last_status}")
-            time.sleep(min(2 ** (attempt - 1), 4))
+        with build_upload_session(self._RUPLOAD_MAX_ATTEMPTS, self._RUPLOAD_RETRY_STATUSES, ["POST"]) as session:
+            response = session.post(url, headers=headers, data=video_content, timeout=timeout)
+        if response.status_code not in (200, 201):
+            raise Exception(f"Instagram resumable video upload failed: HTTP {response.status_code}")
 
     async def create_resumable_video(
         self,

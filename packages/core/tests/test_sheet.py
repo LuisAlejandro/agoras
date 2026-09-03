@@ -577,6 +577,7 @@ async def test_schedulesheet_process_posts_due_now(mock_datetime):
     # Mock current time
     mock_now = datetime.datetime(2024, 1, 15, 14, 0, 0)
     mock_datetime.datetime.now.return_value = mock_now
+    mock_datetime.datetime.strptime.return_value = datetime.datetime(2024, 1, 15)
 
     # Create mock row data for a post due now
     row_data = SheetRow([
@@ -615,6 +616,7 @@ async def test_schedulesheet_respects_max_count():
     with patch('agoras.core.sheet.schedule.datetime') as mock_datetime:
         mock_now = datetime.datetime(2024, 1, 15, 14, 0, 0)
         mock_datetime.datetime.now.return_value = mock_now
+        mock_datetime.datetime.strptime.return_value = datetime.datetime(2024, 1, 15)
 
         with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
             mock_read.return_value = rows
@@ -638,6 +640,7 @@ async def test_schedulesheet_skips_published_posts():
     with patch('agoras.core.sheet.schedule.datetime') as mock_datetime:
         mock_now = datetime.datetime(2024, 1, 15, 14, 0, 0)
         mock_datetime.datetime.now.return_value = mock_now
+        mock_datetime.datetime.strptime.return_value = datetime.datetime(2024, 1, 15)
 
         with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
             mock_read.return_value = [row_data]
@@ -701,6 +704,7 @@ async def test_schedulesheet_process_does_not_mark_published_on_select(mock_date
     """Selecting due posts must leave state unpublished (no ghost publish)."""
     mock_now = datetime.datetime(2024, 1, 15, 14, 0, 0)
     mock_datetime.datetime.now.return_value = mock_now
+    mock_datetime.datetime.strptime.return_value = datetime.datetime(2024, 1, 15)
 
     row_data = SheetRow([
         'Post text', 'http://link.com', '', '', '', '',
@@ -850,3 +854,100 @@ async def test_sheetmanager_write_skips_unknown_sheets():
 
     # Should only write to known sheet
     mock_sheet.write_all.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('agoras.core.sheet.schedule.datetime')
+async def test_schedulesheet_locale_date_warns_and_skips(mock_datetime):
+    """Locale/slash date cells (strptime-incompatible) warn visibly and skip."""
+    mock_now = datetime.datetime(2024, 1, 15, 14, 0, 0)
+    mock_datetime.datetime.now.return_value = mock_now
+    mock_datetime.datetime.strptime.side_effect = ValueError("time data does not match format")
+
+    row_data = SheetRow(['Post', '', '', '', '', '', '3/15/2026', '14', ''])
+    sheet = ScheduleSheet('sheet-id', 'email@example.com', 'key')
+
+    with patch('agoras.core.sheet.schedule.logging.getLogger') as mock_get_logger:
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
+        with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
+            with patch.object(sheet, 'write_all', new_callable=AsyncMock) as mock_write:
+                mock_read.return_value = [row_data]
+                posts = await sheet.process_scheduled_posts()
+                assert len(posts) == 0
+                mock_logger.warning.assert_called_once()
+                args = mock_logger.warning.call_args.args
+                assert "invalid date" in args[0]
+                assert args[1] == 1  # row index
+                mock_write.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch('agoras.core.sheet.schedule.datetime')
+async def test_schedulesheet_nonstring_date_warns_and_skips(mock_datetime):
+    """Non-string date cells (e.g. numbers) also warn visibly."""
+    mock_now = datetime.datetime(2024, 1, 15, 14, 0, 0)
+    mock_datetime.datetime.now.return_value = mock_now
+    mock_datetime.datetime.strptime.side_effect = ValueError("time data does not match format")
+
+    row_data = SheetRow(['Post', '', '', '', '', '', 20240315, '14', ''])
+    sheet = ScheduleSheet('sheet-id', 'email@example.com', 'key')
+
+    with patch('agoras.core.sheet.schedule.logging.getLogger') as mock_get_logger:
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
+        with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
+            mock_read.return_value = [row_data]
+            posts = await sheet.process_scheduled_posts()
+            assert len(posts) == 0
+            mock_logger.warning.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_schedulesheet_real_strptime_selects_due_post():
+    """The real %d-%m-%Y parse selects a valid due row (no strptime mock)."""
+    sheet = ScheduleSheet('sheet-id', 'email@example.com', 'key')
+
+    row_data = SheetRow([
+        'Post text', 'http://link.com', '', '', '', '',
+        datetime.datetime.now().strftime("%d-%m-%Y"), datetime.datetime.now().strftime("%H"), '',
+    ])
+    with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
+        with patch.object(sheet, 'write_all', new_callable=AsyncMock) as mock_write:
+            mock_read.return_value = [row_data]
+            posts = await sheet.process_scheduled_posts()
+            assert len(posts) == 1
+            assert posts[0]['_sheet_row'] == 1
+            mock_write.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_schedulesheet_datetime_typed_cell_parses():
+    """A datetime-typed cell (normalized before strptime) still selects."""
+    sheet = ScheduleSheet('sheet-id', 'email@example.com', 'key')
+
+    row_data = SheetRow([
+        'Post text', 'http://link.com', '', '', '', '',
+        datetime.datetime.now(), datetime.datetime.now().strftime("%H"), '',
+    ])
+    with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
+        mock_read.return_value = [row_data]
+        posts = await sheet.process_scheduled_posts()
+        assert len(posts) == 1
+
+
+@pytest.mark.asyncio
+async def test_schedulesheet_day_first_ambiguity_pinned():
+    """DD-MM-YYYY is the pinned contract: 05-12-2026 means 5 December."""
+    sheet = ScheduleSheet('sheet-id', 'email@example.com', 'key')
+
+    row_data = SheetRow([
+        'Post text', 'http://link.com', '', '', '', '',
+        '05-12-2026', '10', '',
+    ])
+    with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
+        with patch.object(sheet, 'write_all', new_callable=AsyncMock) as mock_write:
+            mock_read.return_value = [row_data]
+            posts = await sheet.process_scheduled_posts()
+            assert len(posts) == 1
+            assert posts[0]['_sheet_row'] == 1

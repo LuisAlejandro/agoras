@@ -16,6 +16,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
 from agoras.platforms.instagram.client import InstagramAPIClient, _resumable_upload_timeout
@@ -29,9 +30,9 @@ def test_resumable_upload_timeout_scales_and_caps():
 
 
 @pytest.mark.asyncio
-@patch("agoras.platforms.instagram.client.requests.post")
+@patch("agoras.platforms.instagram.client.build_upload_session")
 @patch("agoras.platforms.instagram.client.GraphAPI")
-async def test_create_resumable_video_inits_and_uploads_bytes(mock_graph_api_class, mock_requests_post):
+async def test_create_resumable_video_inits_and_uploads_bytes(mock_graph_api_class, mock_session_factory):
     """Resumable init omits video_url and POSTs bytes to rupload.facebook.com."""
     mock_graph_api = MagicMock()
     mock_graph_api.post_object.return_value = {
@@ -39,7 +40,11 @@ async def test_create_resumable_video_inits_and_uploads_bytes(mock_graph_api_cla
         "uri": "https://rupload.facebook.com/ig-api-upload/v21.0/ig-container-1",
     }
     mock_graph_api_class.return_value = mock_graph_api
-    mock_requests_post.return_value = MagicMock(status_code=200)
+
+    mock_session = MagicMock()
+    mock_session.post.return_value = MagicMock(status_code=200)
+    mock_session.__enter__.return_value = mock_session
+    mock_session_factory.return_value = mock_session
 
     client = InstagramAPIClient("access_token")
     await client.authenticate()
@@ -59,7 +64,7 @@ async def test_create_resumable_video_inits_and_uploads_bytes(mock_graph_api_cla
     assert init_data["caption"] == "Hello"
     assert "video_url" not in init_data
 
-    upload_call = mock_requests_post.call_args
+    upload_call = mock_session.post.call_args
     assert upload_call.args[0] == "https://rupload.facebook.com/ig-api-upload/v21.0/ig-container-1"
     assert upload_call.kwargs["data"] == b"video-bytes"
     assert upload_call.kwargs["headers"]["Authorization"] == "OAuth access_token"
@@ -68,30 +73,44 @@ async def test_create_resumable_video_inits_and_uploads_bytes(mock_graph_api_cla
     client.wait_for_media_container.assert_awaited_once_with("ig-container-1")
 
 
+def test_upload_session_retry_config():
+    """The rupload session pins the previous retry contract."""
+    from agoras.common.utils import build_upload_session
+
+    with build_upload_session(3, {429, 500, 502, 503, 504}, ["POST"]) as session:
+        adapter = session.get_adapter("https://")
+        retry = adapter.max_retries
+        assert retry.total == 2
+        assert retry.connect == 0
+        assert retry.read == 0
+        assert retry.status == 2
+        assert retry.status_forcelist == [429, 500, 502, 503, 504]
+        assert list(retry.allowed_methods) == ["POST"]
+        assert retry.backoff_factor == 1.0
+        assert retry.respect_retry_after_header is False
+        assert retry.raise_on_status is False
+
+
 @pytest.mark.asyncio
-@patch("agoras.platforms.instagram.client.requests.post")
+@patch("agoras.platforms.instagram.client.build_upload_session")
 @patch("agoras.platforms.instagram.client.GraphAPI")
-async def test_create_resumable_video_retries_rupload_5xx(mock_graph_api_class, mock_requests_post):
-    """rupload POST retries 5xx then succeeds."""
+async def test_create_resumable_video_rupload_failure_raises(mock_graph_api_class, mock_session_factory):
+    """A non-retryable rupload status raises immediately."""
     mock_graph_api = MagicMock()
     mock_graph_api.post_object.return_value = {"id": "ig-container-1"}
     mock_graph_api_class.return_value = mock_graph_api
-    mock_requests_post.side_effect = [
-        MagicMock(status_code=503),
-        MagicMock(status_code=200),
-    ]
+
+    mock_session = MagicMock()
+    mock_session.post.return_value = MagicMock(status_code=400)
+    mock_session.__enter__.return_value = mock_session
+    mock_session_factory.return_value = mock_session
 
     client = InstagramAPIClient("access_token")
     await client.authenticate()
     client.wait_for_media_container = AsyncMock()
 
-    with patch("agoras.platforms.instagram.client.time.sleep"):
-        result = await client.create_resumable_video("ig-user-1", b"video-bytes")
-
-    assert result == "ig-container-1"
-    assert mock_requests_post.call_count == 2
-    fallback_url = mock_requests_post.call_args.args[0]
-    assert fallback_url == "https://rupload.facebook.com/ig-api-upload/v21.0/ig-container-1"
+    with pytest.raises(Exception, match="Instagram resumable video upload failed: HTTP 400"):
+        await client.create_resumable_video("ig-user-1", b"video-bytes")
 
 
 @pytest.mark.asyncio

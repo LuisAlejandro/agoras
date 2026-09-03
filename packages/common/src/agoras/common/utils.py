@@ -22,10 +22,13 @@ agoras.common.utils.
 This module contains common and low level functions to all modules in agoras.
 """
 
+import re
+from html.parser import HTMLParser
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import requests
-from bs4 import BeautifulSoup
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 
 def add_url_timestamp(url, timestamp):
@@ -38,8 +41,79 @@ def add_url_timestamp(url, timestamp):
 
 
 def metatag(tag):
-    """Return whether a BeautifulSoup tag is a content-bearing meta tag."""
+    """Return whether a tag (duck-typed: name + has_attr) is a content-bearing meta tag."""
     return tag.name == "meta" and tag.has_attr("content") and (tag.has_attr("property") or tag.has_attr("name"))
+
+
+class _MetaTagParser(HTMLParser):
+    """Collect content-bearing meta tags from an HTML document."""
+
+    def __init__(self):
+        super().__init__()
+        self.meta_tags = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "meta":
+            attrs_dict = dict(attrs)
+            if metatag(_MetaTag(attrs_dict)):
+                self.meta_tags.append(attrs_dict)
+
+
+class _MetaTag:
+    """Minimal tag stand-in for the metatag filter."""
+
+    def __init__(self, attrs):
+        self.name = "meta"
+        self._attrs = attrs
+
+    def has_attr(self, key):
+        return key in self._attrs
+
+
+def build_upload_session(max_attempts, retry_statuses, allowed_methods):
+    """
+    Build a requests session whose upload retries match the hand-rolled loops this replaces.
+
+    Response-status retries only (the given 429/5xx set): connect and read
+    retries are disabled so non-idempotent full-body uploads never re-send
+    on a lost connection, and Retry-After headers are ignored. ``raise_on_status``
+    is False so retry exhaustion returns the last response and callers surface
+    the real HTTP status themselves. Note urllib3's backoff (1s, 2s, 4s, ...)
+    is unbounded, so parity with the old min(2**(n-1), 4) cap holds exactly
+    at the current 3-attempt constants and only there.
+    """
+    retry = Retry(
+        total=max_attempts - 1,
+        connect=0,
+        read=0,
+        status=max_attempts - 1,
+        status_forcelist=sorted(retry_statuses),
+        allowed_methods=allowed_methods,
+        backoff_factor=1.0,
+        respect_retry_after_header=False,
+        raise_on_status=False,
+    )
+    session = requests.Session()
+    session.mount("https://", HTTPAdapter(max_retries=retry))
+    return session
+
+
+def _decode_html_content(content):
+    """
+    Decode HTML bytes for parsing.
+
+    Meta-charset declaration wins (the BeautifulSoup behavior this
+    replaces); otherwise UTF-8 with replacement, never the ISO-8859-1
+    default requests would apply to charset-less text/html.
+    """
+    head = content[:2048]
+    match = re.search(rb"<meta[^>]+charset=[\"']?([a-zA-Z0-9_\-:]+)", head, re.I)
+    if match:
+        try:
+            return content.decode(match.group(1).decode("ascii"))
+        except (LookupError, UnicodeDecodeError):
+            pass
+    return content.decode("utf-8", errors="replace")
 
 
 def find_metatags(url, search):
@@ -51,15 +125,11 @@ def find_metatags(url, search):
     if response.status_code != 200:
         return found
 
-    soup = BeautifulSoup(response.content, "html.parser")
+    parser = _MetaTagParser()
+    parser.feed(_decode_html_content(response.content))
 
     for target in search:
-        found_meta_tag = soup.find_all(metatag)
-
-        if not found_meta_tag:
-            continue
-
-        for meta_tag in found_meta_tag:
+        for meta_tag in parser.meta_tags:
             prop = meta_tag.get("property", "")
             name = meta_tag.get("name", "")
 
