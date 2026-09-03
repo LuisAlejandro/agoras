@@ -30,7 +30,7 @@ A: The new format is more intuitive and discoverable. Instead of ``agoras publis
 Q: Can I still use ``agoras publish``?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A: Yes, the legacy ``agoras publish`` command still works but shows deprecation warnings. It is supported through all Agoras 2.x releases and will be removed in Agoras 3.0. We recommend migrating to the new format as soon as possible.
+A: No — the legacy ``agoras publish`` command was removed in Agoras 3.0. Migrate to the per-platform commands (see the migration guide); ``agoras utils feed-publish`` replaces the feed automation commands.
 
 Q: What's the difference between platform commands and utils commands?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -208,10 +208,9 @@ A: Ensure Agoras is installed correctly: ``pip install agoras``. Verify the inst
 Q: My old scripts don't work
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A: Old scripts using ``agoras publish`` should still work but may show deprecation warnings. If they fail completely, check:
-- Are you using the correct parameter names?
-- Have you updated to v2.0+?
-- Are all required parameters provided?
+A: Old scripts using ``agoras publish`` stopped working in Agoras 3.0, when the command was removed. Migrate them to the per-platform commands (``agoras <platform> <action>``) or ``agoras utils feed-publish`` for feed automation. When migrating, check:
+- Are you using the new parameter names?
+- Have you updated to v3.0+?
 - For OAuth platforms, have you run ``authorize`` first?
 
 Q: I see deprecation warnings
