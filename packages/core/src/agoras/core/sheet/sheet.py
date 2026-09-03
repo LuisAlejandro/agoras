@@ -147,27 +147,6 @@ class Sheet:
 
         return [SheetRow(row, headers) for row in data_rows]
 
-    async def read_range(self, range_name):
-        """
-        Read data from a specific range.
-
-        Args:
-            range_name (str): Range in A1 notation (e.g., 'A1:C10')
-
-        Returns:
-            list: List of lists containing cell values
-        """
-        if not self._worksheet:
-            await self.get_worksheet()
-
-        if not self._worksheet:
-            raise Exception("Worksheet not available")
-
-        def _sync_read():
-            assert self._worksheet is not None  # Help type checker
-            return self._worksheet.get(range_name)
-
-        return await asyncio.to_thread(_sync_read)
 
     async def write_all(self, data, clear_first=True, table_range="A1"):
         """
@@ -254,25 +233,6 @@ class Sheet:
 
         await asyncio.to_thread(_sync_update)
 
-    async def update_range(self, range_name, values):
-        """
-        Update a range of cells.
-
-        Args:
-            range_name (str): Range in A1 notation
-            values (list): List of lists containing new values
-        """
-        if not self._worksheet:
-            await self.get_worksheet()
-
-        if not self._worksheet:
-            raise Exception("Worksheet not available")
-
-        def _sync_update():
-            assert self._worksheet is not None  # Help type checker
-            self._worksheet.update(range_name, values)
-
-        await asyncio.to_thread(_sync_update)
 
     async def clear(self):
         """Clear all data from the worksheet."""
@@ -301,77 +261,6 @@ class Sheet:
         all_rows = await self.read_all()
         return [row for row in all_rows if condition(row)]
 
-    async def filter_rows(self, **filters):
-        """
-        Filter rows by column values.
 
-        Args:
-            **filters: Column name to value mappings
 
-        Returns:
-            list: List of matching SheetRow instances
-        """
 
-        def condition(row):
-            for column, value in filters.items():
-                if row.get(column) != str(value):
-                    return False
-            return True
-
-        return await self.find_rows(condition)
-
-    async def get_row_count(self):
-        """
-        Get the number of rows with data.
-
-        Returns:
-            int: Number of rows
-        """
-        if not self._worksheet:
-            await self.get_worksheet()
-
-        if not self._worksheet:
-            raise Exception("Worksheet not available")
-
-        def _sync_count():
-            assert self._worksheet is not None  # Help type checker
-            return len(self._worksheet.get_all_values())
-
-        return await asyncio.to_thread(_sync_count)
-
-    async def get_column_count(self):
-        """
-        Get the number of columns with data.
-
-        Returns:
-            int: Number of columns
-        """
-        if not self._worksheet:
-            await self.get_worksheet()
-
-        if not self._worksheet:
-            raise Exception("Worksheet not available")
-
-        def _sync_count():
-            assert self._worksheet is not None  # Help type checker
-            all_values = self._worksheet.get_all_values()
-            return max(len(row) for row in all_values) if all_values else 0
-
-        return await asyncio.to_thread(_sync_count)
-
-    def get_sheet_info(self):
-        """
-        Get basic sheet information.
-
-        Returns:
-            dict: Sheet metadata
-        """
-        if not self._authenticated:
-            raise Exception("Sheet must be authenticated before getting info")
-
-        return {
-            "sheet_id": self.sheet_id,
-            "title": self._spreadsheet.title if self._spreadsheet else None,
-            "worksheet_name": self._worksheet.title if self._worksheet else None,
-            "url": self._spreadsheet.url if self._spreadsheet else None,
-        }

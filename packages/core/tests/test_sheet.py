@@ -420,29 +420,6 @@ async def test_sheet_read_all_auto_gets_worksheet(mock_creds, mock_authorize):
 @pytest.mark.asyncio
 @patch('agoras.core.sheet.sheet.gspread.authorize')
 @patch('agoras.core.sheet.sheet.Credentials.from_service_account_info')
-async def test_sheet_read_range(mock_creds, mock_authorize):
-    """Test Sheet read_range."""
-    mock_client = MagicMock()
-    mock_spreadsheet = MagicMock()
-    mock_worksheet = MagicMock()
-    mock_worksheet.get.return_value = [['A1', 'B1'], ['A2', 'B2']]
-    mock_spreadsheet.get_worksheet.return_value = mock_worksheet
-    mock_client.open_by_key.return_value = mock_spreadsheet
-    mock_authorize.return_value = mock_client
-
-    sheet = Sheet('sheet-id', 'email@example.com', 'key')
-    await sheet.authenticate()
-    await sheet.get_worksheet()
-
-    data = await sheet.read_range('A1:B2')
-
-    assert len(data) == 2
-    mock_worksheet.get.assert_called_once_with('A1:B2')
-
-
-@pytest.mark.asyncio
-@patch('agoras.core.sheet.sheet.gspread.authorize')
-@patch('agoras.core.sheet.sheet.Credentials.from_service_account_info')
 async def test_sheet_write_all_with_clear(mock_creds, mock_authorize):
     """Test Sheet write_all with clear_first=True."""
     mock_client = MagicMock()
@@ -527,27 +504,6 @@ async def test_sheet_update_cell(mock_creds, mock_authorize):
     await sheet.update_cell(1, 1, 'new value')
 
     mock_worksheet.update_cell.assert_called_once_with(1, 1, 'new value')
-
-
-@pytest.mark.asyncio
-@patch('agoras.core.sheet.sheet.gspread.authorize')
-@patch('agoras.core.sheet.sheet.Credentials.from_service_account_info')
-async def test_sheet_write_row(mock_creds, mock_authorize):
-    """Test Sheet update_range method for writing a row."""
-    mock_client = MagicMock()
-    mock_spreadsheet = MagicMock()
-    mock_worksheet = MagicMock()
-    mock_spreadsheet.get_worksheet.return_value = mock_worksheet
-    mock_client.open_by_key.return_value = mock_spreadsheet
-    mock_authorize.return_value = mock_client
-
-    sheet = Sheet('sheet-id', 'email@example.com', 'key')
-    await sheet.authenticate()
-    await sheet.get_worksheet()
-
-    await sheet.update_range('A5:B5', [['row', 'data']])
-
-    mock_worksheet.update.assert_called_once_with('A5:B5', [['row', 'data']])
 
 
 # ScheduleSheet Tests
