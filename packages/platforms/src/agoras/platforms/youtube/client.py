@@ -19,8 +19,6 @@
 
 import asyncio
 import http.client as httplib
-import random
-import time
 from typing import Any, Dict, List, Optional
 
 import httplib2
@@ -73,20 +71,10 @@ class YouTubeAPIClient:
     including video uploads, likes, deletions, and channel operations.
     """
 
-    # Constants for retry logic
+    # Native resumable-upload retry budget (googleapiclient num_retries).
+    # Note googleapiclient retries all 5xx plus 429 and retryable-reason
+    # 403s, and the budget applies per chunk.
     MAX_RETRIES = 10
-    RETRIABLE_EXCEPTIONS = (
-        httplib2.HttpLib2Error,
-        IOError,
-        httplib.NotConnected,
-        httplib.IncompleteRead,
-        httplib.ImproperConnectionState,
-        httplib.CannotSendRequest,
-        httplib.CannotSendHeader,
-        httplib.ResponseNotReady,
-        httplib.BadStatusLine,
-    )
-    RETRIABLE_STATUS_CODES = [500, 502, 503, 504]
 
     def __init__(self, access_token: str):
         """
@@ -142,38 +130,6 @@ class YouTubeAPIClient:
         self.youtube_client = None
         self._authenticated = False
 
-    def _simplify_upload_method(self, request, retry: int, error: str) -> tuple:
-        """Helper method to reduce complexity of upload_video."""
-        try:
-            _, response = request.next_chunk()
-            if response is not None:
-                if "id" in response:
-                    return response, None, retry
-                else:
-                    raise Exception(f"Upload failed with unexpected response: {response}")
-        except errors.HttpError as e:
-            if e.resp.status in self.RETRIABLE_STATUS_CODES:
-                error = f"A retriable HTTP error {e.resp.status} occurred:\n{e.content}"
-                return None, error, retry
-            else:
-                raise
-        except self.RETRIABLE_EXCEPTIONS as e:
-            error = f"A retriable error occurred: {e}"
-            return None, error, retry
-
-        return None, None, retry
-
-    def _handle_upload_retry(self, retry: int, error: str) -> int:
-        """Helper method to handle upload retries."""
-        retry += 1
-        if retry > self.MAX_RETRIES:
-            raise Exception("No longer attempting to retry.")
-
-        max_sleep = 2**retry
-        sleep_seconds = random.random() * max_sleep
-        time.sleep(sleep_seconds)
-        return retry
-
     async def upload_video(
         self,
         video_file_path: str,
@@ -205,9 +161,6 @@ class YouTubeAPIClient:
             if not self.youtube_client:
                 raise Exception("YouTube client not initialized")
 
-            retry = 0
-            response = None
-            error = ""  # Initialize as empty string instead of None
             tags = None
 
             if keywords:
@@ -225,16 +178,18 @@ class YouTubeAPIClient:
                 media_body=http.MediaFileUpload(video_file_path, chunksize=-1, resumable=True),
             )
 
-            while response is None:
-                response, new_error, retry = self._simplify_upload_method(request, retry, error)
+            # googleapiclient's native resumable retry: 5xx, 429, and
+            # retryable-reason 403s are retried with jittered backoff over
+            # the httplib2 transport; exhaustion raises errors.HttpError.
+            try:
+                _, response = request.next_chunk(num_retries=self.MAX_RETRIES)
+            except errors.HttpError as e:
+                raise Exception(f"YouTube upload failed: HTTP {e.resp.status}: {e.content}") from None
 
-                if response is not None:
-                    break
-
-                if new_error is not None:
-                    retry = self._handle_upload_retry(retry, new_error)
-                    error = ""  # Reset error for next iteration
-
+            if response is None:
+                raise Exception("YouTube upload failed: no response received")
+            if "id" not in response:
+                raise Exception(f"Upload failed with unexpected response: {response}")
             return response
 
         return await asyncio.to_thread(_sync_upload)
