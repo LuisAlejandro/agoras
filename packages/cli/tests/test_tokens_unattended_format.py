@@ -102,7 +102,6 @@ def test_format_linkedin_exports_access_token_and_optional_refresh_token(temp_st
     assert "LINKEDIN_ACCESS_TOKEN=access-token" in output
 
     # Test with access token only (standard app scenario)
-    temp_storage.delete_token("linkedin", "test")
     temp_storage.save_token(
         "linkedin",
         "test",
