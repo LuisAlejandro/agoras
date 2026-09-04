@@ -17,7 +17,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.x.api module."""
 
-import warnings
 from typing import Any, Dict, List, Optional
 
 from agoras.core.api_base import (
@@ -32,11 +31,6 @@ from agoras.core.text_limits import validate_text, x_mode_for_subscription
 from .auth import XAuthManager
 
 
-def _deprecated(attr, cls):
-    """Warn that a read-through property is deprecated."""
-    warnings.warn(f"{cls}.{attr} is deprecated; use auth_manager.{attr}", DeprecationWarning, stacklevel=3)
-
-
 class XAPI(BaseAPI):
     """
     X API handler that centralizes X operations.
@@ -47,42 +41,6 @@ class XAPI(BaseAPI):
 
     # Guard message template (read by the composable guard decorators)
     _not_authenticated_message = "X API not authenticated"
-
-    @property
-    def consumer_key(self):
-        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
-        _deprecated("consumer_key", "XAPI")
-        return self.auth_manager.consumer_key if self.auth_manager else None
-
-    @property
-    def consumer_secret(self):
-        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
-        _deprecated("consumer_secret", "XAPI")
-        return self.auth_manager.consumer_secret if self.auth_manager else None
-
-    @property
-    def oauth_token(self):
-        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
-        _deprecated("oauth_token", "XAPI")
-        return self.auth_manager.oauth_token if self.auth_manager else None
-
-    @property
-    def oauth_secret(self):
-        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
-        _deprecated("oauth_secret", "XAPI")
-        return self.auth_manager.oauth_secret if self.auth_manager else None
-
-    @property
-    def access_token(self):
-        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
-        _deprecated("access_token", "XAPI")
-        return self.auth_manager.access_token if self.auth_manager else None
-
-    @property
-    def user_info(self):
-        """Deprecated: read from auth_manager directly. Will be removed in a future release."""
-        _deprecated("user_info", "XAPI")
-        return self.auth_manager.user_info if self.auth_manager else None
 
     def __init__(self, consumer_key, consumer_secret, oauth_token, oauth_secret):
         """
