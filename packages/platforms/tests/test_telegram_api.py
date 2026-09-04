@@ -300,12 +300,12 @@ async def test_telegram_api_send_error(telegram_api):
 
 @pytest.mark.asyncio
 async def test_telegram_api_not_authenticated(telegram_api):
-    """Test TelegramAPI methods require authentication."""
+    """Test TelegramAPI methods require authentication (ensure dialect)."""
     telegram_api._authenticated = False
     telegram_api.client = None
-    telegram_api.authenticate = AsyncMock(side_effect=Exception('Authentication failed'))
+    telegram_api.auth_manager.ensure_authenticated.side_effect = AuthenticationError('Telegram token expired')
 
-    with pytest.raises(Exception, match='Authentication failed'):
+    with pytest.raises(AuthenticationError):
         await telegram_api.send_message('chat_id', 'Test')
 
 
