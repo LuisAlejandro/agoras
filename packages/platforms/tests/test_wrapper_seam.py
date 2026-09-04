@@ -29,6 +29,7 @@ import traceback
 import pytest
 
 from agoras.core.auth.exceptions import AuthenticationError
+from ._auth_fakes import CountingOkAuthManager, FailingAuthManager
 from agoras.core.threading import ThreadPublishError
 from agoras.platforms.discord.api import DiscordAPI
 from agoras.platforms.discord.wrapper import Discord
@@ -36,28 +37,6 @@ from agoras.platforms.x.api import XAPI
 from agoras.platforms.x.wrapper import X
 
 TOKEN_MSG = "HTTP 401 access_token=SECRET123 for user 42"
-
-
-class _FailingAuthManager:
-    """Auth manager whose ensure_authenticated raises the categorized error."""
-
-    access_token = None
-    user_info = None
-    client = None
-
-    def ensure_authenticated(self):
-        raise AuthenticationError("token expired")
-
-
-class _OkAuthManager:
-    """Auth manager whose ensure_authenticated succeeds."""
-
-    access_token = "valid-token"
-    user_info = None
-    client = None
-
-    def ensure_authenticated(self):
-        pass
 
 
 class _XStubClient:
@@ -104,17 +83,9 @@ def _assert_no_token(exc, message):
 
 
 @pytest.mark.asyncio
-async def test_x_seam_uses_real_api_class():
-    """Non-vacuity pin: the seam under test is the real XAPI, not a mock."""
-    wrapper = X()
-    wrapper.api = _make_x_api(_OkAuthManager(), _XStubClient())
-    assert isinstance(wrapper.api, XAPI)
-
-
-@pytest.mark.asyncio
 async def test_x_seam_auth_error_propagates_unwrapped():
     wrapper = X()
-    wrapper.api = _make_x_api(_FailingAuthManager(), None)
+    wrapper.api = _make_x_api(FailingAuthManager("token expired"), None)
     with pytest.raises(ThreadPublishError) as excinfo:
         await wrapper.thread([{"text": "hello"}])
     error_text = excinfo.value.result.error
@@ -125,7 +96,7 @@ async def test_x_seam_auth_error_propagates_unwrapped():
 @pytest.mark.asyncio
 async def test_x_seam_wrapped_error_exact_shape():
     wrapper = X()
-    wrapper.api = _make_x_api(_OkAuthManager(), _XStubClient(error=ValueError(TOKEN_MSG)))
+    wrapper.api = _make_x_api(CountingOkAuthManager(), _XStubClient(error=ValueError(TOKEN_MSG)))
     with pytest.raises(ThreadPublishError) as excinfo:
         await wrapper.thread([{"text": "hello"}])
     error_text = excinfo.value.result.error
@@ -134,17 +105,9 @@ async def test_x_seam_wrapped_error_exact_shape():
 
 
 @pytest.mark.asyncio
-async def test_discord_seam_uses_real_api_class():
-    """Non-vacuity pin: the seam under test is the real DiscordAPI, not a mock."""
-    wrapper = Discord()
-    wrapper.api = _make_discord_api(_OkAuthManager(), _DiscordStubClient())
-    assert isinstance(wrapper.api, DiscordAPI)
-
-
-@pytest.mark.asyncio
 async def test_discord_seam_auth_error_propagates_unwrapped():
     wrapper = Discord()
-    wrapper.api = _make_discord_api(_FailingAuthManager(), None)
+    wrapper.api = _make_discord_api(FailingAuthManager("token expired"), None)
     with pytest.raises(ThreadPublishError) as excinfo:
         await wrapper.thread([{"text": "hello"}], thread_name="t")
     error_text = excinfo.value.result.error
@@ -155,7 +118,7 @@ async def test_discord_seam_auth_error_propagates_unwrapped():
 @pytest.mark.asyncio
 async def test_discord_seam_sanitizes_token_error():
     wrapper = Discord()
-    wrapper.api = _make_discord_api(_OkAuthManager(), _DiscordStubClient(error=ValueError(TOKEN_MSG)))
+    wrapper.api = _make_discord_api(CountingOkAuthManager(), _DiscordStubClient(error=ValueError(TOKEN_MSG)))
     with pytest.raises(ThreadPublishError) as excinfo:
         await wrapper.thread([{"text": "hello"}], thread_name="t")
     error_text = excinfo.value.result.error

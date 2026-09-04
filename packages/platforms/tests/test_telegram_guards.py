@@ -28,32 +28,8 @@ from unittest.mock import AsyncMock
 import pytest
 
 from agoras.core.auth.exceptions import AuthenticationError
+from ._auth_fakes import CountingOkAuthManager, FailingAuthManager
 from agoras.platforms.telegram.api import TelegramAPI
-
-
-class _FailingAuthManager:
-    """Auth manager whose ensure_authenticated raises the categorized error."""
-
-    access_token = None
-    user_info = None
-    client = None
-
-    def ensure_authenticated(self):
-        raise AuthenticationError("Telegram token expired")
-
-
-class _OkAuthManager:
-    """Auth manager whose ensure_authenticated succeeds (token refreshed)."""
-
-    access_token = "valid-token"
-    user_info = None
-    client = None
-
-    def __init__(self):
-        self.ensure_calls = 0
-
-    def ensure_authenticated(self):
-        self.ensure_calls += 1
 
 
 def _make_api(auth_manager=None):
@@ -66,14 +42,14 @@ def _make_api(auth_manager=None):
 
 @pytest.mark.asyncio
 async def test_ensure_dialect_no_credentials_raises_categorized_auth_error():
-    api = _make_api(auth_manager=_FailingAuthManager())
+    api = _make_api(auth_manager=FailingAuthManager("Telegram token expired"))
     with pytest.raises(AuthenticationError):
         await api.send_message("chat_id", "hello")
 
 
 @pytest.mark.asyncio
 async def test_ensure_dialect_heals_expired_token():
-    manager = _OkAuthManager()
+    manager = CountingOkAuthManager()
     api = _make_api(auth_manager=manager)
     api.client = AsyncMock()
     api.client.send_message = AsyncMock(return_value={"message_id": 1})
@@ -84,7 +60,7 @@ async def test_ensure_dialect_heals_expired_token():
 
 @pytest.mark.asyncio
 async def test_like_share_raise_without_guards():
-    api = _make_api(auth_manager=_FailingAuthManager())
+    api = _make_api(auth_manager=FailingAuthManager("Telegram token expired"))
     with pytest.raises(Exception) as excinfo:
         await api.like("post-1")
     assert str(excinfo.value) == "Like not supported for Telegram"
@@ -97,7 +73,7 @@ async def test_like_share_raise_without_guards():
 @pytest.mark.asyncio
 async def test_send_photo_media_prep_error_surfaces_unwrapped():
     """Media-prep errors ('No photo content available') must not gain a wrap prefix."""
-    api = _make_api(auth_manager=_OkAuthManager())
+    api = _make_api(auth_manager=CountingOkAuthManager())
     api._authenticated = True
     api.client = AsyncMock()
     with pytest.raises(Exception) as excinfo:
@@ -109,7 +85,7 @@ async def test_send_photo_media_prep_error_surfaces_unwrapped():
 @pytest.mark.asyncio
 async def test_send_photo_client_call_error_is_wrapped():
     """Client-call errors are still wrapped with the operation prefix."""
-    api = _make_api(auth_manager=_OkAuthManager())
+    api = _make_api(auth_manager=CountingOkAuthManager())
     api._authenticated = True
     api.client = AsyncMock()
     api.client.send_photo.side_effect = Exception("Bearer tok123")
@@ -117,3 +93,38 @@ async def test_send_photo_client_call_error_is_wrapped():
         await api.send_photo(chat_id="chat-1", photo_url=None, photo_content=b"data")
     assert str(excinfo.value).startswith("Telegram send photo failed:")
     assert "Bearer [REDACTED]" in str(excinfo.value)
+
+
+@pytest.mark.asyncio
+async def test_reply_ensure_failure_raises_unwrapped():
+    api = _make_api(auth_manager=FailingAuthManager("Telegram token expired"))
+    with pytest.raises(AuthenticationError) as excinfo:
+        await api.reply("123", "hello")
+    assert "failed:" not in str(excinfo.value)
+
+
+@pytest.mark.asyncio
+async def test_reply_no_client_raises_not_available():
+    from unittest.mock import MagicMock
+
+    api = _make_api(auth_manager=CountingOkAuthManager())
+    api.chat_id = "chat-1"
+    with pytest.raises(Exception) as excinfo:
+        await api.reply("123", "hello")
+    assert str(excinfo.value) == "Telegram client not available"
+
+
+@pytest.mark.asyncio
+async def test_reply_missing_chat_id_and_invalid_post_id():
+    from unittest.mock import MagicMock
+
+    api = _make_api(auth_manager=CountingOkAuthManager())
+    api.client = MagicMock()
+    api.chat_id = None
+    with pytest.raises(Exception) as excinfo:
+        await api.reply("123", "hello")
+    assert str(excinfo.value) == "Telegram chat_id is required for reply"
+
+    api.chat_id = "chat-1"
+    with pytest.raises(ValueError):
+        await api.reply("not-an-int", "hello")

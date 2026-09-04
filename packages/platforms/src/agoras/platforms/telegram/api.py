@@ -376,6 +376,8 @@ class TelegramAPI(BaseAPI):
         # Return list of message IDs
         return [str(msg["message_id"]) for msg in response]
 
+    @guard_ensure_auth_manager
+    @guard_client_presence
     async def reply(
         self,
         post_id: str,
@@ -402,11 +404,6 @@ class TelegramAPI(BaseAPI):
         Raises:
             Exception: If reply sending fails
         """
-        self.auth_manager.ensure_authenticated()
-
-        if not self.client:
-            raise Exception("Telegram client not available")
-
         chat_id = self.chat_id
         if not chat_id:
             raise Exception("Telegram chat_id is required for reply")

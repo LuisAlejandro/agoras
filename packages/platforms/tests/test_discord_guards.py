@@ -28,32 +28,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from agoras.core.auth.exceptions import AuthenticationError
+from ._auth_fakes import CountingOkAuthManager, FailingAuthManager
 from agoras.platforms.discord.api import DiscordAPI
-
-
-class _FailingAuthManager:
-    """Auth manager whose ensure_authenticated raises the categorized error."""
-
-    access_token = None
-    user_info = None
-    client = None
-
-    def ensure_authenticated(self):
-        raise AuthenticationError("Discord token expired")
-
-
-class _OkAuthManager:
-    """Auth manager whose ensure_authenticated succeeds (token refreshed)."""
-
-    access_token = "valid-token"
-    user_info = None
-    client = None
-
-    def __init__(self):
-        self.ensure_calls = 0
-
-    def ensure_authenticated(self):
-        self.ensure_calls += 1
 
 
 def _make_api(auth_manager=None):
@@ -66,14 +42,14 @@ def _make_api(auth_manager=None):
 
 @pytest.mark.asyncio
 async def test_ensure_dialect_no_credentials_raises_categorized_auth_error():
-    api = _make_api(auth_manager=_FailingAuthManager())
+    api = _make_api(auth_manager=FailingAuthManager("Discord token expired"))
     with pytest.raises(AuthenticationError):
         await api.post(content="hello")
 
 
 @pytest.mark.asyncio
 async def test_ensure_dialect_no_client_raises_not_available():
-    api = _make_api(auth_manager=_OkAuthManager())
+    api = _make_api(auth_manager=CountingOkAuthManager())
     with pytest.raises(Exception) as excinfo:
         await api.post(content="hello")
     assert str(excinfo.value) == "Discord client not available"
@@ -81,7 +57,7 @@ async def test_ensure_dialect_no_client_raises_not_available():
 
 @pytest.mark.asyncio
 async def test_ensure_dialect_heals_expired_token():
-    manager = _OkAuthManager()
+    manager = CountingOkAuthManager()
     api = _make_api(auth_manager=manager)
     api.client = MagicMock()
     api.client.send_message = AsyncMock(return_value="msg-1")
@@ -92,7 +68,7 @@ async def test_ensure_dialect_heals_expired_token():
 
 @pytest.mark.asyncio
 async def test_authenticated_with_client_passes_guards():
-    api = _make_api(auth_manager=_OkAuthManager())
+    api = _make_api(auth_manager=CountingOkAuthManager())
     api._authenticated = True
     api.client = MagicMock()
     api.client.send_message = AsyncMock(return_value="msg-1")

@@ -56,52 +56,6 @@ class GuardableAPI(Protocol):
 T = TypeVar("T", bound=GuardableAPI)
 
 
-def guard_auth_attempt(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Callable[Concatenate[T, P], Awaitable[R]]:
-    """
-    Guard decorator: attempt authentication when the instance is not authenticated.
-
-    Applies the auto-auth dialect: if ``self._authenticated`` is false,
-    ``self.authenticate()`` is awaited first. Guard-phase errors propagate
-    unmodified (never wrapped), preserving the categorized auth error.
-
-    The authenticate section runs under a per-instance non-reentrant
-    ``asyncio.Lock``: ``authenticate()`` and ``_post_authenticate`` must
-    never call a guard_auth_attempt-decorated method on the same instance,
-    or the same task deadlocks.
-    """
-
-    @functools.wraps(func)
-    async def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
-        if not self._authenticated:
-            lock = getattr(self, "_auth_lock", None)
-            if lock is None:
-                lock = asyncio.Lock()
-                setattr(self, "_auth_lock", lock)
-            async with lock:
-                if not self._authenticated:
-                    await self.authenticate()
-        return await func(self, *args, **kwargs)
-
-    return wrapper
-
-
-def guard_assert_auth(func: Callable[Concatenate[T, P], Awaitable[R]]) -> Callable[Concatenate[T, P], Awaitable[R]]:
-    """
-    Guard decorator: raise the platform's not-authenticated message when unauthenticated.
-
-    Applies the assert-or-raise dialect: if ``self._authenticated`` is false
-    or ``self.client`` is missing, raise without attempting authentication.
-    """
-
-    @functools.wraps(func)
-    async def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> R:
-        if not self._authenticated or not self.client:
-            raise Exception(self._not_authenticated_message)
-        return await func(self, *args, **kwargs)
-
-    return wrapper
-
-
 def guard_ensure_auth_manager(
     func: Callable[Concatenate[T, P], Awaitable[R]],
 ) -> Callable[Concatenate[T, P], Awaitable[R]]:
