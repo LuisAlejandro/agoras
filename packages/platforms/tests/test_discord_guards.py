@@ -15,46 +15,60 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-"""Committed guard-behavior assertions for DiscordAPI (U4, auto-auth dialect).
+"""Committed guard-behavior assertions for DiscordAPI (ensure dialect).
 
 The existing discord suite runs authenticated fixtures, so guard behavior
-is invisible to it. These tests pin the unauthenticated path: Discord
-attempts authentication first (auto-auth dialect), then raises its
-not-available message when no client is present.
+is invisible to it. These tests pin the unauthenticated path: the
+auth-manager ensure runs first and its categorized error propagates
+unwrapped; an expired-but-refreshable token heals transparently.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from agoras.core.auth.exceptions import AuthenticationError
+from ._auth_fakes import CountingOkAuthManager, FailingAuthManager
 from agoras.platforms.discord.api import DiscordAPI
 
 
-def _make_api():
-    with patch("agoras.platforms.discord.api.DiscordAuthManager"):
-        api = DiscordAPI("bot_token", "Server Name", "channel-name")
+def _make_api(auth_manager=None):
+    api = DiscordAPI("bot_token", "Server Name", "channel-name")
+    api.auth_manager = auth_manager
     api._authenticated = False
     api.client = None
     return api
 
 
 @pytest.mark.asyncio
-async def test_auto_auth_dialect_authenticates_before_client_check():
-    api = _make_api()
+async def test_ensure_dialect_no_credentials_raises_categorized_auth_error():
+    api = _make_api(auth_manager=FailingAuthManager("Discord token expired"))
+    with pytest.raises(AuthenticationError):
+        await api.post(content="hello")
 
-    async def _authenticate():
-        api._authenticated = True  # client stays None
 
-    api.authenticate = _authenticate
+@pytest.mark.asyncio
+async def test_ensure_dialect_no_client_raises_not_available():
+    api = _make_api(auth_manager=CountingOkAuthManager())
     with pytest.raises(Exception) as excinfo:
         await api.post(content="hello")
     assert str(excinfo.value) == "Discord client not available"
-    assert api._authenticated is True
+
+
+@pytest.mark.asyncio
+async def test_ensure_dialect_heals_expired_token():
+    manager = CountingOkAuthManager()
+    api = _make_api(auth_manager=manager)
+    api.client = MagicMock()
+    api.client.send_message = AsyncMock(return_value="msg-1")
+    result = await api.post(content="hello")
+    assert result == "msg-1"
+    assert manager.ensure_calls == 1
 
 
 @pytest.mark.asyncio
 async def test_authenticated_with_client_passes_guards():
-    api = _make_api()
+    api = _make_api(auth_manager=CountingOkAuthManager())
     api._authenticated = True
     api.client = MagicMock()
     api.client.send_message = AsyncMock(return_value="msg-1")

@@ -45,8 +45,6 @@ PLATFORMS = [
 ]
 
 GUARD_DECORATORS = (
-    "guard_auth_attempt",
-    "guard_assert_auth",
     "guard_ensure_auth_manager",
     "guard_token_presence",
     "guard_client_presence",

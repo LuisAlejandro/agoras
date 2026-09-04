@@ -285,11 +285,10 @@ class Feed:
 
         now = datetime.datetime.now()
         cutoff = now - datetime.timedelta(seconds=lookback_seconds)
-        cutoff_timestamp = int(cutoff.strftime("%Y%m%d%H%M%S"))
 
         recent_items = []
         for item in self.items:
-            if item.pub_date and item.timestamp is not None and item.timestamp >= cutoff_timestamp:
+            if item.pub_date and item.pub_date.replace(tzinfo=None) >= cutoff:
                 recent_items.append(item)
 
         return recent_items
@@ -309,11 +308,10 @@ class Feed:
 
         now = datetime.datetime.now()
         cutoff = now - datetime.timedelta(days=max_age_days)
-        cutoff_timestamp = int(cutoff.strftime("%Y%m%d%H%M%S"))
 
         valid_items = []
         for item in self.items:
-            if item.pub_date and item.timestamp is not None and item.timestamp >= cutoff_timestamp:
+            if item.pub_date and item.pub_date.replace(tzinfo=None) >= cutoff:
                 valid_items.append(item)
 
         return valid_items

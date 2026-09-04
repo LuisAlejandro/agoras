@@ -20,14 +20,11 @@
 import asyncio
 import inspect
 import time
-from unittest.mock import MagicMock
 
 import pytest
 
 from agoras.core.api_base import (
     BaseAPI,
-    guard_assert_auth,
-    guard_auth_attempt,
     guard_client_presence,
     guard_ensure_auth_manager,
     guard_error_wrap,
@@ -80,44 +77,6 @@ class _StubAPI(BaseAPI):
 
     async def unguarded_op(self, value):
         return value
-
-
-@pytest.mark.asyncio
-async def test_guard_auth_attempt_authenticates_when_unauthenticated():
-    api = _StubAPI()
-    api._auth_ok = True
-    decorated = guard_auth_attempt(_StubAPI.op)
-    result = await decorated(api, "value")
-    assert result == "value"
-    assert api.auth_attempts == 1
-
-
-@pytest.mark.asyncio
-async def test_guard_auth_attempt_propagates_auth_error_unmodified():
-    api = _StubAPI()
-    decorated = guard_auth_attempt(_StubAPI.op)
-    with pytest.raises(_AuthError):
-        await decorated(api, "value")
-    assert api.auth_attempts == 1
-
-
-@pytest.mark.asyncio
-async def test_guard_assert_auth_raises_when_unauthenticated():
-    api = _StubAPI()
-    decorated = guard_assert_auth(_StubAPI.op)
-    with pytest.raises(Exception) as excinfo:
-        await decorated(api, "value")
-    assert str(excinfo.value) == "Stub API not authenticated"
-    assert api.auth_attempts == 0
-
-
-@pytest.mark.asyncio
-async def test_guard_assert_auth_passes_when_authenticated_with_client():
-    api = _StubAPI()
-    api._authenticated = True
-    api.client = object()
-    decorated = guard_assert_auth(_StubAPI.op)
-    assert await decorated(api, "value") == "value"
 
 
 @pytest.mark.asyncio
@@ -267,9 +226,7 @@ async def test_full_stack_composition_order_guard_before_wait():
     api.client = object()
     api._ensure_ok = True
 
-    decorated = guard_rate_limit("op", 0.01)(
-        guard_error_wrap("op")(guard_ensure_auth_manager(op))
-    )
+    decorated = guard_rate_limit("op", 0.01)(guard_error_wrap("op")(guard_ensure_auth_manager(op)))
     await decorated(api, "value")
     assert order == ["ensure", "client-call"]
 
@@ -351,26 +308,6 @@ async def test_guard_error_wrap_failsafe_sanitizes_when_handler_returns():
 
 
 @pytest.mark.asyncio
-async def test_concurrent_first_calls_authenticate_once():
-    """Concurrent auto-auth first calls produce exactly one authenticate."""
-    api = _StubAPI()
-    api._auth_ok = True
-    attempts = 0
-
-    async def counting_authenticate():
-        nonlocal attempts
-        attempts += 1
-        await asyncio.sleep(0)
-        api._authenticated = True
-
-    api.authenticate = counting_authenticate
-
-    decorated = guard_auth_attempt(_StubAPI.op)
-    await asyncio.gather(decorated(api, "a"), decorated(api, "b"))
-    assert attempts == 1
-
-
-@pytest.mark.asyncio
 async def test_concurrent_shared_bucket_fires_serialized():
     """Two callers in one window must fire at least min_interval apart."""
     api = _StubAPI()
@@ -384,30 +321,3 @@ async def test_concurrent_shared_bucket_fires_serialized():
     t1, t2 = await asyncio.gather(timed_call("a"), timed_call("b"))
     gap = abs(t1 - t2)
     assert gap >= 0.15, f"burst window: fires {gap:.3f}s apart (expected >= 0.2)"
-
-
-@pytest.mark.asyncio
-async def test_disconnect_during_authenticate_leaves_clean_state():
-    """A disconnect racing an in-flight first-auth must not leave stale state."""
-    api = _StubAPI()
-    started = asyncio.Event()
-    release = asyncio.Event()
-
-    async def slow_authenticate():
-        started.set()
-        await release.wait()
-        api._authenticated = True
-        api.client = MagicMock()
-
-    api.authenticate = slow_authenticate
-    decorated = guard_auth_attempt(_StubAPI.op)
-
-    task = asyncio.create_task(decorated(api, "a"))
-    await asyncio.wait_for(started.wait(), timeout=5)
-    dtask = asyncio.create_task(BaseAPI.disconnect(api))  # type: ignore[arg-type]  # explicit unbound call on stub
-    await asyncio.sleep(0.05)
-    release.set()
-    await asyncio.gather(task, dtask)
-
-    assert api.client is None
-    assert api._authenticated is False

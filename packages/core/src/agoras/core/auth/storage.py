@@ -188,26 +188,6 @@ class SecureTokenStorage:
             # If decryption or parsing fails, return None
             return None
 
-    def delete_token(self, platform: str, identifier: str) -> bool:
-        """
-        Delete stored token.
-
-        Args:
-            platform (str): Platform name (e.g., 'facebook', 'instagram')
-            identifier (str): Unique identifier (e.g., user_id, username)
-
-        Returns:
-            bool: True if token was deleted, False if it didn't exist
-        """
-        filename = f"{platform}-{validate_identifier(identifier)}.token"
-        filepath = self.token_dir / filename
-
-        if filepath.exists():
-            filepath.unlink()
-            return True
-
-        return False
-
     def list_tokens(self, platform: Optional[str] = None) -> list:
         """
         List all stored tokens, optionally filtered by platform.

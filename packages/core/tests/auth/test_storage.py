@@ -178,50 +178,6 @@ def test_securetokenstorage_encryption(temp_storage):
     assert loaded == test_tokens
 
 
-# Delete Tests
-
-def test_tokenstorage_delete(temp_storage):
-    """Test SecureTokenStorage delete method."""
-    temp_storage.save_token('test_platform', 'test_user', {'token': 'value'})
-    temp_storage.delete_token('test_platform', 'test_user')
-
-    # Should return None after deletion
-    loaded = temp_storage.load_token('test_platform', 'test_user')
-    assert loaded is None
-
-
-def test_delete_returns_true_when_exists(temp_storage):
-    """Test delete_token returns True when token exists."""
-    temp_storage.save_token('test', 'user', {'token': 'value'})
-
-    result = temp_storage.delete_token('test', 'user')
-
-    assert result is True
-
-
-def test_delete_returns_false_when_not_exists(temp_storage):
-    """Test delete_token returns False when token doesn't exist."""
-    result = temp_storage.delete_token('nonexistent', 'user')
-
-    assert result is False
-
-
-def test_delete_actually_removes_file(temp_storage):
-    """Test delete actually removes the token file."""
-    temp_storage.save_token('test', 'user', {'token': 'value'})
-
-    token_file = temp_storage.token_dir / 'test-user.token'
-    assert token_file.exists()
-
-    temp_storage.delete_token('test', 'user')
-
-    # File should be gone
-    assert not token_file.exists()
-
-    # Load should return None
-    assert temp_storage.load_token('test', 'user') is None
-
-
 # List Tokens Tests
 
 def test_list_tokens_returns_all(temp_storage):
@@ -421,9 +377,6 @@ def test_composite_keyed_token_round_trip(temp_storage):
 
     tokens = temp_storage.list_tokens(platform="linkedin")
     assert (("linkedin", composite)) in tokens
-
-    assert temp_storage.delete_token("linkedin", composite) is True
-    assert temp_storage.load_token("linkedin", composite) is None
 
 
 def test_list_tokens_parses_composite_delimiter(temp_storage):

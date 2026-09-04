@@ -228,6 +228,45 @@ async def test_get_items_since_filters_by_timestamp(mock_parse, mock_urlopen):
     assert len(recent_items) == 1
 
 
+@pytest.mark.asyncio
+@patch('agoras.core.feed.feed.urlopen')
+@patch('agoras.core.feed.feed.parse_rss_bytes')
+async def test_get_items_since_handles_tz_aware_and_none_dates(mock_parse, mock_urlopen):
+    """Test get_items_since handles tz-aware and None pub_dates without TypeError.
+
+    Comparison is by wall time (tz is stripped, matching the historic
+    int-encoded behavior), so tz-aware fixtures are anchored to local wall
+    time to stay deterministic on any host TZ.
+    """
+    mock_response = MagicMock()
+    mock_response.read.return_value = b'<rss></rss>'
+    mock_urlopen.return_value = mock_response
+
+    naive_now = datetime.datetime.now()
+    mock_item_recent = MagicMock()
+    mock_item_recent.pub_date = (naive_now - datetime.timedelta(seconds=1800)).replace(
+        tzinfo=datetime.timezone.utc
+    )
+    mock_item_old = MagicMock()
+    mock_item_old.pub_date = (naive_now - datetime.timedelta(seconds=7200)).replace(
+        tzinfo=datetime.timezone.utc
+    )
+    mock_item_none = MagicMock()
+    mock_item_none.pub_date = None
+
+    mock_feed_data = MagicMock()
+    mock_feed_data.items = [mock_item_recent, mock_item_old, mock_item_none]
+    mock_parse.return_value = mock_feed_data
+
+    feed = Feed('http://feed.rss')
+    await feed.download()
+
+    recent_items = feed.get_items_since(3600)
+
+    assert len(recent_items) == 1
+    assert recent_items[0].pub_date == mock_item_recent.pub_date
+
+
 def test_get_items_within_days_before_download():
     """Test get_items_within_days raises exception before download."""
     feed = Feed('http://feed.rss')
