@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Optional
 
 from agoras.core.api_base import (
     BaseAPI,
-    guard_auth_attempt,
+    guard_ensure_auth_manager,
     guard_client_presence,
     guard_error_wrap,
     guard_rate_limit,
@@ -99,7 +99,7 @@ class TelegramAPI(BaseAPI):
             self.auth_manager.user_info = None
             self.auth_manager.client = None
 
-    @guard_auth_attempt
+    @guard_ensure_auth_manager
     @guard_client_presence
     @guard_rate_limit("send_message", 1.0)
     @guard_error_wrap("Telegram send message")
@@ -126,7 +126,7 @@ class TelegramAPI(BaseAPI):
         )
         return str(response["message_id"])
 
-    @guard_auth_attempt
+    @guard_ensure_auth_manager
     @guard_client_presence
     @guard_rate_limit("send_photo", 1.0)
     async def send_photo(
@@ -192,7 +192,7 @@ class TelegramAPI(BaseAPI):
             raise
         return str(response["message_id"])
 
-    @guard_auth_attempt
+    @guard_ensure_auth_manager
     @guard_client_presence
     @guard_rate_limit("send_video", 1.0)
     async def send_video(
@@ -251,7 +251,7 @@ class TelegramAPI(BaseAPI):
             raise
         return str(response["message_id"])
 
-    @guard_auth_attempt
+    @guard_ensure_auth_manager
     @guard_client_presence
     @guard_rate_limit("delete_message", 0.5)
     @guard_error_wrap("Telegram delete message")
@@ -349,7 +349,7 @@ class TelegramAPI(BaseAPI):
         """
         raise Exception("Share not supported for Telegram")
 
-    @guard_auth_attempt
+    @guard_ensure_auth_manager
     @guard_client_presence
     @guard_rate_limit("send_media_group", 1.0)
     @guard_error_wrap("Telegram send media group")
@@ -402,8 +402,7 @@ class TelegramAPI(BaseAPI):
         Raises:
             Exception: If reply sending fails
         """
-        if not self._authenticated:
-            await self.authenticate()
+        self.auth_manager.ensure_authenticated()
 
         if not self.client:
             raise Exception("Telegram client not available")

@@ -19,7 +19,7 @@
 
 from agoras.core.api_base import (
     BaseAPI,
-    guard_auth_attempt,
+    guard_ensure_auth_manager,
     guard_client_presence,
     guard_error_wrap,
     guard_rate_limit,
@@ -80,7 +80,7 @@ class DiscordAPI(BaseAPI):
         if not self.auth_manager.client:
             raise Exception("Discord client not available after authentication")
 
-    @guard_auth_attempt
+    @guard_ensure_auth_manager
     @guard_client_presence
     @guard_rate_limit("post", 1.0)
     async def post(self, content=None, embeds=None, file=None, files=None):
@@ -102,7 +102,7 @@ class DiscordAPI(BaseAPI):
         assert self.client is not None
         return await self.client.send_message(content=content, embeds=embeds, file=file, files=files)
 
-    @guard_auth_attempt
+    @guard_ensure_auth_manager
     @guard_client_presence
     @guard_rate_limit("reply", 1.0)
     async def reply(self, message_id, content=None, embeds=None, file=None, files=None):
@@ -125,7 +125,7 @@ class DiscordAPI(BaseAPI):
         assert self.client is not None
         return await self.client.send_reply(message_id, content=content, embeds=embeds, file=file, files=files)
 
-    @guard_auth_attempt
+    @guard_ensure_auth_manager
     @guard_client_presence
     @guard_rate_limit("create_public_thread", 1.0)
     async def create_public_thread(self, message_id, name, auto_archive_duration=None):
@@ -143,7 +143,7 @@ class DiscordAPI(BaseAPI):
         assert self.client is not None
         return await self.client.create_public_thread(message_id, name, auto_archive_duration)
 
-    @guard_auth_attempt
+    @guard_ensure_auth_manager
     @guard_client_presence
     @guard_rate_limit("send_message_to_thread", 1.0)
     async def send_message_to_thread(self, thread, content=None, embeds=None, file=None, files=None):
@@ -163,7 +163,7 @@ class DiscordAPI(BaseAPI):
         assert self.client is not None
         return await self.client.send_message_to_thread(thread, content=content, embeds=embeds, file=file, files=files)
 
-    @guard_auth_attempt
+    @guard_ensure_auth_manager
     @guard_client_presence
     @guard_rate_limit("like", 0.5)
     async def like(self, message_id, emoji="❤️"):
@@ -183,7 +183,7 @@ class DiscordAPI(BaseAPI):
         assert self.client is not None
         return await self.client.add_reaction(message_id, emoji)
 
-    @guard_auth_attempt
+    @guard_ensure_auth_manager
     @guard_client_presence
     @guard_rate_limit("delete", 0.5)
     async def delete(self, message_id):
@@ -202,7 +202,7 @@ class DiscordAPI(BaseAPI):
         assert self.client is not None
         return await self.client.delete_message(message_id)
 
-    @guard_auth_attempt
+    @guard_ensure_auth_manager
     @guard_client_presence
     @guard_rate_limit("get_post", 0.5)
     @guard_error_wrap("Discord get-post")
@@ -222,7 +222,7 @@ class DiscordAPI(BaseAPI):
         assert self.client is not None
         return await self.client.get_message(message_id)
 
-    @guard_auth_attempt
+    @guard_ensure_auth_manager
     @guard_client_presence
     @guard_rate_limit("list_posts", 0.5)
     @guard_error_wrap("Discord list-posts")
@@ -242,7 +242,7 @@ class DiscordAPI(BaseAPI):
         assert self.client is not None
         return await self.client.list_messages(limit)
 
-    @guard_auth_attempt
+    @guard_ensure_auth_manager
     @guard_client_presence
     @guard_rate_limit("upload_file", 1.0)
     async def upload_file(self, file_content, filename, content=None, embeds=None):

@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Optional
 
 from agoras.core.api_base import (
     BaseAPI,
-    guard_assert_auth,
+    guard_ensure_auth_manager,
     guard_error_wrap,
     guard_rate_limit,
 )
@@ -81,7 +81,7 @@ class XAPI(BaseAPI):
 
         return await super().authenticate()
 
-    @guard_assert_auth
+    @guard_ensure_auth_manager
     @guard_rate_limit("upload_media", 1.0)
     @guard_error_wrap("X media upload")
     async def upload_media(self, media_content: bytes, media_type: str) -> str:
@@ -108,7 +108,7 @@ class XAPI(BaseAPI):
             return user_info.get("subscription_type") or user_info.get("subscription_type_v2")
         return None
 
-    @guard_assert_auth
+    @guard_ensure_auth_manager
     @guard_rate_limit("post", 1.0)
     async def post(
         self,
@@ -144,7 +144,7 @@ class XAPI(BaseAPI):
             self._handle_api_error(e, "X tweet creation")
             raise
 
-    @guard_assert_auth
+    @guard_ensure_auth_manager
     @guard_rate_limit("like", 0.5)
     @guard_error_wrap("X like")
     async def like(self, tweet_id: str) -> str:
@@ -163,7 +163,7 @@ class XAPI(BaseAPI):
         result = await self.client.like_tweet(tweet_id)
         return result
 
-    @guard_assert_auth
+    @guard_ensure_auth_manager
     @guard_rate_limit("post", 1.0)
     @guard_error_wrap("X reply creation")
     async def reply(
@@ -186,7 +186,7 @@ class XAPI(BaseAPI):
         tweet_id = await self.client.create_tweet(text, media_ids, in_reply_to_tweet_id=in_reply_to_tweet_id)
         return tweet_id
 
-    @guard_assert_auth
+    @guard_ensure_auth_manager
     @guard_rate_limit("share", 0.5)
     @guard_error_wrap("X retweet")
     async def share(self, tweet_id: str) -> str:
@@ -205,7 +205,7 @@ class XAPI(BaseAPI):
         result = await self.client.retweet(tweet_id)
         return result
 
-    @guard_assert_auth
+    @guard_ensure_auth_manager
     @guard_rate_limit("delete", 0.5)
     @guard_error_wrap("X delete")
     async def delete(self, tweet_id: str) -> str:
@@ -224,7 +224,7 @@ class XAPI(BaseAPI):
         result = await self.client.delete_tweet(tweet_id)
         return result
 
-    @guard_assert_auth
+    @guard_ensure_auth_manager
     @guard_rate_limit("get_post", 0.5)
     @guard_error_wrap("X get-post")
     async def get_post(self, tweet_id: str) -> Dict[str, Any]:
@@ -242,7 +242,7 @@ class XAPI(BaseAPI):
         """
         return await self.client.get_tweet(tweet_id)
 
-    @guard_assert_auth
+    @guard_ensure_auth_manager
     @guard_rate_limit("list_posts", 0.5)
     @guard_error_wrap("X list-posts")
     async def list_posts(self, limit: int) -> List[Dict[str, Any]]:
