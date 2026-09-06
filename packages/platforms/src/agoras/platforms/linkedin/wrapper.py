@@ -17,12 +17,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.linkedin.wrapper module."""
 
-import asyncio
 import sys
 from datetime import datetime, timezone
 
 from agoras.common.utils import parse_metatags
-from agoras.core.interfaces import SocialNetwork
+from agoras.core.interfaces import SocialNetwork, run_wrapper_main, run_wrapper_main_async
 from agoras.core.text_limits import validate_text
 
 from .api import LinkedInAPI
@@ -108,18 +107,16 @@ class LinkedIn(SocialNetwork):
                 profile=self._get_config_value("profile"),
             )
 
-            if auth_manager._load_credentials_from_storage():
-                # Fill in missing credentials from storage
-                if not self.linkedin_object_id:
-                    self.linkedin_object_id = auth_manager.user_id
-                if not self.linkedin_client_id:
-                    self.linkedin_client_id = auth_manager.client_id
-                if not self.linkedin_client_secret:
-                    self.linkedin_client_secret = auth_manager.client_secret
-                if not self.linkedin_refresh_token:
-                    self.linkedin_refresh_token = auth_manager.refresh_token
-                if not self.linkedin_access_token:
-                    self.linkedin_access_token = auth_manager.access_token
+            self._fill_missing_credentials(
+                auth_manager,
+                {
+                    "linkedin_object_id": "user_id",
+                    "linkedin_client_id": "client_id",
+                    "linkedin_client_secret": "client_secret",
+                    "linkedin_refresh_token": "refresh_token",
+                    "linkedin_access_token": "access_token",
+                },
+            )
 
         # If we have the required auth credentials, authenticate to get access token
         if (
@@ -143,15 +140,14 @@ class LinkedIn(SocialNetwork):
                 if auth_manager.refresh_token:
                     self.linkedin_refresh_token = auth_manager.refresh_token
 
-        # Validate all credentials are now available
-        if not all(
+        self._require_credentials(
             [
                 self.linkedin_access_token,
                 self.linkedin_client_id,
                 self.linkedin_client_secret,
-            ]
-        ):
-            raise Exception("Not authenticated. Please run 'agoras linkedin authorize' first.")
+            ],
+            "linkedin",
+        )
 
         # Initialize LinkedIn API
         self.api = LinkedInAPI(
@@ -639,51 +635,35 @@ class LinkedIn(SocialNetwork):
     # random-from-feed, and schedule actions with the correct parameter names.
     # No need to override them for LinkedIn.
 
-    async def authorize_credentials(self):
-        """
-        Authorize and store LinkedIn credentials for future use.
+    _authorize_keys = {
+        "user_id": ("linkedin_object_id", "LINKEDIN_OBJECT_ID"),
+        "client_id": ("linkedin_client_id", "LINKEDIN_CLIENT_ID"),
+        "client_secret": ("linkedin_client_secret", "LINKEDIN_CLIENT_SECRET"),
+    }
+    _authorize_uses_profile = False
 
-        Returns:
-            bool: True if authorization successful
-        """
+    def _authorize_manager(self):
+        """Return the LinkedInAuthManager used by the shared authorize flow."""
         from .auth import LinkedInAuthManager
 
-        object_id = self._get_config_value("linkedin_object_id", "LINKEDIN_OBJECT_ID")
-        client_id = self._get_config_value("linkedin_client_id", "LINKEDIN_CLIENT_ID")
-        client_secret = self._get_config_value("linkedin_client_secret", "LINKEDIN_CLIENT_SECRET")
-
-        auth_manager = LinkedInAuthManager(user_id=object_id, client_id=client_id, client_secret=client_secret)
-
-        result = await auth_manager.authorize()
-        if result:
-            print(result)
-            return True
-        return False
+        return LinkedInAuthManager
 
 
 async def main_async(kwargs):
     """
     Async main function to execute LinkedIn actions.
 
-    Thin shim: delegates to the base template runner via unbound dispatch,
-    so test mocks of ``LinkedIn`` (which stub ``execute_action``/``disconnect``/
-    ``authorize_credentials`` but not the base method) keep working. The
-    name is kept module-level because tests and the CLI import it.
-
     Args:
         kwargs (dict): Configuration arguments
     """
-    instance = LinkedIn(**kwargs)
-    return await SocialNetwork.run_main_async(instance, kwargs)
+    return await run_wrapper_main_async(LinkedIn, kwargs)
 
 
 def main(kwargs):
     """
     Main function to execute LinkedIn actions (for backwards compatibility).
 
-    Thin shim kept module-level because the CLI imports it.
-
     Args:
         kwargs (dict): Configuration arguments
     """
-    asyncio.run(main_async(kwargs))
+    run_wrapper_main(LinkedIn, kwargs)

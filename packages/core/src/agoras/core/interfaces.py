@@ -56,6 +56,22 @@ def _is_uncertain_publish_error(exc: BaseException) -> bool:
     return any(token in message for token in ("timeout", "timed out", "temporarily unavailable"))
 
 
+async def run_wrapper_main_async(cls, kwargs):
+    """
+    Shared body of every wrapper's ``main_async`` shim.
+
+    Dispatches through ``SocialNetwork.run_main_async`` unbound so test mocks
+    of the wrapper class (which stub ``execute_action``/``disconnect``/
+    ``authorize_credentials`` but not the base method) keep working.
+    """
+    return await SocialNetwork.run_main_async(cls(**kwargs), kwargs)
+
+
+def run_wrapper_main(cls, kwargs):
+    """Shared body of every wrapper's synchronous ``main`` shim."""
+    asyncio.run(run_wrapper_main_async(cls, kwargs))
+
+
 class SocialNetwork(ABC):
     """
     Abstract base class for social network implementations.
@@ -107,8 +123,11 @@ class SocialNetwork(ABC):
         """
         Authorize credentials for the social network.
 
-        Default implementation raises not supported. Platforms that support
-        interactive credential authorization override this.
+        Platforms declare ``_authorize_manager`` (an auth-manager factory) and
+        ``_authorize_keys`` (auth-manager kwarg -> (config key, env key)); the
+        shared flow reads the values, builds the manager, and runs
+        ``authorize()``. Platforms without an ``_authorize_manager`` do not
+        support interactive authorization.
 
         Returns:
             bool: True if authorization succeeded
@@ -116,7 +135,50 @@ class SocialNetwork(ABC):
         Raises:
             Exception: If authorization is not supported
         """
-        raise Exception(f"Authorize not supported for {self.__class__.__name__}")
+        factory = self._authorize_manager()
+        if factory is None:
+            raise Exception(f"Authorize not supported for {self.__class__.__name__}")
+
+        kwargs = {
+            param: self._get_config_value(config_key, env_key)
+            for param, (config_key, env_key) in self._authorize_keys.items()
+        }
+        if self._authorize_uses_profile:
+            kwargs["profile"] = self._get_config_value("profile")
+
+        result = await factory(**kwargs).authorize()
+        if result:
+            print(result)
+            return True
+        return False
+
+    # Auth-manager factory for `authorize_credentials`; None means unsupported.
+    _authorize_keys: Dict[str, Any] = {}
+    _authorize_uses_profile = True
+
+    def _authorize_manager(self):
+        """Return the platform's auth-manager class, or None when unsupported."""
+        return None
+
+    def _fill_missing_credentials(self, auth_manager, attr_map):
+        """
+        Fill blank credential attributes from a loaded auth manager.
+
+        ``attr_map`` maps this instance's attribute name to the auth manager's
+        attribute name. Only attributes that are currently falsy are filled, so
+        explicit CLI/env values always win over stored ones.
+        """
+        if not auth_manager._load_credentials_from_storage():
+            return False
+        for own_attr, manager_attr in attr_map.items():
+            if not getattr(self, own_attr):
+                setattr(self, own_attr, getattr(auth_manager, manager_attr))
+        return True
+
+    def _require_credentials(self, values, platform, hint=""):
+        """Raise the shared not-authenticated message when any credential is missing."""
+        if not all(values):
+            raise Exception(f"Not authenticated. Please run 'agoras {platform} authorize' first.{hint}")
 
     async def run_main_async(self, kwargs):
         """

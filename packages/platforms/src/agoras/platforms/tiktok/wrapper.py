@@ -23,7 +23,7 @@ import os
 import sys
 
 from agoras.core.api_base import sanitize_error_text
-from agoras.core.interfaces import SocialNetwork
+from agoras.core.interfaces import SocialNetwork, run_wrapper_main, run_wrapper_main_async
 from agoras.core.text_limits import validate_text
 from agoras.media.paths import is_local_media_source, media_is_local
 
@@ -145,22 +145,20 @@ class TikTok(SocialNetwork):
                 profile=self._get_config_value("profile"),
             )
 
-            if auth_manager._load_credentials_from_storage():
-                # Fill in missing credentials from storage
-                if not self.tiktok_username:
-                    self.tiktok_username = auth_manager.username
-                if not self.tiktok_client_key:
-                    self.tiktok_client_key = auth_manager.client_key
-                if not self.tiktok_client_secret:
-                    self.tiktok_client_secret = auth_manager.client_secret
-                if not self.tiktok_refresh_token:
-                    self.tiktok_refresh_token = auth_manager.refresh_token
+            self._fill_missing_credentials(
+                auth_manager,
+                {
+                    "tiktok_username": "username",
+                    "tiktok_client_key": "client_key",
+                    "tiktok_client_secret": "client_secret",
+                    "tiktok_refresh_token": "refresh_token",
+                },
+            )
 
-        # Validate all credentials are now available
-        if not all(
-            [self.tiktok_username, self.tiktok_client_key, self.tiktok_client_secret, self.tiktok_refresh_token]
-        ):
-            raise Exception("Not authenticated. Please run 'agoras tiktok authorize' first.")
+        self._require_credentials(
+            [self.tiktok_username, self.tiktok_client_key, self.tiktok_client_secret, self.tiktok_refresh_token],
+            "tiktok",
+        )
 
         # Initialize TikTok API
         self.api = TikTokAPI(
@@ -617,56 +615,34 @@ class TikTok(SocialNetwork):
         """Handle delete action - not supported for TikTok."""
         await self.delete(None)
 
-    async def authorize_credentials(self):
-        """
-        Authorize and store TikTok credentials for future use.
+    _authorize_keys = {
+        "username": ("tiktok_username", "TIKTOK_USERNAME"),
+        "client_key": ("tiktok_client_key", "TIKTOK_CLIENT_KEY"),
+        "client_secret": ("tiktok_client_secret", "TIKTOK_CLIENT_SECRET"),
+    }
 
-        Returns:
-            bool: True if authorization successful
-        """
+    def _authorize_manager(self):
+        """Return the TikTokAuthManager used by the shared authorize flow."""
         from .auth import TikTokAuthManager
 
-        username = self._get_config_value("tiktok_username", "TIKTOK_USERNAME")
-        client_key = self._get_config_value("tiktok_client_key", "TIKTOK_CLIENT_KEY")
-        client_secret = self._get_config_value("tiktok_client_secret", "TIKTOK_CLIENT_SECRET")
-
-        auth_manager = TikTokAuthManager(
-            username=username,
-            client_key=client_key,
-            client_secret=client_secret,
-            profile=self._get_config_value("profile"),
-        )
-
-        result = await auth_manager.authorize()
-        if result:
-            print(result)
-            return True
-        return False
+        return TikTokAuthManager
 
 
 async def main_async(kwargs):
     """
     Async main function to execute TikTok actions.
 
-    Thin shim: delegates to the base template runner via unbound dispatch,
-    so test mocks of ``TikTok`` (which stub ``execute_action``/``disconnect``/
-    ``authorize_credentials`` but not the base method) keep working. The
-    name is kept module-level because tests and the CLI import it.
-
     Args:
         kwargs (dict): Configuration arguments
     """
-    instance = TikTok(**kwargs)
-    return await SocialNetwork.run_main_async(instance, kwargs)
+    return await run_wrapper_main_async(TikTok, kwargs)
 
 
 def main(kwargs):
     """
     Main function to execute TikTok actions (for backwards compatibility).
 
-    Thin shim kept module-level because the CLI imports it.
-
     Args:
         kwargs (dict): Configuration arguments
     """
-    asyncio.run(main_async(kwargs))
+    run_wrapper_main(TikTok, kwargs)

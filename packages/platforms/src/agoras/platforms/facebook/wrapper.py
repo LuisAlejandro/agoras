@@ -17,10 +17,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.facebook.wrapper module."""
 
-import asyncio
 import sys
 
-from agoras.core.interfaces import SocialNetwork
+from agoras.core.interfaces import SocialNetwork, run_wrapper_main, run_wrapper_main_async
 from agoras.core.text_limits import validate_text
 from agoras.media.paths import is_local_media_source, media_is_local
 
@@ -101,20 +100,15 @@ class Facebook(SocialNetwork):
                 profile=self._get_config_value("profile"),
             )
 
-            if auth_manager._load_credentials_from_storage():
-                self._fill_missing_credentials_from_storage(auth_manager)
-
-    def _fill_missing_credentials_from_storage(self, auth_manager):
-        """Fill in missing credentials from the auth manager."""
-        if not self.facebook_client_id:
-            self.facebook_client_id = auth_manager.client_id
-        if not self.facebook_client_secret:
-            self.facebook_client_secret = auth_manager.client_secret
-        if not self.facebook_refresh_token:
-            self.facebook_refresh_token = auth_manager.refresh_token
-        # Fill in object_id from storage only if not provided via config/env
-        if not self.facebook_object_id:
-            self.facebook_object_id = auth_manager.user_id
+            self._fill_missing_credentials(
+                auth_manager,
+                {
+                    "facebook_client_id": "client_id",
+                    "facebook_client_secret": "client_secret",
+                    "facebook_refresh_token": "refresh_token",
+                    "facebook_object_id": "user_id",
+                },
+            )
 
     async def _authenticate_with_credentials(self):
         """Authenticate using available credentials."""
@@ -184,8 +178,7 @@ class Facebook(SocialNetwork):
 
     def _validate_credentials(self):
         """Validate that all required credentials are available."""
-        if not self.facebook_access_token:
-            raise Exception("Not authenticated. Please run 'agoras facebook authorize' first.")
+        self._require_credentials([self.facebook_access_token], "facebook")
 
     async def _initialize_api_client(self):
         """Initialize the Facebook API client."""
@@ -829,32 +822,17 @@ class Facebook(SocialNetwork):
         self._output_status(post_id)
         return post_id
 
-    async def authorize_credentials(self):
-        """
-        Authorize and store Facebook credentials for future use.
+    _authorize_keys = {
+        "user_id": ("facebook_object_id", "FACEBOOK_OBJECT_ID"),
+        "client_id": ("facebook_client_id", "FACEBOOK_CLIENT_ID"),
+        "client_secret": ("facebook_client_secret", "FACEBOOK_CLIENT_SECRET"),
+    }
 
-        Returns:
-            bool: True if authorization successful
-        """
+    def _authorize_manager(self):
+        """Return the FacebookAuthManager used by the shared authorize flow."""
         from .auth import FacebookAuthManager
 
-        object_id = self._get_config_value("facebook_object_id", "FACEBOOK_OBJECT_ID")
-        client_id = self._get_config_value("facebook_client_id", "FACEBOOK_CLIENT_ID")
-        client_secret = self._get_config_value("facebook_client_secret", "FACEBOOK_CLIENT_SECRET")
-        self._get_config_value("facebook_app_id", "FACEBOOK_APP_ID")
-
-        auth_manager = FacebookAuthManager(
-            user_id=object_id,
-            client_id=client_id,
-            client_secret=client_secret,
-            profile=self._get_config_value("profile"),
-        )
-
-        result = await auth_manager.authorize()
-        if result:
-            print(result)
-            return True
-        return False
+        return FacebookAuthManager
 
     # Override action handlers to use Facebook-specific parameter names
     async def _handle_like_action(self):
@@ -894,25 +872,17 @@ async def main_async(kwargs):
     """
     Async main function to execute Facebook actions.
 
-    Thin shim: delegates to the base template runner via unbound dispatch,
-    so test mocks of ``Facebook`` (which stub ``execute_action``/``disconnect``/
-    ``authorize_credentials`` but not the base method) keep working. The
-    name is kept module-level because tests and the CLI import it.
-
     Args:
         kwargs (dict): Configuration arguments
     """
-    instance = Facebook(**kwargs)
-    return await SocialNetwork.run_main_async(instance, kwargs)
+    return await run_wrapper_main_async(Facebook, kwargs)
 
 
 def main(kwargs):
     """
     Main function to execute Facebook actions (for backwards compatibility).
 
-    Thin shim kept module-level because the CLI imports it.
-
     Args:
         kwargs (dict): Configuration arguments
     """
-    asyncio.run(main_async(kwargs))
+    run_wrapper_main(Facebook, kwargs)

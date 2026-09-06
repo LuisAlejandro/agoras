@@ -17,12 +17,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.x.wrapper module."""
 
-import asyncio
 import sys
 from typing import Any, Dict, List, Optional
 
 from agoras.core.api_base import sanitize_error_text
-from agoras.core.interfaces import SocialNetwork, _entry_images, _is_uncertain_publish_error
+from agoras.core.interfaces import SocialNetwork, run_wrapper_main, run_wrapper_main_async, _entry_images, _is_uncertain_publish_error
 from agoras.core.text_limits import validate_text, x_mode_for_subscription
 from agoras.core.threading import (
     ThreadPublishError,
@@ -153,27 +152,25 @@ class X(SocialNetwork):
                 profile=self._get_config_value("profile"),
             )
 
-            if auth_manager._load_credentials_from_storage():
-                # Fill in missing credentials from storage
-                if not self.twitter_consumer_key:
-                    self.twitter_consumer_key = auth_manager.consumer_key
-                if not self.twitter_consumer_secret:
-                    self.twitter_consumer_secret = auth_manager.consumer_secret
-                if not self.twitter_oauth_token:
-                    self.twitter_oauth_token = auth_manager.oauth_token
-                if not self.twitter_oauth_secret:
-                    self.twitter_oauth_secret = auth_manager.oauth_secret
+            self._fill_missing_credentials(
+                auth_manager,
+                {
+                    "twitter_consumer_key": "consumer_key",
+                    "twitter_consumer_secret": "consumer_secret",
+                    "twitter_oauth_token": "oauth_token",
+                    "twitter_oauth_secret": "oauth_secret",
+                },
+            )
 
-        # Validate all credentials are now available
-        if not all(
+        self._require_credentials(
             [
                 self.twitter_consumer_key,
                 self.twitter_consumer_secret,
                 self.twitter_oauth_token,
                 self.twitter_oauth_secret,
-            ]
-        ):
-            raise Exception("Not authenticated. Please run 'agoras x authorize' first.")
+            ],
+            "x",
+        )
 
         # Initialize X API
         self.api = XAPI(
@@ -184,33 +181,18 @@ class X(SocialNetwork):
         await self.api.authenticate()
         await self._fetch_live_subscription_type()
 
-    async def authorize_credentials(self):
-        """
-        Authorize and store X credentials for future use.
+    _authorize_keys = {
+        "consumer_key": ("twitter_consumer_key", "TWITTER_CONSUMER_KEY"),
+        "consumer_secret": ("twitter_consumer_secret", "TWITTER_CONSUMER_SECRET"),
+        "oauth_token": ("twitter_oauth_token", "TWITTER_OAUTH_TOKEN"),
+        "oauth_secret": ("twitter_oauth_secret", "TWITTER_OAUTH_SECRET"),
+    }
 
-        Returns:
-            bool: True if authorization successful
-        """
+    def _authorize_manager(self):
+        """Return the XAuthManager used by the shared authorize flow."""
         from .auth import XAuthManager
 
-        consumer_key = self._get_config_value("twitter_consumer_key", "TWITTER_CONSUMER_KEY")
-        consumer_secret = self._get_config_value("twitter_consumer_secret", "TWITTER_CONSUMER_SECRET")
-        oauth_token = self._get_config_value("twitter_oauth_token", "TWITTER_OAUTH_TOKEN")
-        oauth_secret = self._get_config_value("twitter_oauth_secret", "TWITTER_OAUTH_SECRET")
-
-        auth_manager = XAuthManager(
-            consumer_key=consumer_key,
-            consumer_secret=consumer_secret,
-            oauth_token=oauth_token,
-            oauth_secret=oauth_secret,
-            profile=self._get_config_value("profile"),
-        )
-
-        result = await auth_manager.authorize()
-        if result:
-            print(result)
-            return True
-        return False
+        return XAuthManager
 
     async def post(
         self,
@@ -683,25 +665,17 @@ async def main_async(kwargs):
     """
     Async main function to execute X actions.
 
-    Thin shim: delegates to the base template runner via unbound dispatch,
-    so test mocks of ``X`` (which stub ``execute_action``/``disconnect``/
-    ``authorize_credentials`` but not the base method) keep working. The
-    name is kept module-level because tests and the CLI import it.
-
     Args:
         kwargs (dict): Configuration arguments
     """
-    instance = X(**kwargs)
-    return await SocialNetwork.run_main_async(instance, kwargs)
+    return await run_wrapper_main_async(X, kwargs)
 
 
 def main(kwargs):
     """
     Main function to execute X actions (for backwards compatibility).
 
-    Thin shim kept module-level because the CLI imports it.
-
     Args:
         kwargs (dict): Configuration arguments
     """
-    asyncio.run(main_async(kwargs))
+    run_wrapper_main(X, kwargs)

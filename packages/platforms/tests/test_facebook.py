@@ -823,7 +823,7 @@ async def test_facebook_load_credentials_from_storage_fills(mock_api_class):
 @pytest.mark.asyncio
 @patch("agoras.platforms.facebook.wrapper.FacebookAPI")
 async def test_facebook_fill_missing_credentials_from_storage(mock_api_class):
-    """Test Facebook _fill_missing_credentials_from_storage method."""
+    """Test Facebook credential fill from the shared storage helper."""
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
     mock_api.check_if_page = AsyncMock(return_value=False)
@@ -837,12 +837,21 @@ async def test_facebook_fill_missing_credentials_from_storage(mock_api_class):
 
     # Mock auth manager with stored values
     mock_auth_manager = MagicMock()
+    mock_auth_manager._load_credentials_from_storage.return_value = True
     mock_auth_manager.client_id = "stored_client_id"
     mock_auth_manager.client_secret = "stored_client_secret"
     mock_auth_manager.refresh_token = "stored_refresh_token"
     mock_auth_manager.user_id = "stored_user_id"
 
-    facebook._fill_missing_credentials_from_storage(mock_auth_manager)
+    facebook._fill_missing_credentials(
+        mock_auth_manager,
+        {
+            "facebook_client_id": "client_id",
+            "facebook_client_secret": "client_secret",
+            "facebook_refresh_token": "refresh_token",
+            "facebook_object_id": "user_id",
+        },
+    )
 
     assert facebook.facebook_client_id == "stored_client_id"
     assert facebook.facebook_client_secret == "stored_client_secret"
