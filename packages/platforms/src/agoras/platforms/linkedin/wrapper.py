@@ -615,15 +615,15 @@ class LinkedIn(SocialNetwork):
     # No need to override them for LinkedIn.
 
     _post_id_actions = {
-        "like": ("linkedin_post_id", "LINKEDIN_POST_ID", "LinkedIn post ID is required for like action."),
-        "share": ("linkedin_post_id", "LINKEDIN_POST_ID", "LinkedIn post ID is required for share action."),
-        "delete": ("linkedin_post_id", "LINKEDIN_POST_ID", "LinkedIn post ID is required for delete action."),
+        "like": ("linkedin_post_id", "LinkedIn post ID is required for like action."),
+        "share": ("linkedin_post_id", "LinkedIn post ID is required for share action."),
+        "delete": ("linkedin_post_id", "LinkedIn post ID is required for delete action."),
     }
 
     _authorize_keys = {
-        "user_id": ("linkedin_object_id", "LINKEDIN_OBJECT_ID"),
-        "client_id": ("linkedin_client_id", "LINKEDIN_CLIENT_ID"),
-        "client_secret": ("linkedin_client_secret", "LINKEDIN_CLIENT_SECRET"),
+        "user_id": "linkedin_object_id",
+        "client_id": "linkedin_client_id",
+        "client_secret": "linkedin_client_secret",
     }
     _authorize_uses_profile = False
 

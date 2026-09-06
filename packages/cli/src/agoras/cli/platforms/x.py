@@ -25,12 +25,7 @@ from argparse import ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.x.wrapper import main as x_main
 
-from ..base import (
-    add_common_content_options,
-    add_profile_to_all,
-    add_video_options,
-    run_platform_command,
-)
+from ..base import add_common_content_options, add_profile_to_all, add_video_options, run_platform_command
 from ..content import add_content_file_option
 
 

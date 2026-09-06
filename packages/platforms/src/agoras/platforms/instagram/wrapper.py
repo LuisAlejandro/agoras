@@ -550,15 +550,15 @@ class Instagram(SocialNetwork):
         return items
 
     _post_id_actions = {
-        "like": ("instagram_post_id", "INSTAGRAM_POST_ID", None),
-        "share": ("instagram_post_id", "INSTAGRAM_POST_ID", None),
-        "delete": ("instagram_post_id", "INSTAGRAM_POST_ID", None),
+        "like": ("instagram_post_id", None),
+        "share": ("instagram_post_id", None),
+        "delete": ("instagram_post_id", None),
     }
 
     _authorize_keys = {
-        "user_id": ("instagram_object_id", "INSTAGRAM_OBJECT_ID"),
-        "client_id": ("instagram_client_id", "INSTAGRAM_CLIENT_ID"),
-        "client_secret": ("instagram_client_secret", "INSTAGRAM_CLIENT_SECRET"),
+        "user_id": "instagram_object_id",
+        "client_id": "instagram_client_id",
+        "client_secret": "instagram_client_secret",
     }
 
     def _authorize_manager(self):

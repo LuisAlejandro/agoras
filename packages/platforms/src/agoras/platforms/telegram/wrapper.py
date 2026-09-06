@@ -417,12 +417,12 @@ class Telegram(SocialNetwork):
         raise Exception("Share not supported for Telegram")
 
     _post_id_actions = {
-        "delete": ("telegram_message_id", "TELEGRAM_MESSAGE_ID", "Message ID is required for delete action."),
+        "delete": ("telegram_message_id", "Message ID is required for delete action."),
     }
 
     _authorize_keys = {
-        "bot_token": ("telegram_bot_token", "TELEGRAM_BOT_TOKEN"),
-        "chat_id": ("telegram_chat_id", "TELEGRAM_CHAT_ID"),
+        "bot_token": "telegram_bot_token",
+        "chat_id": "telegram_chat_id",
     }
 
     def _authorize_manager(self):

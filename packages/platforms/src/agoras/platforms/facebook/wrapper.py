@@ -823,15 +823,15 @@ class Facebook(SocialNetwork):
         return post_id
 
     _post_id_actions = {
-        "like": ("facebook_post_id", "FACEBOOK_POST_ID", "Facebook post ID is required for like action."),
-        "share": ("facebook_post_id", "FACEBOOK_POST_ID", "Facebook post ID is required for share action."),
-        "delete": ("facebook_post_id", "FACEBOOK_POST_ID", "Facebook post ID is required for delete action."),
+        "like": ("facebook_post_id", "Facebook post ID is required for like action."),
+        "share": ("facebook_post_id", "Facebook post ID is required for share action."),
+        "delete": ("facebook_post_id", "Facebook post ID is required for delete action."),
     }
 
     _authorize_keys = {
-        "user_id": ("facebook_object_id", "FACEBOOK_OBJECT_ID"),
-        "client_id": ("facebook_client_id", "FACEBOOK_CLIENT_ID"),
-        "client_secret": ("facebook_client_secret", "FACEBOOK_CLIENT_SECRET"),
+        "user_id": "facebook_object_id",
+        "client_id": "facebook_client_id",
+        "client_secret": "facebook_client_secret",
     }
 
     def _authorize_manager(self):

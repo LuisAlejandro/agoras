@@ -29,12 +29,7 @@ from agoras.core.interfaces import (
     run_wrapper_main_async,
 )
 from agoras.core.text_limits import validate_text, x_mode_for_subscription
-from agoras.core.threading import (
-    ThreadPublishError,
-    ThreadResult,
-    partial_result,
-    success_result,
-)
+from agoras.core.threading import ThreadPublishError, ThreadResult, partial_result, success_result
 
 from .api import XAPI
 
@@ -188,16 +183,16 @@ class X(SocialNetwork):
         await self._fetch_live_subscription_type()
 
     _post_id_actions = {
-        "like": ("tweet_id", "TWEET_ID", "Tweet ID is required for like action."),
-        "share": ("tweet_id", "TWEET_ID", "Tweet ID is required for share action."),
-        "delete": ("tweet_id", "TWEET_ID", "Tweet ID is required for delete action."),
+        "like": ("tweet_id", "Tweet ID is required for like action."),
+        "share": ("tweet_id", "Tweet ID is required for share action."),
+        "delete": ("tweet_id", "Tweet ID is required for delete action."),
     }
 
     _authorize_keys = {
-        "consumer_key": ("twitter_consumer_key", "TWITTER_CONSUMER_KEY"),
-        "consumer_secret": ("twitter_consumer_secret", "TWITTER_CONSUMER_SECRET"),
-        "oauth_token": ("twitter_oauth_token", "TWITTER_OAUTH_TOKEN"),
-        "oauth_secret": ("twitter_oauth_secret", "TWITTER_OAUTH_SECRET"),
+        "consumer_key": "twitter_consumer_key",
+        "consumer_secret": "twitter_consumer_secret",
+        "oauth_token": "twitter_oauth_token",
+        "oauth_secret": "twitter_oauth_secret",
     }
 
     def _authorize_manager(self):

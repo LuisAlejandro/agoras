@@ -23,12 +23,7 @@ from typing import Any, Dict, List, Optional
 from agoras.core.api_base import sanitize_error_text
 from agoras.core.interfaces import SocialNetwork, _entry_images, run_wrapper_main, run_wrapper_main_async
 from agoras.core.text_limits import validate_text
-from agoras.core.threading import (
-    ThreadPublishError,
-    ThreadResult,
-    partial_result,
-    success_result,
-)
+from agoras.core.threading import ThreadPublishError, ThreadResult, partial_result, success_result
 from agoras.platforms.threads.client import ThreadsContainerTimeoutError
 
 from .api import ThreadsAPI
@@ -510,14 +505,14 @@ class Threads(SocialNetwork):
         await self.video(status_text, video_url, video_title)
 
     _post_id_actions = {
-        "like": (None, None, None),
-        "share": ("threads_post_id", "THREADS_POST_ID", "Threads post ID is required for share action."),
-        "delete": ("threads_post_id", "THREADS_POST_ID", "Threads post ID is required for delete action."),
+        "like": (None, None),
+        "share": ("threads_post_id", "Threads post ID is required for share action."),
+        "delete": ("threads_post_id", "Threads post ID is required for delete action."),
     }
 
     _authorize_keys = {
-        "app_id": ("threads_app_id", "THREADS_APP_ID"),
-        "app_secret": ("threads_app_secret", "THREADS_APP_SECRET"),
+        "app_id": "threads_app_id",
+        "app_secret": "threads_app_secret",
     }
 
     def _authorize_manager(self):

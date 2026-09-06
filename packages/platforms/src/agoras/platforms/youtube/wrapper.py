@@ -569,13 +569,13 @@ class YouTube(SocialNetwork):
         await self.video(status_text, video_url, video_title)
 
     _post_id_actions = {
-        "like": ("youtube_video_id", "YOUTUBE_VIDEO_ID", "YouTube video ID is required for like action."),
-        "delete": ("youtube_video_id", "YOUTUBE_VIDEO_ID", "YouTube video ID is required for delete action."),
+        "like": ("youtube_video_id", "YouTube video ID is required for like action."),
+        "delete": ("youtube_video_id", "YouTube video ID is required for delete action."),
     }
 
     _authorize_keys = {
-        "client_id": ("youtube_client_id", "YOUTUBE_CLIENT_ID"),
-        "client_secret": ("youtube_client_secret", "YOUTUBE_CLIENT_SECRET"),
+        "client_id": "youtube_client_id",
+        "client_secret": "youtube_client_secret",
     }
 
     def _authorize_manager(self):

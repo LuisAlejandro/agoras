@@ -124,10 +124,10 @@ class SocialNetwork(ABC):
         Authorize credentials for the social network.
 
         Platforms declare ``_authorize_manager`` (an auth-manager factory) and
-        ``_authorize_keys`` (auth-manager kwarg -> (config key, env key)); the
-        shared flow reads the values, builds the manager, and runs
-        ``authorize()``. Platforms without an ``_authorize_manager`` do not
-        support interactive authorization.
+        ``_authorize_keys`` (auth-manager kwarg -> config key); the shared flow
+        reads the values, builds the manager, and runs ``authorize()``.
+        Platforms without an ``_authorize_manager`` do not support interactive
+        authorization.
 
         Returns:
             bool: True if authorization succeeded
@@ -139,16 +139,14 @@ class SocialNetwork(ABC):
         if factory is None:
             raise Exception(f"Authorize not supported for {self.__class__.__name__}")
 
-        kwargs = {
-            param: self._get_config_value(config_key, env_key)
-            for param, (config_key, env_key) in self._authorize_keys.items()
-        }
+        kwargs = {param: self._get_config_value(config_key) for param, config_key in self._authorize_keys.items()}
         if self._authorize_uses_profile:
             kwargs["profile"] = self._get_config_value("profile")
 
         result = await factory(**kwargs).authorize()
         if result:
-            print(result)
+            # The token is already persisted to storage; never echo it to stdout.
+            print("Authorization successful. Credentials stored securely.")
             return True
         return False
 
@@ -769,19 +767,17 @@ class SocialNetwork(ABC):
         )
 
     # Per-action post-id lookup, overridden per platform:
-    #   action -> (config key, env key, error message)
+    #   action -> (config key, error message)
     # A None config key passes None through (unsupported actions whose
     # method raises); a None error message skips the required-value guard.
     _post_id_actions: Dict[str, Any] = {}
 
     def _action_post_id(self, action):
         """Resolve the post-id argument for a like/share/delete action."""
-        key, env_key, error = self._post_id_actions.get(
-            action, ("post_id", None, f"Post ID is required for {action} action.")
-        )
+        key, error = self._post_id_actions.get(action, ("post_id", f"Post ID is required for {action} action."))
         if key is None:
             return None
-        value = self._get_config_value(key, env_key)
+        value = self._get_config_value(key)
         if error and not value:
             raise Exception(error)
         return value
@@ -811,8 +807,7 @@ class SocialNetwork(ABC):
 
     async def _handle_thread_action(self):
         """Handle thread action: validate entries, publish, emit one result."""
-        from agoras.core.threading import (ThreadPublishError,
-                                           emit_thread_result)
+        from agoras.core.threading import ThreadPublishError, emit_thread_result
 
         entries = self._get_config_value("entries")
         if not entries or not isinstance(entries, list):

@@ -604,15 +604,15 @@ class TikTok(SocialNetwork):
         await self.video(video_title, video_url, video_title)
 
     _post_id_actions = {
-        "like": (None, None, None),
-        "share": (None, None, None),
-        "delete": (None, None, None),
+        "like": (None, None),
+        "share": (None, None),
+        "delete": (None, None),
     }
 
     _authorize_keys = {
-        "username": ("tiktok_username", "TIKTOK_USERNAME"),
-        "client_key": ("tiktok_client_key", "TIKTOK_CLIENT_KEY"),
-        "client_secret": ("tiktok_client_secret", "TIKTOK_CLIENT_SECRET"),
+        "username": "tiktok_username",
+        "client_key": "tiktok_client_key",
+        "client_secret": "tiktok_client_secret",
     }
 
     def _authorize_manager(self):

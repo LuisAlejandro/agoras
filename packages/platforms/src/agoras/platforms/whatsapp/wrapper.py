@@ -452,15 +452,15 @@ class WhatsApp(SocialNetwork):
         await self.send_template(template_name, language_code=language_code, components=components)
 
     _post_id_actions = {
-        "like": ("whatsapp_message_id", "WHATSAPP_MESSAGE_ID", "WhatsApp message ID is required for like action."),
-        "share": ("whatsapp_message_id", "WHATSAPP_MESSAGE_ID", "WhatsApp message ID is required for share action."),
-        "delete": ("whatsapp_message_id", "WHATSAPP_MESSAGE_ID", "WhatsApp message ID is required for delete action."),
+        "like": ("whatsapp_message_id", "WhatsApp message ID is required for like action."),
+        "share": ("whatsapp_message_id", "WhatsApp message ID is required for share action."),
+        "delete": ("whatsapp_message_id", "WhatsApp message ID is required for delete action."),
     }
 
     _authorize_keys = {
-        "access_token": ("whatsapp_access_token", "WHATSAPP_ACCESS_TOKEN"),
-        "phone_number_id": ("whatsapp_phone_number_id", "WHATSAPP_PHONE_NUMBER_ID"),
-        "business_account_id": ("whatsapp_business_account_id", "WHATSAPP_BUSINESS_ACCOUNT_ID"),
+        "access_token": "whatsapp_access_token",
+        "phone_number_id": "whatsapp_phone_number_id",
+        "business_account_id": "whatsapp_business_account_id",
     }
 
     def _authorize_manager(self):

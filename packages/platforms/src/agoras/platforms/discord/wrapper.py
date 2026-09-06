@@ -31,12 +31,7 @@ from agoras.core.interfaces import (
     run_wrapper_main_async,
 )
 from agoras.core.text_limits import validate_discord_embeds, validate_text
-from agoras.core.threading import (
-    ThreadPublishError,
-    ThreadResult,
-    partial_result,
-    success_result,
-)
+from agoras.core.threading import ThreadPublishError, ThreadResult, partial_result, success_result
 from agoras.media.paths import media_is_local
 
 from .api import DiscordAPI
@@ -122,9 +117,9 @@ class Discord(SocialNetwork):
         await self.api.authenticate()
 
     _authorize_keys = {
-        "bot_token": ("discord_bot_token", "DISCORD_BOT_TOKEN"),
-        "server_name": ("discord_server_name", "DISCORD_SERVER_NAME"),
-        "channel_name": ("discord_channel_name", "DISCORD_CHANNEL_NAME"),
+        "bot_token": "discord_bot_token",
+        "server_name": "discord_server_name",
+        "channel_name": "discord_channel_name",
     }
 
     def _authorize_manager(self):
