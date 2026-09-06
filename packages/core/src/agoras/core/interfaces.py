@@ -169,11 +169,10 @@ class SocialNetwork(ABC):
         explicit CLI/env values always win over stored ones.
         """
         if not auth_manager._load_credentials_from_storage():
-            return False
+            return
         for own_attr, manager_attr in attr_map.items():
             if not getattr(self, own_attr):
                 setattr(self, own_attr, getattr(auth_manager, manager_attr))
-        return True
 
     def _require_credentials(self, values, platform, hint=""):
         """Raise the shared not-authenticated message when any credential is missing."""
@@ -812,7 +811,8 @@ class SocialNetwork(ABC):
 
     async def _handle_thread_action(self):
         """Handle thread action: validate entries, publish, emit one result."""
-        from agoras.core.threading import ThreadPublishError, emit_thread_result
+        from agoras.core.threading import (ThreadPublishError,
+                                           emit_thread_result)
 
         entries = self._get_config_value("entries")
         if not entries or not isinstance(entries, list):

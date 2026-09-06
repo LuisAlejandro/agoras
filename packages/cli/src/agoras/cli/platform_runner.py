@@ -42,7 +42,9 @@ def execute_platform_action(**kwargs):
     if network == "twitter":
         network = kwargs["network"] = "x"
 
-    # Built per call so the module-level names resolve at call time.
+    # Built per call: a module-scope dict would trip the vulture dead-code gate
+    # (imports only reachable through the table) and break tests that patch the
+    # module-level wrapper names.
     wrappers = {
         "x": x,
         "facebook": facebook,
