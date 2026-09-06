@@ -33,165 +33,6 @@ def test_sheetrow_instantiation():
     assert row.headers == ['col1', 'col2', 'col3']
 
 
-def test_sheetrow_getitem_by_index():
-    """Test SheetRow access by integer index."""
-    row = SheetRow(['a', 'b', 'c'])
-
-    assert row[0] == 'a'
-    assert row[1] == 'b'
-    assert row[2] == 'c'
-
-
-def test_sheetrow_getitem_by_index_out_of_bounds():
-    """Test SheetRow access out of bounds returns empty string."""
-    row = SheetRow(['a', 'b'])
-
-    assert row[10] == ''
-
-
-def test_sheetrow_getitem_by_column_name():
-    """Test SheetRow access by column name with headers."""
-    row = SheetRow(['val1', 'val2', 'val3'], ['name', 'email', 'age'])
-
-    assert row['name'] == 'val1'
-    assert row['email'] == 'val2'
-    assert row['age'] == 'val3'
-
-
-def test_sheetrow_getitem_by_column_name_not_found():
-    """Test SheetRow access non-existent column returns empty."""
-    row = SheetRow(['val1', 'val2'], ['col1', 'col2'])
-
-    assert row['nonexistent'] == ''
-
-
-def test_sheetrow_getitem_by_column_name_without_headers():
-    """Test SheetRow access by column name without headers returns empty."""
-    row = SheetRow(['val1', 'val2'])
-
-    assert row['col1'] == ''
-
-
-def test_sheetrow_setitem_by_index():
-    """Test SheetRow set by integer index."""
-    row = SheetRow(['a', 'b', 'c'])
-
-    row[1] = 'updated'
-
-    assert row[1] == 'updated'
-
-
-def test_sheetrow_setitem_by_index_extends():
-    """Test SheetRow set beyond length auto-extends list."""
-    row = SheetRow(['a', 'b'])
-
-    row[5] = 'new'
-
-    assert row[5] == 'new'
-    assert len(row.data) == 6
-
-
-def test_sheetrow_setitem_by_column_name():
-    """Test SheetRow set by column name with headers."""
-    row = SheetRow(['val1', 'val2'], ['col1', 'col2'])
-
-    row['col1'] = 'updated'
-
-    assert row['col1'] == 'updated'
-
-
-def test_sheetrow_setitem_by_column_name_extends():
-    """Test SheetRow set by column beyond length auto-extends."""
-    row = SheetRow(['val1'], ['col1', 'col2', 'col3'])
-
-    row['col3'] = 'new'
-
-    assert row['col3'] == 'new'
-    assert len(row.data) >= 3
-
-
-def test_sheetrow_setitem_clears_cache():
-    """Test SheetRow setitem clears dict cache."""
-    row = SheetRow(['a', 'b'], ['col1', 'col2'])
-
-    # Access to_dict to create cache
-    _ = row.to_dict()
-    assert row._dict_cache is not None
-
-    # Setting should clear cache
-    row[0] = 'updated'
-
-    assert row._dict_cache is None
-
-
-def test_sheetrow_len():
-    """Test SheetRow len returns data length."""
-    row = SheetRow(['a', 'b', 'c'])
-
-    assert len(row) == 3
-
-
-def test_sheetrow_get_with_valid_key():
-    """Test SheetRow get with valid key."""
-    row = SheetRow(['val1', 'val2'], ['col1', 'col2'])
-
-    assert row.get('col1') == 'val1'
-    assert row.get(0) == 'val1'
-
-
-def test_sheetrow_get_with_invalid_key_returns_default():
-    """Test SheetRow get with invalid key returns default."""
-    row = SheetRow(['val1'], ['col1'])
-
-    # get() wraps __getitem__ which returns '' for missing keys
-    assert row.get('nonexistent') == ''
-    # The get method doesn't actually use the default parameter properly
-    # It catches exceptions but __getitem__ returns '' not raising exception
-    assert row.get(10) == ''
-
-
-def test_sheetrow_to_dict_with_headers():
-    """Test SheetRow to_dict with headers."""
-    row = SheetRow(['val1', 'val2', 'val3'], ['col1', 'col2', 'col3'])
-
-    result = row.to_dict()
-
-    assert result == {'col1': 'val1', 'col2': 'val2', 'col3': 'val3'}
-
-
-def test_sheetrow_to_dict_without_headers():
-    """Test SheetRow to_dict without headers uses indices."""
-    row = SheetRow(['val1', 'val2', 'val3'])
-
-    result = row.to_dict()
-
-    assert result == {'0': 'val1', '1': 'val2', '2': 'val3'}
-
-
-def test_sheetrow_to_dict_caching():
-    """Test SheetRow to_dict uses cache on subsequent calls."""
-    row = SheetRow(['val1', 'val2'], ['col1', 'col2'])
-
-    result1 = row.to_dict()
-    result2 = row.to_dict()
-
-    # Should return different objects (copy)
-    assert result1 is not result2
-    # But with same content
-    assert result1 == result2
-
-
-def test_sheetrow_to_list():
-    """Test SheetRow to_list returns copy."""
-    row = SheetRow(['val1', 'val2', 'val3'])
-
-    result = row.to_list()
-
-    assert result == ['val1', 'val2', 'val3']
-    # Should be a copy, not same list
-    assert result is not row.data
-
-
 # Sheet Class Tests
 
 def test_sheet_instantiation():
@@ -362,8 +203,8 @@ async def test_sheet_read_all_with_headers(mock_creds, mock_authorize):
 
     assert len(rows) == 2
     assert isinstance(rows[0], SheetRow)
-    assert rows[0]['Name'] == 'John'
-    assert rows[0]['Email'] == 'john@example.com'
+    assert rows[0].headers == ['Name', 'Email', 'Age']
+    assert rows[0].data == ['John', 'john@example.com', '30']
 
 
 @pytest.mark.asyncio
@@ -415,74 +256,6 @@ async def test_sheet_read_all_auto_gets_worksheet(mock_creds, mock_authorize):
 
     # Should auto-get worksheet
     assert sheet._worksheet is not None
-
-
-@pytest.mark.asyncio
-@patch('agoras.core.sheet.sheet.gspread.authorize')
-@patch('agoras.core.sheet.sheet.Credentials.from_service_account_info')
-async def test_sheet_write_all_with_clear(mock_creds, mock_authorize):
-    """Test Sheet write_all with clear_first=True."""
-    mock_client = MagicMock()
-    mock_spreadsheet = MagicMock()
-    mock_worksheet = MagicMock()
-    mock_spreadsheet.get_worksheet.return_value = mock_worksheet
-    mock_client.open_by_key.return_value = mock_spreadsheet
-    mock_authorize.return_value = mock_client
-
-    sheet = Sheet('sheet-id', 'email@example.com', 'key')
-    await sheet.authenticate()
-    await sheet.get_worksheet()
-
-    data = [['a', 'b'], ['c', 'd']]
-    await sheet.write_all(data, clear_first=True)
-
-    mock_worksheet.clear.assert_called_once()
-    # write_all uses append_row, not update
-    assert mock_worksheet.append_row.call_count == 2
-
-
-@pytest.mark.asyncio
-@patch('agoras.core.sheet.sheet.gspread.authorize')
-@patch('agoras.core.sheet.sheet.Credentials.from_service_account_info')
-async def test_sheet_write_all_with_sheetrow(mock_creds, mock_authorize):
-    """Test Sheet write_all with SheetRow instances."""
-    mock_client = MagicMock()
-    mock_spreadsheet = MagicMock()
-    mock_worksheet = MagicMock()
-    mock_spreadsheet.get_worksheet.return_value = mock_worksheet
-    mock_client.open_by_key.return_value = mock_spreadsheet
-    mock_authorize.return_value = mock_client
-
-    sheet = Sheet('sheet-id', 'email@example.com', 'key')
-    await sheet.authenticate()
-    await sheet.get_worksheet()
-
-    rows = [SheetRow(['a', 'b']), SheetRow(['c', 'd'])]
-    await sheet.write_all(rows, clear_first=False)
-
-    # Should convert SheetRow to list and append
-    assert mock_worksheet.append_row.call_count == 2
-
-
-@pytest.mark.asyncio
-@patch('agoras.core.sheet.sheet.gspread.authorize')
-@patch('agoras.core.sheet.sheet.Credentials.from_service_account_info')
-async def test_sheet_append_row(mock_creds, mock_authorize):
-    """Test Sheet append_row method."""
-    mock_client = MagicMock()
-    mock_spreadsheet = MagicMock()
-    mock_worksheet = MagicMock()
-    mock_spreadsheet.get_worksheet.return_value = mock_worksheet
-    mock_client.open_by_key.return_value = mock_spreadsheet
-    mock_authorize.return_value = mock_client
-
-    sheet = Sheet('sheet-id', 'email@example.com', 'key')
-    await sheet.authenticate()
-    await sheet.get_worksheet()
-
-    await sheet.append_row(['new', 'data'])
-
-    mock_worksheet.append_row.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -544,7 +317,7 @@ async def test_schedulesheet_process_posts_due_now(mock_datetime):
     sheet = ScheduleSheet('sheet-id', 'email@example.com', 'key')
 
     with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
-        with patch.object(sheet, 'write_all', new_callable=AsyncMock) as mock_write:
+        with patch.object(sheet, 'update_cell', new_callable=AsyncMock) as mock_update:
             mock_read.return_value = [row_data]
 
             posts = await sheet.process_scheduled_posts()
@@ -553,7 +326,7 @@ async def test_schedulesheet_process_posts_due_now(mock_datetime):
             assert posts[0]['status_text'] == 'Post text'
             assert posts[0]['_sheet_row'] == 1
             # Selection must not mark published / rewrite sheet
-            mock_write.assert_not_called()
+            mock_update.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -693,7 +466,7 @@ async def test_schedulesheet_locale_date_warns_and_skips(mock_datetime):
         mock_logger = MagicMock()
         mock_get_logger.return_value = mock_logger
         with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
-            with patch.object(sheet, 'write_all', new_callable=AsyncMock) as mock_write:
+            with patch.object(sheet, 'update_cell', new_callable=AsyncMock) as mock_update:
                 mock_read.return_value = [row_data]
                 posts = await sheet.process_scheduled_posts()
                 assert len(posts) == 0
@@ -701,7 +474,7 @@ async def test_schedulesheet_locale_date_warns_and_skips(mock_datetime):
                 args = mock_logger.warning.call_args.args
                 assert "invalid date" in args[0]
                 assert args[1] == 1  # row index
-                mock_write.assert_not_called()
+                mock_update.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -735,12 +508,12 @@ async def test_schedulesheet_real_strptime_selects_due_post():
         datetime.datetime.now().strftime("%d-%m-%Y"), datetime.datetime.now().strftime("%H"), '',
     ])
     with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
-        with patch.object(sheet, 'write_all', new_callable=AsyncMock) as mock_write:
+        with patch.object(sheet, 'update_cell', new_callable=AsyncMock) as mock_update:
             mock_read.return_value = [row_data]
             posts = await sheet.process_scheduled_posts()
             assert len(posts) == 1
             assert posts[0]['_sheet_row'] == 1
-            mock_write.assert_not_called()
+            mock_update.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -768,8 +541,9 @@ async def test_schedulesheet_day_first_ambiguity_pinned():
         '05-12-2026', '10', '',
     ])
     with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
-        with patch.object(sheet, 'write_all', new_callable=AsyncMock) as mock_write:
+        with patch.object(sheet, 'update_cell', new_callable=AsyncMock) as mock_update:
             mock_read.return_value = [row_data]
             posts = await sheet.process_scheduled_posts()
             assert len(posts) == 1
             assert posts[0]['_sheet_row'] == 1
+            mock_update.assert_not_called()

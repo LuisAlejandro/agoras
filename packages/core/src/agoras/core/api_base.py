@@ -22,38 +22,11 @@ import functools
 import re
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Awaitable, Callable, Concatenate, NoReturn, ParamSpec, Protocol, TypeVar
+from typing import Any, Awaitable, Callable, Concatenate, NoReturn, ParamSpec, TypeVar
 
 P = ParamSpec("P")
 R = TypeVar("R")
-
-
-class GuardableAPI(Protocol):
-    """
-    Structural contract the guard decorators operate on.
-
-    Any platform api class (BaseAPI subclass or test stub) that provides
-    the guarded attributes and methods satisfies this protocol, so the
-    decorators can be typed against a bound TypeVar and pyright verifies
-    attribute access without runtime checks.
-    """
-
-    _authenticated: bool
-    client: Any
-    auth_manager: Any
-    _not_authenticated_message: str
-    _client_not_available_message: str
-
-    async def authenticate(self) -> "GuardableAPI":
-        """Authenticate and return self for chaining."""
-        ...
-
-    async def _rate_limit_check(self, operation_type: str = "default", min_interval: float = 1.0) -> None: ...
-
-    def _handle_api_error(self, error, operation_name) -> NoReturn: ...
-
-
-T = TypeVar("T", bound=GuardableAPI)
+T = TypeVar("T", bound="BaseAPI")
 
 
 def guard_ensure_auth_manager(
@@ -229,11 +202,6 @@ class BaseAPI(ABC):
     Provides common functionality and patterns for API interactions
     including authentication, rate limiting, and error handling.
     """
-
-    @classmethod
-    def _sanitize_error_message(cls, message: str) -> str:
-        """Redact credential shapes from error text (delegates to the module sanitizer)."""
-        return sanitize_error_text(message)
 
     def __init__(self, **credentials):
         """

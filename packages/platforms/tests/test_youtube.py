@@ -196,8 +196,6 @@ async def test_youtube_video(mock_api_class):
         mock_video = MagicMock()
         mock_video.content = b'video_content'
         mock_video.temp_file = '/tmp/video.mp4'
-        mock_file_handle = MagicMock()
-        mock_video.get_file_handle = MagicMock(return_value=mock_file_handle)
         mock_file_type = MagicMock()
         mock_file_type.mime = 'video/mp4'
         mock_video.file_type = mock_file_type

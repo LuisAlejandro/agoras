@@ -20,7 +20,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from agoras.media import create_image, create_video, download_images, download_video_and_images
+from agoras.media.factory import create_image, create_video, download_images
 from agoras.media.image import Image
 from agoras.media.video import Video
 
@@ -174,85 +174,3 @@ async def test_download_images_concurrent(mock_download):
     assert mock_download.call_count == 3
 
 
-@pytest.mark.asyncio
-@patch('agoras.media.video.Video.download', new_callable=AsyncMock)
-@patch('agoras.media.image.Image.download', new_callable=AsyncMock)
-async def test_download_video_and_images_both(mock_image_download, mock_video_download):
-    """Test download_video_and_images with video and images."""
-    video_url = 'https://example.com/video.mp4'
-    image_urls = ['https://example.com/1.jpg', 'https://example.com/2.jpg']
-
-    video, images = await download_video_and_images(video_url, image_urls, platform='facebook')
-
-    assert isinstance(video, Video)
-    assert len(images) == 2
-    assert all(isinstance(img, Image) for img in images)
-    assert mock_video_download.call_count == 1
-    assert mock_image_download.call_count == 2
-
-
-@pytest.mark.asyncio
-@patch('agoras.media.image.Image.download', new_callable=AsyncMock)
-async def test_download_video_and_images_no_video(mock_image_download):
-    """Test download_video_and_images with no video."""
-    video_url = None
-    image_urls = ['https://example.com/1.jpg', 'https://example.com/2.jpg']
-
-    video, images = await download_video_and_images(video_url, image_urls)
-
-    assert video is None
-    assert len(images) == 2
-    assert mock_image_download.call_count == 2
-
-
-@pytest.mark.asyncio
-@patch('agoras.media.video.Video.download', new_callable=AsyncMock)
-async def test_download_video_and_images_no_images(mock_video_download):
-    """Test download_video_and_images with no images."""
-    video_url = 'https://example.com/video.mp4'
-    image_urls = []
-
-    video, images = await download_video_and_images(video_url, image_urls, platform='twitter')
-
-    assert isinstance(video, Video)
-    assert len(images) == 0
-    assert mock_video_download.call_count == 1
-
-
-@pytest.mark.asyncio
-@patch('agoras.media.image.Image.download', new_callable=AsyncMock)
-async def test_download_video_and_images_filters_none_images(mock_image_download):
-    """Test download_video_and_images filters None image URLs."""
-    video_url = None
-    image_urls = ['https://example.com/1.jpg', None, '', 'https://example.com/2.jpg']
-
-    video, images = await download_video_and_images(video_url, image_urls)
-
-    assert video is None
-    assert len(images) == 2
-    assert mock_image_download.call_count == 2
-
-
-@pytest.mark.asyncio
-async def test_download_video_and_images_empty():
-    """Test download_video_and_images with no video and no images."""
-    video_url = None
-    image_urls = []
-
-    video, images = await download_video_and_images(video_url, image_urls)
-
-    assert video is None
-    assert images == []
-
-
-@pytest.mark.asyncio
-@patch('agoras.media.video.Video.download', new_callable=AsyncMock)
-@patch('agoras.media.image.Image.download', new_callable=AsyncMock)
-async def test_download_video_and_images_platform_passed(mock_image_download, mock_video_download):
-    """Test download_video_and_images passes platform to video creation."""
-    video_url = 'https://example.com/video.mp4'
-    image_urls = ['https://example.com/1.jpg']
-
-    video, images = await download_video_and_images(video_url, image_urls, platform='instagram')
-
-    assert video.platform_key == 'instagram'

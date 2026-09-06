@@ -128,62 +128,6 @@ async def test_items_property_after_download(mock_parse, mock_urlopen):
     assert len(items) == 1
 
 
-def test_title_property_before_download():
-    """Test title property raises exception before download."""
-    feed = Feed('http://feed.rss')
-
-    with pytest.raises(Exception, match='Feed must be downloaded'):
-        _ = feed.title
-
-
-@pytest.mark.asyncio
-@patch('agoras.core.feed.feed.urlopen')
-@patch('agoras.core.feed.feed.parse_rss_bytes')
-async def test_title_property_after_download(mock_parse, mock_urlopen):
-    """Test title property returns title after download."""
-    mock_response = MagicMock()
-    mock_response.read.return_value = b'<rss></rss>'
-    mock_urlopen.return_value = mock_response
-
-    mock_feed_data = MagicMock()
-    mock_feed_data.items = []
-    mock_feed_data.title = 'Feed Title'
-    mock_parse.return_value = mock_feed_data
-
-    feed = Feed('http://feed.rss')
-    await feed.download()
-
-    assert feed.title == 'Feed Title'
-
-
-def test_description_property_before_download():
-    """Test description property raises exception before download."""
-    feed = Feed('http://feed.rss')
-
-    with pytest.raises(Exception, match='Feed must be downloaded'):
-        _ = feed.description
-
-
-@pytest.mark.asyncio
-@patch('agoras.core.feed.feed.urlopen')
-@patch('agoras.core.feed.feed.parse_rss_bytes')
-async def test_description_property_after_download(mock_parse, mock_urlopen):
-    """Test description property returns description after download."""
-    mock_response = MagicMock()
-    mock_response.read.return_value = b'<rss></rss>'
-    mock_urlopen.return_value = mock_response
-
-    mock_feed_data = MagicMock()
-    mock_feed_data.items = []
-    mock_feed_data.description = 'Feed Description'
-    mock_parse.return_value = mock_feed_data
-
-    feed = Feed('http://feed.rss')
-    await feed.download()
-
-    assert feed.description == 'Feed Description'
-
-
 # Filtering Tests
 
 def test_get_items_since_before_download():
@@ -366,47 +310,6 @@ async def test_get_random_item_no_items_available(mock_parse, mock_urlopen):
 # Latest Items Tests
 
 
-# to_dict Tests
-
-def test_to_dict_before_download():
-    """Test to_dict raises exception before download."""
-    feed = Feed('http://feed.rss')
-
-    with pytest.raises(Exception, match='Feed must be downloaded'):
-        feed.to_dict()
-
-
-@pytest.mark.asyncio
-@patch('agoras.core.feed.feed.urlopen')
-@patch('agoras.core.feed.feed.parse_rss_bytes')
-async def test_to_dict_returns_complete_dictionary(mock_parse, mock_urlopen):
-    """Test to_dict returns complete dictionary representation."""
-    mock_response = MagicMock()
-    mock_response.read.return_value = b'<rss></rss>'
-    mock_urlopen.return_value = mock_response
-
-    mock_item = MagicMock()
-    mock_item.pub_date = None
-    mock_item.title = 'Item Title'
-
-    mock_feed_data = MagicMock()
-    mock_feed_data.items = [mock_item]
-    mock_feed_data.title = 'Feed Title'
-    mock_feed_data.description = 'Feed Description'
-    mock_parse.return_value = mock_feed_data
-
-    feed = Feed('http://feed.rss')
-    await feed.download()
-
-    feed_dict = feed.to_dict()
-
-    assert feed_dict['url'] == 'http://feed.rss'
-    assert feed_dict['title'] == 'Feed Title'
-    assert feed_dict['description'] == 'Feed Description'
-    assert feed_dict['item_count'] == 1
-    assert 'items' in feed_dict
-
-
 # FeedItem Tests
 
 def test_feeditem_instantiation():
@@ -445,21 +348,6 @@ def test_feeditem_link_fallback_to_guid():
     assert item.link == 'http://guid-link.com'
 
 
-def test_feeditem_description():
-    """Test FeedItem description property."""
-    mock_raw = MagicMock()
-    mock_raw.title = 'Title'
-    mock_raw.link = 'http://link.com'
-    mock_raw.guid = 'http://link.com'
-    mock_raw.description = 'Item description'
-    mock_raw.pub_date = None
-    mock_raw.enclosures = []
-
-    item = FeedItem(mock_raw)
-
-    assert item.description == 'Item description'
-
-
 def test_feeditem_pub_date():
     """Test FeedItem pub_date property."""
     pub_date = datetime.datetime(2024, 1, 15, 12, 30, 0)
@@ -473,21 +361,6 @@ def test_feeditem_pub_date():
     item = FeedItem(mock_raw)
 
     assert item.pub_date == pub_date
-
-
-def test_feeditem_timestamp_conversion():
-    """Test FeedItem timestamp property converts pub_date."""
-    pub_date = datetime.datetime(2024, 1, 15, 12, 30, 45)
-    mock_raw = MagicMock()
-    mock_raw.title = 'Title'
-    mock_raw.link = 'http://link.com'
-    mock_raw.guid = 'http://link.com'
-    mock_raw.pub_date = pub_date
-    mock_raw.enclosures = []
-
-    item = FeedItem(mock_raw)
-
-    assert item.timestamp == 20240115123045
 
 
 def test_feeditem_image_url_from_enclosures():
@@ -535,7 +408,7 @@ def test_feeditem_process_only_once():
     # Access multiple properties
     _ = item.title
     _ = item.link
-    _ = item.description
+    _ = item.image_url
 
     # _processed should be True and only set once
     assert item._processed is True
@@ -591,30 +464,6 @@ def test_feeditem_get_timestamped_link_no_link():
     assert result == ''
 
 
-def test_feeditem_to_dict():
-    """Test FeedItem to_dict returns complete dictionary."""
-    pub_date = datetime.datetime(2024, 1, 15, 12, 0, 0)
-    mock_raw = MagicMock()
-    mock_raw.title = 'Title'
-    mock_raw.link = 'http://link.com'
-    mock_raw.guid = 'http://link.com'
-    mock_raw.pub_date = pub_date
-    mock_raw.description = 'Description'
-    mock_raw.enclosures = []
-
-    item = FeedItem(mock_raw)
-
-    item_dict = item.to_dict()
-
-    assert item_dict['title'] == 'Title'
-    assert item_dict['link'] == 'http://link.com'
-    assert item_dict['description'] == 'Description'
-    assert item_dict['pub_date'] == pub_date
-    assert item_dict['timestamp'] == 20240115120000
-
-
-
-
 def test_parse_rss_bytes_happy_path():
     """Real RSS 2.0 fixture parses to the same item fields."""
     from agoras.core.feed.feed import parse_rss_bytes
@@ -644,7 +493,6 @@ def test_parse_rss_bytes_happy_path():
     parsed = FeedItem(item)
     assert parsed.title == "Item One"
     assert parsed.link == "https://a.example/1"
-    assert parsed.timestamp is not None
     assert parsed.image_url == "https://a.example/img.jpg"
 
 

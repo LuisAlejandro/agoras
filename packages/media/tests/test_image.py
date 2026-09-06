@@ -21,7 +21,7 @@ from unittest.mock import patch
 import pytest
 
 from agoras.media.errors import MediaValidationError
-from agoras.media import create_image, create_video, download_images, download_video_and_images
+from agoras.media.factory import create_image, create_video, download_images
 from agoras.media.image import Image
 
 

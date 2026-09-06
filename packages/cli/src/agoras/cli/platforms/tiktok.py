@@ -125,8 +125,8 @@ def _add_post_options(parser: ArgumentParser):
     Args:
         parser: ArgumentParser to add options to
     """
-    # Add common content options (text, link, images) including --content
-    add_common_content_options(parser, images=4)
+    # TikTok photo posts carry no link field, so --link is not offered.
+    add_common_content_options(parser, images=4, with_link=False)
 
     # Add TikTok-specific post options (SUPPRESS for XOR-safe content fields)
     post_opts = parser.add_argument_group("TikTok Post Options")

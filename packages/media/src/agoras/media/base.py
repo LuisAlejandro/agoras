@@ -128,31 +128,6 @@ class Media(ABC):
 
         return self.temp_file, self.content, self.file_type
 
-    def get_file_handle(self, mode="rb"):
-        """
-        Get a file handle for the downloaded content.
-
-        Args:
-            mode (str): File open mode (default: 'rb')
-
-        Returns:
-            io.BytesIO or file handle: File handle for the content
-
-        Raises:
-            Exception: If file hasn't been downloaded
-        """
-        if not self._downloaded:
-            raise Exception("File must be downloaded before getting file handle")
-
-        if self.content is not None:
-            # Return BytesIO handle from in-memory content
-            return io.BytesIO(self.content)
-        elif self.temp_file and os.path.exists(self.temp_file):
-            # Fallback to file handle if content not in memory
-            return open(self.temp_file, mode)
-        else:
-            raise Exception("No file content available")
-
     def get_file_like_object(self):
         """
         Get a file-like object that can be used with libraries expecting file handles.

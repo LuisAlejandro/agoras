@@ -256,20 +256,6 @@ class Feed:
             raise Exception("Feed must be downloaded before accessing items")
         return self._items or []
 
-    @property
-    def title(self):
-        """Get feed title."""
-        if not self._downloaded:
-            raise Exception("Feed must be downloaded before accessing title")
-        return getattr(self._feed_data, "title", "") or ""
-
-    @property
-    def description(self):
-        """Get feed description."""
-        if not self._downloaded:
-            raise Exception("Feed must be downloaded before accessing description")
-        return getattr(self._feed_data, "description", "") or ""
-
     def get_items_since(self, lookback_seconds):
         """
         Get items published within the lookback period.
@@ -341,21 +327,3 @@ class Feed:
             raise Exception("No suitable items found in feed")
 
         return random.choice(available_items)
-
-    def to_dict(self):
-        """
-        Convert feed to dictionary representation.
-
-        Returns:
-            dict: Feed data including items
-        """
-        if not self._downloaded:
-            raise Exception("Feed must be downloaded before converting to dict")
-
-        return {
-            "url": self.url,
-            "title": self.title,
-            "description": self.description,
-            "item_count": len(self.items),
-            "items": [item.to_dict() for item in self.items],
-        }
