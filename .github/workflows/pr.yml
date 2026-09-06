@@ -112,6 +112,10 @@ jobs:
           python3 scripts/verify_dead_code.py --self-test
           python3 scripts/verify_dead_code.py
 
+      - name: Verifying package dependency sync
+        run: |
+          python3 scripts/sync_package_deps.py --check
+
   lint-skip:
     name: Linting
     needs: [filter]
