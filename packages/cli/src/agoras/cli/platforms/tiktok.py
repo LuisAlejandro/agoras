@@ -25,11 +25,9 @@ from argparse import SUPPRESS, ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.tiktok.wrapper import main as tiktok_main
 
-from ..base import add_common_content_options, add_profile_to_all, prepare_content_args, resolve_action_profile
+from ..base import add_common_content_options, add_profile_to_all, run_platform_command
 from ..content import add_content_file_option
-from ..converter import ParameterConverter
 from ..media_help import video_url_help
-from ..validator import ActionValidator
 
 
 def create_tiktok_parser(subparsers: _SubParsersAction) -> ArgumentParser:
@@ -248,16 +246,4 @@ def _handle_tiktok_command(args: Namespace):
     Returns:
         Exit status from core execution
     """
-    # Validate action
-    ActionValidator.validate("tiktok", args.action)
-    prepare_content_args(args, "tiktok")
-
-    # Convert new args to legacy format
-    converter = ParameterConverter("tiktok")
-    legacy_args = converter.convert_to_legacy(args)
-
-    # Resolve and inject the credential profile for non-authorize actions
-    resolve_action_profile("tiktok", args, legacy_args)
-
-    # Call core TikTok module
-    return tiktok_main(legacy_args)
+    return run_platform_command("tiktok", args, tiktok_main)

@@ -26,11 +26,9 @@ from argparse import SUPPRESS, ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.youtube.wrapper import main as youtube_main
 
-from ..base import add_profile_to_all, prepare_content_args, resolve_action_profile
+from ..base import add_profile_to_all, run_platform_command
 from ..content import add_content_file_option
-from ..converter import ParameterConverter
 from ..media_help import video_url_help
-from ..validator import ActionValidator
 
 
 def create_youtube_parser(subparsers: _SubParsersAction) -> ArgumentParser:
@@ -185,16 +183,4 @@ def _handle_youtube_command(args: Namespace):
     Returns:
         Exit status from core execution
     """
-    # Validate action
-    ActionValidator.validate("youtube", args.action)
-    prepare_content_args(args, "youtube")
-
-    # Convert new args to legacy format
-    converter = ParameterConverter("youtube")
-    legacy_args = converter.convert_to_legacy(args)
-
-    # Resolve and inject the credential profile for non-authorize actions
-    resolve_action_profile("youtube", args, legacy_args)
-
-    # Call core YouTube module
-    return youtube_main(legacy_args)
+    return run_platform_command("youtube", args, youtube_main)

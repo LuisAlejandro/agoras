@@ -29,12 +29,9 @@ from ..base import (
     add_common_content_options,
     add_profile_to_all,
     add_video_options,
-    prepare_content_args,
-    resolve_action_profile,
+    run_platform_command,
 )
 from ..content import add_content_file_option
-from ..converter import ParameterConverter
-from ..validator import ActionValidator
 
 
 def create_threads_parser(subparsers: _SubParsersAction) -> ArgumentParser:
@@ -184,16 +181,4 @@ def _handle_threads_command(args: Namespace):
     Returns:
         Exit status from core execution
     """
-    # Validate action
-    ActionValidator.validate("threads", args.action)
-    prepare_content_args(args, "threads")
-
-    # Convert new args to legacy format
-    converter = ParameterConverter("threads")
-    legacy_args = converter.convert_to_legacy(args)
-
-    # Resolve and inject the credential profile for non-authorize actions
-    resolve_action_profile("threads", args, legacy_args)
-
-    # Call core Threads module
-    return threads_main(legacy_args)
+    return run_platform_command("threads", args, threads_main)

@@ -25,11 +25,9 @@ from argparse import SUPPRESS, ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.facebook.wrapper import main as facebook_main
 
-from ..base import add_common_content_options, add_profile_to_all, prepare_content_args, resolve_action_profile
+from ..base import add_common_content_options, add_profile_to_all, run_platform_command
 from ..content import add_content_file_option
-from ..converter import ParameterConverter
 from ..media_help import video_url_help
-from ..validator import ActionValidator
 
 
 def create_facebook_parser(subparsers: _SubParsersAction) -> ArgumentParser:
@@ -211,16 +209,4 @@ def _handle_facebook_command(args: Namespace):
     Returns:
         Exit status from core execution
     """
-    # Validate action
-    ActionValidator.validate("facebook", args.action)
-    prepare_content_args(args, "facebook")
-
-    # Convert new args to legacy format
-    converter = ParameterConverter("facebook")
-    legacy_args = converter.convert_to_legacy(args)
-
-    # Resolve and inject the credential profile for non-authorize actions
-    resolve_action_profile("facebook", args, legacy_args)
-
-    # Call core Facebook module
-    return facebook_main(legacy_args)
+    return run_platform_command("facebook", args, facebook_main)

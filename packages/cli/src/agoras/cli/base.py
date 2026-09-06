@@ -279,6 +279,26 @@ def add_video_options(parser: ArgumentParser, platform: Optional[str] = None, *,
     )
 
 
+def run_platform_command(platform: str, args: Namespace, platform_main):
+    """
+    Run the shared CLI pipeline for one platform command.
+
+    Validates the action, applies the content contract, converts to the legacy
+    argument shape, injects the credential profile, then calls the platform's
+    wrapper ``main``.
+    """
+    from .converter import ParameterConverter
+    from .validator import ActionValidator
+
+    ActionValidator.validate(platform, args.action)
+    prepare_content_args(args, platform)
+
+    legacy_args = ParameterConverter(platform).convert_to_legacy(args)
+    resolve_action_profile(platform, args, legacy_args)
+
+    return platform_main(legacy_args)
+
+
 def prepare_content_args(args: Namespace, platform: str) -> None:
     """Apply content-file XOR rules and required-field checks for an action."""
     action = getattr(args, "action", None)
