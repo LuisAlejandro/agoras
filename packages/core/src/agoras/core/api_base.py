@@ -244,9 +244,12 @@ class BaseAPI(ABC):
         Hook for platform-specific post-authentication steps.
 
         Called by ``authenticate`` after the auth-manager attempt succeeds and
-        before the client is wired. The default does nothing; platforms with
-        extra post-auth checks (e.g. discord, telegram) override this.
+        before the client is wired. Platforms that require the auth manager to
+        have produced a client set ``_post_auth_client_required_message`` to
+        the error text; others may override this hook outright.
         """
+        if self._post_auth_client_required_message and not self.auth_manager.client:
+            raise Exception(self._post_auth_client_required_message)
 
     async def disconnect(self):
         """
@@ -277,10 +280,16 @@ class BaseAPI(ABC):
         Hook for platform-specific disconnect teardown.
 
         The default disconnects the client and clears the auth manager's
-        access token. Platforms that must not disconnect the client (tiktok,
-        telegram, threads) or clear different auth-manager state override
-        this.
+        access token. Platforms whose client must not be disconnected set
+        ``_clears_auth_manager_state_on_disconnect`` (tiktok, telegram) to
+        clear auth-manager state instead; others (threads) override this.
         """
+        if self._clears_auth_manager_state_on_disconnect:
+            if self.auth_manager:
+                self.auth_manager.access_token = None
+                self.auth_manager.user_info = None
+                self.auth_manager.client = None
+            return
         if self.client:
             self.client.disconnect()
         if self.auth_manager:
@@ -315,6 +324,10 @@ class BaseAPI(ABC):
     # platform-specific without repeating the guard shape.
     _not_authenticated_message = "API not authenticated"
     _client_not_available_message = "API client not available"
+    # Set to the error text to require an auth-manager client after authenticate.
+    _post_auth_client_required_message: str | None = None
+    # Clear auth-manager token/user_info/client on disconnect instead of disconnecting the client.
+    _clears_auth_manager_state_on_disconnect = False
 
     def _handle_api_error(self, error, operation_name) -> NoReturn:
         """
