@@ -17,7 +17,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.instagram.wrapper module."""
 
-
 from agoras.core.interfaces import SocialNetwork, run_wrapper_main, run_wrapper_main_async
 from agoras.core.text_limits import validate_text
 from agoras.media.paths import is_local_media_source, media_is_local

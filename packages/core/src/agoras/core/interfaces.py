@@ -156,7 +156,7 @@ class SocialNetwork(ABC):
     _authorize_keys: Dict[str, Any] = {}
     _authorize_uses_profile = True
 
-    def _authorize_manager(self):
+    def _authorize_manager(self) -> Any:
         """Return the platform's auth-manager class, or None when unsupported."""
         return None
 
@@ -777,7 +777,9 @@ class SocialNetwork(ABC):
 
     def _action_post_id(self, action):
         """Resolve the post-id argument for a like/share/delete action."""
-        key, env_key, error = self._post_id_actions.get(action, ("post_id", None, f"Post ID is required for {action} action."))
+        key, env_key, error = self._post_id_actions.get(
+            action, ("post_id", None, f"Post ID is required for {action} action.")
+        )
         if key is None:
             return None
         value = self._get_config_value(key, env_key)

@@ -21,7 +21,7 @@ import asyncio
 from typing import Any, Dict, List, Optional
 
 from agoras.core.api_base import sanitize_error_text
-from agoras.core.interfaces import SocialNetwork, run_wrapper_main, run_wrapper_main_async, _entry_images
+from agoras.core.interfaces import SocialNetwork, _entry_images, run_wrapper_main, run_wrapper_main_async
 from agoras.core.text_limits import validate_text
 from agoras.core.threading import (
     ThreadPublishError,
