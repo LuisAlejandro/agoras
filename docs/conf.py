@@ -72,9 +72,7 @@ autodoc_mock_imports = [
     "googleapiclient",
     "discord",
     "telegram",
-    "tiktokapipy",
     "requests",
-    "feedparser",
     "gspread",
 ]
 
