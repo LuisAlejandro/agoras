@@ -181,6 +181,12 @@ class X(SocialNetwork):
         await self.api.authenticate()
         await self._fetch_live_subscription_type()
 
+    _post_id_actions = {
+        "like": ("tweet_id", "TWEET_ID", "Tweet ID is required for like action."),
+        "share": ("tweet_id", "TWEET_ID", "Tweet ID is required for share action."),
+        "delete": ("tweet_id", "TWEET_ID", "Tweet ID is required for delete action."),
+    }
+
     _authorize_keys = {
         "consumer_key": ("twitter_consumer_key", "TWITTER_CONSUMER_KEY"),
         "consumer_secret": ("twitter_consumer_secret", "TWITTER_CONSUMER_SECRET"),
@@ -628,27 +634,6 @@ class X(SocialNetwork):
         return success_result(ids)
 
     # Override action handlers to use X-specific parameter names
-    async def _handle_like_action(self):
-        """Handle like action with X-specific parameter extraction."""
-        tweet_id = self._get_config_value("tweet_id", "TWEET_ID")
-        if not tweet_id:
-            raise Exception("Tweet ID is required for like action.")
-        await self.like(tweet_id)
-
-    async def _handle_share_action(self):
-        """Handle share action with X-specific parameter extraction."""
-        tweet_id = self._get_config_value("tweet_id", "TWEET_ID")
-        if not tweet_id:
-            raise Exception("Tweet ID is required for share action.")
-        await self.share(tweet_id)
-
-    async def _handle_delete_action(self):
-        """Handle delete action with X-specific parameter extraction."""
-        tweet_id = self._get_config_value("tweet_id", "TWEET_ID")
-        if not tweet_id:
-            raise Exception("Tweet ID is required for delete action.")
-        await self.delete(tweet_id)
-
     async def _handle_video_action(self):
         """Handle video action with X-specific parameter extraction."""
         status_text = self._get_config_value("status_text", "STATUS_TEXT") or ""

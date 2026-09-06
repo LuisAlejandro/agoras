@@ -550,6 +550,12 @@ class Instagram(SocialNetwork):
         self._output_list(items)
         return items
 
+    _post_id_actions = {
+        "like": ("instagram_post_id", "INSTAGRAM_POST_ID", None),
+        "share": ("instagram_post_id", "INSTAGRAM_POST_ID", None),
+        "delete": ("instagram_post_id", "INSTAGRAM_POST_ID", None),
+    }
+
     _authorize_keys = {
         "user_id": ("instagram_object_id", "INSTAGRAM_OBJECT_ID"),
         "client_id": ("instagram_client_id", "INSTAGRAM_CLIENT_ID"),
@@ -563,21 +569,6 @@ class Instagram(SocialNetwork):
         return InstagramAuthManager
 
     # Override action handlers to use Instagram-specific parameter names
-    async def _handle_like_action(self):
-        """Handle like action with Instagram-specific parameter extraction."""
-        instagram_post_id = self._get_config_value("instagram_post_id", "INSTAGRAM_POST_ID")
-        await self.like(instagram_post_id)
-
-    async def _handle_share_action(self):
-        """Handle share action with Instagram-specific parameter extraction."""
-        instagram_post_id = self._get_config_value("instagram_post_id", "INSTAGRAM_POST_ID")
-        await self.share(instagram_post_id)
-
-    async def _handle_delete_action(self):
-        """Handle delete action with Instagram-specific parameter extraction."""
-        instagram_post_id = self._get_config_value("instagram_post_id", "INSTAGRAM_POST_ID")
-        await self.delete(instagram_post_id)
-
     async def _handle_video_action(self):
         """Handle video action with Instagram-specific parameter extraction."""
         status_text = self._get_config_value("instagram_video_caption", "INSTAGRAM_VIDEO_CAPTION") or ""

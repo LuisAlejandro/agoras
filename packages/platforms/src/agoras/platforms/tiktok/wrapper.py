@@ -603,17 +603,11 @@ class TikTok(SocialNetwork):
 
         await self.video(video_title, video_url, video_title)
 
-    async def _handle_like_action(self):
-        """Handle like action - not supported for TikTok."""
-        await self.like(None)
-
-    async def _handle_share_action(self):
-        """Handle share action - not supported for TikTok."""
-        await self.share(None)
-
-    async def _handle_delete_action(self):
-        """Handle delete action - not supported for TikTok."""
-        await self.delete(None)
+    _post_id_actions = {
+        "like": (None, None, None),
+        "share": (None, None, None),
+        "delete": (None, None, None),
+    }
 
     _authorize_keys = {
         "username": ("tiktok_username", "TIKTOK_USERNAME"),

@@ -769,26 +769,33 @@ class SocialNetwork(ABC):
             status_text, status_link, status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4
         )
 
+    # Per-action post-id lookup, overridden per platform:
+    #   action -> (config key, env key, error message)
+    # A None config key passes None through (unsupported actions whose
+    # method raises); a None error message skips the required-value guard.
+    _post_id_actions: Dict[str, Any] = {}
+
+    def _action_post_id(self, action):
+        """Resolve the post-id argument for a like/share/delete action."""
+        key, env_key, error = self._post_id_actions.get(action, ("post_id", None, f"Post ID is required for {action} action."))
+        if key is None:
+            return None
+        value = self._get_config_value(key, env_key)
+        if error and not value:
+            raise Exception(error)
+        return value
+
     async def _handle_like_action(self):
         """Handle like action with common parameter extraction."""
-        post_id = self._get_config_value("post_id")
-        if not post_id:
-            raise Exception("Post ID is required for like action.")
-        await self.like(post_id)
+        await self.like(self._action_post_id("like"))
 
     async def _handle_share_action(self):
         """Handle share action with common parameter extraction."""
-        post_id = self._get_config_value("post_id")
-        if not post_id:
-            raise Exception("Post ID is required for share action.")
-        await self.share(post_id)
+        await self.share(self._action_post_id("share"))
 
     async def _handle_delete_action(self):
         """Handle delete action with common parameter extraction."""
-        post_id = self._get_config_value("post_id")
-        if not post_id:
-            raise Exception("Post ID is required for delete action.")
-        await self.delete(post_id)
+        await self.delete(self._action_post_id("delete"))
 
     async def _handle_video_action(self):
         """Handle video action with common parameter extraction."""

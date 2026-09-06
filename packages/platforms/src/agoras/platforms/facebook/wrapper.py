@@ -822,6 +822,12 @@ class Facebook(SocialNetwork):
         self._output_status(post_id)
         return post_id
 
+    _post_id_actions = {
+        "like": ("facebook_post_id", "FACEBOOK_POST_ID", "Facebook post ID is required for like action."),
+        "share": ("facebook_post_id", "FACEBOOK_POST_ID", "Facebook post ID is required for share action."),
+        "delete": ("facebook_post_id", "FACEBOOK_POST_ID", "Facebook post ID is required for delete action."),
+    }
+
     _authorize_keys = {
         "user_id": ("facebook_object_id", "FACEBOOK_OBJECT_ID"),
         "client_id": ("facebook_client_id", "FACEBOOK_CLIENT_ID"),
@@ -835,27 +841,6 @@ class Facebook(SocialNetwork):
         return FacebookAuthManager
 
     # Override action handlers to use Facebook-specific parameter names
-    async def _handle_like_action(self):
-        """Handle like action with Facebook-specific parameter extraction."""
-        facebook_post_id = self._get_config_value("facebook_post_id", "FACEBOOK_POST_ID")
-        if not facebook_post_id:
-            raise Exception("Facebook post ID is required for like action.")
-        await self.like(facebook_post_id)
-
-    async def _handle_share_action(self):
-        """Handle share action with Facebook-specific parameter extraction."""
-        facebook_post_id = self._get_config_value("facebook_post_id", "FACEBOOK_POST_ID")
-        if not facebook_post_id:
-            raise Exception("Facebook post ID is required for share action.")
-        await self.share(facebook_post_id)
-
-    async def _handle_delete_action(self):
-        """Handle delete action with Facebook-specific parameter extraction."""
-        facebook_post_id = self._get_config_value("facebook_post_id", "FACEBOOK_POST_ID")
-        if not facebook_post_id:
-            raise Exception("Facebook post ID is required for delete action.")
-        await self.delete(facebook_post_id)
-
     async def _handle_video_action(self):
         """Handle video action with Facebook-specific parameter extraction."""
         status_text = self._get_config_value("facebook_video_description", "FACEBOOK_VIDEO_DESCRIPTION") or ""

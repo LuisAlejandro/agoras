@@ -372,13 +372,6 @@ class Telegram(SocialNetwork):
             # Clean up downloaded video
             video.cleanup()
 
-    async def _handle_delete_action(self):
-        """Handle delete action with Telegram-specific parameter extraction."""
-        message_id = self._get_config_value("telegram_message_id", "TELEGRAM_MESSAGE_ID")
-        if not message_id:
-            raise Exception("Message ID is required for delete action.")
-        await self.delete(message_id)
-
     async def like(self, post_id):
         """
         Like is not supported for Telegram.
@@ -422,6 +415,10 @@ class Telegram(SocialNetwork):
             Exception: Share not supported for Telegram
         """
         raise Exception("Share not supported for Telegram")
+
+    _post_id_actions = {
+        "delete": ("telegram_message_id", "TELEGRAM_MESSAGE_ID", "Message ID is required for delete action."),
+    }
 
     _authorize_keys = {
         "bot_token": ("telegram_bot_token", "TELEGRAM_BOT_TOKEN"),

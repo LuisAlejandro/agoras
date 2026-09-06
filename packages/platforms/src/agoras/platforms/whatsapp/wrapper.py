@@ -416,27 +416,6 @@ class WhatsApp(SocialNetwork):
         return message_id
 
     # Override action handlers to use WhatsApp-specific parameter names
-    async def _handle_like_action(self):
-        """Handle like action with WhatsApp-specific parameter extraction."""
-        whatsapp_message_id = self._get_config_value("whatsapp_message_id", "WHATSAPP_MESSAGE_ID")
-        if not whatsapp_message_id:
-            raise Exception("WhatsApp message ID is required for like action.")
-        await self.like(whatsapp_message_id)
-
-    async def _handle_share_action(self):
-        """Handle share action with WhatsApp-specific parameter extraction."""
-        whatsapp_message_id = self._get_config_value("whatsapp_message_id", "WHATSAPP_MESSAGE_ID")
-        if not whatsapp_message_id:
-            raise Exception("WhatsApp message ID is required for share action.")
-        await self.share(whatsapp_message_id)
-
-    async def _handle_delete_action(self):
-        """Handle delete action with WhatsApp-specific parameter extraction."""
-        whatsapp_message_id = self._get_config_value("whatsapp_message_id", "WHATSAPP_MESSAGE_ID")
-        if not whatsapp_message_id:
-            raise Exception("WhatsApp message ID is required for delete action.")
-        await self.delete(whatsapp_message_id)
-
     async def _handle_video_action(self):
         """Handle video action with WhatsApp-specific parameter extraction."""
         status_text = self._get_config_value("status_text", "STATUS_TEXT") or ""
@@ -471,6 +450,12 @@ class WhatsApp(SocialNetwork):
             raise Exception("Template name is required for template action.")
 
         await self.send_template(template_name, language_code=language_code, components=components)
+
+    _post_id_actions = {
+        "like": ("whatsapp_message_id", "WHATSAPP_MESSAGE_ID", "WhatsApp message ID is required for like action."),
+        "share": ("whatsapp_message_id", "WHATSAPP_MESSAGE_ID", "WhatsApp message ID is required for share action."),
+        "delete": ("whatsapp_message_id", "WHATSAPP_MESSAGE_ID", "WhatsApp message ID is required for delete action."),
+    }
 
     _authorize_keys = {
         "access_token": ("whatsapp_access_token", "WHATSAPP_ACCESS_TOKEN"),

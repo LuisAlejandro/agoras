@@ -599,27 +599,6 @@ class LinkedIn(SocialNetwork):
     # We only need to override the action handlers for LinkedIn-specific parameter names.
 
     # Override action handlers to use LinkedIn-specific parameter names
-    async def _handle_like_action(self):
-        """Handle like action with LinkedIn-specific parameter extraction."""
-        linkedin_post_id = self._get_config_value("linkedin_post_id", "LINKEDIN_POST_ID")
-        if not linkedin_post_id:
-            raise Exception("LinkedIn post ID is required for like action.")
-        await self.like(linkedin_post_id)
-
-    async def _handle_share_action(self):
-        """Handle share action with LinkedIn-specific parameter extraction."""
-        linkedin_post_id = self._get_config_value("linkedin_post_id", "LINKEDIN_POST_ID")
-        if not linkedin_post_id:
-            raise Exception("LinkedIn post ID is required for share action.")
-        await self.share(linkedin_post_id)
-
-    async def _handle_delete_action(self):
-        """Handle delete action with LinkedIn-specific parameter extraction."""
-        linkedin_post_id = self._get_config_value("linkedin_post_id", "LINKEDIN_POST_ID")
-        if not linkedin_post_id:
-            raise Exception("LinkedIn post ID is required for delete action.")
-        await self.delete(linkedin_post_id)
-
     async def _handle_video_action(self):
         """Handle video action with LinkedIn-specific parameter extraction."""
         status_text = self._get_config_value("status_text", "STATUS_TEXT") or ""
@@ -634,6 +613,12 @@ class LinkedIn(SocialNetwork):
     # The base class already provides default action handlers for last-from-feed,
     # random-from-feed, and schedule actions with the correct parameter names.
     # No need to override them for LinkedIn.
+
+    _post_id_actions = {
+        "like": ("linkedin_post_id", "LINKEDIN_POST_ID", "LinkedIn post ID is required for like action."),
+        "share": ("linkedin_post_id", "LINKEDIN_POST_ID", "LinkedIn post ID is required for share action."),
+        "delete": ("linkedin_post_id", "LINKEDIN_POST_ID", "LinkedIn post ID is required for delete action."),
+    }
 
     _authorize_keys = {
         "user_id": ("linkedin_object_id", "LINKEDIN_OBJECT_ID"),

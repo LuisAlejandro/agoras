@@ -415,24 +415,6 @@ class Threads(SocialNetwork):
             status_text, status_link, status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4
         )
 
-    async def _handle_share_action(self):
-        """Handle share action with Threads-specific parameter extraction."""
-        threads_post_id = self._get_config_value("threads_post_id", "THREADS_POST_ID")
-        if not threads_post_id:
-            raise Exception("Threads post ID is required for share action.")
-        await self.share(threads_post_id)
-
-    async def _handle_like_action(self):
-        """Handle like action - not supported for Threads."""
-        await self.like(None)
-
-    async def _handle_delete_action(self):
-        """Handle delete action with Threads-specific parameter extraction."""
-        threads_post_id = self._get_config_value("threads_post_id", "THREADS_POST_ID")
-        if not threads_post_id:
-            raise Exception("Threads post ID is required for delete action.")
-        await self.delete(threads_post_id)
-
     async def video(self, status_text, video_url, video_title):
         """
         Post a video to Threads.
@@ -526,6 +508,12 @@ class Threads(SocialNetwork):
             raise Exception("Threads video URL is required for video action.")
 
         await self.video(status_text, video_url, video_title)
+
+    _post_id_actions = {
+        "like": (None, None, None),
+        "share": ("threads_post_id", "THREADS_POST_ID", "Threads post ID is required for share action."),
+        "delete": ("threads_post_id", "THREADS_POST_ID", "Threads post ID is required for delete action."),
+    }
 
     _authorize_keys = {
         "app_id": ("threads_app_id", "THREADS_APP_ID"),

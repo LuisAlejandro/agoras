@@ -551,23 +551,9 @@ class YouTube(SocialNetwork):
                     self.youtube_keywords = original_keywords
 
     # Override action handlers to use YouTube-specific parameter names
-    async def _handle_like_action(self):
-        """Handle like action with YouTube-specific parameter extraction."""
-        youtube_video_id = self._get_config_value("youtube_video_id", "YOUTUBE_VIDEO_ID")
-        if not youtube_video_id:
-            raise Exception("YouTube video ID is required for like action.")
-        await self.like(youtube_video_id)
-
     async def _handle_share_action(self):
         """Handle share action with YouTube-specific parameter extraction."""
         await self.share()
-
-    async def _handle_delete_action(self):
-        """Handle delete action with YouTube-specific parameter extraction."""
-        youtube_video_id = self._get_config_value("youtube_video_id", "YOUTUBE_VIDEO_ID")
-        if not youtube_video_id:
-            raise Exception("YouTube video ID is required for delete action.")
-        await self.delete(youtube_video_id)
 
     async def _handle_video_action(self):
         """Handle video action with YouTube-specific parameter extraction."""
@@ -581,6 +567,11 @@ class YouTube(SocialNetwork):
             raise Exception("YouTube video title is required for video action.")
 
         await self.video(status_text, video_url, video_title)
+
+    _post_id_actions = {
+        "like": ("youtube_video_id", "YOUTUBE_VIDEO_ID", "YouTube video ID is required for like action."),
+        "delete": ("youtube_video_id", "YOUTUBE_VIDEO_ID", "YouTube video ID is required for delete action."),
+    }
 
     _authorize_keys = {
         "client_id": ("youtube_client_id", "YOUTUBE_CLIENT_ID"),
