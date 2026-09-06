@@ -22,12 +22,10 @@ A gate failure on a legitimate change is a data update, not a code fix.
 Exit code 0 when every module matches; 1 otherwise. Text-based and offline.
 """
 
-import argparse
 import re
 import sys
-from pathlib import Path
 
-API_DIR = Path("packages/platforms/src/agoras/platforms")
+from verify_harness import report_self_test, run
 
 # (method, bucket_key, interval) per platform — transcribed from the audit.
 EXPECTED = {
@@ -179,6 +177,16 @@ def _method_rate_limit(src, method):
 
 def check_api_source(name, src):
     failures = []
+
+    # Unknown-key alert: rate-limit keys in code that the inventory does not
+    # record (new methods/sites) are flagged so the gate is not one-directional
+    # — code can never silently outgrow the audit.
+    known_keys = {key for _, key, _ in EXPECTED[name]}
+    for line in src.split("\n"):
+        for m in re.finditer(r'(?:guard_rate_limit|_rate_limit_check)\("([a-z_]+)"', line):
+            if m.group(1) not in known_keys:
+                failures.append(f'{name}: un-audited rate-limit key "{m.group(1)}" at {line.strip()[:60]}')
+
     for method, key, interval in EXPECTED[name]:
         found = _method_rate_limit(src, method)
         if found is None:
@@ -249,46 +257,16 @@ def self_test():
         failures.append("self-test: commented-out rate limit not flagged as missing")
 
     EXPECTED = saved
-    if not failures:
-        print("Self-test passed: the gate catches missing and drifted rate limits.")
-        return 0
-    for item in failures:
-        print(f"[FAIL] {item}")
-    return 1
-
-
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--self-test", action="store_true", help="run negative self-tests and exit")
-    args = parser.parse_args()
-    if args.self_test:
-        return self_test()
-
-    all_failures = []
-    for name in EXPECTED:
-        src = (API_DIR / name / "api.py").read_text()
-        # Unknown-key alert: rate-limit keys in code that the inventory does
-        # not record (new methods/sites) are flagged so the gate is not
-        # one-directional — code can never silently outgrow the audit.
-        known_keys = {key for _, key, _ in EXPECTED[name]}
-        for line in src.split("\n"):
-            for m in re.finditer(r'(?:guard_rate_limit|_rate_limit_check)\("([a-z_]+)"', line):
-                if m.group(1) not in known_keys:
-                    all_failures.append(f'{name}: un-audited rate-limit key "{m.group(1)}" at {line.strip()[:60]}')
-        failures = check_api_source(name, src)
-        if failures:
-            for f in failures:
-                print(f"[FAIL] {f}")
-                all_failures.append(f)
-        else:
-            print(f"[PASS] {name}")
-
-    if all_failures:
-        print(f"\n{len(all_failures)} failure(s)")
-        return 1
-    print("\nAll api modules match the audit rate-limit inventory.")
-    return 0
+    return report_self_test(failures, "Self-test passed: the gate catches missing and drifted rate limits.")
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(
+        run(
+            description=__doc__,
+            check=check_api_source,
+            self_test=self_test,
+            success_message="All api modules match the audit rate-limit inventory.",
+            platforms=list(EXPECTED),
+        )
+    )

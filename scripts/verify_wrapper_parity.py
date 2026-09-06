@@ -23,13 +23,11 @@ Exit code 0 when every checked platform passes; 1 otherwise. Usable per
 platform during rollout and for the full tree at the end.
 """
 
-import argparse
 import importlib
 import re
 import sys
-from pathlib import Path
 
-WRAPPER_DIR = Path("packages/platforms/src/agoras/platforms")
+from verify_harness import report_self_test, run
 
 PROXY_PLATFORMS = {"x", "discord", "telegram", "threads"}
 REAL_DELETE_REPLY = {"facebook", "instagram", "linkedin", "youtube"}
@@ -149,59 +147,29 @@ def self_test():
     f = check_wrapper_source("x", overridden)
     if not any("run_main_async" in item for item in f):
         failures.append("self-test: run_main_async override not flagged")
-    if not failures:
-        print("Self-test passed: the gate catches unmigrated wrappers and bypassed overrides.")
-        return 0
-    for item in failures:
-        print(f"[FAIL] {item}")
-    return 1
+    return report_self_test(failures, "Self-test passed: the gate catches unmigrated wrappers and bypassed overrides.")
 
 
-def check_platform(name):
-    wrapper = WRAPPER_DIR / name / "wrapper.py"
-    return check_wrapper_source(name, wrapper.read_text())
-
-
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+def _add_arguments(parser):
     parser.add_argument("platforms", nargs="*", help="platform names; default: all ten")
     parser.add_argument("--check-imports", action="store_true", help="also import each wrapper module (needs SDK deps)")
-    parser.add_argument("--self-test", action="store_true", help="run negative self-tests and exit")
-    args = parser.parse_args()
-    if args.self_test:
-        return self_test()
+
+
+def _apply_arguments(args):
     global CHECK_IMPORTS
     CHECK_IMPORTS = args.check_imports
 
-    platforms = args.platforms or [
-        "x",
-        "discord",
-        "telegram",
-        "threads",
-        "facebook",
-        "instagram",
-        "linkedin",
-        "youtube",
-        "tiktok",
-        "whatsapp",
-    ]
-
-    all_failures = []
-    for name in platforms:
-        failures = check_platform(name)
-        if failures:
-            for f in failures:
-                print(f"[FAIL] {name}: {f}")
-                all_failures.append((name, f))
-        else:
-            print(f"[PASS] {name}")
-
-    if all_failures:
-        print(f"\n{len(all_failures)} failure(s)")
-        return 1
-    print("\nAll checked platforms pass.")
-    return 0
-
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(
+        run(
+            description=__doc__,
+            check=check_wrapper_source,
+            self_test=self_test,
+            success_message="All checked platforms pass.",
+            filename="wrapper.py",
+            add_arguments=_add_arguments,
+            on_args=_apply_arguments,
+            format_failure=lambda name, failure: f"{name}: {failure}",
+        )
+    )
