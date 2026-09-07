@@ -117,6 +117,7 @@ run_cycle() {
         post_id=$(
             run_agoras_capture_id '.id' youtube video \
                 --title "${POST_TEXT}" \
+                --privacy unlisted \
                 --video-url "${TEST_VIDEO_URL}"
         )
         ;;
