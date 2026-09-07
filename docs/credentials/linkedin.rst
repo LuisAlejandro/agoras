@@ -45,7 +45,7 @@ Request Access to Products
 Required Permissions
 --------------------
 
-Posting (``post``, ``share``) requires the ``w_member_social`` scope, granted by the **Share on LinkedIn** product. Comment and reply actions (``reply``, ``delete-reply`` / ``get-reply``) additionally require the **Community Management API** product and its ``w_member_social_feed`` scope.
+Posting (``post``, ``share``) requires the ``w_member_social`` scope, granted by the **Share on LinkedIn** product. Comment, reply, and like actions (``like``, ``reply``, ``delete-reply`` / ``get-reply``) additionally require the **Community Management API** product and its ``w_member_social_feed`` scope.
 
 Scopes and ``agoras linkedin authorize``
 ----------------------------------------
