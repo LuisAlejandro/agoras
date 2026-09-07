@@ -147,6 +147,16 @@ def _add_linkedin_authorize_options(parser: ArgumentParser):
     auth.add_argument("--client-id", required=True, metavar="<id>", help="LinkedIn App client ID")
     auth.add_argument("--client-secret", required=True, metavar="<secret>", help="LinkedIn App client secret")
     auth.add_argument("--object-id", required=True, metavar="<id>", help="LinkedIn user/organization ID")
+    auth.add_argument(
+        "--scope",
+        metavar="<scopes>",
+        help=(
+            "Comma-separated scopes that REPLACE the default "
+            "'openid,profile,email' for this authorize run (e.g. "
+            "w_member_social_feed, or openid,w_member_social_feed when the app "
+            "holds both). Flows needing identity must include openid."
+        ),
+    )
 
 
 def _add_video_options(parser: ArgumentParser):

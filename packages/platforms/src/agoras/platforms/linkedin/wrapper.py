@@ -624,8 +624,19 @@ class LinkedIn(SocialNetwork):
         "user_id": "linkedin_object_id",
         "client_id": "linkedin_client_id",
         "client_secret": "linkedin_client_secret",
+        "scope": "linkedin_scope",
     }
     _authorize_uses_profile = False
+
+    def _get_config_value(self, key, env_key=None):
+        """Resolve a config key; never fall back to the environment for scope.
+
+        ``--scope`` on authorize is the only override source: the generic env
+        fallback would otherwise honor an exported LINKEDIN_SCOPE silently.
+        """
+        if key == "linkedin_scope":
+            return self.config.get(key)
+        return super()._get_config_value(key, env_key=env_key)
 
     def _authorize_manager(self):
         """Return the LinkedInAuthManager used by the shared authorize flow."""
