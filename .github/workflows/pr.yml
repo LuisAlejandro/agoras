@@ -227,7 +227,6 @@ jobs:
       - name: Skip docs-only changes
         run: echo "Docs-only PR with no Sphinx path changes; skipping."
 
-  # >>> rosey-maintainer:ci-quality BEGIN
   code-quality:
     name: Code Quality
     needs: [filter]
@@ -251,7 +250,6 @@ jobs:
             --baseline-commit "${BASELINE}" \
             --metrics=off \
             --error
-  # <<< rosey-maintainer:ci-quality END
 
   code-quality-skip:
     name: Code Quality
