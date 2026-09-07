@@ -90,7 +90,7 @@ delete_post() {
 
 run_cycle() {
     local platform="$1"
-    local post_id reply_id
+    local post_id reply_id media_reply_id x_video_reply_id
 
     echo "======================================"
     echo "Reply cycle: ${platform}"
@@ -180,6 +180,56 @@ run_cycle() {
 
     sleep 5
 
+    # --- 2b. Media reply (image) where the reply backend accepts media ---
+    media_reply_id=""
+    case "${platform}" in
+    x | facebook | linkedin | discord | threads | telegram)
+        media_reply_id=$(
+            run_agoras_capture_id_optional '.id' "${platform}" reply \
+                --post-id "${post_id}" \
+                --text "${REPLY_TEXT} (media)" \
+                --image-1 "${TEST_IMAGE_URL}"
+        )
+        ;;
+    whatsapp)
+        media_reply_id=$(
+            run_agoras_capture_id_optional '.id' whatsapp reply \
+                --recipient "${WHATSAPP_RECIPIENT}" \
+                --post-id "${post_id}" \
+                --text "${REPLY_TEXT} (media)" \
+                --image-1 "${TEST_IMAGE_URL}"
+        )
+        ;;
+    *)
+        echo "SKIP: ${platform} media reply not scripted"
+        ;;
+    esac
+
+    if [ -n "${media_reply_id}" ]; then
+        register_test_post_cleanup "${platform}" "${media_reply_id}"
+        echo "${platform} media reply created: ${media_reply_id}"
+    else
+        skip_case "${platform} media reply unavailable or auth failed"
+    fi
+
+    # X also supports a video reply.
+    x_video_reply_id=""
+    if [ "${platform}" == "x" ]; then
+        x_video_reply_id=$(
+            run_agoras_capture_id_optional '.id' x reply \
+                --post-id "${post_id}" \
+                --video-url "${TEST_VIDEO_URL}"
+        )
+        if [ -n "${x_video_reply_id}" ]; then
+            register_test_post_cleanup x "${x_video_reply_id}"
+            echo "x video reply created: ${x_video_reply_id}"
+        else
+            skip_case "x video reply unavailable or auth failed"
+        fi
+    fi
+
+    sleep 5
+
     # --- 3. Verify the post exists (skip for networks without get-post) ---
     case "${platform}" in
     telegram | tiktok | whatsapp)
@@ -216,6 +266,16 @@ run_cycle() {
         delete_reply "${platform}" "${reply_id}"
         ;;
     esac
+
+    if [ -n "${media_reply_id:-}" ]; then
+        case "${platform}" in
+        linkedin) delete_reply linkedin "${media_reply_id}" --parent-post-id "${post_id}" ;;
+        *) delete_reply "${platform}" "${media_reply_id}" ;;
+        esac
+    fi
+    if [ -n "${x_video_reply_id:-}" ]; then
+        delete_reply x "${x_video_reply_id}"
+    fi
 
     sleep 3
 
