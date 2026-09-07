@@ -34,6 +34,10 @@ from agoras.core.auth.storage import build_composite_key
 
 from .client import LinkedInAPIClient
 
+# LinkedIn default authorize scopes (sign-in). Posting flows need to add
+# w_member_social_feed on an app that holds it via the --scope override.
+LINKEDIN_OAUTH_DEFAULT_SCOPES = "openid profile email"
+
 
 class LinkedInAuthManager(BaseAuthManager):
     """LinkedIn authentication manager using Authlib OAuth2Session for OAuth 2.0."""
@@ -46,6 +50,7 @@ class LinkedInAuthManager(BaseAuthManager):
         refresh_token: Optional[str] = None,
         access_token: Optional[str] = None,
         profile: Optional[str] = None,
+        scope: Optional[str] = None,
     ):
         """
         Initialize LinkedIn authentication manager.
@@ -58,6 +63,9 @@ class LinkedInAuthManager(BaseAuthManager):
             access_token (str, optional): LinkedIn access token (used when no refresh token)
             profile (str, optional): Explicit profile composite key (app@account). When set,
                 ``_get_token_identifier`` returns it verbatim.
+            scope (str, optional): Comma-separated scope list that fully replaces the
+                network default (``LINKEDIN_OAUTH_DEFAULT_SCOPES``) for this authorize run.
+                Blank values fall back to the default.
         """
         super().__init__()
         self.profile = profile
@@ -70,11 +78,16 @@ class LinkedInAuthManager(BaseAuthManager):
             self.access_token = self._load_access_token_from_storage()
         self.api_version = "202503"
 
+        # LinkedIn's OAuth session expects space-separated scopes; normalize the
+        # CLI's comma-separated override (blank/absent -> network default).
+        scope_value = scope.strip() if scope else ""
+        session_scope = scope_value.replace(",", " ").strip() or LINKEDIN_OAUTH_DEFAULT_SCOPES
+
         # Authlib OAuth2Session configuration for LinkedIn
         self.oauth_session = OAuth2Session(
             client_id=self.client_id,
             client_secret=self.client_secret,
-            scope="openid profile email w_member_social_feed",
+            scope=session_scope,
             redirect_uri="https://localhost:3456/callback",
         )
 
@@ -182,11 +195,18 @@ class LinkedInAuthManager(BaseAuthManager):
                 # Get the actual LinkedIn user ID from API
                 user_info = await temp_client.get_user_info()
                 api_user_id = user_info.get("sub", "")
-                if api_user_id:
-                    # Update user_id to the API's user ID
-                    self.user_id = api_user_id
+                if not api_user_id:
+                    # Fail closed: never persist a token whose scope set cannot
+                    # yield an account identity (no openid) under a bare client_id.
+                    raise Exception(
+                        "LinkedIn did not return a user id (sub) from /userinfo after token "
+                        "exchange; the authorized scope set likely lacks 'openid'. Re-run "
+                        "authorize with a scope set that includes openid (e.g. "
+                        "--scope openid,w_member_social_feed). No token was stored."
+                    )
 
-                # Save all credentials to storage with correct user_id
+                # Update user_id to the API's user ID and save credentials
+                self.user_id = api_user_id
                 self._save_credentials_to_storage()
                 return access_token
         except Exception as e:

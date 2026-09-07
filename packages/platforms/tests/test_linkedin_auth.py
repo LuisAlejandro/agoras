@@ -88,6 +88,75 @@ async def test_linkedin_authorize_accepts_access_token_without_refresh(mock_call
     mock_save.assert_called_once()
 
 
+def test_linkedin_authorize_default_scopes_when_no_override():
+    """Authorize requests only the default sign-in scopes when no --scope is given."""
+    manager = LinkedInAuthManager(user_id="user123", client_id="client123", client_secret="secret123")
+    assert manager.oauth_session.scope == "openid profile email"
+
+
+def test_linkedin_authorize_scope_override_replaces_default():
+    """A --scope override fully replaces the default scope set."""
+    manager = LinkedInAuthManager(
+        user_id="user123",
+        client_id="client123",
+        client_secret="secret123",
+        scope="w_member_social_feed",
+    )
+    assert manager.oauth_session.scope == "w_member_social_feed"
+    assert "openid" not in manager.oauth_session.scope
+
+
+def test_linkedin_authorize_scope_comma_list_normalized_to_spaces():
+    """A comma-separated scope override is normalized to LinkedIn's space-joined form."""
+    manager = LinkedInAuthManager(
+        user_id="user123",
+        client_id="client123",
+        client_secret="secret123",
+        scope="openid,email",
+    )
+    assert manager.oauth_session.scope == "openid email"
+
+
+def test_linkedin_authorize_blank_scope_falls_back_to_default():
+    """A blank scope value is treated as absent and uses the default set."""
+    manager = LinkedInAuthManager(
+        user_id="user123",
+        client_id="client123",
+        client_secret="secret123",
+        scope="   ",
+    )
+    assert manager.oauth_session.scope == "openid profile email"
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.linkedin.auth.webbrowser.open")
+@patch("agoras.platforms.linkedin.auth.OAuthCallbackServer")
+async def test_linkedin_authorize_fails_closed_when_userinfo_missing_sub(mock_callback_server, mock_browser_open):
+    """Authorize stores nothing when the post-exchange /userinfo step yields no sub."""
+    mock_server = MagicMock()
+    mock_server.start_and_wait = AsyncMock(return_value="auth_code")
+    mock_callback_server.return_value = mock_server
+
+    manager = LinkedInAuthManager(user_id="user123", client_id="client123", client_secret="secret123")
+
+    mock_oauth_session = MagicMock()
+    mock_oauth_session.create_authorization_url.return_value = ("https://linkedin.example/auth", "state")
+    mock_oauth_session.fetch_token.return_value = {"access_token": "new_access_token"}
+    manager.oauth_session = mock_oauth_session
+
+    mock_client = MagicMock()
+    mock_client.authenticate = AsyncMock()
+    mock_client.get_user_info = AsyncMock(return_value={"name": "No Sub Here"})
+
+    with patch.object(manager, "_create_client", return_value=mock_client):
+        with patch.object(manager, "_save_credentials_to_storage") as mock_save:
+            result = await manager.authorize()
+
+    assert result is None
+    mock_save.assert_not_called()
+    assert manager.user_id == "user123"  # unchanged; nothing stored
+
+
 def test_linkedin_two_apps_same_account_produce_distinct_composites():
     """Authorizing two apps for the same account yields two distinct composites."""
     posting = LinkedInAuthManager(
