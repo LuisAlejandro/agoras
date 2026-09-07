@@ -45,23 +45,20 @@ Request Access to Products
 Required Permissions
 --------------------
 
-The ``w_member_social_feed`` scope is required for posting and comment actions (``post``, ``share``, ``reply``, ``delete-reply`` / ``get-reply``). LinkedIn approves it per app, separately from the sign-in scopes.
+Posting (``post``, ``share``) requires the ``w_member_social`` scope, granted by the **Share on LinkedIn** product. Comment and reply actions (``reply``, ``delete-reply`` / ``get-reply``) additionally require the **Community Management API** product and its ``w_member_social_feed`` scope.
 
 Scopes and ``agoras linkedin authorize``
 ----------------------------------------
 
-``agoras linkedin authorize`` requests ``openid profile email`` by default, so it succeeds without ``w_member_social_feed`` approval.
+``agoras linkedin authorize`` requests ``openid profile email w_member_social`` by default, so a standard **Share on LinkedIn** app can sign in and post after a single authorization.
 
-To authorize an app that holds other scopes, pass ``--scope`` with a comma-separated list that **fully replaces** the default set: for a posting app approved for ``w_member_social_feed``, run::
+To authorize an app that holds different scopes, pass ``--scope`` with a comma-separated list that **fully replaces** the default set. Agoras identifies the account from the OIDC ``id_token`` (falling back to ``--object-id``), so keep ``openid`` in any set you request. For an app also approved for **Community Management API**, include ``w_member_social_feed`` to unlock comments and replies::
 
     agoras linkedin authorize \
       --client-id "${POSTING_CLIENT_ID}" \
       --client-secret "${POSTING_CLIENT_SECRET}" \
       --object-id "${LINKEDIN_OBJECT_ID}" \
-      --scope w_member_social_feed
-
-.. note::
-   Agoras needs your LinkedIn user ID from the ``/userinfo`` endpoint to identify the account (``sub``), and ``/userinfo`` is part of the OpenID Connect sign-in product. If your authorized scope set does not include ``openid``, LinkedIn cannot return the user ID and authorize aborts without storing a token. When the app you are authorizing holds both the sign-in scopes and posting scopes, include ``openid`` in the request, e.g. ``--scope openid,w_member_social_feed``.
+      --scope openid,profile,email,w_member_social_feed
 
 .. note::
    ``--scope`` is the only way to override the default scope set; exporting a ``LINKEDIN_SCOPE`` environment variable is not supported and is ignored.

@@ -152,9 +152,9 @@ def _add_linkedin_authorize_options(parser: ArgumentParser):
         metavar="<scopes>",
         help=(
             "Comma-separated scopes that REPLACE the default "
-            "'openid,profile,email' for this authorize run (e.g. "
-            "w_member_social_feed, or openid,w_member_social_feed when the app "
-            "holds both). Flows needing identity must include openid."
+            "'openid,profile,email,w_member_social' for this authorize run. "
+            "Add w_member_social_feed (e.g. openid,profile,email,w_member_social_feed) "
+            "on apps that hold it to enable comment/reply actions."
         ),
     )
 
