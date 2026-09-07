@@ -205,20 +205,24 @@ class LinkedInAuthManager(BaseAuthManager):
 
             access_token, id_token = await asyncio.to_thread(_sync_exchange)
             if access_token:
-                # Identity resolution: OIDC id_token sub -> object-id -> /userinfo.
+                # Identity resolution: keep the user-supplied object-id as the
+                # canonical key; enrich from /userinfo; id_token sub is the
+                # fallback only when neither object-id nor /userinfo yields one.
                 # /userinfo can transiently report REVOKED_ACCESS_TOKEN for mixed
-                # OIDC + w_member_social tokens, so it is enrichment only, never
-                # the gate.
-                api_user_id = _sub_from_id_token(id_token) or self.user_id or ""
+                # OIDC + w_member_social tokens, so it is enrichment only.
+                api_user_id = self.user_id or ""
                 try:
                     temp_client = self._create_client(access_token)
                     await temp_client.authenticate()  # Authenticate the client first
                     user_info = await temp_client.get_user_info()
                     user_sub = user_info.get("sub", "")
-                    if user_sub:
+                    if not api_user_id and user_sub:
                         api_user_id = user_sub
                 except Exception:
                     pass
+
+                if not api_user_id:
+                    api_user_id = _sub_from_id_token(id_token)
 
                 if not api_user_id:
                     raise Exception(

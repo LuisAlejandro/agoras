@@ -84,7 +84,7 @@ async def test_linkedin_authorize_accepts_access_token_without_refresh(mock_call
     assert result == "new_access_token"
     assert manager.access_token == "new_access_token"
     assert manager.refresh_token is None
-    assert manager.user_id == "api_user_id"
+    assert manager.user_id == "user123"  # object-id stays canonical
     mock_save.assert_called_once()
 
 
