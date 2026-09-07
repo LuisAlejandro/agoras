@@ -15,15 +15,30 @@ init_agoras_bin "${PROJECT_ROOT}"
 trap cleanup_test_posts EXIT
 
 # verify_list_posts_contains <platform> <post_id>
-# Runs list-posts and checks the given id appears in the output.
+# Runs list-posts (with per-platform required flags) and checks the given id
+# appears, retrying briefly to absorb read-after-write lag.
 verify_list_posts_contains() {
     local platform="$1"
     local post_id="$2"
-    set +e
-    local listing
-    listing=$(run_agoras "${platform}" list-posts --limit 20 2>/dev/null)
-    set -e
-    if printf '%s' "${listing}" | grep -qF "${post_id}"; then
+    local extra=()
+    case "${platform}" in
+    facebook) extra=(--object-id "${FACEBOOK_OBJECT_ID}") ;;
+    instagram) extra=(--object-id "${INSTAGRAM_OBJECT_ID}") ;;
+    esac
+
+    local attempt listing found=0
+    for attempt in 1 2 3 4 5 6; do
+        set +e
+        listing=$(run_agoras "${platform}" list-posts --limit 20 "${extra[@]}" 2>/dev/null)
+        set -e
+        if printf '%s' "${listing}" | grep -qF "${post_id}"; then
+            found=1
+            break
+        fi
+        sleep 5
+    done
+
+    if [ "${found}" -eq 1 ]; then
         echo "OK: ${platform} list-posts contains ${post_id}"
     else
         echo "FAIL: ${platform} list-posts did not contain ${post_id}" >&2

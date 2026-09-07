@@ -308,7 +308,7 @@ class FacebookAPI(BaseAPI):
         return await asyncio.to_thread(
             self.client.get_object,
             post_id,
-            "id,message,created_time,from,full_picture,permalink_url",
+            "id,message,created_time,from,full_picture,permalink_url,type",
         )
 
     @guard_ensure_auth_manager
@@ -355,7 +355,7 @@ class FacebookAPI(BaseAPI):
         result = await asyncio.to_thread(
             self.client.get_object,
             f"{object_id}/feed",
-            "id,message,created_time,from,full_picture,permalink_url,type,source,attachments{media,type,media_type,url,subattachments}",
+            "id,message",
         )
         data = result.get("data") or []
         return data[:limit]
