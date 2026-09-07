@@ -419,23 +419,14 @@ class XAPIClient:
             raise Exception("X v2 client not initialized")
 
         def _sync_get_users_tweets():
-            try:
-                response = self.client_v2.get_users_tweets(  # type: ignore
-                    user_id,
-                    max_results=limit,
-                    tweet_fields=["created_at", "author_id", "attachments"],
-                    expansions=["attachments.media_keys"],
-                    media_fields=["url", "preview_image_url", "type", "variants"],
-                )
-            except Exception as exc:
-                if "401" in str(exc) or "403" in str(exc):
-                    raise Exception(
-                        "X timeline read is unavailable for this app's API access tier "
-                        "(v2 timeline and v1.1 user_timeline are restricted; posting, "
-                        "oauth, and media endpoints remain available). Upgrade X API "
-                        "access to enable list-posts."
-                    ) from None
-                raise
+            response = self.client_v2.get_users_tweets(  # type: ignore
+                user_id,
+                max_results=limit,
+                tweet_fields=["created_at", "author_id", "attachments"],
+                expansions=["attachments.media_keys"],
+                media_fields=["url", "preview_image_url", "type", "variants"],
+                user_auth=True,
+            )
             response_data = getattr(response, "data", None)
             if response_data is None:
                 return []
