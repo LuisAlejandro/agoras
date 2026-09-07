@@ -155,6 +155,11 @@ class ThreadsAuthManager(BaseAuthManager):
                     if not short_lived_token or not user_id:
                         raise Exception("Invalid token response: missing access_token or user_id")
 
+                    # Meta returns user_id as a JSON number; storage/identifiers
+                    # require str (int crashes _sanitize_component with
+                    # "argument of type 'int' is not iterable").
+                    user_id = str(user_id)
+
                     long_lived_token = self._exchange_for_long_lived_token(short_lived_token)
 
                     self.refresh_token = long_lived_token
@@ -308,14 +313,16 @@ class ThreadsAuthManager(BaseAuthManager):
     def _save_credentials_to_storage(self, refresh_token: str, user_id: str):
         """Save all Threads credentials to secure storage."""
         platform_name = self._get_platform_name()
-        self.user_id = user_id
+        # user_id may arrive as a JSON number; normalize before building the
+        # composite identifier and token filename.
+        self.user_id = str(user_id)
         identifier = self._get_token_identifier()
 
         token_data = {
             "app_id": self.app_id,
             "app_secret": self.app_secret,
             "refresh_token": refresh_token,
-            "user_id": user_id,
+            "user_id": self.user_id,
             "profile": identifier,
         }
 
