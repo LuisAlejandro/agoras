@@ -147,70 +147,6 @@ class Sheet:
 
         return [SheetRow(row, headers) for row in data_rows]
 
-    async def write_all(self, data, clear_first=True, table_range="A1"):
-        """
-        Write all data to the worksheet.
-
-        Args:
-            data (list): List of lists or SheetRow instances
-            clear_first (bool): Whether to clear sheet before writing
-            table_range (str): Starting range for the table
-        """
-        if not self._worksheet:
-            await self.get_worksheet()
-
-        if not self._worksheet:
-            raise Exception("Worksheet not available")
-
-        def _sync_write():
-            assert self._worksheet is not None  # Help type checker
-            if clear_first:
-                self._worksheet.clear()
-
-            # Convert data to list of lists if needed
-            rows_data = []
-            for row in data:
-                if isinstance(row, SheetRow):
-                    rows_data.append(row.to_list())
-                elif isinstance(row, dict):
-                    # Convert dict to list (order may vary)
-                    rows_data.append(list(row.values()))
-                else:
-                    rows_data.append(list(row))
-
-            # Write data in batches for efficiency
-            for row_data in rows_data:
-                self._worksheet.append_row(row_data, table_range=table_range)
-
-        await asyncio.to_thread(_sync_write)
-
-    async def append_row(self, row_data, table_range="A1"):
-        """
-        Append a single row to the worksheet.
-
-        Args:
-            row_data (list, dict, or SheetRow): Row data to append
-            table_range (str): Table range for appending
-        """
-        if not self._worksheet:
-            await self.get_worksheet()
-
-        if not self._worksheet:
-            raise Exception("Worksheet not available")
-
-        def _sync_append():
-            assert self._worksheet is not None  # Help type checker
-            if isinstance(row_data, SheetRow):
-                data = row_data.to_list()
-            elif isinstance(row_data, dict):
-                data = list(row_data.values())
-            else:
-                data = list(row_data)
-
-            self._worksheet.append_row(data, table_range=table_range)
-
-        await asyncio.to_thread(_sync_append)
-
     async def update_cell(self, row, col, value):
         """
         Update a single cell.
@@ -231,30 +167,3 @@ class Sheet:
             self._worksheet.update_cell(row, col, value)
 
         await asyncio.to_thread(_sync_update)
-
-    async def clear(self):
-        """Clear all data from the worksheet."""
-        if not self._worksheet:
-            await self.get_worksheet()
-
-        if not self._worksheet:
-            raise Exception("Worksheet not available")
-
-        def _sync_clear():
-            assert self._worksheet is not None  # Help type checker
-            self._worksheet.clear()
-
-        await asyncio.to_thread(_sync_clear)
-
-    async def find_rows(self, condition):
-        """
-        Find rows matching a condition.
-
-        Args:
-            condition (callable): Function that takes a SheetRow and returns bool
-
-        Returns:
-            list: List of matching SheetRow instances
-        """
-        all_rows = await self.read_all()
-        return [row for row in all_rows if condition(row)]

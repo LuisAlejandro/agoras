@@ -17,10 +17,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.telegram.wrapper module."""
 
-import asyncio
 from typing import List, Optional
 
-from agoras.core.interfaces import SocialNetwork
+from agoras.core.interfaces import SocialNetwork, run_wrapper_main, run_wrapper_main_async
 from agoras.core.text_limits import validate_text
 
 from .api import TelegramAPI
@@ -95,21 +94,15 @@ class Telegram(SocialNetwork):
                 profile=self._get_config_value("profile"),
             )
 
-            if auth_manager._load_credentials_from_storage():
-                # Fill in missing credentials from storage
-                if not self.telegram_bot_token:
-                    self.telegram_bot_token = auth_manager.bot_token
-                if not self.telegram_chat_id:
-                    self.telegram_chat_id = auth_manager.chat_id
+            self._fill_missing_credentials(
+                auth_manager,
+                {"telegram_bot_token": "bot_token", "telegram_chat_id": "chat_id"},
+            )
 
-        # Validate all credentials are now available
-        if not all([self.telegram_bot_token, self.telegram_chat_id]):
-            raise Exception("Not authenticated. Please run 'agoras telegram authorize' first.")
+        self._require_credentials([self.telegram_bot_token, self.telegram_chat_id], "telegram")
 
         bot_token = self.telegram_bot_token
         chat_id = self.telegram_chat_id
-        if not bot_token or not chat_id:
-            raise Exception("Not authenticated. Please run 'agoras telegram authorize' first.")
 
         # Initialize Telegram API
         self.api = TelegramAPI(bot_token, chat_id)
@@ -379,13 +372,6 @@ class Telegram(SocialNetwork):
             # Clean up downloaded video
             video.cleanup()
 
-    async def _handle_delete_action(self):
-        """Handle delete action with Telegram-specific parameter extraction."""
-        message_id = self._get_config_value("telegram_message_id", "TELEGRAM_MESSAGE_ID")
-        if not message_id:
-            raise Exception("Message ID is required for delete action.")
-        await self.delete(message_id)
-
     async def like(self, post_id):
         """
         Like is not supported for Telegram.
@@ -430,54 +416,37 @@ class Telegram(SocialNetwork):
         """
         raise Exception("Share not supported for Telegram")
 
-    async def authorize_credentials(self):
-        """
-        Authorize and store Telegram credentials for future use.
+    _post_id_actions = {
+        "delete": ("telegram_message_id", "Message ID is required for delete action."),
+    }
 
-        Returns:
-            bool: True if authorization successful
-        """
+    _authorize_keys = {
+        "bot_token": "telegram_bot_token",
+        "chat_id": "telegram_chat_id",
+    }
+
+    def _authorize_manager(self):
+        """Return the TelegramAuthManager used by the shared authorize flow."""
         from .auth import TelegramAuthManager
 
-        bot_token = self._get_config_value("telegram_bot_token", "TELEGRAM_BOT_TOKEN")
-        chat_id = self._get_config_value("telegram_chat_id", "TELEGRAM_CHAT_ID")
-
-        auth_manager = TelegramAuthManager(
-            bot_token=bot_token,
-            chat_id=chat_id,
-            profile=self._get_config_value("profile"),
-        )
-
-        result = await auth_manager.authorize()
-        if result:
-            print(result)
-            return True
-        return False
+        return TelegramAuthManager
 
 
 async def main_async(kwargs):
     """
     Async main function to execute Telegram actions.
 
-    Thin shim: delegates to the base template runner via unbound dispatch,
-    so test mocks of ``Telegram`` (which stub ``execute_action``/``disconnect``/
-    ``authorize_credentials`` but not the base method) keep working. The
-    name is kept module-level because tests and the CLI import it.
-
     Args:
         kwargs (dict): Configuration arguments
     """
-    instance = Telegram(**kwargs)
-    return await SocialNetwork.run_main_async(instance, kwargs)
+    return await run_wrapper_main_async(Telegram, kwargs)
 
 
 def main(kwargs):
     """
     Main function to execute Telegram actions (for backwards compatibility).
 
-    Thin shim kept module-level because the CLI imports it.
-
     Args:
         kwargs (dict): Configuration arguments
     """
-    asyncio.run(main_async(kwargs))
+    run_wrapper_main(Telegram, kwargs)

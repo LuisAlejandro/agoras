@@ -24,8 +24,7 @@ from typing import Any, Dict, List, Optional
 from pyfacebook import GraphAPI
 
 from agoras.common import __version__
-from agoras.common.utils import build_upload_session
-from agoras.platforms._upload import video_upload_timeout
+from agoras.common.utils import build_upload_session, video_upload_timeout
 
 
 class InstagramAPIClient:

@@ -11,7 +11,7 @@ from agoras.media.constraints import (
     transfer_mode,
     video_limits,
 )
-from agoras.media import create_image, create_video, download_images, download_video_and_images
+from agoras.media.factory import create_image, create_video, download_images
 
 
 @pytest.mark.parametrize('alias,expected', [

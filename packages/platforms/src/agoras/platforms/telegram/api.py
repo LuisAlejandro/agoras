@@ -42,6 +42,8 @@ class TelegramAPI(BaseAPI):
     # Guard message templates (read by the composable guard decorators)
     _not_authenticated_message = "Telegram API not authenticated"
     _client_not_available_message = "Telegram client not available"
+    _post_auth_client_required_message = "Telegram client not available after authentication"
+    _clears_auth_manager_state_on_disconnect = True
 
     def __init__(self, bot_token: str, chat_id: Optional[str] = None):
         """
@@ -86,18 +88,6 @@ class TelegramAPI(BaseAPI):
             raise_authentication_error_from_manager(self.auth_manager)
 
         return await super().authenticate()
-
-    async def _post_authenticate(self):
-        """Ensure the client was created during authentication."""
-        if not self.auth_manager.client:
-            raise Exception("Telegram client not available after authentication")
-
-    def _disconnect_hook(self):
-        """Clear auth manager tokens, user info, and client without disconnecting."""
-        if self.auth_manager:
-            self.auth_manager.access_token = None
-            self.auth_manager.user_info = None
-            self.auth_manager.client = None
 
     @guard_ensure_auth_manager
     @guard_client_presence

@@ -25,11 +25,9 @@ from argparse import SUPPRESS, ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.facebook.wrapper import main as facebook_main
 
-from ..base import add_common_content_options, add_profile_to_all, prepare_content_args, resolve_action_profile
+from ..base import add_common_content_options, add_profile_to_all, run_platform_command
 from ..content import add_content_file_option
-from ..converter import ParameterConverter
 from ..media_help import video_url_help
-from ..validator import ActionValidator
 
 
 def create_facebook_parser(subparsers: _SubParsersAction) -> ArgumentParser:
@@ -59,14 +57,12 @@ def create_facebook_parser(subparsers: _SubParsersAction) -> ArgumentParser:
         "post",
         help='Create a text/image post on Facebook. Requires prior authorization via "agoras facebook authorize".',
     )
-    _add_facebook_action_options(post, object_id_required=False)
     add_common_content_options(post, images=4)
 
     # Video action
     video = actions.add_parser(
         "video", help='Upload a video to Facebook. Requires prior authorization via "agoras facebook authorize".'
     )
-    _add_facebook_action_options(video, object_id_required=False)
     _add_video_options(video)
     add_common_content_options(video, images=0, with_content_file=False)
 
@@ -74,14 +70,12 @@ def create_facebook_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     like = actions.add_parser(
         "like", help='Like a Facebook post. Requires prior authorization via "agoras facebook authorize".'
     )
-    _add_facebook_action_options(like, object_id_required=False)
     _add_post_id_option(like)
 
     # Share action
     share = actions.add_parser(
         "share", help='Share a Facebook post. Requires prior authorization via "agoras facebook authorize".'
     )
-    _add_facebook_action_options(share, object_id_required=False)
     _add_post_id_option(share)
     _add_profile_id_option(share)
 
@@ -89,7 +83,6 @@ def create_facebook_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     delete = actions.add_parser(
         "delete", help='Delete a Facebook post. Requires prior authorization via "agoras facebook authorize".'
     )
-    _add_facebook_action_options(delete, object_id_required=False)
     _add_post_id_option(delete)
 
     # Delete-reply action (delete a Facebook comment)
@@ -97,14 +90,12 @@ def create_facebook_parser(subparsers: _SubParsersAction) -> ArgumentParser:
         "delete-reply",
         help='Delete a Facebook comment. Requires prior authorization via "agoras facebook authorize".',
     )
-    _add_facebook_action_options(delete_reply, object_id_required=False)
     _add_post_id_option(delete_reply)
 
     # Reply action
     reply = actions.add_parser(
         "reply", help='Comment on a Facebook post. Requires prior authorization via "agoras facebook authorize".'
     )
-    _add_facebook_action_options(reply, object_id_required=False)
     _add_post_id_option(reply)
     add_common_content_options(reply, images=1)
 
@@ -157,23 +148,6 @@ def _add_facebook_authorize_options(parser: ArgumentParser):
     auth.add_argument("--client-secret", required=True, metavar="<secret>", help="Facebook App client secret")
     auth.add_argument("--app-id", required=True, metavar="<id>", help="Facebook App ID")
     auth.add_argument("--object-id", required=True, metavar="<id>", help="Facebook user ID for authentication")
-
-
-def _add_facebook_action_options(parser: ArgumentParser, object_id_required: bool = True):
-    """
-    Add Facebook action-specific options (no authentication tokens needed).
-
-    Args:
-        parser: ArgumentParser to add options to
-        object_id_required: Whether object ID is required for this action
-    """
-    if object_id_required:
-        parser.add_argument(
-            "--object-id",
-            required=True,
-            metavar="<id>",
-            help="Facebook page or profile ID where post will be published",
-        )
 
 
 def _add_video_options(parser: ArgumentParser):
@@ -235,16 +209,4 @@ def _handle_facebook_command(args: Namespace):
     Returns:
         Exit status from core execution
     """
-    # Validate action
-    ActionValidator.validate("facebook", args.action)
-    prepare_content_args(args, "facebook")
-
-    # Convert new args to legacy format
-    converter = ParameterConverter("facebook")
-    legacy_args = converter.convert_to_legacy(args)
-
-    # Resolve and inject the credential profile for non-authorize actions
-    resolve_action_profile("facebook", args, legacy_args)
-
-    # Call core Facebook module
-    return facebook_main(legacy_args)
+    return run_platform_command("facebook", args, facebook_main)

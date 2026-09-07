@@ -19,6 +19,7 @@
 
 import asyncio
 import hashlib
+import re
 import secrets
 import sys
 import webbrowser
@@ -173,6 +174,14 @@ class TikTokAuthManager(BaseAuthManager):
 
             # Add PKCE parameters manually since Authlib doesn't generate them in URL
             authorization_url += f"&code_challenge={code_challenge}&code_challenge_method=S256"
+
+            # TikTok's scope parser splits on raw commas only; authlib emits
+            # space-joined scopes ("a+b+c") that fail with invalid_scope.
+            authorization_url = re.sub(
+                r"scope=[^&]*",
+                f"scope={','.join(TIKTOK_OAUTH_SCOPES)}",
+                authorization_url,
+            )
 
             print("Opening browser for TikTok authorization...", file=sys.stderr)
             print(f"If browser doesn't open automatically, visit: {authorization_url}", file=sys.stderr)

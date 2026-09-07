@@ -34,23 +34,34 @@ Create a LinkedIn App
 Request Access to Products
 --------------------------
 
-1. Go to Products tab, and request access to "Share on LinkedIn" and "Sign In with LinkedIn using OpenID Connect".
+1. Go to Products tab, and request access to "Sign In with LinkedIn using OpenID Connect" (grants ``openid profile email``).
 
 .. image:: images/linkedin-5.png
 
-2. Once approved (usually instantly), go to the **Auth** tab in your app settings to find your **Client ID** and **Client Secret**.
+2. To publish posts or comments, also request **"Share on LinkedIn"** / **Community Management API** — the product that grants the ``w_member_social_feed`` scope. LinkedIn's approval process currently keeps the OpenID Connect sign-in scopes and ``w_member_social_feed`` on **separate apps**: authorize each app you use with its own ``--client-id`` / ``--client-secret``.
+
+3. Once approved (usually instantly), go to the **Auth** tab in your app settings to find your **Client ID** and **Client Secret**.
 
 Required Permissions
 --------------------
 
-To use the comment actions (``reply`` to comment on a post, plus
-``delete-reply`` / ``get-reply``), your LinkedIn App needs the **Community
-Management API** product enabled and the ``w_member_social_feed`` scope
-approved. Without it the API returns a comment permission denied error.
+Posting (``post``, ``share``) requires the ``w_member_social`` scope, granted by the **Share on LinkedIn** product. Comment, reply, and like actions (``like``, ``reply``, ``delete-reply`` / ``get-reply``) additionally require the **Community Management API** product and its ``w_member_social_feed`` scope.
 
-1. Go to the **Products** tab and request access to the **Community Management API** product.
-2. Once approved, confirm the ``w_member_social_feed`` scope is granted on the **Auth** tab.
-3. Re-run ``agoras linkedin authorize`` so the fresh token includes the scope.
+Scopes and ``agoras linkedin authorize``
+----------------------------------------
+
+``agoras linkedin authorize`` requests ``openid profile email w_member_social`` by default, so a standard **Share on LinkedIn** app can sign in and post after a single authorization.
+
+To authorize an app that holds different scopes, pass ``--scope`` with a comma-separated list that **fully replaces** the default set. Agoras identifies the account from the OIDC ``id_token`` (falling back to ``--object-id``), so keep ``openid`` in any set you request. For an app also approved for **Community Management API**, include ``w_member_social_feed`` to unlock comments and replies::
+
+    agoras linkedin authorize \
+      --client-id "${POSTING_CLIENT_ID}" \
+      --client-secret "${POSTING_CLIENT_SECRET}" \
+      --object-id "${LINKEDIN_OBJECT_ID}" \
+      --scope openid,profile,email,w_member_social_feed
+
+.. note::
+   ``--scope`` is the only way to override the default scope set; exporting a ``LINKEDIN_SCOPE`` environment variable is not supported and is ignored.
 
 Get App Credentials
 -------------------

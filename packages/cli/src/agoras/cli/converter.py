@@ -79,6 +79,7 @@ class ParameterConverter:
             "client_id": "linkedin_client_id",
             "client_secret": "linkedin_client_secret",
             "object_id": "linkedin_object_id",
+            "scope": "linkedin_scope",
             "post_id": "linkedin_post_id",
             "parent_post_id": "linkedin_parent_post_id",
             "video_url": "linkedin_video_url",

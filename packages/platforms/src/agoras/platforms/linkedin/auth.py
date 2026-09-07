@@ -18,6 +18,8 @@
 """agoras.platforms.linkedin.auth module."""
 
 import asyncio
+import base64
+import json
 import os
 import secrets
 import sys
@@ -34,6 +36,24 @@ from agoras.core.auth.storage import build_composite_key
 
 from .client import LinkedInAPIClient
 
+# LinkedIn default authorize scopes: sign-in (OIDC) + the legacy posting scope
+# that drives the modern /rest posts + images endpoints. Comment/reply actions
+# additionally require w_member_social_feed (Community Management), available
+# via the --scope override on apps that hold it.
+LINKEDIN_OAUTH_DEFAULT_SCOPES = "openid profile email w_member_social"
+
+
+def _sub_from_id_token(id_token: str) -> str:
+    """Extract the OIDC ``sub`` claim from a LinkedIn id_token JWT payload."""
+    if not id_token:
+        return ""
+    try:
+        payload = id_token.split(".")[1]
+        payload += "=" * (-len(payload) % 4)
+        return json.loads(base64.urlsafe_b64decode(payload)).get("sub", "")
+    except Exception:
+        return ""
+
 
 class LinkedInAuthManager(BaseAuthManager):
     """LinkedIn authentication manager using Authlib OAuth2Session for OAuth 2.0."""
@@ -46,6 +66,7 @@ class LinkedInAuthManager(BaseAuthManager):
         refresh_token: Optional[str] = None,
         access_token: Optional[str] = None,
         profile: Optional[str] = None,
+        scope: Optional[str] = None,
     ):
         """
         Initialize LinkedIn authentication manager.
@@ -58,6 +79,9 @@ class LinkedInAuthManager(BaseAuthManager):
             access_token (str, optional): LinkedIn access token (used when no refresh token)
             profile (str, optional): Explicit profile composite key (app@account). When set,
                 ``_get_token_identifier`` returns it verbatim.
+            scope (str, optional): Comma-separated scope list that fully replaces the
+                network default (``LINKEDIN_OAUTH_DEFAULT_SCOPES``) for this authorize run.
+                Blank values fall back to the default.
         """
         super().__init__()
         self.profile = profile
@@ -70,11 +94,16 @@ class LinkedInAuthManager(BaseAuthManager):
             self.access_token = self._load_access_token_from_storage()
         self.api_version = "202503"
 
+        # LinkedIn's OAuth session expects space-separated scopes; normalize the
+        # CLI's comma-separated override (blank/absent -> network default).
+        scope_value = scope.strip() if scope else ""
+        session_scope = scope_value.replace(",", " ").strip() or LINKEDIN_OAUTH_DEFAULT_SCOPES
+
         # Authlib OAuth2Session configuration for LinkedIn
         self.oauth_session = OAuth2Session(
             client_id=self.client_id,
             client_secret=self.client_secret,
-            scope="openid profile email w_member_social_feed",
+            scope=session_scope,
             redirect_uri="https://localhost:3456/callback",
         )
 
@@ -172,21 +201,37 @@ class LinkedInAuthManager(BaseAuthManager):
                     )
 
                 self.access_token = access_token
-                return access_token
+                return access_token, token.get("id_token", "")
 
-            access_token = await asyncio.to_thread(_sync_exchange)
+            access_token, id_token = await asyncio.to_thread(_sync_exchange)
             if access_token:
-                # Create temporary client to get user info and update user_id
-                temp_client = self._create_client(access_token)
-                await temp_client.authenticate()  # Authenticate the client first
-                # Get the actual LinkedIn user ID from API
-                user_info = await temp_client.get_user_info()
-                api_user_id = user_info.get("sub", "")
-                if api_user_id:
-                    # Update user_id to the API's user ID
-                    self.user_id = api_user_id
+                # Identity resolution: keep the user-supplied object-id as the
+                # canonical key; enrich from /userinfo; id_token sub is the
+                # fallback only when neither object-id nor /userinfo yields one.
+                # /userinfo can transiently report REVOKED_ACCESS_TOKEN for mixed
+                # OIDC + w_member_social tokens, so it is enrichment only.
+                api_user_id = self.user_id or ""
+                try:
+                    temp_client = self._create_client(access_token)
+                    await temp_client.authenticate()  # Authenticate the client first
+                    user_info = await temp_client.get_user_info()
+                    user_sub = user_info.get("sub", "")
+                    if not api_user_id and user_sub:
+                        api_user_id = user_sub
+                except Exception:
+                    pass
 
-                # Save all credentials to storage with correct user_id
+                if not api_user_id:
+                    api_user_id = _sub_from_id_token(id_token)
+
+                if not api_user_id:
+                    raise Exception(
+                        "Unable to determine the LinkedIn user id: no id_token sub, "
+                        "no object-id, and /userinfo did not return a sub. No token was stored."
+                    )
+
+                # Update user_id to the resolved identity and save credentials
+                self.user_id = api_user_id
                 self._save_credentials_to_storage()
                 return access_token
         except Exception as e:

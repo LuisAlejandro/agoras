@@ -29,12 +29,9 @@ from ..base import (
     add_common_content_options,
     add_profile_to_all,
     add_video_options,
-    prepare_content_args,
-    resolve_action_profile,
+    run_platform_command,
 )
 from ..content import add_content_file_option
-from ..converter import ParameterConverter
-from ..validator import ActionValidator
 
 
 def create_whatsapp_parser(subparsers: _SubParsersAction) -> ArgumentParser:
@@ -210,16 +207,4 @@ def _handle_whatsapp_command(args: Namespace):
     Returns:
         Exit status from core execution
     """
-    # Validate action
-    ActionValidator.validate("whatsapp", args.action)
-    prepare_content_args(args, "whatsapp")
-
-    # Convert new args to legacy format
-    converter = ParameterConverter("whatsapp")
-    legacy_args = converter.convert_to_legacy(args)
-
-    # Resolve and inject the credential profile for non-authorize actions
-    resolve_action_profile("whatsapp", args, legacy_args)
-
-    # Call core WhatsApp module
-    return whatsapp_main(legacy_args)
+    return run_platform_command("whatsapp", args, whatsapp_main)

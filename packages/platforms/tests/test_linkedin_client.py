@@ -991,7 +991,7 @@ async def test_linkedin_client_list_posts(mock_to_thread):
     assert result[1]["id"] == "urn:li:share:2"
     mock_restli.get.assert_called_once_with(
         resource_path="/posts",
-        query_params={"author": "urn:li:person:42", "count": 2},
+        query_params={"author": "urn:li:person:42", "q": "author", "count": 2},
         version_string=client.api_version,
         access_token="access_token",
     )

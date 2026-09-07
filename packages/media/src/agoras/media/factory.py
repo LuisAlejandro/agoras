@@ -83,34 +83,3 @@ async def download_images(urls, platform=None):
     await asyncio.gather(*download_tasks, return_exceptions=True)
 
     return images
-
-
-async def download_video_and_images(video_url, image_urls, platform="generic"):
-    """
-    Download video and images concurrently.
-
-    Args:
-        video_url (str): Video URL
-        image_urls (list): List of image URLs
-        platform (str): Platform name for video limits
-
-    Returns:
-        tuple: (video_instance, list_of_image_instances)
-    """
-    platform_key = resolve_platform(platform)
-    tasks = []
-
-    video = None
-    if video_url:
-        video = create_video(video_url, platform_key)
-        tasks.append(video.download())
-
-    images = []
-    if image_urls:
-        images = [create_image(url, platform=platform_key) for url in image_urls if url]
-        tasks.extend([image.download() for image in images])
-
-    if tasks:
-        await asyncio.gather(*tasks, return_exceptions=True)
-
-    return video, images

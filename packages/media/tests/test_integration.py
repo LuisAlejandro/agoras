@@ -19,7 +19,7 @@
 import pytest
 
 from agoras.common import __version__
-from agoras.media import create_image, create_video, download_images, download_video_and_images
+from agoras.media.factory import create_image, create_video, download_images
 
 
 def test_version_available():
@@ -51,7 +51,7 @@ def test_common_and_media_integration():
     """Test that agoras.common and agoras.media integrate correctly."""
     # Import from both packages
     from agoras.common import logger
-    from agoras.media import Image
+    from agoras.media.image import Image
 
     # Both should work together
     assert logger is not None

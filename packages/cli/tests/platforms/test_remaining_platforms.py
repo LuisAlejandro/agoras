@@ -84,6 +84,40 @@ def test_linkedin_full_actions():
     assert args.action == 'post'
 
 
+def test_linkedin_authorize_accepts_scope_flag():
+    """LinkedIn authorize parses --scope alongside required credential flags."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+
+    create_linkedin_parser(subparsers)
+
+    args = root_parser.parse_args([
+        'linkedin', 'authorize',
+        '--client-id', 'cid',
+        '--client-secret', 'csecret',
+        '--object-id', 'oid',
+        '--scope', 'openid,w_member_social_feed',
+    ])
+    assert args.action == 'authorize'
+    assert args.scope == 'openid,w_member_social_feed'
+
+
+def test_non_linkedin_authorize_rejects_scope_flag():
+    """Other platforms' authorize commands reject --scope as unknown."""
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_facebook_parser(subparsers)
+
+    with pytest.raises(SystemExit):
+        root_parser.parse_args([
+            'facebook', 'authorize',
+            '--client-id', 'cid',
+            '--client-secret', 'csecret',
+            '--object-id', 'oid',
+            '--scope', 'w_member_social_feed',
+        ])
+
+
 def test_linkedin_reply_action():
     """Test LinkedIn reply action parses post-id and text."""
     root_parser = ArgumentParser()

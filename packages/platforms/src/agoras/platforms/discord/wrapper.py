@@ -17,21 +17,21 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.discord.wrapper module."""
 
-import asyncio
 from typing import Any, Dict, List, Optional
 
 import discord
 
 from agoras.common.utils import parse_metatags
 from agoras.core.api_base import sanitize_error_text
-from agoras.core.interfaces import SocialNetwork, _entry_images, _is_uncertain_publish_error
-from agoras.core.text_limits import validate_discord_embeds, validate_text
-from agoras.core.threading import (
-    ThreadPublishError,
-    ThreadResult,
-    partial_result,
-    success_result,
+from agoras.core.interfaces import (
+    SocialNetwork,
+    _entry_images,
+    _is_uncertain_publish_error,
+    run_wrapper_main,
+    run_wrapper_main_async,
 )
+from agoras.core.text_limits import validate_discord_embeds, validate_text
+from agoras.core.threading import ThreadPublishError, ThreadResult, partial_result, success_result
 from agoras.media.paths import media_is_local
 
 from .api import DiscordAPI
@@ -96,18 +96,19 @@ class Discord(SocialNetwork):
                 profile=self._get_config_value("profile"),
             )
 
-            if auth_manager._load_credentials_from_storage():
-                # Fill in missing credentials from storage
-                if not self.discord_bot_token:
-                    self.discord_bot_token = auth_manager.bot_token
-                if not self.discord_server_name:
-                    self.discord_server_name = auth_manager.server_name
-                if not self.discord_channel_name:
-                    self.discord_channel_name = auth_manager.channel_name
+            self._fill_missing_credentials(
+                auth_manager,
+                {
+                    "discord_bot_token": "bot_token",
+                    "discord_server_name": "server_name",
+                    "discord_channel_name": "channel_name",
+                },
+            )
 
-        # Validate all credentials are now available
-        if not all([self.discord_bot_token, self.discord_server_name, self.discord_channel_name]):
-            raise Exception("Not authenticated. Please run 'agoras discord authorize' first.")
+        self._require_credentials(
+            [self.discord_bot_token, self.discord_server_name, self.discord_channel_name],
+            "discord",
+        )
 
         # Initialize Discord API
         self.api = DiscordAPI(self.discord_bot_token, self.discord_server_name, self.discord_channel_name)
@@ -115,31 +116,17 @@ class Discord(SocialNetwork):
         # Authenticate with provided credentials
         await self.api.authenticate()
 
-    async def authorize_credentials(self):
-        """
-        Authorize and store Discord credentials for future use.
+    _authorize_keys = {
+        "bot_token": "discord_bot_token",
+        "server_name": "discord_server_name",
+        "channel_name": "discord_channel_name",
+    }
 
-        Returns:
-            bool: True if authorization successful
-        """
+    def _authorize_manager(self):
+        """Return the DiscordAuthManager used by the shared authorize flow."""
         from .auth import DiscordAuthManager
 
-        bot_token = self._get_config_value("discord_bot_token", "DISCORD_BOT_TOKEN")
-        server_name = self._get_config_value("discord_server_name", "DISCORD_SERVER_NAME")
-        channel_name = self._get_config_value("discord_channel_name", "DISCORD_CHANNEL_NAME")
-
-        auth_manager = DiscordAuthManager(
-            bot_token=bot_token,
-            server_name=server_name,
-            channel_name=channel_name,
-            profile=self._get_config_value("profile"),
-        )
-
-        result = await auth_manager.authorize()
-        if result:
-            print(result)
-            return True
-        return False
+        return DiscordAuthManager
 
     async def _prepare_discord_media_payload(
         self,
@@ -687,25 +674,17 @@ async def main_async(kwargs):
     """
     Async main function to execute Discord actions.
 
-    Thin shim: delegates to the base template runner via unbound dispatch,
-    so test mocks of ``Discord`` (which stub ``execute_action``/``disconnect``/
-    ``authorize_credentials`` but not the base method) keep working. The
-    name is kept module-level because tests and the CLI import it.
-
     Args:
         kwargs (dict): Configuration arguments
     """
-    instance = Discord(**kwargs)
-    return await SocialNetwork.run_main_async(instance, kwargs)
+    return await run_wrapper_main_async(Discord, kwargs)
 
 
 def main(kwargs):
     """
     Main function to execute Discord actions (for backwards compatibility).
 
-    Thin shim kept module-level because the CLI imports it.
-
     Args:
         kwargs (dict): Configuration arguments
     """
-    asyncio.run(main_async(kwargs))
+    run_wrapper_main(Discord, kwargs)

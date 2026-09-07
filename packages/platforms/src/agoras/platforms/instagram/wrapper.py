@@ -17,9 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.instagram.wrapper module."""
 
-import asyncio
-
-from agoras.core.interfaces import SocialNetwork
+from agoras.core.interfaces import SocialNetwork, run_wrapper_main, run_wrapper_main_async
 from agoras.core.text_limits import validate_text
 from agoras.media.paths import is_local_media_source, media_is_local
 
@@ -114,16 +112,15 @@ class Instagram(SocialNetwork):
                 profile=self._get_config_value("profile"),
             )
 
-            if auth_manager._load_credentials_from_storage():
-                # Fill in missing credentials from storage
-                if not self.instagram_object_id:
-                    self.instagram_object_id = auth_manager.user_id
-                if not self.instagram_client_id:
-                    self.instagram_client_id = auth_manager.client_id
-                if not self.instagram_client_secret:
-                    self.instagram_client_secret = auth_manager.client_secret
-                if not self.instagram_refresh_token:
-                    self.instagram_refresh_token = auth_manager.refresh_token
+            self._fill_missing_credentials(
+                auth_manager,
+                {
+                    "instagram_object_id": "user_id",
+                    "instagram_client_id": "client_id",
+                    "instagram_client_secret": "client_secret",
+                    "instagram_refresh_token": "refresh_token",
+                },
+            )
 
         # If we have the required auth credentials, authenticate to get access token
         if self.instagram_client_id and self.instagram_client_secret and self.instagram_refresh_token:
@@ -140,16 +137,15 @@ class Instagram(SocialNetwork):
             if authenticated:
                 self.instagram_access_token = auth_manager.access_token
 
-        # Validate all credentials are now available
-        if not all(
+        self._require_credentials(
             [
                 self.instagram_access_token,
                 self.instagram_client_id,
                 self.instagram_client_secret,
                 self.instagram_refresh_token,
-            ]
-        ):
-            raise Exception("Not authenticated. Please run 'agoras instagram authorize' first.")
+            ],
+            "instagram",
+        )
 
         # Initialize Instagram API
         self.api = InstagramAPI(
@@ -553,48 +549,25 @@ class Instagram(SocialNetwork):
         self._output_list(items)
         return items
 
-    async def authorize_credentials(self):
-        """
-        Authorize and store Instagram credentials for future use.
+    _post_id_actions = {
+        "like": ("instagram_post_id", None),
+        "share": ("instagram_post_id", None),
+        "delete": ("instagram_post_id", None),
+    }
 
-        Returns:
-            bool: True if authorization successful
-        """
+    _authorize_keys = {
+        "user_id": "instagram_object_id",
+        "client_id": "instagram_client_id",
+        "client_secret": "instagram_client_secret",
+    }
+
+    def _authorize_manager(self):
+        """Return the InstagramAuthManager used by the shared authorize flow."""
         from .auth import InstagramAuthManager
 
-        object_id = self._get_config_value("instagram_object_id", "INSTAGRAM_OBJECT_ID")
-        client_id = self._get_config_value("instagram_client_id", "INSTAGRAM_CLIENT_ID")
-        client_secret = self._get_config_value("instagram_client_secret", "INSTAGRAM_CLIENT_SECRET")
-
-        auth_manager = InstagramAuthManager(
-            user_id=object_id,
-            client_id=client_id,
-            client_secret=client_secret,
-            profile=self._get_config_value("profile"),
-        )
-
-        result = await auth_manager.authorize()
-        if result:
-            print(result)
-            return True
-        return False
+        return InstagramAuthManager
 
     # Override action handlers to use Instagram-specific parameter names
-    async def _handle_like_action(self):
-        """Handle like action with Instagram-specific parameter extraction."""
-        instagram_post_id = self._get_config_value("instagram_post_id", "INSTAGRAM_POST_ID")
-        await self.like(instagram_post_id)
-
-    async def _handle_share_action(self):
-        """Handle share action with Instagram-specific parameter extraction."""
-        instagram_post_id = self._get_config_value("instagram_post_id", "INSTAGRAM_POST_ID")
-        await self.share(instagram_post_id)
-
-    async def _handle_delete_action(self):
-        """Handle delete action with Instagram-specific parameter extraction."""
-        instagram_post_id = self._get_config_value("instagram_post_id", "INSTAGRAM_POST_ID")
-        await self.delete(instagram_post_id)
-
     async def _handle_video_action(self):
         """Handle video action with Instagram-specific parameter extraction."""
         status_text = self._get_config_value("instagram_video_caption", "INSTAGRAM_VIDEO_CAPTION") or ""
@@ -611,25 +584,17 @@ async def main_async(kwargs):
     """
     Async main function to execute Instagram actions.
 
-    Thin shim: delegates to the base template runner via unbound dispatch,
-    so test mocks of ``Instagram`` (which stub ``execute_action``/``disconnect``/
-    ``authorize_credentials`` but not the base method) keep working. The
-    name is kept module-level because tests and the CLI import it.
-
     Args:
         kwargs (dict): Configuration arguments
     """
-    instance = Instagram(**kwargs)
-    return await SocialNetwork.run_main_async(instance, kwargs)
+    return await run_wrapper_main_async(Instagram, kwargs)
 
 
 def main(kwargs):
     """
     Main function to execute Instagram actions (for backwards compatibility).
 
-    Thin shim kept module-level because the CLI imports it.
-
     Args:
         kwargs (dict): Configuration arguments
     """
-    asyncio.run(main_async(kwargs))
+    run_wrapper_main(Instagram, kwargs)

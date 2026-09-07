@@ -25,7 +25,7 @@ import requests
 from pyfacebook import GraphAPI
 
 from agoras.common import __version__
-from agoras.platforms._upload import video_upload_timeout
+from agoras.common.utils import video_upload_timeout
 
 
 def _is_video_file_processing_error(error: requests.HTTPError) -> bool:

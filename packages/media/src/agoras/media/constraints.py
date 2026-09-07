@@ -48,9 +48,6 @@ class MediaConstraints:
     max_duration_s: Optional[float] = None
     max_width: Optional[int] = None
     max_height: Optional[int] = None
-    min_width: Optional[int] = None
-    min_height: Optional[int] = None
-    max_images_per_post: Optional[int] = None
 
     @property
     def mime_type_list(self):
@@ -122,7 +119,6 @@ IMAGE: Dict[str, MediaConstraints] = {
         max_bytes=8 * MB,
         max_width=1440,
         max_height=1440,
-        max_images_per_post=4,
     ),
     "telegram": MediaConstraints(
         mime_types=GENERIC_IMAGE_MIME | frozenset({"image/webp"}),

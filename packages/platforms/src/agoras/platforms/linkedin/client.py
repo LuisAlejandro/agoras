@@ -870,7 +870,7 @@ class LinkedInAPIClient:
 
             request = self.restli_client.get(
                 resource_path="/posts",
-                query_params={"author": author_urn, "count": limit},
+                query_params={"author": author_urn, "q": "author", "count": limit},
                 version_string=self.api_version,
                 access_token=self.access_token,
             )

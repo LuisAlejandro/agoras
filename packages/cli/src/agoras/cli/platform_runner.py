@@ -37,29 +37,27 @@ def execute_platform_action(**kwargs):
     """
     network = kwargs.get("network")
 
-    if network == "x":
-        return x(kwargs)
-    if network == "twitter":
-        kwargs["network"] = "x"
-        return x(kwargs)
-    if network == "facebook":
-        return facebook(kwargs)
-    if network == "instagram":
-        return instagram(kwargs)
-    if network == "linkedin":
-        return linkedin(kwargs)
-    if network == "discord":
-        return discord(kwargs)
-    if network == "youtube":
-        return youtube(kwargs)
-    if network == "tiktok":
-        return tiktok(kwargs)
-    if network == "threads":
-        return threads(kwargs)
-    if network == "telegram":
-        return telegram(kwargs)
-    if network == "whatsapp":
-        return whatsapp(kwargs)
     if not network:
         raise Exception("--network is a required argument.")
-    raise Exception(f'"{network}" network not supported.')
+    if network == "twitter":
+        network = kwargs["network"] = "x"
+
+    # Built per call: a module-scope dict would trip the vulture dead-code gate
+    # (imports only reachable through the table) and break tests that patch the
+    # module-level wrapper names.
+    wrappers = {
+        "x": x,
+        "facebook": facebook,
+        "instagram": instagram,
+        "linkedin": linkedin,
+        "discord": discord,
+        "youtube": youtube,
+        "tiktok": tiktok,
+        "threads": threads,
+        "telegram": telegram,
+        "whatsapp": whatsapp,
+    }
+    wrapper = wrappers.get(network)
+    if wrapper is None:
+        raise Exception(f'"{network}" network not supported.')
+    return wrapper(kwargs)

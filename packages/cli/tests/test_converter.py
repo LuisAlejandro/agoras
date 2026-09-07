@@ -132,6 +132,26 @@ def test_convert_all_platforms():
         assert isinstance(converter.platform_mapping, dict)
 
 
+def test_convert_linkedin_scope_override_to_legacy():
+    """LinkedIn authorize --scope maps to linkedin_scope; blank values drop out."""
+    converter = ParameterConverter('linkedin')
+
+    legacy = converter.convert_to_legacy(
+        Namespace(action='authorize', scope='w_member_social_feed', handler=None)
+    )
+    assert legacy['linkedin_scope'] == 'w_member_social_feed'
+
+    legacy_blank = converter.convert_to_legacy(
+        Namespace(action='authorize', scope='   ', handler=None)
+    )
+    assert 'linkedin_scope' not in legacy_blank
+
+    legacy_absent = converter.convert_to_legacy(
+        Namespace(action='authorize', scope=None, handler=None)
+    )
+    assert 'linkedin_scope' not in legacy_absent
+
+
 def test_convert_linkedin_reply_to_legacy():
     """Test LinkedIn reply conversion maps post_id and text to native params."""
     converter = ParameterConverter('linkedin')

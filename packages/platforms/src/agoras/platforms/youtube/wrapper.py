@@ -17,10 +17,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.youtube.wrapper module."""
 
-import asyncio
 import sys
 
-from agoras.core.interfaces import SocialNetwork
+from agoras.core.interfaces import SocialNetwork, run_wrapper_main, run_wrapper_main_async
 from agoras.core.text_limits import validate_text
 
 from .api import YouTubeAPI
@@ -106,9 +105,10 @@ class YouTube(SocialNetwork):
         if not self.youtube_refresh_token:
             self.youtube_refresh_token = self._get_auth_config_value("youtube_refresh_token", "YOUTUBE_REFRESH_TOKEN")
 
-        # Validate all credentials are now available
-        if not all([self.youtube_client_id, self.youtube_client_secret, self.youtube_refresh_token]):
-            raise Exception("Not authenticated. Please run 'agoras youtube authorize' first.")
+        self._require_credentials(
+            [self.youtube_client_id, self.youtube_client_secret, self.youtube_refresh_token],
+            "youtube",
+        )
 
         # Initialize YouTube API
         self.api = YouTubeAPI(self.youtube_client_id, self.youtube_client_secret, self.youtube_refresh_token)
@@ -551,23 +551,9 @@ class YouTube(SocialNetwork):
                     self.youtube_keywords = original_keywords
 
     # Override action handlers to use YouTube-specific parameter names
-    async def _handle_like_action(self):
-        """Handle like action with YouTube-specific parameter extraction."""
-        youtube_video_id = self._get_config_value("youtube_video_id", "YOUTUBE_VIDEO_ID")
-        if not youtube_video_id:
-            raise Exception("YouTube video ID is required for like action.")
-        await self.like(youtube_video_id)
-
     async def _handle_share_action(self):
         """Handle share action with YouTube-specific parameter extraction."""
         await self.share()
-
-    async def _handle_delete_action(self):
-        """Handle delete action with YouTube-specific parameter extraction."""
-        youtube_video_id = self._get_config_value("youtube_video_id", "YOUTUBE_VIDEO_ID")
-        if not youtube_video_id:
-            raise Exception("YouTube video ID is required for delete action.")
-        await self.delete(youtube_video_id)
 
     async def _handle_video_action(self):
         """Handle video action with YouTube-specific parameter extraction."""
@@ -582,54 +568,38 @@ class YouTube(SocialNetwork):
 
         await self.video(status_text, video_url, video_title)
 
-    async def authorize_credentials(self):
-        """
-        Authorize and store YouTube credentials for future use.
+    _post_id_actions = {
+        "like": ("youtube_video_id", "YouTube video ID is required for like action."),
+        "delete": ("youtube_video_id", "YouTube video ID is required for delete action."),
+    }
 
-        Returns:
-            bool: True if authorization successful
-        """
+    _authorize_keys = {
+        "client_id": "youtube_client_id",
+        "client_secret": "youtube_client_secret",
+    }
+
+    def _authorize_manager(self):
+        """Return the YouTubeAuthManager used by the shared authorize flow."""
         from .auth import YouTubeAuthManager
 
-        client_id = self._get_config_value("youtube_client_id", "YOUTUBE_CLIENT_ID")
-        client_secret = self._get_config_value("youtube_client_secret", "YOUTUBE_CLIENT_SECRET")
-
-        auth_manager = YouTubeAuthManager(
-            client_id=client_id,
-            client_secret=client_secret,
-            profile=self._get_config_value("profile"),
-        )
-
-        result = await auth_manager.authorize()
-        if result:
-            print(result)
-            return True
-        return False
+        return YouTubeAuthManager
 
 
 async def main_async(kwargs):
     """
     Async main function to execute YouTube actions.
 
-    Thin shim: delegates to the base template runner via unbound dispatch,
-    so test mocks of ``YouTube`` (which stub ``execute_action``/``disconnect``/
-    ``authorize_credentials`` but not the base method) keep working. The
-    name is kept module-level because tests and the CLI import it.
-
     Args:
-        kwargs (dict): Configuration parameters
+        kwargs (dict): Configuration arguments
     """
-    instance = YouTube(**kwargs)
-    return await SocialNetwork.run_main_async(instance, kwargs)
+    return await run_wrapper_main_async(YouTube, kwargs)
 
 
 def main(kwargs):
     """
     Main function to execute YouTube actions (for backwards compatibility).
 
-    Thin shim kept module-level because the CLI imports it.
-
     Args:
-        kwargs (dict): Configuration parameters
+        kwargs (dict): Configuration arguments
     """
-    asyncio.run(main_async(kwargs))
+    run_wrapper_main(YouTube, kwargs)

@@ -19,7 +19,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from agoras.platforms._upload import video_upload_timeout
+from agoras.common.utils import video_upload_timeout
 from agoras.platforms.instagram.client import InstagramAPIClient
 
 

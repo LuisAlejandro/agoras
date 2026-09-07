@@ -21,14 +21,9 @@ import asyncio
 from typing import Any, Dict, List, Optional
 
 from agoras.core.api_base import sanitize_error_text
-from agoras.core.interfaces import SocialNetwork, _entry_images
+from agoras.core.interfaces import SocialNetwork, _entry_images, run_wrapper_main, run_wrapper_main_async
 from agoras.core.text_limits import validate_text
-from agoras.core.threading import (
-    ThreadPublishError,
-    ThreadResult,
-    partial_result,
-    success_result,
-)
+from agoras.core.threading import ThreadPublishError, ThreadResult, partial_result, success_result
 from agoras.platforms.threads.client import ThreadsContainerTimeoutError
 
 from .api import ThreadsAPI
@@ -119,24 +114,23 @@ class Threads(SocialNetwork):
                 profile=self._get_config_value("profile"),
             )
 
-            if auth_manager._load_credentials_from_storage():
-                # Fill in missing credentials from storage
-                if not self.threads_app_id:
-                    self.threads_app_id = auth_manager.app_id
-                if not self.threads_app_secret:
-                    self.threads_app_secret = auth_manager.app_secret
-                if not self.threads_refresh_token:
-                    self.threads_refresh_token = auth_manager.refresh_token
+            self._fill_missing_credentials(
+                auth_manager,
+                {
+                    "threads_app_id": "app_id",
+                    "threads_app_secret": "app_secret",
+                    "threads_refresh_token": "refresh_token",
+                },
+            )
 
-        # Validate all credentials are now available
-        if not all([self.threads_app_id, self.threads_app_secret, self.threads_refresh_token]):
-            raise Exception("Not authenticated. Please run 'agoras threads authorize' first.")
+        self._require_credentials(
+            [self.threads_app_id, self.threads_app_secret, self.threads_refresh_token],
+            "threads",
+        )
 
         app_id = self.threads_app_id
         app_secret = self.threads_app_secret
         refresh_token = self.threads_refresh_token
-        if not app_id or not app_secret or not refresh_token:
-            raise Exception("Not authenticated. Please run 'agoras threads authorize' first.")
 
         # Initialize Threads API
         self.api = ThreadsAPI(app_id, app_secret, refresh_token)
@@ -416,24 +410,6 @@ class Threads(SocialNetwork):
             status_text, status_link, status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4
         )
 
-    async def _handle_share_action(self):
-        """Handle share action with Threads-specific parameter extraction."""
-        threads_post_id = self._get_config_value("threads_post_id", "THREADS_POST_ID")
-        if not threads_post_id:
-            raise Exception("Threads post ID is required for share action.")
-        await self.share(threads_post_id)
-
-    async def _handle_like_action(self):
-        """Handle like action - not supported for Threads."""
-        await self.like(None)
-
-    async def _handle_delete_action(self):
-        """Handle delete action with Threads-specific parameter extraction."""
-        threads_post_id = self._get_config_value("threads_post_id", "THREADS_POST_ID")
-        if not threads_post_id:
-            raise Exception("Threads post ID is required for delete action.")
-        await self.delete(threads_post_id)
-
     async def video(self, status_text, video_url, video_title):
         """
         Post a video to Threads.
@@ -528,29 +504,22 @@ class Threads(SocialNetwork):
 
         await self.video(status_text, video_url, video_title)
 
-    async def authorize_credentials(self):
-        """
-        Authorize and store Threads credentials for future use.
+    _post_id_actions = {
+        "like": (None, None),
+        "share": ("threads_post_id", "Threads post ID is required for share action."),
+        "delete": ("threads_post_id", "Threads post ID is required for delete action."),
+    }
 
-        Returns:
-            bool: True if authorization successful
-        """
+    _authorize_keys = {
+        "app_id": "threads_app_id",
+        "app_secret": "threads_app_secret",
+    }
+
+    def _authorize_manager(self):
+        """Return the ThreadsAuthManager used by the shared authorize flow."""
         from .auth import ThreadsAuthManager
 
-        app_id = self._get_config_value("threads_app_id", "THREADS_APP_ID")
-        app_secret = self._get_config_value("threads_app_secret", "THREADS_APP_SECRET")
-
-        auth_manager = ThreadsAuthManager(
-            app_id=app_id,
-            app_secret=app_secret,
-            profile=self._get_config_value("profile"),
-        )
-
-        result = await auth_manager.authorize()
-        if result:
-            print(result)
-            return True
-        return False
+        return ThreadsAuthManager
 
     async def execute_action(self, action):
         """
@@ -594,25 +563,17 @@ async def main_async(kwargs):
     """
     Async main function to execute Threads actions.
 
-    Thin shim: delegates to the base template runner via unbound dispatch,
-    so test mocks of ``Threads`` (which stub ``execute_action``/``disconnect``/
-    ``authorize_credentials`` but not the base method) keep working. The
-    name is kept module-level because tests and the CLI import it.
-
     Args:
         kwargs (dict): Configuration arguments
     """
-    instance = Threads(**kwargs)
-    return await SocialNetwork.run_main_async(instance, kwargs)
+    return await run_wrapper_main_async(Threads, kwargs)
 
 
 def main(kwargs):
     """
     Main function to execute Threads actions (for backwards compatibility).
 
-    Thin shim kept module-level because the CLI imports it.
-
     Args:
         kwargs (dict): Configuration arguments
     """
-    asyncio.run(main_async(kwargs))
+    run_wrapper_main(Threads, kwargs)

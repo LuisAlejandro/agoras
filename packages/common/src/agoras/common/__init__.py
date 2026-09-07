@@ -27,18 +27,7 @@ This package provides low-level utilities used throughout the Agoras ecosystem:
 - Web scraping utilities
 """
 
-from .logger import ControlableLogger, logger
-from .utils import add_url_timestamp, parse_metatags
-from .version import __author__, __description__, __email__, __url__, __version__
+from .logger import logger
+from .version import __version__
 
-__all__ = [
-    "__version__",
-    "__author__",
-    "__email__",
-    "__url__",
-    "__description__",
-    "logger",
-    "ControlableLogger",
-    "add_url_timestamp",
-    "parse_metatags",
-]
+__all__ = ["__version__", "logger"]

@@ -768,3 +768,28 @@ async def test_linkedin_list_posts_limit_zero_returns_empty(mock_auth_manager_cl
 def test_linkedin_api_class_exists():
     """Test LinkedInAPI class exists."""
     assert LinkedInAPI is not None
+
+
+def test_linkedin_scope_config_never_falls_back_to_env(monkeypatch):
+    """LINKEDIN_SCOPE env var is ignored; other keys keep the generic env fallback."""
+    linkedin = LinkedIn()
+    linkedin.config = {}
+
+    monkeypatch.setenv("LINKEDIN_SCOPE", "w_member_social_feed")
+    monkeypatch.setenv("LINKEDIN_CLIENT_ID", "env_client_id")
+
+    # KTD2: scope override comes only from config (the --scope flag), never env.
+    assert linkedin._get_config_value("linkedin_scope") is None
+
+    # Other authorize keys keep the existing env fallback convention.
+    assert linkedin._get_config_value("linkedin_client_id") == "env_client_id"
+
+
+def test_linkedin_scope_config_value_returned_when_present(monkeypatch):
+    """A configured linkedin_scope wins over the exported LINKEDIN_SCOPE env var."""
+    linkedin = LinkedIn()
+    linkedin.config = {"linkedin_scope": "openid,email"}
+
+    monkeypatch.setenv("LINKEDIN_SCOPE", "w_member_social_feed")
+
+    assert linkedin._get_config_value("linkedin_scope") == "openid,email"

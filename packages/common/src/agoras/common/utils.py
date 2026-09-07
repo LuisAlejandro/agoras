@@ -98,6 +98,12 @@ def build_upload_session(max_attempts, retry_statuses, allowed_methods):
     return session
 
 
+def video_upload_timeout(video_file_size: int) -> int:
+    """Scale a video upload timeout with file size, capped at 10 minutes."""
+    megabytes = max(0, video_file_size) // (1024 * 1024)
+    return max(30, min(600, megabytes * 2 or 30))
+
+
 def _decode_html_content(content):
     """
     Decode HTML bytes for parsing.

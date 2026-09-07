@@ -56,6 +56,22 @@ def _is_uncertain_publish_error(exc: BaseException) -> bool:
     return any(token in message for token in ("timeout", "timed out", "temporarily unavailable"))
 
 
+async def run_wrapper_main_async(cls, kwargs):
+    """
+    Shared body of every wrapper's ``main_async`` shim.
+
+    Dispatches through ``SocialNetwork.run_main_async`` unbound so test mocks
+    of the wrapper class (which stub ``execute_action``/``disconnect``/
+    ``authorize_credentials`` but not the base method) keep working.
+    """
+    return await SocialNetwork.run_main_async(cls(**kwargs), kwargs)
+
+
+def run_wrapper_main(cls, kwargs):
+    """Shared body of every wrapper's synchronous ``main`` shim."""
+    asyncio.run(run_wrapper_main_async(cls, kwargs))
+
+
 class SocialNetwork(ABC):
     """
     Abstract base class for social network implementations.
@@ -107,8 +123,11 @@ class SocialNetwork(ABC):
         """
         Authorize credentials for the social network.
 
-        Default implementation raises not supported. Platforms that support
-        interactive credential authorization override this.
+        Platforms declare ``_authorize_manager`` (an auth-manager factory) and
+        ``_authorize_keys`` (auth-manager kwarg -> config key); the shared flow
+        reads the values, builds the manager, and runs ``authorize()``.
+        Platforms without an ``_authorize_manager`` do not support interactive
+        authorization.
 
         Returns:
             bool: True if authorization succeeded
@@ -116,7 +135,47 @@ class SocialNetwork(ABC):
         Raises:
             Exception: If authorization is not supported
         """
-        raise Exception(f"Authorize not supported for {self.__class__.__name__}")
+        factory = self._authorize_manager()
+        if factory is None:
+            raise Exception(f"Authorize not supported for {self.__class__.__name__}")
+
+        kwargs = {param: self._get_config_value(config_key) for param, config_key in self._authorize_keys.items()}
+        if self._authorize_uses_profile:
+            kwargs["profile"] = self._get_config_value("profile")
+
+        result = await factory(**kwargs).authorize()
+        if result:
+            # The token is already persisted to storage; never echo it to stdout.
+            print("Authorization successful. Credentials stored securely.")
+            return True
+        return False
+
+    # Auth-manager factory for `authorize_credentials`; None means unsupported.
+    _authorize_keys: Dict[str, Any] = {}
+    _authorize_uses_profile = True
+
+    def _authorize_manager(self) -> Any:
+        """Return the platform's auth-manager class, or None when unsupported."""
+        return None
+
+    def _fill_missing_credentials(self, auth_manager, attr_map):
+        """
+        Fill blank credential attributes from a loaded auth manager.
+
+        ``attr_map`` maps this instance's attribute name to the auth manager's
+        attribute name. Only attributes that are currently falsy are filled, so
+        explicit CLI/env values always win over stored ones.
+        """
+        if not auth_manager._load_credentials_from_storage():
+            return
+        for own_attr, manager_attr in attr_map.items():
+            if not getattr(self, own_attr):
+                setattr(self, own_attr, getattr(auth_manager, manager_attr))
+
+    def _require_credentials(self, values, platform, hint=""):
+        """Raise the shared not-authenticated message when any credential is missing."""
+        if not all(values):
+            raise Exception(f"Not authenticated. Please run 'agoras {platform} authorize' first.{hint}")
 
     async def run_main_async(self, kwargs):
         """
@@ -707,26 +766,33 @@ class SocialNetwork(ABC):
             status_text, status_link, status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4
         )
 
+    # Per-action post-id lookup, overridden per platform:
+    #   action -> (config key, error message)
+    # A None config key passes None through (unsupported actions whose
+    # method raises); a None error message skips the required-value guard.
+    _post_id_actions: Dict[str, Any] = {}
+
+    def _action_post_id(self, action):
+        """Resolve the post-id argument for a like/share/delete action."""
+        key, error = self._post_id_actions.get(action, ("post_id", f"Post ID is required for {action} action."))
+        if key is None:
+            return None
+        value = self._get_config_value(key)
+        if error and not value:
+            raise Exception(error)
+        return value
+
     async def _handle_like_action(self):
         """Handle like action with common parameter extraction."""
-        post_id = self._get_config_value("post_id")
-        if not post_id:
-            raise Exception("Post ID is required for like action.")
-        await self.like(post_id)
+        await self.like(self._action_post_id("like"))
 
     async def _handle_share_action(self):
         """Handle share action with common parameter extraction."""
-        post_id = self._get_config_value("post_id")
-        if not post_id:
-            raise Exception("Post ID is required for share action.")
-        await self.share(post_id)
+        await self.share(self._action_post_id("share"))
 
     async def _handle_delete_action(self):
         """Handle delete action with common parameter extraction."""
-        post_id = self._get_config_value("post_id")
-        if not post_id:
-            raise Exception("Post ID is required for delete action.")
-        await self.delete(post_id)
+        await self.delete(self._action_post_id("delete"))
 
     async def _handle_video_action(self):
         """Handle video action with common parameter extraction."""

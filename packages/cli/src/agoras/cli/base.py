@@ -220,12 +220,19 @@ def resolve_action_profile(platform: str, args: Namespace, legacy_args: dict) ->
         legacy_args["profile"] = profile
 
 
-def add_common_content_options(parser: ArgumentParser, images: int = 0, *, with_content_file: bool = True):
+def add_common_content_options(
+    parser: ArgumentParser,
+    images: int = 0,
+    *,
+    with_content_file: bool = True,
+    with_link: bool = True,
+):
     """
     Add common content options (text, link, images) and optional --content.
 
     Content destinations use SUPPRESS so unspecified flags are absent from the
     Namespace (required for --content XOR detection and file-only mode).
+    ``with_link=False`` opts a platform out of ``--link`` when it cannot carry one.
     """
     if with_content_file:
         add_content_file_option(parser)
@@ -233,7 +240,8 @@ def add_common_content_options(parser: ArgumentParser, images: int = 0, *, with_
     content = parser.add_argument_group("Content Options")
 
     content.add_argument("--text", default=SUPPRESS, help="Text content of the post")
-    content.add_argument("--link", default=SUPPRESS, help="URL to include in post")
+    if with_link:
+        content.add_argument("--link", default=SUPPRESS, help="URL to include in post")
 
     if images > 0:
         for i in range(1, images + 1):
@@ -269,6 +277,26 @@ def add_video_options(parser: ArgumentParser, platform: Optional[str] = None, *,
         metavar="<title>",
         help="Video title/description",
     )
+
+
+def run_platform_command(platform: str, args: Namespace, platform_main):
+    """
+    Run the shared CLI pipeline for one platform command.
+
+    Validates the action, applies the content contract, converts to the legacy
+    argument shape, injects the credential profile, then calls the platform's
+    wrapper ``main``.
+    """
+    from .converter import ParameterConverter
+    from .validator import ActionValidator
+
+    ActionValidator.validate(platform, args.action)
+    prepare_content_args(args, platform)
+
+    legacy_args = ParameterConverter(platform).convert_to_legacy(args)
+    resolve_action_profile(platform, args, legacy_args)
+
+    return platform_main(legacy_args)
 
 
 def prepare_content_args(args: Namespace, platform: str) -> None:

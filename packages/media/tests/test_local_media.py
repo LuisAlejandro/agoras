@@ -24,7 +24,7 @@ from PIL import Image as PILImage
 
 from agoras.media.constraints import MediaConstraints
 from agoras.media.errors import MediaValidationError
-from agoras.media import create_image, create_video, download_images, download_video_and_images
+from agoras.media.factory import create_image, create_video, download_images
 from agoras.media.image import Image
 from agoras.media.paths import is_local_media_source, media_is_local, normalize_media_path
 from agoras.media.preflight import preflight_url_for_platform

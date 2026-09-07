@@ -24,25 +24,10 @@ Checked per module:
 Exit code 0 when every module passes; 1 otherwise. Text-based and offline.
 """
 
-import argparse
 import re
 import sys
-from pathlib import Path
 
-API_DIR = Path("packages/platforms/src/agoras/platforms")
-
-PLATFORMS = [
-    "x",
-    "discord",
-    "telegram",
-    "threads",
-    "facebook",
-    "instagram",
-    "linkedin",
-    "youtube",
-    "tiktok",
-    "whatsapp",
-]
+from verify_harness import report_self_test, run
 
 GUARD_DECORATORS = (
     "guard_ensure_auth_manager",
@@ -121,38 +106,15 @@ def self_test():
     f = check_api_source("fake", bad)
     if not any("not innermost" in item for item in f):
         failures.append("self-test: transposed error_wrap not flagged")
-    if not failures:
-        print("Self-test passed: the gate catches transposed guard stacks.")
-        return 0
-    for item in failures:
-        print(f"[FAIL] {item}")
-    return 1
-
-
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--self-test", action="store_true", help="run negative self-tests and exit")
-    args = parser.parse_args()
-    if args.self_test:
-        return self_test()
-
-    all_failures = []
-    for name in PLATFORMS:
-        src = (API_DIR / name / "api.py").read_text()
-        failures = check_api_source(name, src)
-        if failures:
-            for f in failures:
-                print(f"[FAIL] {f}")
-                all_failures.append(f)
-        else:
-            print(f"[PASS] {name}")
-
-    if all_failures:
-        print(f"\n{len(all_failures)} failure(s)")
-        return 1
-    print("\nAll api modules pass the guard-stack invariant.")
-    return 0
+    return report_self_test(failures, "Self-test passed: the gate catches transposed guard stacks.")
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(
+        run(
+            description=__doc__,
+            check=check_api_source,
+            self_test=self_test,
+            success_message="All api modules pass the guard-stack invariant.",
+        )
+    )

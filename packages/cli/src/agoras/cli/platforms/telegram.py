@@ -29,11 +29,8 @@ from ..base import (
     add_common_content_options,
     add_profile_to_all,
     add_video_options,
-    prepare_content_args,
-    resolve_action_profile,
+    run_platform_command,
 )
-from ..converter import ParameterConverter
-from ..validator import ActionValidator
 
 
 def create_telegram_parser(subparsers: _SubParsersAction) -> ArgumentParser:
@@ -183,16 +180,4 @@ def _handle_telegram_command(args: Namespace):
     Returns:
         Exit status from core execution
     """
-    # Validate action
-    ActionValidator.validate("telegram", args.action)
-    prepare_content_args(args, "telegram")
-
-    # Convert new args to legacy format
-    converter = ParameterConverter("telegram")
-    legacy_args = converter.convert_to_legacy(args)
-
-    # Resolve and inject the credential profile for non-authorize actions
-    resolve_action_profile("telegram", args, legacy_args)
-
-    # Call core Telegram module
-    return telegram_main(legacy_args)
+    return run_platform_command("telegram", args, telegram_main)

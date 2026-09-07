@@ -29,11 +29,8 @@ from ..base import (
     add_common_content_options,
     add_profile_to_all,
     add_video_options,
-    prepare_content_args,
-    resolve_action_profile,
+    run_platform_command,
 )
-from ..converter import ParameterConverter
-from ..validator import ActionValidator
 
 
 def create_linkedin_parser(subparsers: _SubParsersAction) -> ArgumentParser:
@@ -150,6 +147,16 @@ def _add_linkedin_authorize_options(parser: ArgumentParser):
     auth.add_argument("--client-id", required=True, metavar="<id>", help="LinkedIn App client ID")
     auth.add_argument("--client-secret", required=True, metavar="<secret>", help="LinkedIn App client secret")
     auth.add_argument("--object-id", required=True, metavar="<id>", help="LinkedIn user/organization ID")
+    auth.add_argument(
+        "--scope",
+        metavar="<scopes>",
+        help=(
+            "Comma-separated scopes that REPLACE the default "
+            "'openid,profile,email,w_member_social' for this authorize run. "
+            "Add w_member_social_feed (e.g. openid,profile,email,w_member_social_feed) "
+            "on apps that hold it to enable comment/reply actions."
+        ),
+    )
 
 
 def _add_video_options(parser: ArgumentParser):
@@ -187,16 +194,4 @@ def _handle_linkedin_command(args: Namespace):
     Returns:
         Exit status from core execution
     """
-    # Validate action
-    ActionValidator.validate("linkedin", args.action)
-    prepare_content_args(args, "linkedin")
-
-    # Convert new args to legacy format
-    converter = ParameterConverter("linkedin")
-    legacy_args = converter.convert_to_legacy(args)
-
-    # Resolve and inject the credential profile for non-authorize actions
-    resolve_action_profile("linkedin", args, legacy_args)
-
-    # Call core LinkedIn module
-    return linkedin_main(legacy_args)
+    return run_platform_command("linkedin", args, linkedin_main)

@@ -46,6 +46,7 @@ class TikTokAPI(BaseAPI):
     # Guard message templates (read by the composable guard decorators)
     _not_authenticated_message = "TikTok API not authenticated"
     _client_not_available_message = "TikTok client not available"
+    _clears_auth_manager_state_on_disconnect = True
 
     # TikTok API URLs - moved to client
     # DIRECT_POST_URL = "https://open.tiktokapis.com/v2/post/publish/video/init/"
@@ -98,13 +99,6 @@ class TikTokAPI(BaseAPI):
             raise_authentication_error_from_manager(self.auth_manager)
 
         return await super().authenticate()
-
-    def _disconnect_hook(self):
-        """Clear auth manager tokens, user info, and client without disconnecting."""
-        if self.auth_manager:
-            self.auth_manager.access_token = None
-            self.auth_manager.user_info = None
-            self.auth_manager.client = None
 
     @guard_ensure_auth_manager
     @guard_token_presence(token_attr="auth_manager.access_token")

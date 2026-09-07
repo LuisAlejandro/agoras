@@ -425,6 +425,7 @@ class XAPIClient:
                 tweet_fields=["created_at", "author_id", "attachments"],
                 expansions=["attachments.media_keys"],
                 media_fields=["url", "preview_image_url", "type", "variants"],
+                user_auth=True,
             )
             response_data = getattr(response, "data", None)
             if response_data is None:

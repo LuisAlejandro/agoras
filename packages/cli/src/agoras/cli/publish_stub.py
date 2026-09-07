@@ -29,18 +29,19 @@ MIGRATION_POINTER = (
 REMOVED_MESSAGE = "`agoras publish` was removed in Agoras 3.0. " + MIGRATION_POINTER
 
 
+def _removed(parser=None):
+    """Print the removed-message pointer; exit non-zero via ``parser`` or return 1."""
+    print(REMOVED_MESSAGE, file=sys.stderr)
+    if parser is not None:
+        parser.exit(1)
+    return 1
+
+
 class _RemovedPublishHelp(argparse.Action):
     """Print the removed-message pointer for any help request and exit non-zero."""
 
     def __call__(self, parser, namespace, values, option_string=None):
-        print(REMOVED_MESSAGE, file=sys.stderr)
-        parser.exit(1)
-
-
-def _removed_error(parser, message):
-    """Print the pointer for any parse failure and exit non-zero."""
-    print(REMOVED_MESSAGE, file=sys.stderr)
-    parser.exit(1)
+        _removed(parser)
 
 
 def _absorb_remaining(parser, args=None, namespace=None):
@@ -51,12 +52,6 @@ def _absorb_remaining(parser, args=None, namespace=None):
     else:
         namespace.args = argv
     return namespace, []
-
-
-def _publish_removed(args):
-    """Print the removed-message pointer and fail loudly (no traceback)."""
-    print(REMOVED_MESSAGE, file=sys.stderr)
-    return 1
 
 
 def create_legacy_publish_stub(subparsers):
@@ -84,7 +79,7 @@ def create_legacy_publish_stub(subparsers):
     # functools.partial (public attribute assignment; parser_class was
     # removed from add_parser in 3.11, and instance attributes are not
     # bound, so partial supplies the parser explicitly).
-    parser.error = functools.partial(_removed_error, parser)
+    parser.error = lambda message: _removed(parser)
     parser.parse_known_args = functools.partial(_absorb_remaining, parser)
     parser.add_argument(
         "-h",
@@ -94,5 +89,5 @@ def create_legacy_publish_stub(subparsers):
         help="Show this message and exit.",
     )
     parser.add_argument("args", nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
-    parser.set_defaults(command=_publish_removed)
+    parser.set_defaults(command=lambda args: _removed())
     return parser

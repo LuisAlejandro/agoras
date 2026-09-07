@@ -25,11 +25,9 @@ from argparse import SUPPRESS, ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.instagram.wrapper import main as instagram_main
 
-from ..base import add_common_content_options, add_profile_to_all, prepare_content_args, resolve_action_profile
+from ..base import add_common_content_options, add_profile_to_all, run_platform_command
 from ..content import add_content_file_option
-from ..converter import ParameterConverter
 from ..media_help import video_url_help
-from ..validator import ActionValidator
 
 
 def create_instagram_parser(subparsers: _SubParsersAction) -> ArgumentParser:
@@ -58,21 +56,18 @@ def create_instagram_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     post = actions.add_parser(
         "post", help='Create a photo post on Instagram. Requires prior authorization via "agoras instagram authorize".'
     )
-    _add_instagram_action_options(post, object_id_required=False)
     add_common_content_options(post, images=1)
 
     # Video action
     video = actions.add_parser(
         "video", help='Upload a video to Instagram. Requires prior authorization via "agoras instagram authorize".'
     )
-    _add_instagram_action_options(video, object_id_required=False)
     _add_video_options(video)
 
     # Reply action
     reply = actions.add_parser(
         "reply", help='Comment on an Instagram post. Requires prior authorization via "agoras instagram authorize".'
     )
-    _add_instagram_action_options(reply, object_id_required=False)
     _add_post_id_option(reply)
     reply.add_argument("--text", required=True, metavar="<text>", help="Comment text to post on the Instagram post")
 
@@ -81,7 +76,6 @@ def create_instagram_parser(subparsers: _SubParsersAction) -> ArgumentParser:
         "delete-reply",
         help='Delete an Instagram comment. Requires prior authorization via "agoras instagram authorize".',
     )
-    _add_instagram_action_options(delete_reply, object_id_required=False)
     _add_post_id_option(delete_reply)
 
     # Delete action (delete an Instagram media post)
@@ -89,7 +83,6 @@ def create_instagram_parser(subparsers: _SubParsersAction) -> ArgumentParser:
         "delete",
         help='Delete an Instagram media post. Requires prior authorization via "agoras instagram authorize".',
     )
-    _add_instagram_action_options(delete, object_id_required=False)
     _add_post_id_option(delete)
 
     # Get-post action
@@ -145,18 +138,6 @@ def _add_instagram_authorize_options(parser: ArgumentParser):
     )
 
 
-def _add_instagram_action_options(parser: ArgumentParser, object_id_required: bool = True):
-    """
-    Add Instagram action-specific options (no authentication tokens needed).
-
-    Args:
-        parser: ArgumentParser to add options to
-        object_id_required: Whether object ID is required for this action
-    """
-    if object_id_required:
-        parser.add_argument("--object-id", required=True, metavar="<id>", help="Instagram business account ID")
-
-
 def _add_video_options(parser: ArgumentParser):
     """
     Add video-specific options for Instagram.
@@ -210,16 +191,4 @@ def _handle_instagram_command(args: Namespace):
     Returns:
         Exit status from core execution
     """
-    # Validate action
-    ActionValidator.validate("instagram", args.action)
-    prepare_content_args(args, "instagram")
-
-    # Convert new args to legacy format
-    converter = ParameterConverter("instagram")
-    legacy_args = converter.convert_to_legacy(args)
-
-    # Resolve and inject the credential profile for non-authorize actions
-    resolve_action_profile("instagram", args, legacy_args)
-
-    # Call core Instagram module
-    return instagram_main(legacy_args)
+    return run_platform_command("instagram", args, instagram_main)

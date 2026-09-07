@@ -40,6 +40,7 @@ class DiscordAPI(BaseAPI):
     # Guard message templates (read by the composable guard decorators)
     _not_authenticated_message = "Discord API not authenticated"
     _client_not_available_message = "Discord client not available"
+    _post_auth_client_required_message = "Discord client not available after authentication"
 
     def __init__(self, bot_token, server_name, channel_name):
         """
@@ -74,11 +75,6 @@ class DiscordAPI(BaseAPI):
             raise_authentication_error_from_manager(self.auth_manager)
 
         return await super().authenticate()
-
-    async def _post_authenticate(self):
-        """Ensure the client was created during authentication."""
-        if not self.auth_manager.client:
-            raise Exception("Discord client not available after authentication")
 
     @guard_ensure_auth_manager
     @guard_client_presence

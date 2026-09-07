@@ -558,6 +558,60 @@ async def test_threads_auth_authorize_interactive_success(mock_storage_class):
 
 @pytest.mark.asyncio
 @patch('agoras.core.auth.base.SecureTokenStorage')
+async def test_threads_auth_authorize_interactive_int_user_id(mock_storage_class):
+    """Authorize succeeds when Meta returns user_id as a JSON number.
+
+    Regression: an int user_id crashed _save_credentials_to_storage via
+    build_composite_key/_sanitize_component ("argument of type 'int' is
+    not iterable"), so interactive authorization always failed after a
+    successful token exchange.
+    """
+    mock_storage = MagicMock()
+    mock_storage.save_token = MagicMock()
+    mock_storage_class.return_value = mock_storage
+
+    auth = ThreadsAuthManager('app_id', 'app_secret')
+
+    with patch('agoras.platforms.threads.auth.OAuthCallbackServer') as mock_callback_class:
+        mock_callback_server = MagicMock()
+        mock_callback_server.start_and_wait = AsyncMock(return_value='auth_code_123')
+        mock_callback_class.return_value = mock_callback_server
+
+        with patch('agoras.platforms.threads.auth.webbrowser.open'):
+            with patch('requests.post') as mock_requests_post:
+                mock_short = MagicMock()
+                mock_short.status_code = 200
+                mock_short.json.return_value = {
+                    'access_token': 'short_lived_token',
+                    'user_id': 25446548528298955,  # JSON number, not string
+                }
+                mock_requests_post.return_value = mock_short
+
+                with patch('requests.get') as mock_requests_get:
+                    mock_long = MagicMock()
+                    mock_long.status_code = 200
+                    mock_long.json.return_value = {'access_token': 'long_lived_token_abc'}
+                    mock_requests_get.return_value = mock_long
+
+                    result = await auth._authorize_interactive()
+
+    assert result == 'long_lived_token_abc'
+    assert auth.user_id == '25446548528298955'  # normalized to str
+    mock_storage.save_token.assert_any_call(
+        'threads',
+        'app_id@25446548528298955',
+        {
+            'app_id': 'app_id',
+            'app_secret': 'app_secret',
+            'refresh_token': 'long_lived_token_abc',
+            'user_id': '25446548528298955',
+            'profile': 'app_id@25446548528298955',
+        },
+    )
+
+
+@pytest.mark.asyncio
+@patch('agoras.core.auth.base.SecureTokenStorage')
 async def test_threads_auth_authenticate_already_has_token(mock_storage_class):
     """Test authenticate when access token is already available."""
     mock_storage = MagicMock()
