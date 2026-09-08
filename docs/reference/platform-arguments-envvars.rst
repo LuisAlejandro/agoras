@@ -52,7 +52,7 @@ Google Sheets (schedule-run)
 | ``GOOGLE_SHEETS_PRIVATE_KEY`` | Service account private key      |
 +-------------------------------+----------------------------------+
 
-``agoras utils schedule-run`` currently requires ``--sheets-*`` flags even when these env vars are set. The legacy ``agoras publish --action schedule`` path (which read the env vars when CLI flags were omitted) was removed in Agoras 3.0; ``agoras utils schedule-run`` reads them today.
+``agoras utils schedule-run`` requires the ``--sheets-*`` flags to be passed on the command line; it does not read these ``GOOGLE_SHEETS_*`` environment variables. The legacy ``agoras publish --action schedule`` path (which read the env vars when CLI flags were omitted) was removed in Agoras 3.0.
 
 Unattended Execution
 --------------------

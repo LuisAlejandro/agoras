@@ -109,7 +109,7 @@ This command will "like" a post identified by ``--post-id`` (read about how to g
 Share a Post
 ------------
 
-This command will grab a post identified by ``--post-id`` that is currently published on ``--object-id`` (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`), and share it on a ``--profile-id``.
+This command will grab a post identified by ``--post-id`` that is currently published on the account configured via the ``FACEBOOK_OBJECT_ID`` environment variable or stored credentials (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`), and share it on a ``--profile-id``.
 
 .. note::
    You must run ``agoras facebook authorize`` first before using this command.
@@ -125,7 +125,7 @@ This command will grab a post identified by ``--post-id`` that is currently publ
 Delete a Facebook post
 ----------------------
 
-This command will delete a post identified by ``--post-id`` that is currently published on ``--object-id`` (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`).
+This command will delete a post identified by ``--post-id`` that is currently published on the account configured via the ``FACEBOOK_OBJECT_ID`` environment variable or stored credentials (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`).
 
 .. note::
    You must run ``agoras facebook authorize`` first before using this command.
@@ -140,7 +140,7 @@ This command will delete a post identified by ``--post-id`` that is currently pu
 Post the last URL from an RSS feed into Facebook
 -------------------------------------------------
 
-This command will parse an RSS feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published on ``--facebook-object-id`` (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`).
+This command will parse an RSS feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published to the Facebook account configured via the ``FACEBOOK_OBJECT_ID`` environment variable or stored credentials (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`).
 
 .. note::
    You must run ``agoras facebook authorize`` first before using this command.
@@ -160,7 +160,7 @@ Please read about how the RSS feed should be structured in the :doc:`RSS feed se
 Post a random URL from an RSS feed into Facebook
 -------------------------------------------------
 
-This command will parse an RSS feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published on ``--facebook-object-id`` (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`).
+This command will parse an RSS feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published to the Facebook account configured via the ``FACEBOOK_OBJECT_ID`` environment variable or stored credentials (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`).
 
 .. note::
    You must run ``agoras facebook authorize`` first before using this command.
@@ -229,8 +229,8 @@ Scheduling Logic
 
 .. _how-to-get-facebook-account-id:
 
-How to get ``--facebook-object-id`` parameter
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+How to get the Facebook account ID
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 With Agoras you can use the facebook network to post to pages, profiles and groups, but for simplicity sake we're going to only explain how to get the object ID of a page.
 
