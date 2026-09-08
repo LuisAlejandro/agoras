@@ -108,7 +108,8 @@ New (v2.0+)::
     # After authorization
     agoras facebook video \
       --video-url "video.mp4" \
-      --video-title "My Video"
+      --video-title "My Video" \
+      --video-description "Video description"
 
 Instagram
 ---------
@@ -135,6 +136,7 @@ New (v2.0+)::
 
     # Then post (no tokens needed)
     agoras instagram post \
+      --image-1 "https://example.com/image.jpg" \
       --text "Hello Instagram"
 
 LinkedIn

@@ -36,7 +36,7 @@ All platforms require ``agoras <platform> authorize`` (or equivalent environment
       --object-id "$OBJECT_ID"
 
     agoras facebook post --text "Hello World"
-    agoras facebook video --video-url "video.mp4"
+    agoras facebook video --video-url "video.mp4" --video-title "My Video" --video-description "Video description"
 
 **Example — API key / bot platform (X)**::
 
@@ -131,7 +131,7 @@ Post directly to social networks with intuitive, platform-first commands::
     agoras x post --text "Hello World!"
 
     # Upload to YouTube
-    agoras youtube video --video-url "video.mp4"
+    agoras youtube video --video-url "video.mp4" --title "My Video"
 
 See the full list of available platforms::
 
@@ -228,7 +228,8 @@ Upload a video::
 
     agoras facebook video \
       --video-url "https://example.com/video.mp4" \
-      --video-title "My Video"
+      --video-title "My Video" \
+      --video-description "Video description"
 
 YouTube
 ~~~~~~~

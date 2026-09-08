@@ -97,14 +97,14 @@ This command will upload and send a video file to a Telegram chat. The video can
 
     agoras telegram video \
       --video-url "${VIDEO_URL}" \
-      --video-title "${VIDEO_TITLE}" \
-      --text "${STATUS_TEXT}"
+      --video-title "${VIDEO_TITLE}"
 
 Parameters:
 
 - ``--video-url``: URL pointing to a downloadable video file (required)
-- ``--video-title``: Title for the video (optional, used as caption if text not provided)
-- ``--text``: Caption text for the video (optional)
+- ``--video-title``: Title for the video (optional, used as caption)
+
+**Note**: ``--text`` is not accepted on the ``video`` action. To attach a caption to a video, use a ``--content`` YAML file (see :doc:`content-files`).
 
 **Video requirements**:
 - **Supported formats**: MP4, MOV, WebM, AVI, MKV

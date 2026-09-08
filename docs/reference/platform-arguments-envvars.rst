@@ -311,6 +311,8 @@ Post Action
 
 **Optional Arguments**:
 
+- ``--text`` (CLI) / ``STATUS_TEXT`` (ENVVAR) - Text content of the post
+- ``--link`` (CLI) / ``STATUS_LINK`` (ENVVAR) - URL to include in the post
 - ``--image-1`` (CLI) / ``STATUS_IMAGE_URL_1`` (ENVVAR) - Image URL (required for photo posts)
 
 **Unattended Execution**: Set ``INSTAGRAM_OBJECT_ID``, ``INSTAGRAM_CLIENT_ID``, ``INSTAGRAM_CLIENT_SECRET``, and ``INSTAGRAM_REFRESH_TOKEN`` environment variables.
@@ -344,6 +346,7 @@ Authorize Action
 - ``--client-id`` (CLI) / ``LINKEDIN_CLIENT_ID`` (ENVVAR) - LinkedIn App client ID
 - ``--client-secret`` (CLI) / ``LINKEDIN_CLIENT_SECRET`` (ENVVAR) - LinkedIn App client secret
 - ``--object-id`` (CLI) / ``LINKEDIN_OBJECT_ID`` (ENVVAR) - LinkedIn user/organization ID
+- ``--scope`` (CLI) - Comma-separated scopes that replace the default ``openid,profile,email,w_member_social`` for this authorize run (add ``w_member_social_feed`` on apps that hold it to enable comment/reply actions)
 
 Post Action
 -----------
@@ -533,6 +536,7 @@ Post Action
 - ``--image-3`` (CLI) / ``STATUS_IMAGE_URL_3`` (ENVVAR) - Third image URL
 - ``--image-4`` (CLI) / ``STATUS_IMAGE_URL_4`` (ENVVAR) - Fourth image URL
 - ``--title`` (CLI) / ``TIKTOK_TITLE`` (ENVVAR) - Post title/caption
+- ``--description`` (CLI) / ``TIKTOK_DESCRIPTION`` (ENVVAR) - Post description/caption (max 4000 UTF-16 runes)
 - ``--privacy`` (CLI) / ``TIKTOK_PRIVACY_STATUS`` (ENVVAR) - Unattended privacy (``SELF_ONLY`` only). Interactive post/video open a localhost composer instead of applying this flag.
 - ``--allow-comments`` (CLI) / ``TIKTOK_ALLOW_COMMENTS`` (ENVVAR) - Allow comments on the post (default: true)
 - ``--auto-add-music`` (CLI) / ``TIKTOK_AUTO_ADD_MUSIC`` (ENVVAR) - Automatically add music to the slideshow (default: false)
@@ -748,4 +752,4 @@ See Also
 
 - :doc:`parameters` - Complete parameter reference
 - :doc:`action-support` - Platform action support matrix
-- Platform-specific credential guides in :doc:`../credentials/index`
+- Platform-specific credential guides in the :doc:`Credentials Setup <../usage>` section
