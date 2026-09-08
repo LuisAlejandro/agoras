@@ -142,8 +142,9 @@ You can schedule video publishing from a Google Sheet that contains video paths/
 See :doc:`usage` and :doc:`credentials/google` for how to configure and authorize Google Sheets.
 ::
 
-      agoras utils schedule \
-            --spreadsheet-id "${SPREADSHEET_ID}" \
-            --sheet-name "${SHEET_NAME}" \
-            --youtube-client-id "${YOUTUBE_CLIENT_ID}" \
-            --youtube-client-secret "${YOUTUBE_CLIENT_SECRET}"
+      agoras utils schedule-run \
+            --network youtube \
+            --sheets-id "${GOOGLE_SHEETS_ID}" \
+            --sheets-name "${SHEET_NAME}" \
+            --sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
+            --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"

@@ -29,13 +29,13 @@ Media Processing
    * - v1.x Import
      - v2.0 Import
    * - ``from agoras.core.media import MediaFactory``
-     - ``from agoras.media import MediaFactory``
+     - ``from agoras.media import create_video, download_images``
    * - ``from agoras.core.media.image import Image``
      - ``from agoras.media.image import Image``
    * - ``from agoras.core.media.video import Video``
      - ``from agoras.media.video import Video``
    * - ``from agoras.core.media.factory import MediaFactory``
-     - ``from agoras.media.factory import MediaFactory``
+     - ``from agoras.media.factory import create_image, create_video, download_images``
 
 Core Interfaces
 ---------------

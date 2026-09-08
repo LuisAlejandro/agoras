@@ -87,8 +87,7 @@ Agoras v2.0 provides clearer error messages and validation:
 **Example - Invalid action**::
 
     $ agoras x invalid-action
-    Error: Action 'invalid-action' is not supported by x.
-    Supported actions: authorize, delete, delete-reply, get-post, get-reply, like, list-posts, post, reply, share, thread, video
+    agoras x: error: argument action: invalid choice: 'invalid-action' (choose from authorize, post, video, thread, like, share, delete, delete-reply, reply, get-post, get-reply, list-posts)
 
 Automatic Token Refresh
 -----------------------

@@ -528,7 +528,6 @@ Post Action
 **Optional Arguments**:
 
 - ``--text`` (CLI) / ``STATUS_TEXT`` (ENVVAR) - Text content of the post
-- ``--link`` (CLI) / ``STATUS_LINK`` (ENVVAR) - URL to include in post
 - ``--image-1`` (CLI) / ``STATUS_IMAGE_URL_1`` (ENVVAR) - First image URL
 - ``--image-2`` (CLI) / ``STATUS_IMAGE_URL_2`` (ENVVAR) - Second image URL
 - ``--image-3`` (CLI) / ``STATUS_IMAGE_URL_3`` (ENVVAR) - Third image URL

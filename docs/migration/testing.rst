@@ -60,7 +60,7 @@ Update Your Test Imports
     # tests/test_facebook.py
     import pytest
     from agoras.platforms.facebook import Facebook
-    from agoras.media import MediaFactory
+    from agoras.media import create_video, download_images
     from agoras.common.utils import parse_metatags
 
     @pytest.mark.asyncio

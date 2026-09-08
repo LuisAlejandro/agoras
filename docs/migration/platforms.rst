@@ -345,7 +345,7 @@ Threads
     from agoras.platforms.threads import Threads
 
     async def post_to_threads():
-        th = Threads(threads_access_token='...')
+        th = Threads(threads_app_id='...', threads_app_secret='...', threads_refresh_token='...')
         await th._initialize_client()
         try:
             await th.post(status_text='Hello Threads!', status_link='https://example.com')
@@ -377,7 +377,12 @@ X is the rebranded name for Twitter. Use ``agoras x`` instead of ``agoras twitte
     from agoras.platforms.x import X
 
     async def post_to_x():
-        x_platform = X(x_api_key='...', x_api_secret='...', x_access_token='...', x_access_token_secret='...')
+        x_platform = X(
+            twitter_consumer_key='...',
+            twitter_consumer_secret='...',
+            twitter_oauth_token='...',
+            twitter_oauth_secret='...',
+        )
         await x_platform._initialize_client()
         try:
             await x_platform.post(status_text='Hello X!', status_link='https://example.com')

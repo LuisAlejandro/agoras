@@ -229,7 +229,7 @@ Video
   working directory; YAML relative paths resolve against the content file
   directory.
 * ``--video-title`` - Video title or caption
-* ``--video-description`` - Video description (YouTube, Facebook)
+* ``--video-description`` - Video description (Facebook)
 * ``--video-caption`` - Video caption (Instagram)
 * ``--video-type`` - Video type (Instagram, Facebook)
 
