@@ -52,7 +52,7 @@ Google Sheets (schedule-run)
 | ``GOOGLE_SHEETS_PRIVATE_KEY`` | Service account private key      |
 +-------------------------------+----------------------------------+
 
-``agoras utils schedule-run`` currently requires ``--sheets-*`` flags even when these env vars are set. The legacy ``agoras publish --action schedule`` path (which read the env vars when CLI flags were omitted) was removed in Agoras 3.0; ``agoras utils schedule-run`` reads them today.
+``agoras utils schedule-run`` requires the ``--sheets-*`` flags to be passed on the command line; it does not read these ``GOOGLE_SHEETS_*`` environment variables. The legacy ``agoras publish --action schedule`` path (which read the env vars when CLI flags were omitted) was removed in Agoras 3.0.
 
 Unattended Execution
 --------------------
@@ -125,7 +125,7 @@ X (formerly Twitter)
 
 **Authentication Type**: OAuth 1.0a (API keys + OAuth tokens)
 
-**Actions**: authorize, post, video, like, share, delete
+**Actions**: authorize, post, video, thread, like, share, delete, delete-reply, reply, get-post, get-reply, list-posts
 
 Authorize Action
 ----------------
@@ -210,7 +210,7 @@ Facebook
 
 **Authentication Type**: OAuth 2.0
 
-**Actions**: authorize, post, video, like, share, delete
+**Actions**: authorize, post, video, like, share, delete, delete-reply, reply, get-post, get-reply, list-posts
 
 Authorize Action
 ----------------
@@ -225,9 +225,7 @@ Authorize Action
 Post Action
 -----------
 
-**Required Arguments**:
-
-- ``--object-id`` (CLI) / ``FACEBOOK_OBJECT_ID`` (ENVVAR) - Facebook page or profile ID
+**Required Arguments**: None on the CLI (``--object-id`` is not a CLI flag on ``post``; supply it via ``FACEBOOK_OBJECT_ID`` env var or stored credentials)
 
 **Optional Arguments**:
 
@@ -245,7 +243,6 @@ Video Action
 
 **Required Arguments**:
 
-- ``--object-id`` (CLI) / ``FACEBOOK_OBJECT_ID`` (ENVVAR) - Facebook page or profile ID
 - ``--video-url`` (CLI) / ``FACEBOOK_VIDEO_URL`` (ENVVAR) - Video file URL
 
 **Optional Arguments**:
@@ -296,7 +293,7 @@ Instagram
 
 **Authentication Type**: OAuth 2.0 (uses Facebook OAuth)
 
-**Actions**: authorize, post, video
+**Actions**: authorize, post, video, delete, delete-reply, reply, get-post, get-reply, list-posts
 
 Authorize Action
 ----------------
@@ -310,12 +307,12 @@ Authorize Action
 Post Action
 -----------
 
-**Required Arguments**:
-
-- ``--object-id`` (CLI) / ``INSTAGRAM_OBJECT_ID`` (ENVVAR) - Instagram business account ID
+**Required Arguments**: None on the CLI (``--object-id`` is not a CLI flag on ``post``; supply it via ``INSTAGRAM_OBJECT_ID`` env var or stored credentials)
 
 **Optional Arguments**:
 
+- ``--text`` (CLI) / ``STATUS_TEXT`` (ENVVAR) - Text content of the post
+- ``--link`` (CLI) / ``STATUS_LINK`` (ENVVAR) - URL to include in the post
 - ``--image-1`` (CLI) / ``STATUS_IMAGE_URL_1`` (ENVVAR) - Image URL (required for photo posts)
 
 **Unattended Execution**: Set ``INSTAGRAM_OBJECT_ID``, ``INSTAGRAM_CLIENT_ID``, ``INSTAGRAM_CLIENT_SECRET``, and ``INSTAGRAM_REFRESH_TOKEN`` environment variables.
@@ -325,7 +322,6 @@ Video Action
 
 **Required Arguments**:
 
-- ``--object-id`` (CLI) / ``INSTAGRAM_OBJECT_ID`` (ENVVAR) - Instagram business account ID
 - ``--video-url`` (CLI) / ``INSTAGRAM_VIDEO_URL`` (ENVVAR) - Video file URL
 
 **Optional Arguments**:
@@ -340,7 +336,7 @@ LinkedIn
 
 **Authentication Type**: OAuth 2.0
 
-**Actions**: authorize, post, video, like, share, delete
+**Actions**: authorize, post, video, like, share, delete, delete-reply, reply, get-post, get-reply, list-posts
 
 Authorize Action
 ----------------
@@ -350,6 +346,7 @@ Authorize Action
 - ``--client-id`` (CLI) / ``LINKEDIN_CLIENT_ID`` (ENVVAR) - LinkedIn App client ID
 - ``--client-secret`` (CLI) / ``LINKEDIN_CLIENT_SECRET`` (ENVVAR) - LinkedIn App client secret
 - ``--object-id`` (CLI) / ``LINKEDIN_OBJECT_ID`` (ENVVAR) - LinkedIn user/organization ID
+- ``--scope`` (CLI) - Comma-separated scopes that replace the default ``openid,profile,email,w_member_social`` for this authorize run (add ``w_member_social_feed`` on apps that hold it to enable comment/reply actions)
 
 Post Action
 -----------
@@ -407,7 +404,7 @@ Discord
 
 **Authentication Type**: Bot Token
 
-**Actions**: authorize, post, video, delete
+**Actions**: authorize, post, video, thread, delete, delete-reply, reply, get-post, get-reply, list-posts
 
 Authorize Action
 ----------------
@@ -463,7 +460,7 @@ YouTube
 
 **Authentication Type**: OAuth 2.0
 
-**Actions**: authorize, video, like, delete
+**Actions**: authorize, video, like, delete, delete-reply, reply, get-post, get-reply, list-posts
 
 Authorize Action
 ----------------
@@ -513,7 +510,7 @@ TikTok
 
 **Authentication Type**: OAuth 2.0
 
-**Actions**: authorize, post, video
+**Actions**: authorize, post, video, reply, get-post, get-reply, list-posts
 
 Authorize Action
 ----------------
@@ -534,12 +531,12 @@ Post Action
 **Optional Arguments**:
 
 - ``--text`` (CLI) / ``STATUS_TEXT`` (ENVVAR) - Text content of the post
-- ``--link`` (CLI) / ``STATUS_LINK`` (ENVVAR) - URL to include in post
 - ``--image-1`` (CLI) / ``STATUS_IMAGE_URL_1`` (ENVVAR) - First image URL
 - ``--image-2`` (CLI) / ``STATUS_IMAGE_URL_2`` (ENVVAR) - Second image URL
 - ``--image-3`` (CLI) / ``STATUS_IMAGE_URL_3`` (ENVVAR) - Third image URL
 - ``--image-4`` (CLI) / ``STATUS_IMAGE_URL_4`` (ENVVAR) - Fourth image URL
 - ``--title`` (CLI) / ``TIKTOK_TITLE`` (ENVVAR) - Post title/caption
+- ``--description`` (CLI) / ``TIKTOK_DESCRIPTION`` (ENVVAR) - Post description/caption (max 4000 UTF-16 runes)
 - ``--privacy`` (CLI) / ``TIKTOK_PRIVACY_STATUS`` (ENVVAR) - Unattended privacy (``SELF_ONLY`` only). Interactive post/video open a localhost composer instead of applying this flag.
 - ``--allow-comments`` (CLI) / ``TIKTOK_ALLOW_COMMENTS`` (ENVVAR) - Allow comments on the post (default: true)
 - ``--auto-add-music`` (CLI) / ``TIKTOK_AUTO_ADD_MUSIC`` (ENVVAR) - Automatically add music to the slideshow (default: false)
@@ -570,7 +567,7 @@ Threads
 
 **Authentication Type**: OAuth 2.0
 
-**Actions**: authorize, post, video, share, delete
+**Actions**: authorize, post, video, thread, share, delete, delete-reply, reply, get-post, get-reply, list-posts
 
 Authorize Action
 ----------------
@@ -621,7 +618,7 @@ Telegram
 
 **Authentication Type**: Bot Token
 
-**Actions**: authorize, post, video, delete
+**Actions**: authorize, post, video, delete, delete-reply, reply, get-post, get-reply, list-posts
 
 Authorize Action
 ----------------
@@ -677,7 +674,7 @@ WhatsApp
 
 **Authentication Type**: API Token
 
-**Actions**: authorize, post, video, template
+**Actions**: authorize, post, video, template, reply, get-post, get-reply, list-posts
 
 Authorize Action
 ----------------
@@ -755,4 +752,4 @@ See Also
 
 - :doc:`parameters` - Complete parameter reference
 - :doc:`action-support` - Platform action support matrix
-- Platform-specific credential guides in :doc:`../credentials/index`
+- Platform-specific credential guides in the :doc:`Credentials Setup <../usage>` section

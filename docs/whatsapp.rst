@@ -31,6 +31,7 @@ Available Actions
 * ``post`` - Send text messages with links and images (up to 4 images)
 * ``video`` - Send video messages
 * ``template`` - Send pre-approved template messages
+* ``reply`` - Reply to a message
 * ``get-post`` - Read a post/message by ID (CLI only; runtime raises not supported)
 * ``get-reply`` - Read a reply/comment by ID (CLI only; runtime raises not supported)
 * ``list-posts`` - List recent messages (CLI only; runtime raises not supported)
@@ -120,15 +121,15 @@ This command will send a video message to a WhatsApp recipient. The video can in
     agoras whatsapp video \
       --recipient "${WHATSAPP_RECIPIENT}" \
       --video-url "https://example.com/video.mp4" \
-      --video-title "My Video" \
-      --text "Check out this video!"
+      --video-title "My Video"
 
 Parameters:
 
 - ``--recipient``: Target recipient phone number in E.164 format (required)
 - ``--video-url``: URL pointing to a publicly accessible video file (required)
 - ``--video-title``: Title for the video (optional, not used by WhatsApp but kept for compatibility)
-- ``--text``: Caption text for the video (optional)
+
+**Note**: ``--text`` is not accepted on the ``video`` action. To attach a caption to a video, use a ``--content`` YAML file (see :doc:`content-files`).
 
 **Video requirements**:
 - **Supported formats**: MP4, 3GP
