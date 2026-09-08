@@ -77,7 +77,7 @@ This command uploads a video file from a local path or a remote URL to your YouT
 **Parameters**:
 
 * ``--video-url`` (required): Local file path or public URL of the video to upload.
-* ``--title`` (optional): The title of the video.
+* ``--title`` (required): The title of the video.
 * ``--description`` (optional): The description of the video.
 * ``--category-id`` (optional): The numeric YouTube category ID (e.g., ``22`` for People & Blogs, ``28`` for Science & Technology).
 * ``--privacy`` (optional): Video privacy status. Choices are ``public``, ``private``, or ``unlisted`` (default: ``private``).

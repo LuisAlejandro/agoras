@@ -111,10 +111,12 @@ Agoras supports environment variables for CI/CD pipelines::
     export FACEBOOK_CLIENT_ID="your_id"
     export FACEBOOK_CLIENT_SECRET="your_secret"
 
-    # Use in commands (parameters can be omitted if env vars are set)
+    # Use in commands (authorize requires these flags even when env vars are set)
     agoras facebook authorize \
       --app-id "$FACEBOOK_APP_ID" \
-      --object-id "$FACEBOOK_OBJECT_ID"
+      --object-id "$FACEBOOK_OBJECT_ID" \
+      --client-id "$FACEBOOK_CLIENT_ID" \
+      --client-secret "$FACEBOOK_CLIENT_SECRET"
 
 Platform Commands
 ~~~~~~~~~~~~~~~~~

@@ -223,7 +223,7 @@ New (v2.0+)::
 TikTok
 ------
 
-**Uploading a Video** (TikTok is video-only)
+**Uploading a Video** (TikTok also supports photo slideshow posts via ``agoras tiktok post``)
 
 .. versionchanged:: 2.0
    TikTok now requires OAuth 2.0 authorization first.

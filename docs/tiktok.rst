@@ -80,6 +80,14 @@ On that page you choose privacy (no default), interactions, and commercial discl
       --image-1 "${IMAGE_URL_1}" \
       --image-2 "${IMAGE_URL_2}"
 
+Optional interaction flags (applied when set):
+
+* ``--allow-comments`` — allow comments (post and video; default: true).
+* ``--allow-duet`` — allow other users to duet with your video (video only; default: true).
+* ``--allow-stitch`` — allow other users to stitch your video (video only; default: true).
+* ``--auto-add-music`` — automatically add music to the slideshow (post only; default: false).
+* ``--description`` — post description/caption (post only; max 4000 UTF-16 runes).
+
 .. note::
    You must run ``agoras tiktok authorize`` first. Piping stdout (for example ``| jq``) does not skip the composer. ``last-from-feed``, ``random-from-feed``, and ``schedule`` never open it.
 

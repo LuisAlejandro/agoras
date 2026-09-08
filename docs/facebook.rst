@@ -90,6 +90,13 @@ Upload a Video
       --video-title "${VIDEO_TITLE}" \
       --video-description "${VIDEO_DESCRIPTION}"
 
+**Parameters**:
+
+* ``--video-url`` (required): Local file path or public URL of the video to upload.
+* ``--video-title`` (optional): Title of the video.
+* ``--video-description`` (optional): Description of the video.
+* ``--video-type`` (optional): Type of video, one of ``regular``, ``reel``, or ``story``.
+
 .. note::
    You must run ``agoras facebook authorize`` first before using this command.
 

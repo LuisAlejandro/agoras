@@ -64,19 +64,6 @@ Platform registry for managing supported platforms and their actions.
     :undoc-members:
     :show-inheritance:
 
-agoras.cli.commands package
----------------------------
-
-CLI command implementations.
-
-agoras.cli.commands package
----------------------------
-
-.. automodule:: agoras.cli.commands
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 agoras.cli.utils package
 -------------------------
 
@@ -106,6 +93,46 @@ agoras.cli.utils.schedule module
 Scheduling utilities for Google Sheets integration.
 
 .. automodule:: agoras.cli.utils.schedule
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+agoras.cli.utils.tokens module
+--------------------------------
+
+Token storage and retrieval utilities.
+
+.. automodule:: agoras.cli.utils.tokens
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+agoras.cli.utils.media_limits module
+--------------------------------------
+
+Media upload size/format limit utilities.
+
+.. automodule:: agoras.cli.utils.media_limits
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+agoras.cli.utils.text_limits module
+-------------------------------------
+
+Text length limit utilities.
+
+.. automodule:: agoras.cli.utils.text_limits
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+agoras.cli.utils.unattended_format module
+--------------------------------------------
+
+Unattended (CI) output formatting utilities.
+
+.. automodule:: agoras.cli.utils.unattended_format
     :members:
     :undoc-members:
     :show-inheritance:

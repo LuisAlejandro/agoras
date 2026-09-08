@@ -134,7 +134,7 @@ Update pytest.ini:
 
     [pytest]
     asyncio_mode = auto
-    testpaths = tests
+    testpaths = packages
     python_files = test_*.py
     python_classes = Test*
     python_functions = test_*

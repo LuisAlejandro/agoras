@@ -55,7 +55,7 @@ For CI/CD environments, see :doc:`credentials/instagram` for unattended executio
 Publish a Instagram post
 ------------------------
 
-This command will publish a post to the Instagram account configured via the ``INSTAGRAM_OBJECT_ID`` environment variable or stored credentials (read about how to get the id of an account :ref:`here <how-to-get-instagram-account-id>`). ``--text`` is the text of your post (URLs won't be transformed into clickable links). A instagram post can have a maximum of 2200 characters, so be careful not to exceed it. You can also add a single image in your post using ``--image-1``, which must be a public HTTP(s) URL. Instagram stills are pull-only and reject local paths.
+This command will publish a post to the Instagram account configured via the ``INSTAGRAM_OBJECT_ID`` environment variable or stored credentials (read about how to get the id of an account :ref:`here <how-to-get-instagram-account-id>`). ``--text`` is the text of your post (URLs won't be transformed into clickable links). A instagram post can have a maximum of 2200 characters, so be careful not to exceed it. A post requires at least one image, added with ``--image-1`` (and optional ``--image-2``, ``--image-3``, ...), which must be a public HTTP(s) URL; a text-only post is rejected. Instagram stills are pull-only and reject local paths.
 
 .. note::
    You must run ``agoras instagram authorize`` first before using this command.
