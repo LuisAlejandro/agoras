@@ -152,8 +152,7 @@ Process scheduled messages from a Google Sheet:
       --sheets-id "${GOOGLE_SHEETS_ID}" \
       --sheets-name "TikTok" \
       --sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-      --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" \
-      --tiktok-username "${TIKTOK_USERNAME}"
+      --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
 
 .. note::
    You must run ``agoras tiktok authorize`` first before using this command.

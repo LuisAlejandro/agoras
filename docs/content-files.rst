@@ -1,7 +1,7 @@
 YAML Content Files
 ==================
 
-.. versionadded:: 2.2
+.. versionadded:: 2.1
 
 Agoras accepts a single YAML content file via ``--content`` as an alternative to
 inline content flags (``--text``, ``--video-url``, ``--image-1``, …). Auth,
@@ -17,7 +17,8 @@ Rules
 * One operation per file (one publish/thread document).
 * File must declare ``version: 1``.
 * Do not put ``platform``, ``action``, ``kind``, ``network``, or auth fields in YAML.
-* Media values must be ``http://`` or ``https://`` URLs (no local paths).
+* Media values may be ``http://``/``https://`` URLs or local media paths
+  (``file://`` URIs and relative paths resolve against the content file directory).
 * Unknown or action-incompatible keys are rejected.
 * ``--content`` is mutually exclusive with inline content flags.
 * Control flags such as ``--recipient``, ``--parse-mode``, ``--loglevel``, and

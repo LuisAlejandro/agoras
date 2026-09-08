@@ -125,7 +125,7 @@ X (formerly Twitter)
 
 **Authentication Type**: OAuth 1.0a (API keys + OAuth tokens)
 
-**Actions**: authorize, post, video, like, share, delete
+**Actions**: authorize, post, video, thread, like, share, delete, delete-reply, reply, get-post, get-reply, list-posts
 
 Authorize Action
 ----------------
@@ -210,7 +210,7 @@ Facebook
 
 **Authentication Type**: OAuth 2.0
 
-**Actions**: authorize, post, video, like, share, delete
+**Actions**: authorize, post, video, like, share, delete, delete-reply, reply, get-post, get-reply, list-posts
 
 Authorize Action
 ----------------
@@ -225,9 +225,7 @@ Authorize Action
 Post Action
 -----------
 
-**Required Arguments**:
-
-- ``--object-id`` (CLI) / ``FACEBOOK_OBJECT_ID`` (ENVVAR) - Facebook page or profile ID
+**Required Arguments**: None on the CLI (``--object-id`` is not a CLI flag on ``post``; supply it via ``FACEBOOK_OBJECT_ID`` env var or stored credentials)
 
 **Optional Arguments**:
 
@@ -245,7 +243,6 @@ Video Action
 
 **Required Arguments**:
 
-- ``--object-id`` (CLI) / ``FACEBOOK_OBJECT_ID`` (ENVVAR) - Facebook page or profile ID
 - ``--video-url`` (CLI) / ``FACEBOOK_VIDEO_URL`` (ENVVAR) - Video file URL
 
 **Optional Arguments**:
@@ -296,7 +293,7 @@ Instagram
 
 **Authentication Type**: OAuth 2.0 (uses Facebook OAuth)
 
-**Actions**: authorize, post, video
+**Actions**: authorize, post, video, delete, delete-reply, reply, get-post, get-reply, list-posts
 
 Authorize Action
 ----------------
@@ -310,9 +307,7 @@ Authorize Action
 Post Action
 -----------
 
-**Required Arguments**:
-
-- ``--object-id`` (CLI) / ``INSTAGRAM_OBJECT_ID`` (ENVVAR) - Instagram business account ID
+**Required Arguments**: None on the CLI (``--object-id`` is not a CLI flag on ``post``; supply it via ``INSTAGRAM_OBJECT_ID`` env var or stored credentials)
 
 **Optional Arguments**:
 
@@ -325,7 +320,6 @@ Video Action
 
 **Required Arguments**:
 
-- ``--object-id`` (CLI) / ``INSTAGRAM_OBJECT_ID`` (ENVVAR) - Instagram business account ID
 - ``--video-url`` (CLI) / ``INSTAGRAM_VIDEO_URL`` (ENVVAR) - Video file URL
 
 **Optional Arguments**:
@@ -340,7 +334,7 @@ LinkedIn
 
 **Authentication Type**: OAuth 2.0
 
-**Actions**: authorize, post, video, like, share, delete
+**Actions**: authorize, post, video, like, share, delete, delete-reply, reply, get-post, get-reply, list-posts
 
 Authorize Action
 ----------------
@@ -407,7 +401,7 @@ Discord
 
 **Authentication Type**: Bot Token
 
-**Actions**: authorize, post, video, delete
+**Actions**: authorize, post, video, thread, delete, delete-reply, reply, get-post, get-reply, list-posts
 
 Authorize Action
 ----------------
@@ -463,7 +457,7 @@ YouTube
 
 **Authentication Type**: OAuth 2.0
 
-**Actions**: authorize, video, like, delete
+**Actions**: authorize, video, like, delete, delete-reply, reply, get-post, get-reply, list-posts
 
 Authorize Action
 ----------------
@@ -513,7 +507,7 @@ TikTok
 
 **Authentication Type**: OAuth 2.0
 
-**Actions**: authorize, post, video
+**Actions**: authorize, post, video, reply, get-post, get-reply, list-posts
 
 Authorize Action
 ----------------
@@ -570,7 +564,7 @@ Threads
 
 **Authentication Type**: OAuth 2.0
 
-**Actions**: authorize, post, video, share, delete
+**Actions**: authorize, post, video, thread, share, delete, delete-reply, reply, get-post, get-reply, list-posts
 
 Authorize Action
 ----------------
@@ -621,7 +615,7 @@ Telegram
 
 **Authentication Type**: Bot Token
 
-**Actions**: authorize, post, video, delete
+**Actions**: authorize, post, video, delete, delete-reply, reply, get-post, get-reply, list-posts
 
 Authorize Action
 ----------------
@@ -677,7 +671,7 @@ WhatsApp
 
 **Authentication Type**: API Token
 
-**Actions**: authorize, post, video, template
+**Actions**: authorize, post, video, template, reply, get-post, get-reply, list-posts
 
 Authorize Action
 ----------------

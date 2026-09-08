@@ -31,6 +31,7 @@ Available Actions
 * ``post`` - Send text messages with links and images (up to 4 images)
 * ``video`` - Send video messages
 * ``template`` - Send pre-approved template messages
+* ``reply`` - Reply to a message
 * ``get-post`` - Read a post/message by ID (CLI only; runtime raises not supported)
 * ``get-reply`` - Read a reply/comment by ID (CLI only; runtime raises not supported)
 * ``list-posts`` - List recent messages (CLI only; runtime raises not supported)

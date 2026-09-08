@@ -28,6 +28,7 @@ Available Actions
 * ``video`` - Upload and publish a video to YouTube
 * ``like`` - Like a YouTube video
 * ``delete`` - Delete a YouTube video
+* ``reply`` - Reply to a comment
 * ``delete-reply`` - Delete a YouTube comment
 * ``get-post`` - Read a post/message by ID
 * ``get-reply`` - Read a reply/comment by ID

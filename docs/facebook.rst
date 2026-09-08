@@ -30,6 +30,7 @@ Available Actions
 * ``share`` - Share posts to your profile
 * ``delete`` - Delete your own posts
 * ``delete-reply`` - Delete a comment you posted
+* ``reply`` - Comment on a post
 * ``get-post`` - Read a post/message by ID
 * ``get-reply`` - Read a reply/comment by ID
 * ``list-posts`` - List recent posts from a page/profile (requires ``--object-id``)
@@ -65,7 +66,6 @@ Post to Facebook
 **New format**::
 
     agoras facebook post \
-      --object-id "${FACEBOOK_OBJECT_ID}" \
       --text "${STATUS_TEXT}" \
       --link "${STATUS_LINK}" \
       --image-1 "${IMAGE_URL_1}" \
@@ -86,7 +86,6 @@ Upload a Video
 **New format**::
 
     agoras facebook video \
-      --object-id "${FACEBOOK_OBJECT_ID}" \
       --video-url "${VIDEO_URL}" \
       --video-title "${VIDEO_TITLE}" \
       --video-description "${VIDEO_DESCRIPTION}"
@@ -118,7 +117,6 @@ This command will grab a post identified by ``--post-id`` that is currently publ
 **New format**::
 
     agoras facebook share \
-      --object-id "${FACEBOOK_OBJECT_ID}" \
       --post-id "${FACEBOOK_POST_ID}" \
       --profile-id "${FACEBOOK_PROFILE_ID}"
 
@@ -135,7 +133,6 @@ This command will delete a post identified by ``--post-id`` that is currently pu
 **New format**::
 
     agoras facebook delete \
-      --object-id "${FACEBOOK_OBJECT_ID}" \
       --post-id "${FACEBOOK_POST_ID}"
 
 
@@ -290,7 +287,6 @@ Using Agoras
 When you create a facebook post with Agoras, it will print the post ID (in json format) in the console. You can copy it from there and use it in other commands. For example::
 
       $ agoras facebook post \
-            --object-id XXXXX \
             --text "This is a test post"
       $ {"id":"NNNNNNNNNNN"}
 

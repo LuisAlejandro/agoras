@@ -20,7 +20,9 @@ Platform Commands vs Utils Commands
     agoras utils feed-publish --network x --mode last --feed-url "https://example.com/feed.xml"
 
 .. note::
-   The ``agoras twitter`` command and ``--twitter-*`` parameters are deprecated. Use ``agoras x`` and ``--x-*`` parameters instead.
+   The ``agoras twitter`` command is deprecated. Use ``agoras x`` instead. The
+   legacy ``--twitter-*``/``--x-*`` credential parameters applied to the removed
+   ``agoras publish`` command only; utils commands accept no credential flags.
 
 Authentication Parameters
 =========================
@@ -36,10 +38,12 @@ X (formerly Twitter)
 * ``--consumer-key`` - X API consumer key (required)
 * ``--consumer-secret`` - X API consumer secret (required)
 
-**Action commands** (``post``, ``video``, ``like``, ``share``, ``delete``, ``thread``, ``template``): no credential flags; use content/action parameters such as ``--text``, ``--post-id``, ``--video-url``, or ``--content``.
+**Action commands** (``post``, ``video``, ``like``, ``share``, ``delete``, ``thread``, ``reply``): no credential flags; use content/action parameters such as ``--text``, ``--post-id``, ``--video-url``, or ``--content``.
 
 .. deprecated:: 2.0
-   The ``--twitter-*`` parameters in utils commands are deprecated. Use ``--x-*`` parameters instead.
+   The legacy ``--twitter-*``/``--x-*`` credential parameters in utils commands
+   are removed. Use ``agoras x authorize`` or the ``TWITTER_*`` environment
+   variables instead.
 
 .. note::
    The ``agoras twitter`` command is deprecated. Use ``agoras x`` instead.
@@ -56,7 +60,7 @@ Facebook
 * ``--client-id`` - Facebook App client ID (required for authorize)
 * ``--client-secret`` - Facebook App client secret (required for authorize)
 * ``--app-id`` - Facebook App ID (required for authorize)
-* ``--object-id`` - Facebook page or profile ID (required for authorize and post/video)
+* ``--object-id`` - Facebook page or profile ID (required for authorize; supplied on post/video via ``FACEBOOK_OBJECT_ID`` env var or stored credentials)
 
 .. note::
    OAuth platforms require authorization via ``agoras <platform> authorize`` before use.
@@ -72,7 +76,7 @@ Instagram
 * ``authorize`` - OAuth 2.0 authorization action (required first step)
 * ``--client-id`` - Facebook App client ID (required for authorize, Instagram uses Facebook OAuth)
 * ``--client-secret`` - Facebook App client secret (required for authorize)
-* ``--object-id`` - Facebook user ID for Instagram business account (required for authorize and post/video)
+* ``--object-id`` - Facebook user ID for Instagram business account (required for authorize; supplied on post/video via ``INSTAGRAM_OBJECT_ID`` env var or stored credentials)
 
 .. note::
    OAuth platforms require authorization via ``agoras <platform> authorize`` before use.
@@ -290,7 +294,9 @@ X (formerly Twitter)
 * ``--x-oauth-secret`` - X OAuth secret
 
 .. deprecated:: 2.0
-   The ``--twitter-*`` parameters in utils commands are deprecated. Use ``--x-*`` parameters instead.
+   The legacy ``--twitter-*``/``--x-*`` credential parameters in utils commands
+   are removed. Use ``agoras x authorize`` or the ``TWITTER_*`` environment
+   variables instead.
 
 Facebook
 ~~~~~~~~

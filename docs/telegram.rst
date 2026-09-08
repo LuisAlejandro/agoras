@@ -30,6 +30,7 @@ Available Actions
 * ``video`` - Upload and send video files
 * ``delete`` - Delete messages
 * ``delete-reply`` - Delete a Telegram reply message
+* ``reply`` - Reply to a message
 * ``get-post`` - Read a post/message by ID (CLI only; runtime raises not supported)
 * ``get-reply`` - Read a reply/comment by ID (CLI only; runtime raises not supported)
 * ``list-posts`` - List recent messages (CLI only; runtime raises not supported)

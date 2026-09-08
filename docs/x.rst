@@ -34,6 +34,7 @@ Available Actions
 * ``share`` - Retweet/share posts
 * ``delete`` - Delete your own posts
 * ``delete-reply`` - Delete a reply you posted
+* ``reply`` - Reply to a tweet
 * ``get-post`` - Read a post/message by ID
 * ``get-reply`` - Read a reply/comment by ID
 * ``list-posts`` - List recent tweets from the authenticated user
@@ -76,7 +77,7 @@ Post a Tweet
 Publish a Thread
 ----------------
 
-.. versionadded:: 2.2
+.. versionadded:: 2.1
 
 ``thread`` is YAML-only. Each entry may include text/link/images **or** one
 video URL. Agoras posts the first entry, then replies in order using the

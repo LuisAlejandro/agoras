@@ -91,7 +91,6 @@ New (v2.0+)::
 
     # Then post (no tokens needed)
     agoras facebook post \
-      --object-id "$PAGE_ID" \
       --text "Hello Facebook"
 
 **Uploading a Video**
@@ -108,7 +107,6 @@ New (v2.0+)::
 
     # After authorization
     agoras facebook video \
-      --object-id "$PAGE_ID" \
       --video-url "video.mp4" \
       --video-title "My Video"
 
@@ -137,7 +135,6 @@ New (v2.0+)::
 
     # Then post (no tokens needed)
     agoras instagram post \
-      --object-id "$ACCOUNT_ID" \
       --text "Hello Instagram"
 
 LinkedIn

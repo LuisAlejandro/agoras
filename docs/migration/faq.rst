@@ -87,7 +87,7 @@ A: Parameter names were simplified for better usability. For example, ``--status
 Q: Can I still use old parameter names?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A: In platform commands, old parameter names are not supported. In utils commands, some deprecated parameter names (like ``--twitter-*``) still work but show deprecation warnings. See :doc:`migration/reference` for the complete parameter reference.
+A: In platform commands, old parameter names are not supported. Utils commands accept no credential parameters — use ``agoras <platform> authorize`` or environment variables. See :doc:`migration/reference` for the complete parameter reference.
 
 Q: Why are some parameters different in utils commands?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -128,7 +128,7 @@ A: You can migrate at any time. The legacy commands still work, so you can migra
 Q: Can I migrate gradually?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A: Yes! You can use both old and new commands during the transition period. Start by migrating new scripts to the new format, then gradually update existing scripts. The ``--show-migration`` flag can help you preview the new command format.
+A: Yes! You can use both old and new commands during the transition period. Start by migrating new scripts to the new format, then gradually update existing scripts. The per-platform help (``agoras x --help``) shows the new command format.
 
 Common Migration Pitfalls
 ==========================

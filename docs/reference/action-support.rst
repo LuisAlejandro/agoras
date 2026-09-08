@@ -55,7 +55,7 @@ Complete Support Matrix
      - ✗
      - ✗
      - ✗
-     - ✗
+     - ✓
      - ✓
      - ✓
      - ✓
@@ -201,7 +201,7 @@ Limited Action Platforms
 
 These platforms have specific API limitations:
 
-* **Instagram**: Post and video only (no like, share, or delete via API)
+* **Instagram**: Post, video, and delete (no like or share via API)
 * **Discord**: Bot-based messaging (post, video, thread, delete; no traditional likes)
 * **Threads**: Post, video, thread, share, and delete (no like via CLI)
 * **Telegram**: Post, video, and delete (messaging platform)

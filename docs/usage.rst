@@ -57,7 +57,7 @@ See platform-specific credential guides for detailed setup instructions.
 YAML Content Files
 ------------------
 
-.. versionadded:: 2.2
+.. versionadded:: 2.1
 
 Publish actions accept ``--content path.yaml`` as an alternative to inline
 content flags. The CLI action remains authoritative; the file must not declare
@@ -87,8 +87,8 @@ Agoras v2.0 provides clearer error messages and validation:
 **Example - Invalid action**::
 
     $ agoras x invalid-action
-    Error: Unknown action 'invalid-action' for platform 'x'.
-    Available actions: authorize, post, video, like, share, delete, thread
+    Error: Action 'invalid-action' is not supported by x.
+    Supported actions: authorize, delete, delete-reply, get-post, get-reply, like, list-posts, post, reply, share, thread, video
 
 Automatic Token Refresh
 -----------------------
@@ -155,7 +155,9 @@ Automate posting from RSS/Atom feeds or Google Sheets schedules::
 
 **Example** (authorize once, or set ``TWITTER_*`` env vars for CI)::
 
-    agoras x authorize  # one-time, interactive
+    agoras x authorize \
+      --consumer-key "$TWITTER_CONSUMER_KEY" \
+      --consumer-secret "$TWITTER_CONSUMER_SECRET"
 
     agoras utils feed-publish \
       --network x \
@@ -218,16 +220,14 @@ First, authorize Agoras to access your Facebook account::
       --app-id "$FACEBOOK_APP_ID" \
       --object-id "$FACEBOOK_PAGE_ID"
 
-Then post to a Facebook page::
+Then post to a Facebook page (``--object-id`` comes from env var or stored credentials)::
 
     agoras facebook post \
-      --object-id "$FACEBOOK_PAGE_ID" \
       --text "Hello from Agoras!"
 
 Upload a video::
 
     agoras facebook video \
-      --object-id "$FACEBOOK_PAGE_ID" \
       --video-url "https://example.com/video.mp4" \
       --video-title "My Video"
 
@@ -276,16 +276,14 @@ First, authorize Agoras to access your Instagram account::
 Then post to Instagram::
 
     agoras instagram post \
-      --object-id "$INSTAGRAM_ACCOUNT_ID" \
       --image-1 "https://example.com/image.jpg" \
       --text "Hello from Agoras!"
 
 Upload a video::
 
     agoras instagram video \
-      --object-id "$INSTAGRAM_ACCOUNT_ID" \
       --video-url "https://example.com/video.mp4" \
-      --text "My Instagram video"
+      --video-caption "My Instagram video"
 
 LinkedIn
 ~~~~~~~~
@@ -307,7 +305,7 @@ Upload a video::
 
     agoras linkedin video \
       --video-url "https://example.com/video.mp4" \
-      --text "My LinkedIn video"
+      --video-title "My LinkedIn video"
 
 TikTok
 ~~~~~~
@@ -399,16 +397,16 @@ Run scheduled posts from Google Sheets (``--network`` required; one platform per
 Detailed Platform Guides
 -------------------------
 
-- :doc:`X (formerly Twitter) <x>` - Full action set (post, video, like, share, delete)
-- :doc:`Facebook <facebook>` - Full action set (post, video, like, share, delete)
-- :doc:`Instagram <instagram>` - Limited actions (post, video)
-- :doc:`LinkedIn <linkedin>` - Full action set (post, video, like, share, delete)
-- :doc:`Discord <discord>` - Bot-based messaging (post, video, delete)
-- :doc:`YouTube <youtube>` - Video platform (video, like, delete)
-- :doc:`TikTok <tiktok>` - Video platform (video, delete)
-- :doc:`Threads <threads>` - Meta's text platform (post, video, share)
-- :doc:`Telegram <telegram>` - Bot-based messaging (post, video, delete)
-- :doc:`WhatsApp <whatsapp>` - Business API messaging (post, video)
+- :doc:`X (formerly Twitter) <x>` - Full action set (post, video, thread, like, share, delete, reply, read)
+- :doc:`Facebook <facebook>` - Full action set (post, video, like, share, delete, reply, read)
+- :doc:`Instagram <instagram>` - Post, video, delete, and comment actions
+- :doc:`LinkedIn <linkedin>` - Full action set (post, video, like, share, delete, reply, read)
+- :doc:`Discord <discord>` - Bot-based messaging (post, video, thread, delete, reply)
+- :doc:`YouTube <youtube>` - Video platform (video, like, delete, reply)
+- :doc:`TikTok <tiktok>` - Video and photo slideshow platform (post, video, reply)
+- :doc:`Threads <threads>` - Meta's text platform (post, video, thread, share, delete, reply)
+- :doc:`Telegram <telegram>` - Bot-based messaging (post, video, delete, reply)
+- :doc:`WhatsApp <whatsapp>` - Business API messaging (post, video, template, reply)
 
 Feed Automation
 ---------------

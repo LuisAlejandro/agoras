@@ -1,27 +1,6 @@
 Testing Your Migration
 =======================
 
-Preview Mode
-------------
-
-Use the ``--show-migration`` flag to preview the new command without executing::
-
-    agoras publish --network twitter --action post \
-      --twitter-consumer-key "$KEY" \
-      --status-text "Test" \
-      --show-migration
-
-This will show::
-
-    Migration Preview:
-      Old: agoras publish --network twitter --action post [options]
-      New: agoras x post --text "Test"
-
-    No action executed (preview mode)
-
-.. versionchanged:: 2.1
-   Since 2.1.0, ``--show-migration`` omits credential flags from platform **action** suggestions. Run ``agoras <platform> authorize`` separately, or set the platform environment variables documented in :doc:`../reference/platform-arguments-envvars`.
-
 Platform-Specific Help
 ----------------------
 
@@ -45,7 +24,7 @@ Explore new commands using help::
 Gradual Migration Strategy
 ===========================
 
-1. **Week 1**: Test migration using ``--show-migration`` flag
+1. **Week 1**: Explore the new commands using ``agoras <platform> --help`` and the migration guide
 2. **Week 2**: Migrate non-critical scripts to new format
 3. **Week 3**: Update CI/CD pipelines with new commands
 4. **Week 4**: Migrate production scripts
