@@ -76,7 +76,7 @@ setup(
         'google-auth-httplib2==0.4.1',
         'authlib==1.7.2',
         'cryptography>=50.0.0',
-        'python-telegram-bot>=22.1',
+        'python-telegram-bot>=22.8',
         # From agoras
         'PyYAML==6.0.3',
     ],
