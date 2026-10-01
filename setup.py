@@ -73,7 +73,7 @@ setup(
         'linkedin-api-client==0.3.0',
         'discord.py==2.7.1',
         'google-api-python-client==2.198.0',
-        'google-auth-httplib2==0.4.1',
+        'google-auth-httplib2==0.4.2',
         'authlib==1.7.2',
         'cryptography>=50.0.0',
         'python-telegram-bot>=22.1',
