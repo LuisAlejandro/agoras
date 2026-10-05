@@ -18,6 +18,8 @@
 """agoras.platforms.linkedin.auth module."""
 
 import asyncio
+import base64
+import json
 import os
 import secrets
 import sys
@@ -26,11 +28,31 @@ from typing import Optional
 
 from authlib.integrations.requests_client import OAuth2Session
 
+from agoras.core.api_base import sanitize_error_text
 from agoras.core.auth import BaseAuthManager
 from agoras.core.auth.callback_server import OAuthCallbackServer
 from agoras.core.auth.failure import env_has_refresh_token
+from agoras.core.auth.storage import build_composite_key
 
 from .client import LinkedInAPIClient
+
+# LinkedIn default authorize scopes: sign-in (OIDC) + the legacy posting scope
+# that drives the modern /rest posts + images endpoints. Comment/reply actions
+# additionally require w_member_social_feed (Community Management), available
+# via the --scope override on apps that hold it.
+LINKEDIN_OAUTH_DEFAULT_SCOPES = "openid profile email w_member_social"
+
+
+def _sub_from_id_token(id_token: str) -> str:
+    """Extract the OIDC ``sub`` claim from a LinkedIn id_token JWT payload."""
+    if not id_token:
+        return ""
+    try:
+        payload = id_token.split(".")[1]
+        payload += "=" * (-len(payload) % 4)
+        return json.loads(base64.urlsafe_b64decode(payload)).get("sub", "")
+    except Exception:
+        return ""
 
 
 class LinkedInAuthManager(BaseAuthManager):
@@ -43,6 +65,8 @@ class LinkedInAuthManager(BaseAuthManager):
         client_secret: str,
         refresh_token: Optional[str] = None,
         access_token: Optional[str] = None,
+        profile: Optional[str] = None,
+        scope: Optional[str] = None,
     ):
         """
         Initialize LinkedIn authentication manager.
@@ -53,8 +77,14 @@ class LinkedInAuthManager(BaseAuthManager):
             client_secret (str): LinkedIn client secret
             refresh_token (str, optional): LinkedIn refresh token
             access_token (str, optional): LinkedIn access token (used when no refresh token)
+            profile (str, optional): Explicit profile composite key (app@account). When set,
+                ``_get_token_identifier`` returns it verbatim.
+            scope (str, optional): Comma-separated scope list that fully replaces the
+                network default (``LINKEDIN_OAUTH_DEFAULT_SCOPES``) for this authorize run.
+                Blank values fall back to the default.
         """
         super().__init__()
+        self.profile = profile
         self.user_id = user_id
         self.client_id = client_id
         self.client_secret = client_secret
@@ -64,11 +94,16 @@ class LinkedInAuthManager(BaseAuthManager):
             self.access_token = self._load_access_token_from_storage()
         self.api_version = "202503"
 
+        # LinkedIn's OAuth session expects space-separated scopes; normalize the
+        # CLI's comma-separated override (blank/absent -> network default).
+        scope_value = scope.strip() if scope else ""
+        session_scope = scope_value.replace(",", " ").strip() or LINKEDIN_OAUTH_DEFAULT_SCOPES
+
         # Authlib OAuth2Session configuration for LinkedIn
         self.oauth_session = OAuth2Session(
             client_id=self.client_id,
             client_secret=self.client_secret,
-            scope="openid profile email w_member_social",
+            scope=session_scope,
             redirect_uri="https://localhost:3456/callback",
         )
 
@@ -166,21 +201,37 @@ class LinkedInAuthManager(BaseAuthManager):
                     )
 
                 self.access_token = access_token
-                return access_token
+                return access_token, token.get("id_token", "")
 
-            access_token = await asyncio.to_thread(_sync_exchange)
+            access_token, id_token = await asyncio.to_thread(_sync_exchange)
             if access_token:
-                # Create temporary client to get user info and update user_id
-                temp_client = self._create_client(access_token)
-                await temp_client.authenticate()  # Authenticate the client first
-                # Get the actual LinkedIn user ID from API
-                user_info = await temp_client.get_user_info()
-                api_user_id = user_info.get("sub", "")
-                if api_user_id:
-                    # Update user_id to the API's user ID
-                    self.user_id = api_user_id
+                # Identity resolution: keep the user-supplied object-id as the
+                # canonical key; enrich from /userinfo; id_token sub is the
+                # fallback only when neither object-id nor /userinfo yields one.
+                # /userinfo can transiently report REVOKED_ACCESS_TOKEN for mixed
+                # OIDC + w_member_social tokens, so it is enrichment only.
+                api_user_id = self.user_id or ""
+                try:
+                    temp_client = self._create_client(access_token)
+                    await temp_client.authenticate()  # Authenticate the client first
+                    user_info = await temp_client.get_user_info()
+                    user_sub = user_info.get("sub", "")
+                    if not api_user_id and user_sub:
+                        api_user_id = user_sub
+                except Exception:
+                    pass
 
-                # Save all credentials to storage with correct user_id
+                if not api_user_id:
+                    api_user_id = _sub_from_id_token(id_token)
+
+                if not api_user_id:
+                    raise Exception(
+                        "Unable to determine the LinkedIn user id: no id_token sub, "
+                        "no object-id, and /userinfo did not return a sub. No token was stored."
+                    )
+
+                # Update user_id to the resolved identity and save credentials
+                self.user_id = api_user_id
                 self._save_credentials_to_storage()
                 return access_token
         except Exception as e:
@@ -202,7 +253,7 @@ class LinkedInAuthManager(BaseAuthManager):
                 )
                 return token_data
             except Exception as exc:
-                raise Exception(f"Token refresh failed: 401 {exc}") from exc
+                raise Exception(f"Token refresh failed: 401 {sanitize_error_text(str(exc))}") from None
 
         return await asyncio.to_thread(_sync_refresh)
 
@@ -252,8 +303,19 @@ class LinkedInAuthManager(BaseAuthManager):
         return "linkedin"
 
     def _get_token_identifier(self) -> str:
-        """Get unique identifier for token storage."""
-        return self.user_id or "default"
+        """Get unique identifier for token storage.
+
+        Returns the explicit ``profile`` composite verbatim when set; otherwise
+        builds the ``app@account`` composite from the app client id and the
+        API-reported account id. When either component is missing (e.g. during
+        construction before the account id is known), returns a non-colliding
+        placeholder so a storage load simply misses.
+        """
+        if self.profile:
+            return self.profile
+        if self.client_id and self.user_id:
+            return build_composite_key(self.client_id, self.user_id)
+        return self.client_id or "unbound"
 
     def _has_stored_or_env_credentials(self) -> bool:
         """Return True when stored or env credentials appear present for LinkedIn."""
@@ -290,7 +352,7 @@ class LinkedInAuthManager(BaseAuthManager):
         return None
 
     def _save_credentials_to_storage(self):
-        """Save all LinkedIn credentials to secure storage."""
+        """Save all LinkedIn credentials to secure storage under the composite key."""
         platform_name = self._get_platform_name()
         identifier = self._get_token_identifier()
 
@@ -299,30 +361,56 @@ class LinkedInAuthManager(BaseAuthManager):
             "client_id": self.client_id,
             "client_secret": self.client_secret,
             "refresh_token": self.refresh_token,
+            "profile": identifier,
         }
         if self.access_token:
             token_data["access_token"] = self.access_token
 
         self.token_storage.save_token(platform_name, identifier, token_data)
-        # Also save as default so it becomes the primary credential loaded
-        self.token_storage.save_token(platform_name, "default", token_data)
+
+    def _find_recovery_match(self, platform_name: str) -> Optional[tuple]:
+        """Return the sole stored profile whose app half matches self.client_id.
+
+        Only auto-adopts when exactly one profile matches; two accounts sharing
+        one app cannot be disambiguated by client_id alone, so multiple matches
+        yield None and the caller leaves selection to an explicit --profile.
+        Returns a ``(identifier, token_data)`` tuple or None.
+        """
+        matches = []
+        for stored_platform, stored_identifier in self.token_storage.list_tokens(platform_name):
+            if stored_platform != platform_name:
+                continue
+            try:
+                candidate = self.token_storage.load_token(platform_name, stored_identifier)
+            except ValueError:
+                # Skip legacy/reserved identifiers (e.g. "default") that
+                # are no longer valid profile keys.
+                continue
+            if candidate and candidate.get("client_id") == self.client_id:
+                matches.append((stored_identifier, candidate))
+        if len(matches) == 1:
+            return matches[0]
+        return None
 
     def _load_credentials_from_storage(self) -> bool:
-        """Load LinkedIn credentials from secure storage."""
+        """Load LinkedIn credentials from secure storage under the composite key."""
         platform_name = self._get_platform_name()
 
-        # Try default identifier first
         identifier = self._get_token_identifier()
         token_data = self.token_storage.load_token(platform_name, identifier)
 
-        if not token_data:
-            # Try to find any stored token
-            tokens = self.token_storage.list_tokens(platform_name)
-            if tokens:
-                identifier = tokens[0][1]
-                token_data = self.token_storage.load_token(platform_name, identifier)
+        if not token_data and self.profile is None:
+            # Recover the bound composite from a stored profile whose app half
+            # matches this client_id, so a refresh never re-mints a profile
+            # from stale runtime kwargs (e.g. an empty/old object_id).
+            recovery = self._find_recovery_match(platform_name)
+            if recovery is not None:
+                self.profile, token_data = recovery
 
         if token_data:
+            # Recover the bound composite so a refresh never re-mints a profile.
+            if self.profile is None and token_data.get("profile"):
+                self.profile = token_data["profile"]
             # Only update if not already set (allow override from constructor)
             if not self.user_id:
                 self.user_id = token_data.get("user_id")

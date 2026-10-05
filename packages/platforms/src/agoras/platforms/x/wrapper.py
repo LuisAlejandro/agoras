@@ -17,35 +17,21 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.x.wrapper module."""
 
-import asyncio
 import sys
 from typing import Any, Dict, List, Optional
 
-from agoras.core.interfaces import SocialNetwork
-from agoras.core.text_limits import validate_text, x_mode_for_subscription
-from agoras.core.threading import (
-    ThreadPublishError,
-    ThreadResult,
-    partial_result,
-    success_result,
+from agoras.core.api_base import sanitize_error_text
+from agoras.core.interfaces import (
+    SocialNetwork,
+    _entry_images,
+    _is_uncertain_publish_error,
+    run_wrapper_main,
+    run_wrapper_main_async,
 )
+from agoras.core.text_limits import validate_text, x_mode_for_subscription
+from agoras.core.threading import ThreadPublishError, ThreadResult, partial_result, success_result
 
 from .api import XAPI
-
-
-def _entry_images(entry: Dict[str, Any]) -> List[str]:
-    """Collect flattened image_1..image_4 URLs from a thread entry."""
-    return list(
-        filter(
-            None,
-            [
-                entry.get("image_1"),
-                entry.get("image_2"),
-                entry.get("image_3"),
-                entry.get("image_4"),
-            ],
-        )
-    )
 
 
 def _compose_tweet_text(entry: Dict[str, Any]) -> str:
@@ -61,14 +47,6 @@ def _compose_tweet_text(entry: Dict[str, Any]) -> str:
     return f"{text} {link}".strip()
 
 
-def _is_uncertain_publish_error(exc: BaseException) -> bool:
-    """Classify timeout/uncertain errors after a publish dispatch."""
-    if isinstance(exc, (TimeoutError, asyncio.TimeoutError)):
-        return True
-    message = str(exc).lower()
-    return any(token in message for token in ("timeout", "timed out", "temporarily unavailable"))
-
-
 class X(SocialNetwork):
     """
     X social network implementation.
@@ -76,6 +54,10 @@ class X(SocialNetwork):
     This class provides X-specific functionality for posting tweets,
     images, videos, and managing X interactions asynchronously.
     """
+
+    # Pure-proxy platform: delete_reply/get_reply delegate to delete/get_post
+    _proxy_delete_reply = True
+    _proxy_get_reply = True
 
     def __init__(self, **kwargs):
         """
@@ -101,7 +83,6 @@ class X(SocialNetwork):
         self.twitter_oauth_token = None
         self.twitter_oauth_secret = None
         self.tweet_id = None
-        self.api = None
         self._subscription_type = None
         self._subscription_resolved = False
 
@@ -114,6 +95,7 @@ class X(SocialNetwork):
             consumer_secret=self.twitter_consumer_secret,
             oauth_token=self.twitter_oauth_token,
             oauth_secret=self.twitter_oauth_secret,
+            profile=self._get_config_value("profile"),
         )
         # Bind tier to active oauth only — never adopt unrelated stored tokens
         self._subscription_type = auth_manager.load_subscription_type_for_active_oauth()
@@ -148,10 +130,10 @@ class X(SocialNetwork):
         Tries to load credentials from CLI params, environment variables, or storage.
         """
         # Try params/environment first
-        self.twitter_consumer_key = self._get_config_value("twitter_consumer_key", "TWITTER_CONSUMER_KEY")
-        self.twitter_consumer_secret = self._get_config_value("twitter_consumer_secret", "TWITTER_CONSUMER_SECRET")
-        self.twitter_oauth_token = self._get_config_value("twitter_oauth_token", "TWITTER_OAUTH_TOKEN")
-        self.twitter_oauth_secret = self._get_config_value("twitter_oauth_secret", "TWITTER_OAUTH_SECRET")
+        self.twitter_consumer_key = self._get_auth_config_value("twitter_consumer_key", "TWITTER_CONSUMER_KEY")
+        self.twitter_consumer_secret = self._get_auth_config_value("twitter_consumer_secret", "TWITTER_CONSUMER_SECRET")
+        self.twitter_oauth_token = self._get_auth_config_value("twitter_oauth_token", "TWITTER_OAUTH_TOKEN")
+        self.twitter_oauth_secret = self._get_auth_config_value("twitter_oauth_secret", "TWITTER_OAUTH_SECRET")
         self.tweet_id = self._get_config_value("tweet_id", "TWEET_ID")
 
         # If any credentials missing, try loading from storage
@@ -166,30 +148,30 @@ class X(SocialNetwork):
             from .auth import XAuthManager
 
             auth_manager = XAuthManager(
-                consumer_key=self.twitter_consumer_key, consumer_secret=self.twitter_consumer_secret
+                consumer_key=self.twitter_consumer_key,
+                consumer_secret=self.twitter_consumer_secret,
+                profile=self._get_config_value("profile"),
             )
 
-            if auth_manager._load_credentials_from_storage():
-                # Fill in missing credentials from storage
-                if not self.twitter_consumer_key:
-                    self.twitter_consumer_key = auth_manager.consumer_key
-                if not self.twitter_consumer_secret:
-                    self.twitter_consumer_secret = auth_manager.consumer_secret
-                if not self.twitter_oauth_token:
-                    self.twitter_oauth_token = auth_manager.oauth_token
-                if not self.twitter_oauth_secret:
-                    self.twitter_oauth_secret = auth_manager.oauth_secret
+            self._fill_missing_credentials(
+                auth_manager,
+                {
+                    "twitter_consumer_key": "consumer_key",
+                    "twitter_consumer_secret": "consumer_secret",
+                    "twitter_oauth_token": "oauth_token",
+                    "twitter_oauth_secret": "oauth_secret",
+                },
+            )
 
-        # Validate all credentials are now available
-        if not all(
+        self._require_credentials(
             [
                 self.twitter_consumer_key,
                 self.twitter_consumer_secret,
                 self.twitter_oauth_token,
                 self.twitter_oauth_secret,
-            ]
-        ):
-            raise Exception("Not authenticated. Please run 'agoras x authorize' first.")
+            ],
+            "x",
+        )
 
         # Initialize X API
         self.api = XAPI(
@@ -200,39 +182,24 @@ class X(SocialNetwork):
         await self.api.authenticate()
         await self._fetch_live_subscription_type()
 
-    async def authorize_credentials(self):
-        """
-        Authorize and store X credentials for future use.
+    _post_id_actions = {
+        "like": ("tweet_id", "Tweet ID is required for like action."),
+        "share": ("tweet_id", "Tweet ID is required for share action."),
+        "delete": ("tweet_id", "Tweet ID is required for delete action."),
+    }
 
-        Returns:
-            bool: True if authorization successful
-        """
+    _authorize_keys = {
+        "consumer_key": "twitter_consumer_key",
+        "consumer_secret": "twitter_consumer_secret",
+        "oauth_token": "twitter_oauth_token",
+        "oauth_secret": "twitter_oauth_secret",
+    }
+
+    def _authorize_manager(self):
+        """Return the XAuthManager used by the shared authorize flow."""
         from .auth import XAuthManager
 
-        consumer_key = self._get_config_value("twitter_consumer_key", "TWITTER_CONSUMER_KEY")
-        consumer_secret = self._get_config_value("twitter_consumer_secret", "TWITTER_CONSUMER_SECRET")
-        oauth_token = self._get_config_value("twitter_oauth_token", "TWITTER_OAUTH_TOKEN")
-        oauth_secret = self._get_config_value("twitter_oauth_secret", "TWITTER_OAUTH_SECRET")
-
-        auth_manager = XAuthManager(
-            consumer_key=consumer_key,
-            consumer_secret=consumer_secret,
-            oauth_token=oauth_token,
-            oauth_secret=oauth_secret,
-        )
-
-        result = await auth_manager.authorize()
-        if result:
-            print(result)
-            return True
-        return False
-
-    async def disconnect(self):
-        """
-        Disconnect from X API and clean up resources.
-        """
-        if self.api:
-            await self.api.disconnect()
+        return XAuthManager
 
     async def post(
         self,
@@ -257,8 +224,7 @@ class X(SocialNetwork):
         Returns:
             str: Tweet ID
         """
-        if not self.api:
-            raise Exception("X API not initialized")
+        self._require_api()
 
         media_ids = []
         source_media = self._collect_status_image_urls(
@@ -283,8 +249,7 @@ class X(SocialNetwork):
 
     async def _upload_source_media(self, source_media) -> List[str]:
         """Download and upload a list of media URLs, returning their media IDs."""
-        if not self.api:
-            raise Exception("X API not initialized")
+        self._require_api()
         media_ids = []
         for media_url in source_media:
             try:
@@ -334,8 +299,7 @@ class X(SocialNetwork):
         Returns:
             str: Reply tweet ID
         """
-        if not self.api:
-            raise Exception("X API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("Tweet ID is required for reply action.")
@@ -386,8 +350,7 @@ class X(SocialNetwork):
         Returns:
             str: Tweet ID
         """
-        if not self.api:
-            raise Exception("X API not initialized")
+        self._require_api()
 
         post_id = tweet_id or self.tweet_id
         if not post_id:
@@ -408,8 +371,7 @@ class X(SocialNetwork):
         Returns:
             str: Tweet ID
         """
-        if not self.api:
-            raise Exception("X API not initialized")
+        self._require_api()
 
         post_id = tweet_id or self.tweet_id
         if not post_id:
@@ -418,20 +380,6 @@ class X(SocialNetwork):
         result = await self.api.delete(post_id)
         self._output_status(result)
         return result
-
-    async def delete_reply(self, post_id):
-        """
-        Delete a reply tweet.
-
-        A reply is a tweet on X, so deletion is a proxy of ``delete``.
-
-        Args:
-            post_id (str): ID of the reply tweet to delete
-
-        Returns:
-            str: Deleted tweet ID
-        """
-        return await self.delete(post_id)
 
     async def get_post(self, post_id):
         """
@@ -443,8 +391,7 @@ class X(SocialNetwork):
         Returns:
             dict: Normalized content
         """
-        if not self.api:
-            raise Exception("X API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("Tweet ID is required.")
@@ -466,19 +413,42 @@ class X(SocialNetwork):
         self._output_content(content)
         return content
 
-    async def get_reply(self, post_id):
+    async def list_posts(self, limit):
         """
-        Read a reply tweet by ID.
-
-        A reply is a tweet on X, so reading is a proxy of ``get_post``.
+        List the authenticated user's recent tweets and return normalized content.
 
         Args:
-            post_id (str): Reply tweet ID to read
+            limit (int): Maximum number of tweets to return
 
         Returns:
-            dict: Normalized content
+            list: Normalized content dicts
         """
-        return await self.get_post(post_id)
+        self._require_api()
+
+        if limit == 0:
+            self._output_list([])
+            return []
+
+        raw_items = await self.api.list_posts(limit)
+        items = []
+        for raw in raw_items:
+            metadata = {}
+            media = raw.get("media") or []
+            attachments = raw.get("attachments")
+            if attachments and not media:
+                metadata["attachments"] = attachments
+            items.append(
+                {
+                    "id": raw.get("id"),
+                    "text": raw.get("text"),
+                    "media": media,
+                    "author": {"id": raw.get("author_id"), "name": None} if raw.get("author_id") else None,
+                    "created_at": raw.get("created_at"),
+                    "metadata": metadata,
+                }
+            )
+        self._output_list(items)
+        return items
 
     async def share(self, tweet_id=None):
         """
@@ -491,8 +461,7 @@ class X(SocialNetwork):
         Returns:
             str: Tweet ID
         """
-        if not self.api:
-            raise Exception("X API not initialized")
+        self._require_api()
 
         post_id = tweet_id or self.tweet_id
         if not post_id:
@@ -514,8 +483,7 @@ class X(SocialNetwork):
         Returns:
             str: Tweet ID
         """
-        if not self.api:
-            raise Exception("X API not initialized")
+        self._require_api()
 
         if not video_url:
             raise Exception("Video URL is required.")
@@ -566,8 +534,7 @@ class X(SocialNetwork):
 
     async def _upload_entry_media(self, entry: Dict[str, Any]) -> List[str]:
         """Upload images or video for one thread entry; return media IDs."""
-        if not self.api:
-            raise Exception("X API not initialized")
+        self._require_api()
 
         media_ids: List[str] = []
         images = _entry_images(entry)
@@ -621,8 +588,7 @@ class X(SocialNetwork):
             ThreadPublishError: On partial or failed publish with structured result
         """
         del kwargs  # X reply chains do not use Discord/Threads-specific options
-        if not self.api:
-            raise Exception("X API not initialized")
+        self._require_api()
 
         if not entries or not isinstance(entries, list):
             raise Exception("Thread entries are required.")
@@ -659,9 +625,9 @@ class X(SocialNetwork):
                     ids,
                     failed_index=index,
                     outcome=outcome,
-                    error=str(exc),
+                    error=sanitize_error_text(str(exc)),
                 )
-                raise ThreadPublishError(result) from exc
+                raise ThreadPublishError(result) from None
 
             ids.append(str(tweet_id))
             previous_id = str(tweet_id)
@@ -669,27 +635,6 @@ class X(SocialNetwork):
         return success_result(ids)
 
     # Override action handlers to use X-specific parameter names
-    async def _handle_like_action(self):
-        """Handle like action with X-specific parameter extraction."""
-        tweet_id = self._get_config_value("tweet_id", "TWEET_ID")
-        if not tweet_id:
-            raise Exception("Tweet ID is required for like action.")
-        await self.like(tweet_id)
-
-    async def _handle_share_action(self):
-        """Handle share action with X-specific parameter extraction."""
-        tweet_id = self._get_config_value("tweet_id", "TWEET_ID")
-        if not tweet_id:
-            raise Exception("Tweet ID is required for share action.")
-        await self.share(tweet_id)
-
-    async def _handle_delete_action(self):
-        """Handle delete action with X-specific parameter extraction."""
-        tweet_id = self._get_config_value("tweet_id", "TWEET_ID")
-        if not tweet_id:
-            raise Exception("Tweet ID is required for delete action.")
-        await self.delete(tweet_id)
-
     async def _handle_video_action(self):
         """Handle video action with X-specific parameter extraction."""
         status_text = self._get_config_value("status_text", "STATUS_TEXT") or ""
@@ -709,23 +654,7 @@ async def main_async(kwargs):
     Args:
         kwargs (dict): Configuration arguments
     """
-    action = kwargs.get("action", "")
-
-    if action == "":
-        raise Exception("Action is a required argument.")
-
-    # Create X instance with configuration
-    instance = X(**kwargs)
-
-    # Handle authorize action separately (doesn't need client initialization)
-    if action == "authorize":
-        success = await instance.authorize_credentials()
-        return 0 if success else 1
-
-    try:
-        await instance.execute_action(action)
-    finally:
-        await instance.disconnect()
+    return await run_wrapper_main_async(X, kwargs)
 
 
 def main(kwargs):
@@ -735,4 +664,4 @@ def main(kwargs):
     Args:
         kwargs (dict): Configuration arguments
     """
-    asyncio.run(main_async(kwargs))
+    run_wrapper_main(X, kwargs)

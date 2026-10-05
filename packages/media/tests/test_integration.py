@@ -19,7 +19,7 @@
 import pytest
 
 from agoras.common import __version__
-from agoras.media import MediaFactory
+from agoras.media.factory import create_image, create_video, download_images
 
 
 def test_version_available():
@@ -33,7 +33,7 @@ def test_version_available():
 
 def test_factory_creates_image():
     """Test MediaFactory image creation."""
-    image = MediaFactory.create_image('https://example.com/image.jpg')
+    image = create_image('https://example.com/image.jpg')
     assert image is not None
     assert hasattr(image, 'url')
     assert image.url == 'https://example.com/image.jpg'
@@ -41,7 +41,7 @@ def test_factory_creates_image():
 
 def test_factory_creates_video():
     """Test MediaFactory video creation."""
-    video = MediaFactory.create_video('https://example.com/video.mp4')
+    video = create_video('https://example.com/video.mp4')
     assert video is not None
     assert hasattr(video, 'url')
     assert video.url == 'https://example.com/video.mp4'
@@ -51,7 +51,7 @@ def test_common_and_media_integration():
     """Test that agoras.common and agoras.media integrate correctly."""
     # Import from both packages
     from agoras.common import logger
-    from agoras.media import Image
+    from agoras.media.image import Image
 
     # Both should work together
     assert logger is not None

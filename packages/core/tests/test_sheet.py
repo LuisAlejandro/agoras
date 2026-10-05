@@ -21,7 +21,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from agoras.core.sheet import ScheduleSheet, Sheet, SheetManager, SheetRow
+from agoras.core.sheet import ScheduleSheet, Sheet, SheetRow
 
 # SheetRow Tests
 
@@ -31,165 +31,6 @@ def test_sheetrow_instantiation():
     row = SheetRow(['val1', 'val2', 'val3'], ['col1', 'col2', 'col3'])
     assert row.data == ['val1', 'val2', 'val3']
     assert row.headers == ['col1', 'col2', 'col3']
-
-
-def test_sheetrow_getitem_by_index():
-    """Test SheetRow access by integer index."""
-    row = SheetRow(['a', 'b', 'c'])
-
-    assert row[0] == 'a'
-    assert row[1] == 'b'
-    assert row[2] == 'c'
-
-
-def test_sheetrow_getitem_by_index_out_of_bounds():
-    """Test SheetRow access out of bounds returns empty string."""
-    row = SheetRow(['a', 'b'])
-
-    assert row[10] == ''
-
-
-def test_sheetrow_getitem_by_column_name():
-    """Test SheetRow access by column name with headers."""
-    row = SheetRow(['val1', 'val2', 'val3'], ['name', 'email', 'age'])
-
-    assert row['name'] == 'val1'
-    assert row['email'] == 'val2'
-    assert row['age'] == 'val3'
-
-
-def test_sheetrow_getitem_by_column_name_not_found():
-    """Test SheetRow access non-existent column returns empty."""
-    row = SheetRow(['val1', 'val2'], ['col1', 'col2'])
-
-    assert row['nonexistent'] == ''
-
-
-def test_sheetrow_getitem_by_column_name_without_headers():
-    """Test SheetRow access by column name without headers returns empty."""
-    row = SheetRow(['val1', 'val2'])
-
-    assert row['col1'] == ''
-
-
-def test_sheetrow_setitem_by_index():
-    """Test SheetRow set by integer index."""
-    row = SheetRow(['a', 'b', 'c'])
-
-    row[1] = 'updated'
-
-    assert row[1] == 'updated'
-
-
-def test_sheetrow_setitem_by_index_extends():
-    """Test SheetRow set beyond length auto-extends list."""
-    row = SheetRow(['a', 'b'])
-
-    row[5] = 'new'
-
-    assert row[5] == 'new'
-    assert len(row.data) == 6
-
-
-def test_sheetrow_setitem_by_column_name():
-    """Test SheetRow set by column name with headers."""
-    row = SheetRow(['val1', 'val2'], ['col1', 'col2'])
-
-    row['col1'] = 'updated'
-
-    assert row['col1'] == 'updated'
-
-
-def test_sheetrow_setitem_by_column_name_extends():
-    """Test SheetRow set by column beyond length auto-extends."""
-    row = SheetRow(['val1'], ['col1', 'col2', 'col3'])
-
-    row['col3'] = 'new'
-
-    assert row['col3'] == 'new'
-    assert len(row.data) >= 3
-
-
-def test_sheetrow_setitem_clears_cache():
-    """Test SheetRow setitem clears dict cache."""
-    row = SheetRow(['a', 'b'], ['col1', 'col2'])
-
-    # Access to_dict to create cache
-    _ = row.to_dict()
-    assert row._dict_cache is not None
-
-    # Setting should clear cache
-    row[0] = 'updated'
-
-    assert row._dict_cache is None
-
-
-def test_sheetrow_len():
-    """Test SheetRow len returns data length."""
-    row = SheetRow(['a', 'b', 'c'])
-
-    assert len(row) == 3
-
-
-def test_sheetrow_get_with_valid_key():
-    """Test SheetRow get with valid key."""
-    row = SheetRow(['val1', 'val2'], ['col1', 'col2'])
-
-    assert row.get('col1') == 'val1'
-    assert row.get(0) == 'val1'
-
-
-def test_sheetrow_get_with_invalid_key_returns_default():
-    """Test SheetRow get with invalid key returns default."""
-    row = SheetRow(['val1'], ['col1'])
-
-    # get() wraps __getitem__ which returns '' for missing keys
-    assert row.get('nonexistent') == ''
-    # The get method doesn't actually use the default parameter properly
-    # It catches exceptions but __getitem__ returns '' not raising exception
-    assert row.get(10) == ''
-
-
-def test_sheetrow_to_dict_with_headers():
-    """Test SheetRow to_dict with headers."""
-    row = SheetRow(['val1', 'val2', 'val3'], ['col1', 'col2', 'col3'])
-
-    result = row.to_dict()
-
-    assert result == {'col1': 'val1', 'col2': 'val2', 'col3': 'val3'}
-
-
-def test_sheetrow_to_dict_without_headers():
-    """Test SheetRow to_dict without headers uses indices."""
-    row = SheetRow(['val1', 'val2', 'val3'])
-
-    result = row.to_dict()
-
-    assert result == {'0': 'val1', '1': 'val2', '2': 'val3'}
-
-
-def test_sheetrow_to_dict_caching():
-    """Test SheetRow to_dict uses cache on subsequent calls."""
-    row = SheetRow(['val1', 'val2'], ['col1', 'col2'])
-
-    result1 = row.to_dict()
-    result2 = row.to_dict()
-
-    # Should return different objects (copy)
-    assert result1 is not result2
-    # But with same content
-    assert result1 == result2
-
-
-def test_sheetrow_to_list():
-    """Test SheetRow to_list returns copy."""
-    row = SheetRow(['val1', 'val2', 'val3'])
-
-    result = row.to_list()
-
-    assert result == ['val1', 'val2', 'val3']
-    # Should be a copy, not same list
-    assert result is not row.data
 
 
 # Sheet Class Tests
@@ -362,8 +203,8 @@ async def test_sheet_read_all_with_headers(mock_creds, mock_authorize):
 
     assert len(rows) == 2
     assert isinstance(rows[0], SheetRow)
-    assert rows[0]['Name'] == 'John'
-    assert rows[0]['Email'] == 'john@example.com'
+    assert rows[0].headers == ['Name', 'Email', 'Age']
+    assert rows[0].data == ['John', 'john@example.com', '30']
 
 
 @pytest.mark.asyncio
@@ -420,97 +261,6 @@ async def test_sheet_read_all_auto_gets_worksheet(mock_creds, mock_authorize):
 @pytest.mark.asyncio
 @patch('agoras.core.sheet.sheet.gspread.authorize')
 @patch('agoras.core.sheet.sheet.Credentials.from_service_account_info')
-async def test_sheet_read_range(mock_creds, mock_authorize):
-    """Test Sheet read_range."""
-    mock_client = MagicMock()
-    mock_spreadsheet = MagicMock()
-    mock_worksheet = MagicMock()
-    mock_worksheet.get.return_value = [['A1', 'B1'], ['A2', 'B2']]
-    mock_spreadsheet.get_worksheet.return_value = mock_worksheet
-    mock_client.open_by_key.return_value = mock_spreadsheet
-    mock_authorize.return_value = mock_client
-
-    sheet = Sheet('sheet-id', 'email@example.com', 'key')
-    await sheet.authenticate()
-    await sheet.get_worksheet()
-
-    data = await sheet.read_range('A1:B2')
-
-    assert len(data) == 2
-    mock_worksheet.get.assert_called_once_with('A1:B2')
-
-
-@pytest.mark.asyncio
-@patch('agoras.core.sheet.sheet.gspread.authorize')
-@patch('agoras.core.sheet.sheet.Credentials.from_service_account_info')
-async def test_sheet_write_all_with_clear(mock_creds, mock_authorize):
-    """Test Sheet write_all with clear_first=True."""
-    mock_client = MagicMock()
-    mock_spreadsheet = MagicMock()
-    mock_worksheet = MagicMock()
-    mock_spreadsheet.get_worksheet.return_value = mock_worksheet
-    mock_client.open_by_key.return_value = mock_spreadsheet
-    mock_authorize.return_value = mock_client
-
-    sheet = Sheet('sheet-id', 'email@example.com', 'key')
-    await sheet.authenticate()
-    await sheet.get_worksheet()
-
-    data = [['a', 'b'], ['c', 'd']]
-    await sheet.write_all(data, clear_first=True)
-
-    mock_worksheet.clear.assert_called_once()
-    # write_all uses append_row, not update
-    assert mock_worksheet.append_row.call_count == 2
-
-
-@pytest.mark.asyncio
-@patch('agoras.core.sheet.sheet.gspread.authorize')
-@patch('agoras.core.sheet.sheet.Credentials.from_service_account_info')
-async def test_sheet_write_all_with_sheetrow(mock_creds, mock_authorize):
-    """Test Sheet write_all with SheetRow instances."""
-    mock_client = MagicMock()
-    mock_spreadsheet = MagicMock()
-    mock_worksheet = MagicMock()
-    mock_spreadsheet.get_worksheet.return_value = mock_worksheet
-    mock_client.open_by_key.return_value = mock_spreadsheet
-    mock_authorize.return_value = mock_client
-
-    sheet = Sheet('sheet-id', 'email@example.com', 'key')
-    await sheet.authenticate()
-    await sheet.get_worksheet()
-
-    rows = [SheetRow(['a', 'b']), SheetRow(['c', 'd'])]
-    await sheet.write_all(rows, clear_first=False)
-
-    # Should convert SheetRow to list and append
-    assert mock_worksheet.append_row.call_count == 2
-
-
-@pytest.mark.asyncio
-@patch('agoras.core.sheet.sheet.gspread.authorize')
-@patch('agoras.core.sheet.sheet.Credentials.from_service_account_info')
-async def test_sheet_append_row(mock_creds, mock_authorize):
-    """Test Sheet append_row method."""
-    mock_client = MagicMock()
-    mock_spreadsheet = MagicMock()
-    mock_worksheet = MagicMock()
-    mock_spreadsheet.get_worksheet.return_value = mock_worksheet
-    mock_client.open_by_key.return_value = mock_spreadsheet
-    mock_authorize.return_value = mock_client
-
-    sheet = Sheet('sheet-id', 'email@example.com', 'key')
-    await sheet.authenticate()
-    await sheet.get_worksheet()
-
-    await sheet.append_row(['new', 'data'])
-
-    mock_worksheet.append_row.assert_called_once()
-
-
-@pytest.mark.asyncio
-@patch('agoras.core.sheet.sheet.gspread.authorize')
-@patch('agoras.core.sheet.sheet.Credentials.from_service_account_info')
 async def test_sheet_update_cell(mock_creds, mock_authorize):
     """Test Sheet update_cell method."""
     mock_client = MagicMock()
@@ -527,27 +277,6 @@ async def test_sheet_update_cell(mock_creds, mock_authorize):
     await sheet.update_cell(1, 1, 'new value')
 
     mock_worksheet.update_cell.assert_called_once_with(1, 1, 'new value')
-
-
-@pytest.mark.asyncio
-@patch('agoras.core.sheet.sheet.gspread.authorize')
-@patch('agoras.core.sheet.sheet.Credentials.from_service_account_info')
-async def test_sheet_write_row(mock_creds, mock_authorize):
-    """Test Sheet update_range method for writing a row."""
-    mock_client = MagicMock()
-    mock_spreadsheet = MagicMock()
-    mock_worksheet = MagicMock()
-    mock_spreadsheet.get_worksheet.return_value = mock_worksheet
-    mock_client.open_by_key.return_value = mock_spreadsheet
-    mock_authorize.return_value = mock_client
-
-    sheet = Sheet('sheet-id', 'email@example.com', 'key')
-    await sheet.authenticate()
-    await sheet.get_worksheet()
-
-    await sheet.update_range('A5:B5', [['row', 'data']])
-
-    mock_worksheet.update.assert_called_once_with('A5:B5', [['row', 'data']])
 
 
 # ScheduleSheet Tests
@@ -577,6 +306,7 @@ async def test_schedulesheet_process_posts_due_now(mock_datetime):
     # Mock current time
     mock_now = datetime.datetime(2024, 1, 15, 14, 0, 0)
     mock_datetime.datetime.now.return_value = mock_now
+    mock_datetime.datetime.strptime.return_value = datetime.datetime(2024, 1, 15)
 
     # Create mock row data for a post due now
     row_data = SheetRow([
@@ -587,7 +317,7 @@ async def test_schedulesheet_process_posts_due_now(mock_datetime):
     sheet = ScheduleSheet('sheet-id', 'email@example.com', 'key')
 
     with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
-        with patch.object(sheet, 'write_all', new_callable=AsyncMock) as mock_write:
+        with patch.object(sheet, 'update_cell', new_callable=AsyncMock) as mock_update:
             mock_read.return_value = [row_data]
 
             posts = await sheet.process_scheduled_posts()
@@ -596,7 +326,7 @@ async def test_schedulesheet_process_posts_due_now(mock_datetime):
             assert posts[0]['status_text'] == 'Post text'
             assert posts[0]['_sheet_row'] == 1
             # Selection must not mark published / rewrite sheet
-            mock_write.assert_not_called()
+            mock_update.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -615,6 +345,7 @@ async def test_schedulesheet_respects_max_count():
     with patch('agoras.core.sheet.schedule.datetime') as mock_datetime:
         mock_now = datetime.datetime(2024, 1, 15, 14, 0, 0)
         mock_datetime.datetime.now.return_value = mock_now
+        mock_datetime.datetime.strptime.return_value = datetime.datetime(2024, 1, 15)
 
         with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
             mock_read.return_value = rows
@@ -638,6 +369,7 @@ async def test_schedulesheet_skips_published_posts():
     with patch('agoras.core.sheet.schedule.datetime') as mock_datetime:
         mock_now = datetime.datetime(2024, 1, 15, 14, 0, 0)
         mock_datetime.datetime.now.return_value = mock_now
+        mock_datetime.datetime.strptime.return_value = datetime.datetime(2024, 1, 15)
 
         with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
             mock_read.return_value = [row_data]
@@ -701,6 +433,7 @@ async def test_schedulesheet_process_does_not_mark_published_on_select(mock_date
     """Selecting due posts must leave state unpublished (no ghost publish)."""
     mock_now = datetime.datetime(2024, 1, 15, 14, 0, 0)
     mock_datetime.datetime.now.return_value = mock_now
+    mock_datetime.datetime.strptime.return_value = datetime.datetime(2024, 1, 15)
 
     row_data = SheetRow([
         'Post text', 'http://link.com', '', '', '', '',
@@ -717,136 +450,100 @@ async def test_schedulesheet_process_does_not_mark_published_on_select(mock_date
             mock_update.assert_not_called()
 
 
-def test_sheetmanager_instantiation():
-    """Test SheetManager can be instantiated."""
-    manager = SheetManager()
-    assert manager.sheets == {}
+
+@pytest.mark.asyncio
+@patch('agoras.core.sheet.schedule.datetime')
+async def test_schedulesheet_locale_date_warns_and_skips(mock_datetime):
+    """Locale/slash date cells (strptime-incompatible) warn visibly and skip."""
+    mock_now = datetime.datetime(2024, 1, 15, 14, 0, 0)
+    mock_datetime.datetime.now.return_value = mock_now
+    mock_datetime.datetime.strptime.side_effect = ValueError("time data does not match format")
+
+    row_data = SheetRow(['Post', '', '', '', '', '', '3/15/2026', '14', ''])
+    sheet = ScheduleSheet('sheet-id', 'email@example.com', 'key')
+
+    with patch('agoras.core.sheet.schedule.logging.getLogger') as mock_get_logger:
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
+        with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
+            with patch.object(sheet, 'update_cell', new_callable=AsyncMock) as mock_update:
+                mock_read.return_value = [row_data]
+                posts = await sheet.process_scheduled_posts()
+                assert len(posts) == 0
+                mock_logger.warning.assert_called_once()
+                args = mock_logger.warning.call_args.args
+                assert "invalid date" in args[0]
+                assert args[1] == 1  # row index
+                mock_update.assert_not_called()
 
 
 @pytest.mark.asyncio
-@patch('agoras.core.sheet.manager.Sheet')
-async def test_sheetmanager_add_sheet(mock_sheet_class):
-    """Test SheetManager add_sheet."""
-    mock_sheet = MagicMock()
-    mock_sheet.authenticate = AsyncMock()
-    mock_sheet_class.return_value = mock_sheet
+@patch('agoras.core.sheet.schedule.datetime')
+async def test_schedulesheet_nonstring_date_warns_and_skips(mock_datetime):
+    """Non-string date cells (e.g. numbers) also warn visibly."""
+    mock_now = datetime.datetime(2024, 1, 15, 14, 0, 0)
+    mock_datetime.datetime.now.return_value = mock_now
+    mock_datetime.datetime.strptime.side_effect = ValueError("time data does not match format")
 
-    manager = SheetManager()
+    row_data = SheetRow(['Post', '', '', '', '', '', 20240315, '14', ''])
+    sheet = ScheduleSheet('sheet-id', 'email@example.com', 'key')
 
-    result = await manager.add_sheet(
-        'my_sheet', 'sheet-id', 'email@example.com', 'key', 'Sheet1'
-    )
-
-    assert 'my_sheet' in manager.sheets
-    assert manager.sheets['my_sheet'] is mock_sheet
-    mock_sheet.authenticate.assert_called_once()
-    assert result is mock_sheet
-
-
-def test_sheetmanager_get_sheet():
-    """Test SheetManager get_sheet."""
-    manager = SheetManager()
-    mock_sheet = MagicMock()
-    manager.sheets['test'] = mock_sheet
-
-    result = manager.get_sheet('test')
-
-    assert result is mock_sheet
-
-
-def test_sheetmanager_get_sheet_unknown():
-    """Test SheetManager get_sheet returns None for unknown."""
-    manager = SheetManager()
-
-    result = manager.get_sheet('nonexistent')
-
-    assert result is None
+    with patch('agoras.core.sheet.schedule.logging.getLogger') as mock_get_logger:
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
+        with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
+            mock_read.return_value = [row_data]
+            posts = await sheet.process_scheduled_posts()
+            assert len(posts) == 0
+            mock_logger.warning.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_sheetmanager_read_all_sheets():
-    """Test SheetManager read_all_sheets concurrently."""
-    manager = SheetManager()
+async def test_schedulesheet_real_strptime_selects_due_post():
+    """The real %d-%m-%Y parse selects a valid due row (no strptime mock)."""
+    sheet = ScheduleSheet('sheet-id', 'email@example.com', 'key')
 
-    mock_sheet1 = MagicMock()
-    mock_sheet1.read_all = AsyncMock(return_value=[['data1']])
-
-    mock_sheet2 = MagicMock()
-    mock_sheet2.read_all = AsyncMock(return_value=[['data2']])
-
-    manager.sheets['sheet1'] = mock_sheet1
-    manager.sheets['sheet2'] = mock_sheet2
-
-    results = await manager.read_all_sheets()
-
-    assert 'sheet1' in results
-    assert 'sheet2' in results
-    mock_sheet1.read_all.assert_called_once()
-    mock_sheet2.read_all.assert_called_once()
+    row_data = SheetRow([
+        'Post text', 'http://link.com', '', '', '', '',
+        datetime.datetime.now().strftime("%d-%m-%Y"), datetime.datetime.now().strftime("%H"), '',
+    ])
+    with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
+        with patch.object(sheet, 'update_cell', new_callable=AsyncMock) as mock_update:
+            mock_read.return_value = [row_data]
+            posts = await sheet.process_scheduled_posts()
+            assert len(posts) == 1
+            assert posts[0]['_sheet_row'] == 1
+            mock_update.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_sheetmanager_read_all_sheets_handles_exceptions():
-    """Test SheetManager read_all_sheets handles exceptions."""
-    manager = SheetManager()
+async def test_schedulesheet_datetime_typed_cell_parses():
+    """A datetime-typed cell (normalized before strptime) still selects."""
+    sheet = ScheduleSheet('sheet-id', 'email@example.com', 'key')
 
-    mock_sheet_success = MagicMock()
-    mock_sheet_success.read_all = AsyncMock(return_value=[['data']])
-
-    mock_sheet_fail = MagicMock()
-    mock_sheet_fail.read_all = AsyncMock(side_effect=Exception('Read failed'))
-
-    manager.sheets['success'] = mock_sheet_success
-    manager.sheets['failure'] = mock_sheet_fail
-
-    results = await manager.read_all_sheets()
-
-    assert 'success' in results
-    assert 'failure' in results
-    assert isinstance(results['failure'], Exception)
+    row_data = SheetRow([
+        'Post text', 'http://link.com', '', '', '', '',
+        datetime.datetime.now(), datetime.datetime.now().strftime("%H"), '',
+    ])
+    with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
+        mock_read.return_value = [row_data]
+        posts = await sheet.process_scheduled_posts()
+        assert len(posts) == 1
 
 
 @pytest.mark.asyncio
-async def test_sheetmanager_write_to_multiple_sheets():
-    """Test SheetManager write_to_multiple_sheets."""
-    manager = SheetManager()
+async def test_schedulesheet_day_first_ambiguity_pinned():
+    """DD-MM-YYYY is the pinned contract: 05-12-2026 means 5 December."""
+    sheet = ScheduleSheet('sheet-id', 'email@example.com', 'key')
 
-    mock_sheet1 = MagicMock()
-    mock_sheet1.write_all = AsyncMock()
-
-    mock_sheet2 = MagicMock()
-    mock_sheet2.write_all = AsyncMock()
-
-    manager.sheets['sheet1'] = mock_sheet1
-    manager.sheets['sheet2'] = mock_sheet2
-
-    data_map = {
-        'sheet1': [['data1']],
-        'sheet2': [['data2']]
-    }
-
-    await manager.write_to_multiple_sheets(data_map)
-
-    mock_sheet1.write_all.assert_called_once_with([['data1']])
-    mock_sheet2.write_all.assert_called_once_with([['data2']])
-
-
-@pytest.mark.asyncio
-async def test_sheetmanager_write_skips_unknown_sheets():
-    """Test SheetManager write_to_multiple_sheets skips unknown sheets."""
-    manager = SheetManager()
-
-    mock_sheet = MagicMock()
-    mock_sheet.write_all = AsyncMock()
-
-    manager.sheets['known'] = mock_sheet
-
-    data_map = {
-        'known': [['data1']],
-        'unknown': [['data2']]  # This sheet doesn't exist
-    }
-
-    await manager.write_to_multiple_sheets(data_map)
-
-    # Should only write to known sheet
-    mock_sheet.write_all.assert_called_once()
+    row_data = SheetRow([
+        'Post text', 'http://link.com', '', '', '', '',
+        '05-12-2026', '10', '',
+    ])
+    with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
+        with patch.object(sheet, 'update_cell', new_callable=AsyncMock) as mock_update:
+            mock_read.return_value = [row_data]
+            posts = await sheet.process_scheduled_posts()
+            assert len(posts) == 1
+            assert posts[0]['_sheet_row'] == 1
+            mock_update.assert_not_called()

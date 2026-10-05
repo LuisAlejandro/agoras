@@ -96,9 +96,7 @@ These imports remain the same in v2.0:
 .. code-block:: python
 
     from agoras.core.feed import Feed
-    from agoras.core.feed.manager import FeedManager
     from agoras.core.sheet import Sheet
-    from agoras.core.sheet.manager import SheetManager
 
 CLI Commands
 ------------
@@ -110,7 +108,7 @@ CLI Commands
    * - v1.x Import
      - v2.0 Import
    * - ``from agoras.commands.publish import PublishCommand``
-     - ``from agoras.cli.commands.publish import PublishCommand``
+     - *removed in Agoras 3.0* - use ``agoras.cli.publish_stub.REMOVED_MESSAGE`` for runtime detection
    * - ``from agoras.cli import main``
      - ``from agoras.cli.main import main``
 

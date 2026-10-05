@@ -86,7 +86,7 @@ Package Responsibilities
   - Shared utilities and helper functions
   - Logging configuration
   - Version information
-  - Depends on: ``requests``, ``beautifulsoup4``
+  - Depends on: ``requests``
 
 **agoras-media** (Media Processing)
   - Image processing (Pillow)

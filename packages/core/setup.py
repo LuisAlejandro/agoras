@@ -19,7 +19,7 @@
 
 from setuptools import find_namespace_packages, setup
 
-version = '2.2.0'
+version = '3.0.0'
 
 setup(
     name='agoras-core',
@@ -38,10 +38,8 @@ setup(
     install_requires=[
         f'agoras-common=={version}',
         f'agoras-media=={version}',
-        'atoma==0.0.17',
         'gspread==6.2.1',
         'google-auth==2.56.3',
-        'python-dateutil==2.9.0.post0',
     ],
 
     classifiers=[

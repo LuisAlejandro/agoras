@@ -2,6 +2,20 @@ Changelog
 ============
 
 
+Unreleased
+------------
+
+Changed
+~~~~~~~~~~~~
+
+* Selectable credential profiles via ``app@account`` composite keys. Because
+  credentials are now stored (and read) under composite keys, **every existing
+  stored account must re-authorize once** (run ``agoras <platform> authorize``);
+  previously stored credentials are not auto-read. New ``--profile`` selector
+  and self-contained environment-credential profiles are introduced.
+
+
+
 2.2.0 (2026-08-26)
 ------------
 

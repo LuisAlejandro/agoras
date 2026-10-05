@@ -33,10 +33,11 @@ Available Actions
 * ``template`` - Send pre-approved template messages
 * ``get-post`` - Read a post/message by ID (CLI only; runtime raises not supported)
 * ``get-reply`` - Read a reply/comment by ID (CLI only; runtime raises not supported)
+* ``list-posts`` - List recent messages (CLI only; runtime raises not supported)
 
 .. note::
 
-   ``get-post`` and ``get-reply`` subcommands exist for CLI uniformity with other
+   ``get-post``, ``get-reply``, and ``list-posts`` subcommands exist for CLI uniformity with other
    platforms, but the WhatsApp Cloud API does not read messages by ID. Invoking
    these actions raises a not-supported error at runtime. See :doc:`reference/action-support`.
 

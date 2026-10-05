@@ -279,12 +279,12 @@ Platform Authentication (legacy utils reference)
 .. versionchanged:: 2.1
    Prefixed platform credential flags (``--x-consumer-key``, ``--facebook-access-token``, etc.) were removed from utils commands. Use ``authorize`` or environment variables; see :doc:`platform-arguments-envvars`.
 
-The following applied before 2.1.0 and remain valid on legacy ``agoras publish`` until 3.0:
+The following applied before 2.1.0 and remained valid on legacy ``agoras publish`` through 2.x (removed in Agoras 3.0):
 
 X (formerly Twitter)
 ~~~~~~~~~~~~~~~~~~~~
 
-* ``--x-consumer-key`` - X API consumer key (legacy publish / pre-2.1 utils)
+* ``--x-consumer-key`` - X API consumer key (legacy publish / pre-2.1 utils; command removed in 3.0)
 * ``--x-consumer-secret`` - X API consumer secret
 * ``--x-oauth-token`` - X OAuth token
 * ``--x-oauth-secret`` - X OAuth secret
@@ -379,6 +379,6 @@ Schedule Automation
 Legacy Parameters
 =================
 
-The legacy ``agoras publish`` command uses the original parameter names with platform prefixes. These are maintained for backward compatibility but are deprecated.
+The legacy ``agoras publish`` command used the original parameter names with platform prefixes through Agoras 2.x; the command was removed in Agoras 3.0.
 
 See the :doc:`../migration/index` for a complete mapping of legacy to new parameters.

@@ -25,13 +25,10 @@ across all social media platforms.
 """
 
 from .base import BaseAuthManager
-from .callback_server import OAuthCallbackHandler, OAuthCallbackServer
+from .callback_server import OAuthCallbackServer
 from .exceptions import AuthenticationError
 from .failure import (
-    AuthFailureCategory,
-    AuthFailureDetails,
     raise_authentication_error_from_manager,
-    record_auth_failure,
 )
 from .storage import SecureTokenStorage
 
@@ -39,10 +36,6 @@ __all__ = [
     "BaseAuthManager",
     "SecureTokenStorage",
     "OAuthCallbackServer",
-    "OAuthCallbackHandler",
     "AuthenticationError",
-    "AuthFailureCategory",
-    "AuthFailureDetails",
     "raise_authentication_error_from_manager",
-    "record_auth_failure",
 ]

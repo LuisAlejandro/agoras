@@ -41,21 +41,6 @@ RESERVED_CONTENT_KEYS: FrozenSet[str] = frozenset(
     }
 )
 
-# Destination / control flags that may coexist with --content (not payload).
-CONTROL_FLAG_DESTINATIONS: FrozenSet[str] = frozenset(
-    {
-        "recipient",
-        "parse_mode",
-        "profile_id",
-        "object_id",
-        "loglevel",
-        "bot_token",
-        "server_name",
-        "channel_name",
-        "chat_id",
-    }
-)
-
 
 @dataclass(frozen=True)
 class FieldSpec:
@@ -634,9 +619,3 @@ def get_action_spec(platform: str, action: str) -> ActionSpec:
 def supports_content_file(platform: str, action: str) -> bool:
     """True when (platform, action) accepts --content."""
     return (canonical_platform(platform), action) in CONTENT_SPECS
-
-
-def content_capable_actions(platform: str) -> FrozenSet[str]:
-    """Actions that accept --content for a platform."""
-    platform = canonical_platform(platform)
-    return frozenset(action for (plat, action) in CONTENT_SPECS if plat == platform)

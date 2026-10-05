@@ -55,7 +55,8 @@ def test_get_supported_actions_x():
     assert 'reply' in actions
     assert 'get-post' in actions
     assert 'get-reply' in actions
-    assert len(actions) == 11
+    assert 'list-posts' in actions
+    assert len(actions) == 12
 
 
 def test_get_supported_actions_twitter_alias():
@@ -87,9 +88,9 @@ def test_get_supported_actions_instagram():
     assert 'post' in actions
     assert 'video' in actions
     assert 'reply' in actions
+    assert 'delete' in actions
     assert 'like' not in actions
     assert 'share' not in actions
-    assert 'delete' not in actions
 
 
 def test_get_supported_actions_threads():
@@ -184,6 +185,29 @@ def test_get_post_reply_actions_present_across_all_networks():
         )
 
 
+LIST_POSTS_NETWORKS = [
+    "x",
+    "twitter",
+    "facebook",
+    "instagram",
+    "linkedin",
+    "discord",
+    "youtube",
+    "tiktok",
+    "threads",
+    "telegram",
+    "whatsapp",
+]
+
+
+def test_list_posts_action_present_across_all_networks():
+    """Test list-posts is registered on all 10 networks plus the twitter alias (R8)."""
+    for platform in LIST_POSTS_NETWORKS:
+        assert PlatformRegistry.validate_action(platform, "list-posts") is True, (
+            f"list-posts missing from {platform} supported actions"
+        )
+
+
 def test_platform_exists():
     """Test platform existence check."""
     assert PlatformRegistry.platform_exists('x') is True
@@ -192,23 +216,3 @@ def test_platform_exists():
     assert PlatformRegistry.platform_exists('telegram') is True
     assert PlatformRegistry.platform_exists('whatsapp') is True
     assert PlatformRegistry.platform_exists('nonexistent') is False
-
-
-def test_get_platform_info():
-    """Test getting platform information."""
-    info = PlatformRegistry.get_platform_info('x')
-
-    assert info['name'] == 'X'
-    assert 'X' in info['description']
-    assert 'actions' in info
-    assert 'module' in info
-
-
-def test_get_platform_info_twitter_alias():
-    """Test getting platform information for Twitter alias."""
-    info = PlatformRegistry.get_platform_info('twitter')
-
-    # Twitter alias should point to X
-    assert 'X' in info['name'] or 'Twitter' in info['name']
-    assert 'actions' in info
-    assert 'module' in info

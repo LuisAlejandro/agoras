@@ -12,7 +12,7 @@ Agoras provides three types of commands:
 
 1. **Platform Commands**: Direct operations on specific social networks
 2. **Utils Commands**: Cross-platform automation tools
-3. **Legacy Command**: Deprecated ``publish`` command (maintained for backward compatibility)
+3. **Legacy Command**: The deprecated ``publish`` command was removed in Agoras 3.0. Use the per-platform commands instead.
 
 Authorization Workflow
 ----------------------
@@ -431,10 +431,10 @@ Legacy Format (Deprecated)
 ---------------------------
 
 .. warning::
-   The ``agoras publish`` command is deprecated in Agoras 2.0.
-   Please migrate to the new platform-first commands.
+   The ``agoras publish`` command was deprecated in Agoras 2.0 and was
+   **removed in Agoras 3.0**. Migrate to the new platform-first commands.
 
-The legacy command format is still supported with deprecation warnings::
+The legacy command format (for reference):
 
     agoras publish --network x --action post \
       --twitter-consumer-key "$KEY" \

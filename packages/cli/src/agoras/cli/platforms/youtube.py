@@ -26,11 +26,9 @@ from argparse import SUPPRESS, ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.youtube.wrapper import main as youtube_main
 
-from ..base import prepare_content_args
+from ..base import add_profile_to_all, run_platform_command
 from ..content import add_content_file_option
-from ..converter import ParameterConverter
 from ..media_help import video_url_help
-from ..validator import ActionValidator
 
 
 def create_youtube_parser(subparsers: _SubParsersAction) -> ArgumentParser:
@@ -101,8 +99,17 @@ def create_youtube_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     )
     get_reply.add_argument("--post-id", required=True, metavar="<id>", help="YouTube comment ID to read")
 
+    # List-posts action
+    list_posts = actions.add_parser(
+        "list-posts",
+        help='List recent YouTube uploads. Requires prior authorization via "agoras youtube authorize".',
+    )
+    _add_limit_option(list_posts)
+
     # Set handler
     parser.set_defaults(command=_handle_youtube_command)
+
+    add_profile_to_all(actions)
 
     return parser
 
@@ -156,6 +163,16 @@ def _add_video_id_option(parser: ArgumentParser):
     parser.add_argument("--video-id", required=True, metavar="<id>", help="YouTube video ID to interact with")
 
 
+def _add_limit_option(parser: ArgumentParser):
+    """
+    Add limit option for list-posts action.
+
+    Args:
+        parser: ArgumentParser to add options to
+    """
+    parser.add_argument("--limit", type=int, metavar="<n>", help="Maximum number of posts to list")
+
+
 def _handle_youtube_command(args: Namespace):
     """
     Handle YouTube command by converting args and calling core.
@@ -166,13 +183,4 @@ def _handle_youtube_command(args: Namespace):
     Returns:
         Exit status from core execution
     """
-    # Validate action
-    ActionValidator.validate("youtube", args.action)
-    prepare_content_args(args, "youtube")
-
-    # Convert new args to legacy format
-    converter = ParameterConverter("youtube")
-    legacy_args = converter.convert_to_legacy(args)
-
-    # Call core YouTube module
-    return youtube_main(legacy_args)
+    return run_platform_command("youtube", args, youtube_main)

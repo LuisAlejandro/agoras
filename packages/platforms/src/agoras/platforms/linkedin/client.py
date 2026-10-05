@@ -448,7 +448,7 @@ class LinkedInAPIClient:
                     if response_data.get("code") == "ACCESS_DENIED":
                         raise Exception(
                             'LinkedIn like permission denied. Your LinkedIn app needs "Community Management API" '
-                            "product enabled and w_member_social scope approved. Visit "
+                            "product enabled and w_member_social_feed scope approved. Visit "
                             "https://developers.linkedin.com/ to configure your app permissions."
                         )
                     else:
@@ -516,7 +516,7 @@ class LinkedInAPIClient:
                     if response_data.get("code") == "ACCESS_DENIED":
                         raise Exception(
                             'LinkedIn comment permission denied. Your LinkedIn app needs "Community Management API" '
-                            "product enabled and w_member_social scope approved. Visit "
+                            "product enabled and w_member_social_feed scope approved. Visit "
                             "https://developers.linkedin.com/ to configure your app permissions."
                         )
                     else:
@@ -579,7 +579,7 @@ class LinkedInAPIClient:
                     if response_data.get("code") == "ACCESS_DENIED":
                         raise Exception(
                             'LinkedIn comment delete permission denied. Your LinkedIn app needs "Community '
-                            'Management API" product enabled and w_member_social scope approved. Visit '
+                            'Management API" product enabled and w_member_social_feed scope approved. Visit '
                             "https://developers.linkedin.com/ to configure your app permissions."
                         )
                     if response_data.get("code") == "NOT_FOUND":
@@ -773,6 +773,50 @@ class LinkedInAPIClient:
 
         return await asyncio.to_thread(_sync_get_comment)
 
+    async def get_media(self, media_urn: str) -> Dict[str, Any]:
+        """
+        Resolve a LinkedIn media URN to its downloadable URL.
+
+        Args:
+            media_urn (str): Media URN (e.g. "urn:li:image:123" or "urn:li:video:456")
+
+        Returns:
+            dict: Media entity containing a ``downloadUrl``
+
+        Raises:
+            Exception: If the media cannot be resolved
+        """
+
+        def _sync_get_media():
+            if not self.restli_client:
+                raise Exception("LinkedIn RestliClient not initialized")
+            if not self.access_token:
+                raise Exception("No access token available")
+            if not media_urn:
+                raise Exception("LinkedIn media URN is required.")
+
+            encoded_urn = urllib.parse.quote(media_urn, safe="")
+            request = self.restli_client.get(
+                resource_path=f"/media/{encoded_urn}",
+                version_string=self.api_version,
+                access_token=self.access_token,
+            )
+
+            if request.status_code != 200:
+                raise Exception(f"Unable to get LinkedIn media {media_urn} - Status: {request.status_code}")
+
+            entity = getattr(request, "entity", None)
+            if entity is None:
+                try:
+                    entity = request.response.json()
+                except Exception as exc:
+                    raise Exception(f"Unable to parse LinkedIn media {media_urn}") from exc
+            if isinstance(entity, dict):
+                return entity
+            return {"id": media_urn, "raw": entity}
+
+        return await asyncio.to_thread(_sync_get_media)
+
     async def get_user_info(self) -> Dict[str, Any]:
         """
         Get user information from LinkedIn API.
@@ -800,3 +844,49 @@ class LinkedInAPIClient:
             return result
 
         return await asyncio.to_thread(_sync_get_user_info)
+
+    async def list_posts(self, author_urn: str, limit: int) -> List[Dict[str, Any]]:
+        """
+        List recent posts by an author.
+
+        Args:
+            author_urn (str): LinkedIn author URN (e.g. "urn:li:person:12345")
+            limit (int): Maximum number of posts to return
+
+        Returns:
+            list: Post entities from the LinkedIn Posts API
+
+        Raises:
+            Exception: If the posts cannot be read
+        """
+
+        def _sync_list():
+            if not self.restli_client:
+                raise Exception("LinkedIn RestliClient not initialized")
+            if not self.access_token:
+                raise Exception("No access token available")
+            if not author_urn:
+                raise Exception("LinkedIn author URN is required for list-posts action.")
+
+            request = self.restli_client.get(
+                resource_path="/posts",
+                query_params={"author": author_urn, "q": "author", "count": limit},
+                version_string=self.api_version,
+                access_token=self.access_token,
+            )
+
+            if request.status_code != 200:
+                raise Exception(f"Unable to list LinkedIn posts - Status: {request.status_code}")
+
+            entity = getattr(request, "entity", None)
+            if entity is None:
+                try:
+                    entity = request.response.json()
+                except Exception as exc:
+                    raise Exception("Unable to parse LinkedIn posts") from exc
+            if isinstance(entity, dict):
+                elements = entity.get("elements") or []
+                return [e for e in elements if isinstance(e, dict)]
+            return []
+
+        return await asyncio.to_thread(_sync_list)

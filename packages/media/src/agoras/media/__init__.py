@@ -19,52 +19,14 @@
 """
 Media module providing media download and processing capabilities.
 
-Contains:
-- Media: Abstract base class for media handling
-- Image: Handles image media files
-- Video: Handles video media files with platform-specific limits
-- MediaFactory: Factory for creating and managing media instances
-- constraints: Shared per-platform MIME/size/duration limits
+Submodules carry the full surface (``base``, ``image``, ``video``,
+``constraints``, ``errors``, ``factory``, ``preflight``); this root exposes
+only the names consumed through ``agoras.media`` directly.
 """
 
-from .base import Media
-from .constraints import (
-    IMAGE,
-    TRANSFER,
-    VIDEO,
-    MediaConstraints,
-    constraints_summary,
-    format_bytes,
-    image_limits,
-    platforms_with_post_or_video,
-    resolve_platform,
-    transfer_mode,
-    video_limits,
-)
-from .errors import MediaValidationError, format_limit_error
-from .factory import MediaFactory
-from .image import Image
-from .preflight import preflight_url, preflight_url_for_platform
-from .video import Video
+from .factory import create_video, download_images
 
 __all__ = [
-    "Media",
-    "Image",
-    "Video",
-    "MediaFactory",
-    "MediaConstraints",
-    "MediaValidationError",
-    "IMAGE",
-    "VIDEO",
-    "TRANSFER",
-    "constraints_summary",
-    "format_bytes",
-    "format_limit_error",
-    "image_limits",
-    "video_limits",
-    "resolve_platform",
-    "transfer_mode",
-    "platforms_with_post_or_video",
-    "preflight_url",
-    "preflight_url_for_platform",
+    "create_video",
+    "download_images",
 ]

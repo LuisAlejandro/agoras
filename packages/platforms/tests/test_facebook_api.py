@@ -182,6 +182,29 @@ async def test_facebook_api_delete_reply(facebook_api):
     facebook_api.client.delete_comment.assert_called_once_with('comment-123')
 
 
+@pytest.mark.asyncio
+async def test_facebook_api_list_posts(facebook_api):
+    """Test FacebookAPI list_posts reads the object feed and truncates to limit."""
+    facebook_api.client.get_object = MagicMock(
+        return_value={
+            "data": [
+                {"id": "post-1", "message": "hello"},
+                {"id": "post-2", "message": "world"},
+                {"id": "post-3", "message": "third"},
+            ]
+        }
+    )
+
+    result = await facebook_api.list_posts("page123", 2)
+
+    assert len(result) == 2
+    assert result[0]["id"] == "post-1"
+    assert result[1]["id"] == "post-2"
+    facebook_api.client.get_object.assert_called_once()
+    call_args = facebook_api.client.get_object.call_args
+    assert call_args[0][0] == "page123/feed"
+
+
 # Error Handling Tests
 
 @pytest.mark.asyncio

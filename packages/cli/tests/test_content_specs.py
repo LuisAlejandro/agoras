@@ -7,7 +7,6 @@
 
 from agoras.cli.content_specs import (
     CONTENT_SPECS,
-    content_capable_actions,
     get_action_spec,
     supports_content_file,
 )
@@ -60,10 +59,6 @@ def test_supports_content_file():
     assert supports_content_file("X", "post") is True
     assert supports_content_file("youtube", "like") is False
     assert supports_content_file("discord", "delete") is False
-
-
-def test_content_capable_actions_x():
-    assert content_capable_actions("x") == frozenset({"post", "video", "thread", "reply"})
 
 
 def test_get_action_spec_discord_thread_requires_name():

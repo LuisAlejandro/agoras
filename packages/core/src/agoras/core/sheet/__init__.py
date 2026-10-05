@@ -22,13 +22,11 @@ Sheet module providing Google Sheets integration capabilities.
 Contains:
 - SheetRow: Represents individual rows with column mapping
 - Sheet: Main Google Sheets handler with authentication and operations
-- SheetManager: Manager for handling multiple sheets and batch operations
 - ScheduleSheet: Specialized sheet for social media scheduling
 """
 
-from .manager import SheetManager
 from .row import SheetRow
 from .schedule import ScheduleSheet
 from .sheet import Sheet
 
-__all__ = ["SheetRow", "Sheet", "SheetManager", "ScheduleSheet"]
+__all__ = ["SheetRow", "Sheet", "ScheduleSheet"]

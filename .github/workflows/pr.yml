@@ -97,6 +97,25 @@ jobs:
         run: |
           tox -e lint
 
+      - name: Verifying wrapper-skeleton parity
+        run: |
+          python3 -m pip install -e packages/common
+          python3 -m pip install -e packages/media
+          python3 -m pip install -e packages/core
+          python3 -m pip install -e packages/platforms
+          python3 scripts/verify_wrapper_parity.py --self-test
+          python3 scripts/verify_wrapper_parity.py
+          python3 scripts/verify_api_guard_order.py --self-test
+          python3 scripts/verify_api_guard_order.py
+          python3 scripts/verify_api_rate_limit_parity.py --self-test
+          python3 scripts/verify_api_rate_limit_parity.py
+          python3 scripts/verify_dead_code.py --self-test
+          python3 scripts/verify_dead_code.py
+
+      - name: Verifying package dependency sync
+        run: |
+          python3 scripts/sync_package_deps.py --check
+
   lint-skip:
     name: Linting
     needs: [filter]
@@ -208,7 +227,6 @@ jobs:
       - name: Skip docs-only changes
         run: echo "Docs-only PR with no Sphinx path changes; skipping."
 
-  # >>> rosey-maintainer:ci-quality BEGIN
   code-quality:
     name: Code Quality
     needs: [filter]
@@ -232,7 +250,6 @@ jobs:
             --baseline-commit "${BASELINE}" \
             --metrics=off \
             --error
-  # <<< rosey-maintainer:ci-quality END
 
   code-quality-skip:
     name: Code Quality

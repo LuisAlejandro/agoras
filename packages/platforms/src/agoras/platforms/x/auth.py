@@ -44,6 +44,7 @@ class XAuthManager(BaseAuthManager):
         consumer_secret: Optional[str] = None,
         oauth_token: Optional[str] = None,
         oauth_secret: Optional[str] = None,
+        profile: Optional[str] = None,
     ):
         """
         Initialize X authentication manager.
@@ -53,13 +54,25 @@ class XAuthManager(BaseAuthManager):
             consumer_secret (str): X consumer secret
             oauth_token (str, optional): X OAuth token (if already obtained)
             oauth_secret (str, optional): X OAuth secret (if already obtained)
+            profile (str, optional): Explicit profile composite (app-derived key)
         """
         super().__init__()
+        self.profile = profile
         self.consumer_key = consumer_key
         self.consumer_secret = consumer_secret
         self.oauth_token = oauth_token
         self.oauth_secret = oauth_secret
         self.subscription_type: Optional[str] = None
+
+    @property
+    def authenticated(self) -> bool:
+        """Check if currently authenticated.
+
+        X uses OAuth 1.0a with no user_info at authenticate time, so only
+        the access token and client are required (unlike the base check
+        which also requires user_info).
+        """
+        return bool(self.access_token and self.client)
 
     async def authenticate(self) -> bool:
         """
@@ -264,9 +277,11 @@ class XAuthManager(BaseAuthManager):
         """Get token identifier (use consumer key hash)."""
         import hashlib
 
+        if self.profile:
+            return self.profile
         if self.consumer_key:
             return hashlib.md5(self.consumer_key.encode(), usedforsecurity=False).hexdigest()[:8]
-        return "default"
+        return "unbound"
 
     def _save_credentials_to_storage(self):
         """Save all X credentials to secure storage."""
@@ -282,16 +297,12 @@ class XAuthManager(BaseAuthManager):
         }
 
         self.token_storage.save_token(platform_name, identifier, token_data)
-        # Also save as default so it becomes the primary credential loaded
-        self.token_storage.save_token(platform_name, "default", token_data)
 
     def load_subscription_type_from_storage(self) -> Optional[str]:
         """Load stored subscription_type without requiring full re-auth."""
         platform_name = self._get_platform_name()
         identifier = self._get_token_identifier()
         token_data = self.token_storage.load_token(platform_name, identifier)
-        if not token_data:
-            token_data = self.token_storage.load_token(platform_name, "default")
         if not token_data:
             return None
         return token_data.get("subscription_type")
@@ -310,8 +321,6 @@ class XAuthManager(BaseAuthManager):
         identifier = self._get_token_identifier()
         token_data = self.token_storage.load_token(platform_name, identifier)
         if not token_data:
-            token_data = self.token_storage.load_token(platform_name, "default")
-        if not token_data:
             return None
 
         if token_data.get("oauth_token") != self.oauth_token or token_data.get("oauth_secret") != self.oauth_secret:
@@ -323,16 +332,24 @@ class XAuthManager(BaseAuthManager):
         """Load X credentials from secure storage."""
         platform_name = self._get_platform_name()
 
-        # Try default identifier first
         identifier = self._get_token_identifier()
         token_data = self.token_storage.load_token(platform_name, identifier)
 
-        if not token_data:
-            # Try to find any stored token
-            tokens = self.token_storage.list_tokens(platform_name)
-            if tokens:
-                identifier = tokens[0][1]
-                token_data = self.token_storage.load_token(platform_name, identifier)
+        if not token_data and self.profile is None:
+            # Restore the pre-refactor single-token auto-load: when no profile
+            # is selected and exactly one non-reserved token exists for the
+            # platform, adopt it (no silent first-listed pick among several).
+            loadable = []
+            for stored_platform, stored_identifier in self.token_storage.list_tokens(platform_name):
+                if stored_platform != platform_name:
+                    continue
+                candidate = self.token_storage.load_token(platform_name, stored_identifier)
+                if candidate is None:
+                    continue
+                loadable.append((stored_identifier, candidate))
+            if len(loadable) == 1:
+                self.profile = loadable[0][0]
+                token_data = loadable[0][1]
 
         if token_data:
             self.consumer_key = token_data.get("consumer_key")

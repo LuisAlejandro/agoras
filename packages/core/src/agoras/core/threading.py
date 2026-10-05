@@ -62,7 +62,11 @@ class ThreadResult:
 
 
 class ThreadPublishError(Exception):
-    """Raised after a partial or failed thread publish with a structured result."""
+    """Raised after a partial or failed thread publish with a structured result.
+
+    ``__cause__`` is intentionally None (chains are severed) and
+    ``result.error`` is credential-redacted, so logging surfaces stay clean.
+    """
 
     def __init__(self, result: ThreadResult, message: Optional[str] = None):
         """Attach a ThreadResult and optional message to the exception."""

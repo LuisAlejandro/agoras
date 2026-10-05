@@ -1,0 +1,16 @@
+# Vulture dead-code allowlist for Agoras.
+#
+# Each entry is an intentionally-unused name with a one-line reason.
+# Keep this file as tight as the calibration allows: every entry must
+# name a framework protocol, dynamic-dispatch, or intentional re-export
+# reason. The gate runs with `--min-confidence 90`.
+#
+# Calibration: 2026-09-03 against packages/{common,media,core,platforms,cli}/src/agoras.
+
+# __exit__/__aexit__ dunder protocol args (packages/media/src/agoras/media/base.py).
+exc_type
+exc_val
+exc_tb
+
+# argparse.Action.__call__ signature (packages/cli/src/agoras/cli/publish_stub.py).
+option_string

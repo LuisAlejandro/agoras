@@ -21,11 +21,3 @@ agoras.core.feed.item module
     :members:
     :private-members:
     :special-members:
-
-agoras.core.feed.manager module
--------------------------------
-
-.. automodule:: agoras.core.feed.manager
-    :members:
-    :private-members:
-    :special-members: 

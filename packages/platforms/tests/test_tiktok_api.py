@@ -224,17 +224,6 @@ async def test_tiktok_api_post_with_video_url(tiktok_api):
 
 
 @pytest.mark.asyncio
-async def test_tiktok_api_get_creator_info(tiktok_api):
-    """Test TikTokAPI get_creator_info re-queries the client."""
-    result = await tiktok_api.get_creator_info()
-
-    assert result["creator_nickname"] == "Test User"
-    assert result["privacy_level_options"] == ["SELF_ONLY", "PUBLIC_TO_EVERYONE"]
-    tiktok_api.client.get_user_info.assert_called_once()
-    assert tiktok_api.auth_manager.user_info == result
-
-
-@pytest.mark.asyncio
 async def test_tiktok_api_refresh_creator_info_username_mismatch(tiktok_api):
     """Test refresh_creator_info aborts when the username does not match."""
     tiktok_api.client.get_user_info = MagicMock(

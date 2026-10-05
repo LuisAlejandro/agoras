@@ -17,48 +17,26 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.discord.wrapper module."""
 
-import asyncio
 from typing import Any, Dict, List, Optional
 
 import discord
 
 from agoras.common.utils import parse_metatags
-from agoras.core.interfaces import SocialNetwork
-from agoras.core.text_limits import validate_discord_embeds, validate_text
-from agoras.core.threading import (
-    ThreadPublishError,
-    ThreadResult,
-    partial_result,
-    success_result,
+from agoras.core.api_base import sanitize_error_text
+from agoras.core.interfaces import (
+    SocialNetwork,
+    _entry_images,
+    _is_uncertain_publish_error,
+    run_wrapper_main,
+    run_wrapper_main_async,
 )
+from agoras.core.text_limits import validate_discord_embeds, validate_text
+from agoras.core.threading import ThreadPublishError, ThreadResult, partial_result, success_result
 from agoras.media.paths import media_is_local
 
 from .api import DiscordAPI
 
 _DISCORD_ARCHIVE_DURATIONS = frozenset({60, 1440, 4320, 10080})
-
-
-def _entry_images(entry: Dict[str, Any]) -> List[str]:
-    """Collect flattened image_1..image_4 URLs from a thread entry."""
-    return list(
-        filter(
-            None,
-            [
-                entry.get("image_1"),
-                entry.get("image_2"),
-                entry.get("image_3"),
-                entry.get("image_4"),
-            ],
-        )
-    )
-
-
-def _is_uncertain_publish_error(exc: BaseException) -> bool:
-    """Classify timeout/uncertain errors after a publish dispatch."""
-    if isinstance(exc, (TimeoutError, asyncio.TimeoutError)):
-        return True
-    message = str(exc).lower()
-    return any(token in message for token in ("timeout", "timed out", "temporarily unavailable"))
 
 
 class Discord(SocialNetwork):
@@ -68,6 +46,10 @@ class Discord(SocialNetwork):
     This class provides Discord-specific functionality for posting messages,
     videos, and managing Discord interactions asynchronously.
     """
+
+    # Pure-proxy platform: delete_reply/get_reply delegate to delete/get_post
+    _proxy_delete_reply = True
+    _proxy_get_reply = True
 
     def __init__(self, **kwargs):
         """
@@ -91,7 +73,6 @@ class Discord(SocialNetwork):
         self.discord_bot_token = None
         self.discord_server_name = None
         self.discord_channel_name = None
-        self.api = None
 
     async def _initialize_client(self):
         """
@@ -100,9 +81,9 @@ class Discord(SocialNetwork):
         This method sets up the Discord API client with configuration.
         Tries to load credentials from storage if not provided via parameters.
         """
-        self.discord_bot_token = self._get_config_value("discord_bot_token", "DISCORD_BOT_TOKEN")
-        self.discord_server_name = self._get_config_value("discord_server_name", "DISCORD_SERVER_NAME")
-        self.discord_channel_name = self._get_config_value("discord_channel_name", "DISCORD_CHANNEL_NAME")
+        self.discord_bot_token = self._get_auth_config_value("discord_bot_token", "DISCORD_BOT_TOKEN")
+        self.discord_server_name = self._get_auth_config_value("discord_server_name", "DISCORD_SERVER_NAME")
+        self.discord_channel_name = self._get_auth_config_value("discord_channel_name", "DISCORD_CHANNEL_NAME")
 
         # If credentials not provided, try loading from storage
         if not all([self.discord_bot_token, self.discord_server_name, self.discord_channel_name]):
@@ -112,20 +93,22 @@ class Discord(SocialNetwork):
                 bot_token=self.discord_bot_token,
                 server_name=self.discord_server_name,
                 channel_name=self.discord_channel_name,
+                profile=self._get_config_value("profile"),
             )
 
-            if auth_manager._load_credentials_from_storage():
-                # Fill in missing credentials from storage
-                if not self.discord_bot_token:
-                    self.discord_bot_token = auth_manager.bot_token
-                if not self.discord_server_name:
-                    self.discord_server_name = auth_manager.server_name
-                if not self.discord_channel_name:
-                    self.discord_channel_name = auth_manager.channel_name
+            self._fill_missing_credentials(
+                auth_manager,
+                {
+                    "discord_bot_token": "bot_token",
+                    "discord_server_name": "server_name",
+                    "discord_channel_name": "channel_name",
+                },
+            )
 
-        # Validate all credentials are now available
-        if not all([self.discord_bot_token, self.discord_server_name, self.discord_channel_name]):
-            raise Exception("Not authenticated. Please run 'agoras discord authorize' first.")
+        self._require_credentials(
+            [self.discord_bot_token, self.discord_server_name, self.discord_channel_name],
+            "discord",
+        )
 
         # Initialize Discord API
         self.api = DiscordAPI(self.discord_bot_token, self.discord_server_name, self.discord_channel_name)
@@ -133,33 +116,17 @@ class Discord(SocialNetwork):
         # Authenticate with provided credentials
         await self.api.authenticate()
 
-    async def authorize_credentials(self):
-        """
-        Authorize and store Discord credentials for future use.
+    _authorize_keys = {
+        "bot_token": "discord_bot_token",
+        "server_name": "discord_server_name",
+        "channel_name": "discord_channel_name",
+    }
 
-        Returns:
-            bool: True if authorization successful
-        """
+    def _authorize_manager(self):
+        """Return the DiscordAuthManager used by the shared authorize flow."""
         from .auth import DiscordAuthManager
 
-        bot_token = self._get_config_value("discord_bot_token", "DISCORD_BOT_TOKEN")
-        server_name = self._get_config_value("discord_server_name", "DISCORD_SERVER_NAME")
-        channel_name = self._get_config_value("discord_channel_name", "DISCORD_CHANNEL_NAME")
-
-        auth_manager = DiscordAuthManager(bot_token=bot_token, server_name=server_name, channel_name=channel_name)
-
-        result = await auth_manager.authorize()
-        if result:
-            print(result)
-            return True
-        return False
-
-    async def disconnect(self):
-        """
-        Disconnect from Discord API and clean up resources.
-        """
-        if self.api:
-            await self.api.disconnect()
+        return DiscordAuthManager
 
     async def _prepare_discord_media_payload(
         self,
@@ -169,8 +136,7 @@ class Discord(SocialNetwork):
         status_link=None,
     ):
         """Build embeds and attachment files shared by post() and reply()."""
-        if not self.api:
-            raise Exception("Discord API not initialized")
+        self._require_api()
 
         embeds: List[Any] = []
         attachment_files: List[discord.File] = []
@@ -223,8 +189,7 @@ class Discord(SocialNetwork):
         Returns:
             str: Post ID
         """
-        if not self.api:
-            raise Exception("Discord API not initialized")
+        self._require_api()
 
         source_media = self._collect_status_image_urls(
             status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4
@@ -280,8 +245,7 @@ class Discord(SocialNetwork):
         Returns:
             str: Reply message ID
         """
-        if not self.api:
-            raise Exception("Discord API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("Discord post ID is required for reply action.")
@@ -317,8 +281,7 @@ class Discord(SocialNetwork):
         return message_id
 
     async def _append_custom_embeds(self, embeds: List[Any], custom_embeds: List[Any]) -> None:
-        if not self.api:
-            raise Exception("Discord API not initialized")
+        self._require_api()
         for embed_data in custom_embeds:
             if not isinstance(embed_data, dict):
                 raise Exception("Each embed must be a mapping.")
@@ -332,8 +295,7 @@ class Discord(SocialNetwork):
             )
 
     async def _append_link_embed(self, embeds: List[Any], link: str) -> None:
-        if not self.api:
-            raise Exception("Discord API not initialized")
+        self._require_api()
         scraped_data = parse_metatags(link)
         embeds.append(
             self.api.create_embed(
@@ -351,8 +313,7 @@ class Discord(SocialNetwork):
         cleanup_targets: List[Any],
         attachment_files: List[discord.File],
     ) -> None:
-        if not self.api:
-            raise Exception("Discord API not initialized")
+        self._require_api()
         downloaded = await self.download_images(images)
         for image in downloaded:
             try:
@@ -372,8 +333,7 @@ class Discord(SocialNetwork):
         video_title: str,
         text: Optional[str],
     ):
-        if not self.api:
-            raise Exception("Discord API not initialized")
+        self._require_api()
         video = await self.download_video(video_url)
         cleanup_targets.append(video)
         if not video.content or not video.file_type:
@@ -398,8 +358,7 @@ class Discord(SocialNetwork):
         Returns:
             tuple: (content, embeds, attachment_files, cleanup_callable)
         """
-        if not self.api:
-            raise Exception("Discord API not initialized")
+        self._require_api()
 
         text = entry.get("text") or None
         link = entry.get("link") or ""
@@ -468,8 +427,7 @@ class Discord(SocialNetwork):
         Raises:
             ThreadPublishError: On partial or failed publish with structured result
         """
-        if not self.api:
-            raise Exception("Discord API not initialized")
+        self._require_api()
 
         if not entries or not isinstance(entries, list):
             raise Exception("Thread entries are required.")
@@ -501,7 +459,9 @@ class Discord(SocialNetwork):
             ids.append(str(starter_id))
         except Exception as exc:
             outcome = "unknown" if _is_uncertain_publish_error(exc) else "failed"
-            raise ThreadPublishError(partial_result(ids, failed_index=0, outcome=outcome, error=str(exc))) from exc
+            raise ThreadPublishError(
+                partial_result(ids, failed_index=0, outcome=outcome, error=sanitize_error_text(str(exc)))
+            ) from None
         finally:
             if cleanup:
                 cleanup()
@@ -514,8 +474,10 @@ class Discord(SocialNetwork):
         except Exception as exc:
             outcome = "unknown" if _is_uncertain_publish_error(exc) else "failed"
             raise ThreadPublishError(
-                partial_result(ids, failed_index=0, outcome=outcome, error=str(exc), thread_id=thread_id)
-            ) from exc
+                partial_result(
+                    ids, failed_index=0, outcome=outcome, error=sanitize_error_text(str(exc)), thread_id=thread_id
+                )
+            ) from None
 
         # Remaining entries → thread channel
         for index, entry in enumerate(entries[1:], start=1):
@@ -536,10 +498,10 @@ class Discord(SocialNetwork):
                         ids,
                         failed_index=index,
                         outcome=outcome,
-                        error=str(exc),
+                        error=sanitize_error_text(str(exc)),
                         thread_id=thread_id,
                     )
-                ) from exc
+                ) from None
             finally:
                 if cleanup:
                     cleanup()
@@ -556,8 +518,7 @@ class Discord(SocialNetwork):
         Returns:
             str: Post ID
         """
-        if not self.api:
-            raise Exception("Discord API not initialized")
+        self._require_api()
 
         if not discord_post_id:
             raise Exception("Discord post ID is required.")
@@ -576,8 +537,7 @@ class Discord(SocialNetwork):
         Returns:
             str: Post ID
         """
-        if not self.api:
-            raise Exception("Discord API not initialized")
+        self._require_api()
 
         if not discord_post_id:
             raise Exception("Discord post ID is required.")
@@ -585,20 +545,6 @@ class Discord(SocialNetwork):
         result = await self.api.delete(discord_post_id)
         self._output_status(result)
         return result
-
-    async def delete_reply(self, post_id):
-        """
-        Delete a reply message.
-
-        A reply is a message on Discord, so deletion is a proxy of ``delete``.
-
-        Args:
-            post_id (str): ID of the reply message to delete
-
-        Returns:
-            str: Deleted message ID
-        """
-        return await self.delete(post_id)
 
     async def get_post(self, post_id):
         """
@@ -610,8 +556,7 @@ class Discord(SocialNetwork):
         Returns:
             dict: Normalized content
         """
-        if not self.api:
-            raise Exception("Discord API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("Discord post ID is required.")
@@ -629,19 +574,37 @@ class Discord(SocialNetwork):
         self._output_content(content)
         return content
 
-    async def get_reply(self, post_id):
+    async def list_posts(self, limit):
         """
-        Read a reply message by ID.
-
-        A reply is a message on Discord, so reading is a proxy of ``get_post``.
+        List recent messages in the configured channel and return normalized content.
 
         Args:
-            post_id (str): Reply message ID to read
+            limit (int): Maximum number of messages to return
 
         Returns:
-            dict: Normalized content
+            list: Normalized content dicts
         """
-        return await self.get_post(post_id)
+        self._require_api()
+
+        if limit == 0:
+            self._output_list([])
+            return []
+
+        raw_items = await self.api.list_posts(limit)
+        items = []
+        for raw in raw_items:
+            items.append(
+                {
+                    "id": raw.get("id"),
+                    "text": raw.get("text"),
+                    "media": raw.get("media") or [],
+                    "author": raw.get("author"),
+                    "created_at": raw.get("created_at"),
+                    "metadata": {},
+                }
+            )
+        self._output_list(items)
+        return items
 
     async def share(self, discord_post_id):
         """
@@ -667,8 +630,7 @@ class Discord(SocialNetwork):
         Returns:
             str: Post ID
         """
-        if not self.api:
-            raise Exception("Discord API not initialized")
+        self._require_api()
 
         if not video_url:
             raise Exception("No Discord video URL provided.")
@@ -715,30 +677,14 @@ async def main_async(kwargs):
     Args:
         kwargs (dict): Configuration arguments
     """
-    action = kwargs.get("action", "")
-
-    if action == "":
-        raise Exception("Action is a required argument.")
-
-    # Create Discord instance with configuration
-    instance = Discord(**kwargs)
-
-    # Handle authorize action separately (doesn't need client initialization)
-    if action == "authorize":
-        success = await instance.authorize_credentials()
-        return 0 if success else 1
-
-    try:
-        await instance.execute_action(action)
-    finally:
-        await instance.disconnect()
+    return await run_wrapper_main_async(Discord, kwargs)
 
 
 def main(kwargs):
     """
-    Main function to execute Discord actions.
+    Main function to execute Discord actions (for backwards compatibility).
 
     Args:
         kwargs (dict): Configuration arguments
     """
-    asyncio.run(main_async(kwargs))
+    run_wrapper_main(Discord, kwargs)

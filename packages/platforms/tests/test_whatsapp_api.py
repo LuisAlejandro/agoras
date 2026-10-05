@@ -161,7 +161,7 @@ async def test_whatsapp_api_send_template(whatsapp_api):
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.whatsapp.api.MediaFactory')
+@patch('agoras.platforms.whatsapp.api.download_images', new_callable=AsyncMock)
 async def test_whatsapp_api_post_wrapper_text(mock_media_factory, whatsapp_api):
     """Test WhatsAppAPI post wrapper with text."""
     result = await whatsapp_api.post(to='+1234567890', text='Test message')
@@ -171,7 +171,7 @@ async def test_whatsapp_api_post_wrapper_text(mock_media_factory, whatsapp_api):
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.whatsapp.api.MediaFactory')
+@patch('agoras.platforms.whatsapp.api.download_images', new_callable=AsyncMock)
 async def test_whatsapp_api_post_wrapper_image(mock_media_factory, whatsapp_api):
     """Test WhatsAppAPI post wrapper with image."""
     mock_image = MagicMock()
@@ -179,7 +179,7 @@ async def test_whatsapp_api_post_wrapper_image(mock_media_factory, whatsapp_api)
     mock_image.file_type = MagicMock()
     mock_image.url = 'http://image.jpg'
     mock_image.cleanup = MagicMock()
-    mock_media_factory.download_images = AsyncMock(return_value=[mock_image])
+    mock_media_factory.return_value = [mock_image]
 
     result = await whatsapp_api.post(to='+1234567890', image_url='http://image.jpg', text='Caption')
 
@@ -188,7 +188,7 @@ async def test_whatsapp_api_post_wrapper_image(mock_media_factory, whatsapp_api)
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.whatsapp.api.MediaFactory')
+@patch('agoras.platforms.whatsapp.api.create_video', new_callable=MagicMock)
 async def test_whatsapp_api_post_wrapper_video(mock_media_factory, whatsapp_api):
     """Test WhatsAppAPI post wrapper with video."""
     mock_video = MagicMock()
@@ -196,7 +196,7 @@ async def test_whatsapp_api_post_wrapper_video(mock_media_factory, whatsapp_api)
     mock_video.file_type = MagicMock()
     mock_video.url = 'http://video.mp4'
     mock_video.cleanup = MagicMock()
-    mock_media_factory.create_video = MagicMock(return_value=mock_video)
+    mock_media_factory.return_value = mock_video
     mock_video.download = AsyncMock()
 
     result = await whatsapp_api.post(to='+1234567890', video_url='http://video.mp4', text='Caption')
@@ -294,7 +294,7 @@ async def test_whatsapp_api_send_message_with_buttons(whatsapp_api):
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.whatsapp.api.MediaFactory')
+@patch('agoras.platforms.whatsapp.api.download_images', new_callable=AsyncMock)
 async def test_whatsapp_api_post_no_content_error(mock_media_factory, whatsapp_api):
     """Test WhatsAppAPI post raises error when no text/image/video provided."""
     with pytest.raises(Exception, match='No text, image, or video provided'):
@@ -302,7 +302,7 @@ async def test_whatsapp_api_post_no_content_error(mock_media_factory, whatsapp_a
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.whatsapp.api.MediaFactory')
+@patch('agoras.platforms.whatsapp.api.download_images', new_callable=AsyncMock)
 async def test_whatsapp_api_post_image_validation_failure(mock_media_factory, whatsapp_api):
     """Test WhatsAppAPI post handles image validation failure."""
     mock_image = MagicMock()
@@ -310,14 +310,14 @@ async def test_whatsapp_api_post_image_validation_failure(mock_media_factory, wh
     mock_image.file_type = None
     mock_image.url = 'http://image.jpg'
     mock_image.cleanup = MagicMock()
-    mock_media_factory.download_images = AsyncMock(return_value=[mock_image])
+    mock_media_factory.return_value = [mock_image]
 
     with pytest.raises(Exception, match='Failed to validate image'):
         await whatsapp_api.post(to='+1234567890', image_url='http://image.jpg')
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.whatsapp.api.MediaFactory')
+@patch('agoras.platforms.whatsapp.api.create_video', new_callable=MagicMock)
 async def test_whatsapp_api_post_video_validation_failure(mock_media_factory, whatsapp_api):
     """Test WhatsAppAPI post handles video validation failure."""
     mock_video = MagicMock()
@@ -325,7 +325,7 @@ async def test_whatsapp_api_post_video_validation_failure(mock_media_factory, wh
     mock_video.file_type = None
     mock_video.url = 'http://video.mp4'
     mock_video.cleanup = MagicMock()
-    mock_media_factory.create_video = MagicMock(return_value=mock_video)
+    mock_media_factory.return_value = mock_video
     mock_video.download = AsyncMock()
 
     with pytest.raises(Exception, match='Failed to validate video'):

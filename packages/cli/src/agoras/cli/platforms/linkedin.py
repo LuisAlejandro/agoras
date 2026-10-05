@@ -25,9 +25,12 @@ from argparse import ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.linkedin.wrapper import main as linkedin_main
 
-from ..base import add_common_content_options, add_video_options, prepare_content_args
-from ..converter import ParameterConverter
-from ..validator import ActionValidator
+from ..base import (
+    add_common_content_options,
+    add_profile_to_all,
+    add_video_options,
+    run_platform_command,
+)
 
 
 def create_linkedin_parser(subparsers: _SubParsersAction) -> ArgumentParser:
@@ -116,8 +119,17 @@ def create_linkedin_parser(subparsers: _SubParsersAction) -> ArgumentParser:
         "--parent-post-id", required=True, metavar="<urn>", help="LinkedIn parent post URN the comment belongs to"
     )
 
+    # List-posts action
+    list_posts = actions.add_parser(
+        "list-posts",
+        help='List recent LinkedIn posts. Requires prior authorization via "agoras linkedin authorize".',
+    )
+    _add_limit_option(list_posts)
+
     # Set handler
     parser.set_defaults(command=_handle_linkedin_command)
+
+    add_profile_to_all(actions)
 
     return parser
 
@@ -135,6 +147,16 @@ def _add_linkedin_authorize_options(parser: ArgumentParser):
     auth.add_argument("--client-id", required=True, metavar="<id>", help="LinkedIn App client ID")
     auth.add_argument("--client-secret", required=True, metavar="<secret>", help="LinkedIn App client secret")
     auth.add_argument("--object-id", required=True, metavar="<id>", help="LinkedIn user/organization ID")
+    auth.add_argument(
+        "--scope",
+        metavar="<scopes>",
+        help=(
+            "Comma-separated scopes that REPLACE the default "
+            "'openid,profile,email,w_member_social' for this authorize run. "
+            "Add w_member_social_feed (e.g. openid,profile,email,w_member_social_feed) "
+            "on apps that hold it to enable comment/reply actions."
+        ),
+    )
 
 
 def _add_video_options(parser: ArgumentParser):
@@ -152,6 +174,16 @@ def _add_post_id_option(parser: ArgumentParser):
     parser.add_argument("--post-id", required=True, metavar="<id>", help="LinkedIn post ID to interact with")
 
 
+def _add_limit_option(parser: ArgumentParser):
+    """
+    Add limit option for list-posts action.
+
+    Args:
+        parser: ArgumentParser to add options to
+    """
+    parser.add_argument("--limit", type=int, metavar="<n>", help="Maximum number of posts to list")
+
+
 def _handle_linkedin_command(args: Namespace):
     """
     Handle LinkedIn command by converting args and calling core.
@@ -162,13 +194,4 @@ def _handle_linkedin_command(args: Namespace):
     Returns:
         Exit status from core execution
     """
-    # Validate action
-    ActionValidator.validate("linkedin", args.action)
-    prepare_content_args(args, "linkedin")
-
-    # Convert new args to legacy format
-    converter = ParameterConverter("linkedin")
-    legacy_args = converter.convert_to_legacy(args)
-
-    # Call core LinkedIn module
-    return linkedin_main(legacy_args)
+    return run_platform_command("linkedin", args, linkedin_main)

@@ -23,7 +23,8 @@ Usage
 .. code-block:: python
 
    import asyncio
-   from agoras.media import MediaFactory, Image, Video
+   from agoras.media.image import Image
+   from agoras.media.video import Video
 
    # Create and download images
    async def download_image():

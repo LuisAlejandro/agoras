@@ -35,6 +35,22 @@ Create Google OAuth Credentials for YouTube
    - Click **Create**
    - Copy the **Client ID** and **Client Secret**
 
+Required Permissions
+--------------------
+
+To comment on a video (``reply``) and to read/delete comments
+(``get-reply`` / ``delete-reply``), your Google OAuth client needs the
+**YouTube Data API v3** enabled and the comment scopes granted. Comment
+operations require the ``youtube.force-ssl`` scope, which ``agoras youtube
+authorize`` already requests. If the API returns
+``403 commentThreads.insert "insufficient permissions"``, the comment
+permissions are not approved on your OAuth consent screen for the
+``youtube.force-ssl`` scope — grant them and re-authorize.
+
+1. In the Google Cloud Console, go to **APIs & Services** > **OAuth consent screen**.
+2. Confirm the ``youtube.force-ssl`` scope is listed and approved.
+3. Re-run ``agoras youtube authorize`` so the fresh token includes it.
+
 Authorize Agoras for YouTube
 -----------------------------
 

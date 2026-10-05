@@ -30,7 +30,6 @@ from agoras.common.logger import logger
 from agoras.common.version import __description__, __version__
 from agoras.core.auth import AuthenticationError
 
-from .legacy import create_legacy_publish_parser
 from .platforms.discord import create_discord_parser
 from .platforms.facebook import create_facebook_parser
 from .platforms.instagram import create_instagram_parser
@@ -41,6 +40,7 @@ from .platforms.tiktok import create_tiktok_parser
 from .platforms.whatsapp import create_whatsapp_parser
 from .platforms.x import create_twitter_parser_alias, create_x_parser
 from .platforms.youtube import create_youtube_parser
+from .publish_stub import create_legacy_publish_stub
 from .utils import create_utils_parser
 
 
@@ -98,8 +98,8 @@ def commandline(argv=None):
     # Register utils command group (automation tools)
     create_utils_parser(subparsers)
 
-    # Register legacy publish command
-    create_legacy_publish_parser(subparsers, __version__)
+    # Register the legacy publish stub (command removed in 3.0)
+    create_legacy_publish_stub(subparsers)
 
     return parser, parser.parse_args(argv)
 

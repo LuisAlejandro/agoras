@@ -30,8 +30,6 @@ class PlatformRegistry:
 
     PLATFORMS: Dict[str, Dict[str, Any]] = {
         "x": {
-            "name": "X",
-            "description": "X (formerly Twitter) social network",
             "actions": {
                 "authorize",
                 "post",
@@ -44,12 +42,10 @@ class PlatformRegistry:
                 "reply",
                 "get-post",
                 "get-reply",
+                "list-posts",
             },
-            "module": "agoras.cli.platforms.x",
         },
         "twitter": {
-            "name": "Twitter",
-            "description": "Twitter/X social network",
             "actions": {
                 "authorize",
                 "post",
@@ -62,12 +58,10 @@ class PlatformRegistry:
                 "reply",
                 "get-post",
                 "get-reply",
+                "list-posts",
             },
-            "module": "agoras.cli.platforms.x",  # Phase 2 will add proper aliasing
         },
         "facebook": {
-            "name": "Facebook",
-            "description": "Facebook social network",
             "actions": {
                 "authorize",
                 "post",
@@ -79,18 +73,23 @@ class PlatformRegistry:
                 "reply",
                 "get-post",
                 "get-reply",
+                "list-posts",
             },
-            "module": "agoras.cli.platforms.facebook",
         },
         "instagram": {
-            "name": "Instagram",
-            "description": "Instagram social network",
-            "actions": {"authorize", "post", "video", "reply", "delete-reply", "get-post", "get-reply"},
-            "module": "agoras.cli.platforms.instagram",
+            "actions": {
+                "authorize",
+                "post",
+                "video",
+                "reply",
+                "delete-reply",
+                "get-post",
+                "get-reply",
+                "delete",
+                "list-posts",
+            },
         },
         "linkedin": {
-            "name": "LinkedIn",
-            "description": "LinkedIn professional network",
             "actions": {
                 "authorize",
                 "post",
@@ -102,12 +101,10 @@ class PlatformRegistry:
                 "reply",
                 "get-post",
                 "get-reply",
+                "list-posts",
             },
-            "module": "agoras.cli.platforms.linkedin",
         },
         "discord": {
-            "name": "Discord",
-            "description": "Discord chat platform",
             "actions": {
                 "authorize",
                 "post",
@@ -118,24 +115,26 @@ class PlatformRegistry:
                 "reply",
                 "get-post",
                 "get-reply",
+                "list-posts",
             },
-            "module": "agoras.cli.platforms.discord",
         },
         "youtube": {
-            "name": "YouTube",
-            "description": "YouTube video platform",
-            "actions": {"authorize", "video", "like", "delete", "delete-reply", "reply", "get-post", "get-reply"},
-            "module": "agoras.cli.platforms.youtube",
+            "actions": {
+                "authorize",
+                "video",
+                "like",
+                "delete",
+                "delete-reply",
+                "reply",
+                "get-post",
+                "get-reply",
+                "list-posts",
+            },
         },
         "tiktok": {
-            "name": "TikTok",
-            "description": "TikTok video platform",
-            "actions": {"authorize", "post", "video", "reply", "get-post", "get-reply"},
-            "module": "agoras.cli.platforms.tiktok",
+            "actions": {"authorize", "post", "video", "reply", "get-post", "get-reply", "list-posts"},
         },
         "threads": {
-            "name": "Threads",
-            "description": "Threads (Meta) social network",
             "actions": {
                 "authorize",
                 "post",
@@ -147,20 +146,24 @@ class PlatformRegistry:
                 "reply",
                 "get-post",
                 "get-reply",
+                "list-posts",
             },
-            "module": "agoras.cli.platforms.threads",
         },
         "telegram": {
-            "name": "Telegram",
-            "description": "Telegram messaging platform",
-            "actions": {"authorize", "post", "video", "delete", "delete-reply", "reply", "get-post", "get-reply"},
-            "module": "agoras.cli.platforms.telegram",
+            "actions": {
+                "authorize",
+                "post",
+                "video",
+                "delete",
+                "delete-reply",
+                "reply",
+                "get-post",
+                "get-reply",
+                "list-posts",
+            },
         },
         "whatsapp": {
-            "name": "WhatsApp",
-            "description": "WhatsApp Business API messaging platform",
-            "actions": {"authorize", "post", "video", "template", "reply", "get-post", "get-reply"},
-            "module": "agoras.cli.platforms.whatsapp",
+            "actions": {"authorize", "post", "video", "template", "reply", "get-post", "get-reply", "list-posts"},
         },
     }
 
@@ -200,19 +203,6 @@ class PlatformRegistry:
             True if action is supported, False otherwise
         """
         return action in cls.get_supported_actions(platform)
-
-    @classmethod
-    def get_platform_info(cls, platform: str) -> Dict[str, Any]:
-        """
-        Get platform information.
-
-        Args:
-            platform: Platform name
-
-        Returns:
-            Dictionary with platform information
-        """
-        return cls.PLATFORMS.get(platform, {})
 
     @classmethod
     def platform_exists(cls, platform: str) -> bool:

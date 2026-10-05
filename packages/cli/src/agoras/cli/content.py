@@ -546,14 +546,6 @@ def apply_content_to_namespace(args: argparse.Namespace, payload: Mapping[str, A
     return args
 
 
-def strip_content_metadata(legacy_args: MutableMapping[str, Any]) -> None:
-    """Remove content-file metadata before platform wrappers see config."""
-    legacy_args.pop("content", None)
-    legacy_args.pop("content_file", None)
-    # Keep _content_source / _content_keys for presence-aware SocialNetwork until U3;
-    # wrappers should ignore unknown underscore keys. Converter may pass them through.
-
-
 def _apply_content_file_to_args(args: argparse.Namespace, platform: str, action: str, content_path: str) -> None:
     if not supports_content_file(platform, action):
         raise ContentError(f"{platform} {action} does not accept --content")
@@ -667,8 +659,3 @@ def add_content_file_option(parser: argparse.ArgumentParser) -> None:
             "Relative video_url and images paths resolve against the YAML file directory, not cwd."
         ),
     )
-
-
-def content_arg_default():
-    """Use SUPPRESS so unspecified content destinations are absent from Namespace."""
-    return argparse.SUPPRESS

@@ -155,3 +155,15 @@ async def test_discord_api_handles_error(discord_api):
 
     with pytest.raises(Exception, match='Discord API error'):
         await discord_api.post('Test')
+
+
+@pytest.mark.asyncio
+async def test_discord_api_list_posts(discord_api):
+    """Test DiscordAPI list_posts calls client.list_messages."""
+    discord_api.client = MagicMock()
+    discord_api.client.list_messages = AsyncMock(return_value=[{"id": "1", "text": "hello"}])
+
+    result = await discord_api.list_posts(5)
+
+    assert result == [{"id": "1", "text": "hello"}]
+    discord_api.client.list_messages.assert_called_once_with(5)

@@ -396,7 +396,7 @@ async def test_facebook_client_create_post(mock_graph_api_class):
 
     result = await client.create_post("user_id", message="Test post")
 
-    assert result == "123"
+    assert result == "user_123"
     mock_graph_api.post_object.assert_called_once()
     call_args = mock_graph_api.post_object.call_args
     assert call_args[1]["object_id"] == "user_id"

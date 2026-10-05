@@ -24,7 +24,7 @@ import sys
 import tempfile
 import unittest
 
-from agoras.common.logger import levelNames, logger
+from agoras.common.logger import logger
 
 
 class TestLogger(unittest.TestCase):

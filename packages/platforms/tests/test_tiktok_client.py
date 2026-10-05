@@ -50,9 +50,9 @@ def test_file_upload_chunk_params_last_chunk_fits():
     assert sum(len(chunk) for _, _, chunk in chunks) == size
 
 
-@patch("agoras.platforms.tiktok.client.requests.put")
+@patch("agoras.platforms.tiktok.client.build_upload_session")
 @patch("agoras.platforms.tiktok.client.requests.post")
-def test_upload_video_file_single_chunk(mock_post, mock_put):
+def test_upload_video_file_single_chunk(mock_post, mock_session_factory):
     """FILE_UPLOAD init + one PUT for a small local video."""
     client = TikTokAPIClient(access_token="token")
     file_content = b"x" * (5 * 1024 * 1024)
@@ -67,9 +67,12 @@ def test_upload_video_file_single_chunk(mock_post, mock_put):
     }
     mock_post.return_value = init_response
 
+    mock_session = MagicMock()
     put_response = MagicMock()
     put_response.status_code = 201
-    mock_put.return_value = put_response
+    mock_session.put.return_value = put_response
+    mock_session.__enter__.return_value = mock_session
+    mock_session_factory.return_value = mock_session
 
     result = client.upload_video_file(
         file_content=file_content,
@@ -85,16 +88,16 @@ def test_upload_video_file_single_chunk(mock_post, mock_put):
     assert f'"chunk_size": {len(file_content)}' in init_payload
     assert '"total_chunk_count": 1' in init_payload
 
-    mock_put.assert_called_once()
-    put_kwargs = mock_put.call_args.kwargs
+    mock_session.put.assert_called_once()
+    put_kwargs = mock_session.put.call_args.kwargs
     assert put_kwargs["headers"]["Content-Range"] == f"bytes 0-{len(file_content) - 1}/{len(file_content)}"
     assert put_kwargs["headers"]["Content-Type"] == "video/mp4"
     assert put_kwargs["data"] == file_content
 
 
-@patch("agoras.platforms.tiktok.client.requests.put")
+@patch("agoras.platforms.tiktok.client.build_upload_session")
 @patch("agoras.platforms.tiktok.client.requests.post")
-def test_upload_video_file_multi_chunk(mock_post, mock_put):
+def test_upload_video_file_multi_chunk(mock_post, mock_session_factory):
     """FILE_UPLOAD sends sequential PUTs for videos larger than 64MB."""
     client = TikTokAPIClient(access_token="token")
     chunk_size = TikTokAPIClient._FILE_UPLOAD_CHUNK_SIZE
@@ -110,9 +113,12 @@ def test_upload_video_file_multi_chunk(mock_post, mock_put):
     }
     mock_post.return_value = init_response
 
+    mock_session = MagicMock()
     put_response = MagicMock()
     put_response.status_code = 206
-    mock_put.return_value = put_response
+    mock_session.put.return_value = put_response
+    mock_session.__enter__.return_value = mock_session
+    mock_session_factory.return_value = mock_session
 
     result = client.upload_video_file(
         file_content=file_content,
@@ -123,12 +129,12 @@ def test_upload_video_file_multi_chunk(mock_post, mock_put):
     assert result["data"]["publish_id"] == "pub-file-big"
     expected_chunk_size, expected_chunks = TikTokAPIClient._file_upload_chunk_params(len(file_content))
     assert expected_chunk_size == chunk_size
-    assert mock_put.call_count == expected_chunks
+    assert mock_session.put.call_count == expected_chunks
 
     chunks = list(
         TikTokAPIClient._iter_file_upload_chunks(file_content, expected_chunk_size, expected_chunks)
     )
-    for (start, end, chunk_bytes), put_call in zip(chunks, mock_put.call_args_list, strict=True):
+    for (start, end, chunk_bytes), put_call in zip(chunks, mock_session.put.call_args_list, strict=True):
         assert put_call.kwargs["headers"]["Content-Range"] == f"bytes {start}-{end}/{len(file_content)}"
         assert put_call.kwargs["data"] == chunk_bytes
 
@@ -142,9 +148,9 @@ def test_upload_video_file_requires_token(mock_post):
     mock_post.assert_not_called()
 
 
-@patch("agoras.platforms.tiktok.client.requests.put")
+@patch("agoras.platforms.tiktok.client.build_upload_session")
 @patch("agoras.platforms.tiktok.client.requests.post")
-def test_upload_video_file_put_failure(mock_post, mock_put):
+def test_upload_video_file_put_failure(mock_post, mock_session_factory):
     """FILE_UPLOAD raises when a chunk PUT returns a non-success status."""
     client = TikTokAPIClient(access_token="token")
     init_response = MagicMock()
@@ -157,9 +163,12 @@ def test_upload_video_file_put_failure(mock_post, mock_put):
     }
     mock_post.return_value = init_response
 
+    mock_session = MagicMock()
     put_response = MagicMock()
     put_response.status_code = 400
-    mock_put.return_value = put_response
+    mock_session.put.return_value = put_response
+    mock_session.__enter__.return_value = mock_session
+    mock_session_factory.return_value = mock_session
 
     with pytest.raises(Exception, match="Error uploading video chunk: HTTP 400"):
         client.upload_video_file(b"video-bytes", "title", "SELF_ONLY")
@@ -180,11 +189,28 @@ def test_iter_file_upload_chunks_uses_memoryview():
     assert b"".join(bytes(chunk) for _, _, chunk in chunks) == payload
 
 
-@patch("agoras.platforms.tiktok.client.time.sleep")
-@patch("agoras.platforms.tiktok.client.requests.put")
+def test_upload_session_retry_config():
+    """The upload session pins the previous retry contract."""
+    from agoras.common.utils import build_upload_session
+
+    with build_upload_session(3, {429, 500, 502, 503, 504}, ["PUT"]) as session:
+        adapter = session.get_adapter("https://")
+        retry = adapter.max_retries
+        assert retry.total == 2
+        assert retry.connect == 0
+        assert retry.read == 0
+        assert retry.status == 2
+        assert retry.status_forcelist == [429, 500, 502, 503, 504]
+        assert list(retry.allowed_methods) == ["PUT"]
+        assert retry.backoff_factor == 1.0
+        assert retry.respect_retry_after_header is False
+        assert retry.raise_on_status is False
+
+
+@patch("agoras.platforms.tiktok.client.build_upload_session")
 @patch("agoras.platforms.tiktok.client.requests.post")
-def test_upload_video_file_put_retries_transient_status(mock_post, mock_put, mock_sleep):
-    """FILE_UPLOAD retries chunk PUT on 5xx/429 then succeeds."""
+def test_upload_video_file_put_failure_status_surfaces(mock_post, mock_session_factory):
+    """A final non-2xx status (retryable or not) surfaces the HTTP status."""
     client = TikTokAPIClient(access_token="token")
     init_response = MagicMock()
     init_response.json.return_value = {
@@ -196,18 +222,13 @@ def test_upload_video_file_put_retries_transient_status(mock_post, mock_put, moc
     }
     mock_post.return_value = init_response
 
-    fail_response = MagicMock()
-    fail_response.status_code = 503
-    ok_response = MagicMock()
-    ok_response.status_code = 201
-    mock_put.side_effect = [fail_response, ok_response]
+    mock_session = MagicMock()
+    mock_session.put.return_value = MagicMock(status_code=503)
+    mock_session.__enter__.return_value = mock_session
+    mock_session_factory.return_value = mock_session
 
-    result = client.upload_video_file(b"video-bytes", "title", "SELF_ONLY")
-
-    assert result["data"]["publish_id"] == "pub-retry"
-    assert mock_put.call_count == 2
-    mock_sleep.assert_called_once()
-
+    with pytest.raises(Exception, match="Error uploading video chunk: HTTP 503"):
+        client.upload_video_file(b"video-bytes", "title", "SELF_ONLY")
 
 @patch("agoras.platforms.tiktok.client.requests.put")
 @patch("agoras.platforms.tiktok.client.requests.post")

@@ -16,7 +16,7 @@ Agoras supports multiple social media platforms, each with different authenticat
 
 All platforms support an ``authorize`` action that securely stores credentials for future use. After running ``agoras <platform> authorize`` with the required credentials, those credentials are stored securely and automatically loaded for subsequent actions. Supported actions vary by platform (post, video, thread, like, share, delete, template, etc.) — see :doc:`action-support` for the full matrix.
 
-You can override stored credentials with environment variables on action and utils commands. Credential CLI flags are accepted only on ``authorize`` (and on legacy ``agoras publish`` until version 3.0). Google Sheets credentials for ``schedule-run`` remain on the utils CLI.
+You can override stored credentials with environment variables on action and utils commands. Credential CLI flags are accepted only on ``authorize`` (the legacy ``agoras publish`` command, which also accepted them, was removed in Agoras 3.0). Google Sheets credentials for ``schedule-run`` remain on the utils CLI.
 
 .. note::
 
@@ -35,7 +35,7 @@ You can override stored credentials with environment variables on action and uti
 
 .. note::
 
-   **Utils commands** (``agoras utils feed-publish``, ``agoras utils schedule-run``) use the same auth model as platform actions: run ``agoras <platform> authorize`` or set platform environment variables. ``schedule-run`` requires ``--network`` (one platform per run). Google Sheets parameters use ``--sheets-*`` CLI flags; legacy ``agoras publish`` also accepts ``GOOGLE_SHEETS_ID``, ``GOOGLE_SHEETS_NAME``, ``GOOGLE_SHEETS_CLIENT_EMAIL``, and ``GOOGLE_SHEETS_PRIVATE_KEY`` from the environment. Prefer env vars over inline keys in CI so values are not expanded into process argv or logs.
+   **Utils commands** (``agoras utils feed-publish``, ``agoras utils schedule-run``) use the same auth model as platform actions: run ``agoras <platform> authorize`` or set platform environment variables. ``schedule-run`` requires ``--network`` (one platform per run). Google Sheets parameters use ``--sheets-*`` CLI flags; the legacy ``agoras publish`` command (removed in Agoras 3.0) also accepted ``GOOGLE_SHEETS_ID``, ``GOOGLE_SHEETS_NAME``, ``GOOGLE_SHEETS_CLIENT_EMAIL``, and ``GOOGLE_SHEETS_PRIVATE_KEY`` from the environment. Prefer env vars over inline keys in CI so values are not expanded into process argv or logs.
 
 Google Sheets (schedule-run)
 ----------------------------
@@ -52,7 +52,7 @@ Google Sheets (schedule-run)
 | ``GOOGLE_SHEETS_PRIVATE_KEY`` | Service account private key      |
 +-------------------------------+----------------------------------+
 
-``agoras utils schedule-run`` currently requires ``--sheets-*`` flags even when these env vars are set. Legacy ``agoras publish --action schedule`` reads the env vars when CLI flags are omitted.
+``agoras utils schedule-run`` currently requires ``--sheets-*`` flags even when these env vars are set. The legacy ``agoras publish --action schedule`` path (which read the env vars when CLI flags were omitted) was removed in Agoras 3.0; ``agoras utils schedule-run`` reads them today.
 
 Unattended Execution
 --------------------
