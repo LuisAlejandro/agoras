@@ -99,9 +99,3 @@ packages/*/.tox/
 packages/*/.coverage
 packages/*/htmlcov/
 packages/*/.pytest_cache/
-
-# Rosey Maintainer Tools
-.opencode/skills/
-.opencode/agents/
-.pi/skills/
-.pi/agents/
