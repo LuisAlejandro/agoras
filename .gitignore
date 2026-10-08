@@ -99,6 +99,3 @@ packages/*/.tox/
 packages/*/.coverage
 packages/*/htmlcov/
 packages/*/.pytest_cache/
-
-# Local agent trees
-.agents/
