@@ -312,3 +312,5 @@ Made with 💖 and 🍔
 
 __ LuisAlejandroGitHub_
 __ LuisAlejandroTwitter_
+
+.. ci-probe: verify Cursor auto-approve + auto-merge pipeline (safe docs-only change).
