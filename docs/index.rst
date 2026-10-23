@@ -163,3 +163,5 @@ Made with 💖 and 🍔
 
 __ LuisAlejandroGitHub_
 __ LuisAlejandroTwitter_
+
+.. ci-probe-fix-loop: verify the autonomous CI-fix -> approve -> merge loop.
