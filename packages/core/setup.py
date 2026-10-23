@@ -39,7 +39,7 @@ setup(
         f'agoras-common=={version}',
         f'agoras-media=={version}',
         'gspread==6.2.1',
-        'google-auth==2.56.3',
+        'google-auth==2.58.0',
     ],
 
     classifiers=[
