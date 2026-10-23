@@ -24,8 +24,6 @@ This module serves as the single source of truth for version info
 across all Agoras packages.
 """
 
-import os
-
 __author__ = "Luis Alejandro Martínez Faneyth"
 __email__ = "luis@luisalejandro.org"
 __version__ = "2.2.0"
