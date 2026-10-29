@@ -188,19 +188,19 @@ Agoras parameters
 
 **Platform commands** (``agoras x``):
 
-+---------------------+----------------------------+--------------------------------+
-| X credential        | Agoras parameter           | Notes                          |
-+=====================+============================+================================+
-| API key             | --consumer-key             | Required for authorize         |
-+---------------------+----------------------------+--------------------------------+
-| API secret key      | --consumer-secret          | Required for authorize         |
-+---------------------+----------------------------+--------------------------------+
-| Access token        | --oauth-token              | Optional (obtained during authorize) |
-+---------------------+----------------------------+--------------------------------+
-| Access token secret | --oauth-secret             | Optional (obtained during authorize) |
-+---------------------+----------------------------+--------------------------------+
-| Post ID             | --post-id                  | Required for like/delete/share |
-+---------------------+----------------------------+--------------------------------+
++---------------------+----------------------------+------------------------------------------------------+
+| X credential        | Agoras parameter           | Notes                                                |
++=====================+============================+======================================================+
+| API key             | --consumer-key             | Required for authorize                               |
++---------------------+----------------------------+------------------------------------------------------+
+| API secret key      | --consumer-secret          | Required for authorize                               |
++---------------------+----------------------------+------------------------------------------------------+
+| Access token        | ``TWITTER_OAUTH_TOKEN``    | Env var; not a CLI flag (obtained during authorize)  |
++---------------------+----------------------------+------------------------------------------------------+
+| Access token secret | ``TWITTER_OAUTH_SECRET``   | Env var; not a CLI flag (obtained during authorize)  |
++---------------------+----------------------------+------------------------------------------------------+
+| Post ID             | --post-id                  | Required for like/delete/share                       |
++---------------------+----------------------------+------------------------------------------------------+
 
 **Note**: After running ``agoras x authorize``, action commands do not accept credential CLI flags; credentials load from secure storage automatically. The OAuth token and secret are obtained during authorization and stored securely. For unattended execution, set environment variables:
 

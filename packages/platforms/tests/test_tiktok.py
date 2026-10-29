@@ -56,7 +56,6 @@ def _wire_creator_info(mock_api, info=None):
     """Attach a fresh creator_info query to a mocked TikTokAPI."""
     payload = info or _ok_creator_info()
     mock_api.refresh_creator_info = AsyncMock(return_value=payload)
-    mock_api.get_creator_info = AsyncMock(return_value=payload)
     mock_api.creator_info = payload
     return payload
 
@@ -388,6 +387,34 @@ async def test_tiktok_auth_authorize_url_includes_video_publish(mock_storage_cla
 
     assert 'video.publish' in captured['url']
     assert 'user.info.basic' in captured['url']
+
+
+@pytest.mark.asyncio
+@patch('agoras.core.auth.base.SecureTokenStorage')
+async def test_tiktok_auth_authorize_url_uses_comma_scopes(mock_storage_class):
+    """Authorize URL carries scopes as one raw comma-separated value.
+
+    TikTok's scope parser splits on commas only; authlib's space-joined
+    scope ("a+b+c") is rejected with error=invalid_scope.
+    """
+    mock_storage_class.return_value = MagicMock()
+    auth = TikTokAuthManager('user', 'key', 'secret')
+    captured = {}
+
+    with patch('agoras.platforms.tiktok.auth.OAuthCallbackServer') as mock_callback_class:
+        mock_callback_server = MagicMock()
+        mock_callback_server.start_and_wait = AsyncMock(side_effect=Exception('stop'))
+        mock_callback_class.return_value = mock_callback_server
+
+        def _capture(url):
+            captured['url'] = url
+
+        with patch('agoras.platforms.tiktok.auth.webbrowser.open', side_effect=_capture):
+            await auth._authorize_interactive()
+
+    assert 'scope=user.info.basic,video.upload,video.publish' in captured['url']
+    assert '+video' not in captured['url']
+    assert '%2C' not in captured['url']
 
 
 # TikTok Client Tests

@@ -17,10 +17,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.youtube.wrapper module."""
 
-import asyncio
 import sys
 
-from agoras.core.interfaces import SocialNetwork
+from agoras.core.interfaces import SocialNetwork, run_wrapper_main, run_wrapper_main_async
 from agoras.core.text_limits import validate_text
 
 from .api import YouTubeAPI
@@ -65,7 +64,6 @@ class YouTube(SocialNetwork):
         self.youtube_keywords = None
         self.youtube_video_url = None
         self.youtube_refresh_token = None
-        self.api = None
 
     async def _initialize_client(self):
         """
@@ -74,8 +72,8 @@ class YouTube(SocialNetwork):
         Tries to load credentials from CLI params, environment variables, or storage.
         """
         # App credentials from CLI params or environment.
-        self.youtube_client_id = self._get_config_value("youtube_client_id", "YOUTUBE_CLIENT_ID")
-        self.youtube_client_secret = self._get_config_value("youtube_client_secret", "YOUTUBE_CLIENT_SECRET")
+        self.youtube_client_id = self._get_auth_config_value("youtube_client_id", "YOUTUBE_CLIENT_ID")
+        self.youtube_client_secret = self._get_auth_config_value("youtube_client_secret", "YOUTUBE_CLIENT_SECRET")
         self.youtube_video_id = self._get_config_value("youtube_video_id", "YOUTUBE_VIDEO_ID")
         self.youtube_title = self._get_config_value("youtube_title", "YOUTUBE_TITLE")
         self.youtube_description = self._get_config_value("youtube_description", "YOUTUBE_DESCRIPTION")
@@ -94,6 +92,7 @@ class YouTube(SocialNetwork):
             client_id=self.youtube_client_id,
             client_secret=self.youtube_client_secret,
             refresh_token=None,
+            profile=self._get_config_value("profile"),
         )
 
         if auth_manager._load_credentials_from_storage():
@@ -104,24 +103,18 @@ class YouTube(SocialNetwork):
             self.youtube_refresh_token = auth_manager.refresh_token
 
         if not self.youtube_refresh_token:
-            self.youtube_refresh_token = self._get_config_value("youtube_refresh_token", "YOUTUBE_REFRESH_TOKEN")
+            self.youtube_refresh_token = self._get_auth_config_value("youtube_refresh_token", "YOUTUBE_REFRESH_TOKEN")
 
-        # Validate all credentials are now available
-        if not all([self.youtube_client_id, self.youtube_client_secret, self.youtube_refresh_token]):
-            raise Exception("Not authenticated. Please run 'agoras youtube authorize' first.")
+        self._require_credentials(
+            [self.youtube_client_id, self.youtube_client_secret, self.youtube_refresh_token],
+            "youtube",
+        )
 
         # Initialize YouTube API
         self.api = YouTubeAPI(self.youtube_client_id, self.youtube_client_secret, self.youtube_refresh_token)
 
         # Authenticate with provided credentials
         await self.api.authenticate()
-
-    async def disconnect(self):
-        """
-        Disconnect from YouTube API and clean up resources.
-        """
-        if self.api:
-            await self.api.disconnect()
 
     async def post(
         self,
@@ -159,8 +152,7 @@ class YouTube(SocialNetwork):
         Returns:
             str: Video ID
         """
-        if not self.api:
-            raise Exception("YouTube API not initialized")
+        self._require_api()
 
         video_id = youtube_video_id or self.youtube_video_id
         if not video_id:
@@ -181,8 +173,7 @@ class YouTube(SocialNetwork):
         Returns:
             str: Video ID
         """
-        if not self.api:
-            raise Exception("YouTube API not initialized")
+        self._require_api()
 
         video_id = youtube_video_id or self.youtube_video_id
         if not video_id:
@@ -216,8 +207,7 @@ class YouTube(SocialNetwork):
         Returns:
             str: Video ID
         """
-        if not self.api:
-            raise Exception("YouTube API not initialized")
+        self._require_api()
 
         if not video_title or not video_url:
             raise Exception("Video title and URL are required.")
@@ -298,8 +288,7 @@ class YouTube(SocialNetwork):
         Returns:
             str: Comment ID
         """
-        if not self.api:
-            raise Exception("YouTube API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("YouTube video ID is required for reply action.")
@@ -330,8 +319,7 @@ class YouTube(SocialNetwork):
         Returns:
             str: Deleted comment ID
         """
-        if not self.api:
-            raise Exception("YouTube API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("YouTube comment ID is required for delete-reply action.")
@@ -350,8 +338,7 @@ class YouTube(SocialNetwork):
         Returns:
             dict: Normalized content
         """
-        if not self.api:
-            raise Exception("YouTube API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("YouTube video ID is required.")
@@ -390,8 +377,7 @@ class YouTube(SocialNetwork):
         Returns:
             dict: Normalized content
         """
-        if not self.api:
-            raise Exception("YouTube API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("YouTube comment ID is required for get-reply action.")
@@ -412,6 +398,46 @@ class YouTube(SocialNetwork):
         }
         self._output_content(content)
         return content
+
+    async def list_posts(self, limit):
+        """
+        List recent uploads from the authenticated user's channel and return normalized content.
+
+        Args:
+            limit (int): Maximum number of videos to return
+
+        Returns:
+            list: Normalized content dicts
+        """
+        self._require_api()
+
+        if limit == 0:
+            self._output_list([])
+            return []
+
+        raw_items = await self.api.list_posts(limit)
+        items = []
+        for raw in raw_items:
+            text_parts = [part for part in (raw.get("title"), raw.get("description")) if part]
+            thumbnails = raw.get("thumbnails") or {}
+            thumbnail_url = None
+            for size in ("high", "medium", "default"):
+                thumb = thumbnails.get(size) or {}
+                if thumb.get("url"):
+                    thumbnail_url = thumb["url"]
+                    break
+            items.append(
+                {
+                    "id": str(raw.get("id")),
+                    "text": "\n\n".join(text_parts) if text_parts else None,
+                    "media": [{"type": "image", "url": thumbnail_url}] if thumbnail_url else [],
+                    "author": None,
+                    "created_at": raw.get("published_at"),
+                    "metadata": {},
+                }
+            )
+        self._output_list(items)
+        return items
 
     # YouTube-specific feed methods that work with videos instead of posts
     async def last_from_feed(self, feed_url, max_count, post_lookback):
@@ -525,23 +551,9 @@ class YouTube(SocialNetwork):
                     self.youtube_keywords = original_keywords
 
     # Override action handlers to use YouTube-specific parameter names
-    async def _handle_like_action(self):
-        """Handle like action with YouTube-specific parameter extraction."""
-        youtube_video_id = self._get_config_value("youtube_video_id", "YOUTUBE_VIDEO_ID")
-        if not youtube_video_id:
-            raise Exception("YouTube video ID is required for like action.")
-        await self.like(youtube_video_id)
-
     async def _handle_share_action(self):
         """Handle share action with YouTube-specific parameter extraction."""
         await self.share()
-
-    async def _handle_delete_action(self):
-        """Handle delete action with YouTube-specific parameter extraction."""
-        youtube_video_id = self._get_config_value("youtube_video_id", "YOUTUBE_VIDEO_ID")
-        if not youtube_video_id:
-            raise Exception("YouTube video ID is required for delete action.")
-        await self.delete(youtube_video_id)
 
     async def _handle_video_action(self):
         """Handle video action with YouTube-specific parameter extraction."""
@@ -556,25 +568,21 @@ class YouTube(SocialNetwork):
 
         await self.video(status_text, video_url, video_title)
 
-    async def authorize_credentials(self):
-        """
-        Authorize and store YouTube credentials for future use.
+    _post_id_actions = {
+        "like": ("youtube_video_id", "YouTube video ID is required for like action."),
+        "delete": ("youtube_video_id", "YouTube video ID is required for delete action."),
+    }
 
-        Returns:
-            bool: True if authorization successful
-        """
+    _authorize_keys = {
+        "client_id": "youtube_client_id",
+        "client_secret": "youtube_client_secret",
+    }
+
+    def _authorize_manager(self):
+        """Return the YouTubeAuthManager used by the shared authorize flow."""
         from .auth import YouTubeAuthManager
 
-        client_id = self._get_config_value("youtube_client_id", "YOUTUBE_CLIENT_ID")
-        client_secret = self._get_config_value("youtube_client_secret", "YOUTUBE_CLIENT_SECRET")
-
-        auth_manager = YouTubeAuthManager(client_id=client_id, client_secret=client_secret)
-
-        result = await auth_manager.authorize()
-        if result:
-            print(result)
-            return True
-        return False
+        return YouTubeAuthManager
 
 
 async def main_async(kwargs):
@@ -582,31 +590,16 @@ async def main_async(kwargs):
     Async main function to execute YouTube actions.
 
     Args:
-        kwargs (dict): Configuration parameters
+        kwargs (dict): Configuration arguments
     """
-    action = kwargs.get("action", "")
-
-    if action == "":
-        raise Exception("Action is a required argument.")
-
-    # Create YouTube instance with configuration
-    instance = YouTube(**kwargs)
-
-    # Handle authorize action separately (doesn't need client initialization)
-    if action == "authorize":
-        success = await instance.authorize_credentials()
-        return 0 if success else 1
-
-    # Execute other actions using the base class method
-    await instance.execute_action(action)
-    await instance.disconnect()
+    return await run_wrapper_main_async(YouTube, kwargs)
 
 
 def main(kwargs):
     """
-    Main function to execute YouTube actions.
+    Main function to execute YouTube actions (for backwards compatibility).
 
     Args:
         kwargs (dict): Configuration arguments
     """
-    asyncio.run(main_async(kwargs))
+    run_wrapper_main(YouTube, kwargs)

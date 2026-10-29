@@ -20,4 +20,4 @@ Resources
 Support Timeline
 ================
 
-The legacy ``agoras publish`` command remains available with deprecation warnings through all **Agoras 2.x** releases and will be **removed in Agoras 3.0**.
+The legacy ``agoras publish`` command was available with deprecation warnings through **Agoras 2.x** and was **removed in Agoras 3.0**.

@@ -20,32 +20,13 @@
 import asyncio
 from typing import Any, Dict, List, Optional
 
-from agoras.core.interfaces import SocialNetwork
+from agoras.core.api_base import sanitize_error_text
+from agoras.core.interfaces import SocialNetwork, _entry_images, run_wrapper_main, run_wrapper_main_async
 from agoras.core.text_limits import validate_text
-from agoras.core.threading import (
-    ThreadPublishError,
-    ThreadResult,
-    partial_result,
-    success_result,
-)
+from agoras.core.threading import ThreadPublishError, ThreadResult, partial_result, success_result
 from agoras.platforms.threads.client import ThreadsContainerTimeoutError
 
 from .api import ThreadsAPI
-
-
-def _entry_images(entry: Dict[str, Any]) -> List[str]:
-    """Collect flattened image_1..image_4 URLs from a thread entry."""
-    return list(
-        filter(
-            None,
-            [
-                entry.get("image_1"),
-                entry.get("image_2"),
-                entry.get("image_3"),
-                entry.get("image_4"),
-            ],
-        )
-    )
 
 
 def _compose_post_text(entry: Dict[str, Any]) -> str:
@@ -75,6 +56,10 @@ class Threads(SocialNetwork):
     images, videos, replies, and managing Threads interactions asynchronously.
     """
 
+    # Pure-proxy platform: delete_reply/get_reply delegate to delete/get_post
+    _proxy_delete_reply = True
+    _proxy_get_reply = True
+
     def __init__(self, **kwargs):
         """
         Initialize Threads instance.
@@ -100,7 +85,6 @@ class Threads(SocialNetwork):
         self.threads_who_can_reply = None
         # Action-specific attributes
         self.threads_post_id = None
-        self.api = None
 
     async def _initialize_client(self):
         """
@@ -109,9 +93,9 @@ class Threads(SocialNetwork):
         Tries to load credentials from CLI params, environment variables, or storage.
         """
         # Try params/environment first
-        self.threads_app_id = self._get_config_value("threads_app_id", "THREADS_APP_ID")
-        self.threads_app_secret = self._get_config_value("threads_app_secret", "THREADS_APP_SECRET")
-        self.threads_refresh_token = self._get_config_value("threads_refresh_token", "THREADS_REFRESH_TOKEN")
+        self.threads_app_id = self._get_auth_config_value("threads_app_id", "THREADS_APP_ID")
+        self.threads_app_secret = self._get_auth_config_value("threads_app_secret", "THREADS_APP_SECRET")
+        self.threads_refresh_token = self._get_auth_config_value("threads_refresh_token", "THREADS_REFRESH_TOKEN")
         # Configuration options
         self.threads_who_can_reply = (
             self._get_config_value("threads_who_can_reply", "THREADS_WHO_CAN_REPLY") or "everyone"
@@ -125,40 +109,34 @@ class Threads(SocialNetwork):
             from .auth import ThreadsAuthManager
 
             auth_manager = ThreadsAuthManager(
-                app_id=self.threads_app_id or "", app_secret=self.threads_app_secret or ""
+                app_id=self.threads_app_id or "",
+                app_secret=self.threads_app_secret or "",
+                profile=self._get_config_value("profile"),
             )
 
-            if auth_manager._load_credentials_from_storage():
-                # Fill in missing credentials from storage
-                if not self.threads_app_id:
-                    self.threads_app_id = auth_manager.app_id
-                if not self.threads_app_secret:
-                    self.threads_app_secret = auth_manager.app_secret
-                if not self.threads_refresh_token:
-                    self.threads_refresh_token = auth_manager.refresh_token
+            self._fill_missing_credentials(
+                auth_manager,
+                {
+                    "threads_app_id": "app_id",
+                    "threads_app_secret": "app_secret",
+                    "threads_refresh_token": "refresh_token",
+                },
+            )
 
-        # Validate all credentials are now available
-        if not all([self.threads_app_id, self.threads_app_secret, self.threads_refresh_token]):
-            raise Exception("Not authenticated. Please run 'agoras threads authorize' first.")
+        self._require_credentials(
+            [self.threads_app_id, self.threads_app_secret, self.threads_refresh_token],
+            "threads",
+        )
 
         app_id = self.threads_app_id
         app_secret = self.threads_app_secret
         refresh_token = self.threads_refresh_token
-        if not app_id or not app_secret or not refresh_token:
-            raise Exception("Not authenticated. Please run 'agoras threads authorize' first.")
 
         # Initialize Threads API
         self.api = ThreadsAPI(app_id, app_secret, refresh_token)
 
         # Authenticate with provided credentials
         await self.api.authenticate()
-
-    async def disconnect(self):
-        """
-        Disconnect from Threads API and clean up resources.
-        """
-        if self.api:
-            await self.api.disconnect()
 
     async def post(
         self,
@@ -183,8 +161,7 @@ class Threads(SocialNetwork):
         Returns:
             str: Post ID
         """
-        if not self.api:
-            raise Exception("Threads API not initialized")
+        self._require_api()
 
         # Combine text and link
         post_text = f"{status_text} {status_link}".strip()
@@ -215,8 +192,7 @@ class Threads(SocialNetwork):
         Raises:
             ThreadPublishError: On partial or failed publish with structured result
         """
-        if not self.api:
-            raise Exception("Threads API not initialized")
+        self._require_api()
 
         if not entries or not isinstance(entries, list):
             raise Exception("Thread entries are required.")
@@ -273,9 +249,9 @@ class Threads(SocialNetwork):
                     ids,
                     failed_index=index,
                     outcome=outcome,
-                    error=str(exc),
+                    error=sanitize_error_text(str(exc)),
                 )
-                raise ThreadPublishError(result) from exc
+                raise ThreadPublishError(result) from None
 
             ids.append(str(post_id))
             previous_id = str(post_id)
@@ -304,8 +280,7 @@ class Threads(SocialNetwork):
         Returns:
             str: Deleted post ID
         """
-        if not self.api:
-            raise Exception("Threads API not initialized")
+        self._require_api()
 
         if not post_id:
             post_id = self.threads_post_id
@@ -317,20 +292,6 @@ class Threads(SocialNetwork):
         self._output_status(result)
         return result
 
-    async def delete_reply(self, post_id):
-        """
-        Delete a reply post.
-
-        A reply is a post on Threads, so deletion is a proxy of ``delete``.
-
-        Args:
-            post_id (str): ID of the reply post to delete
-
-        Returns:
-            str: Deleted post ID
-        """
-        return await self.delete(post_id)
-
     async def get_post(self, post_id):
         """
         Read a Threads post by ID and return normalized content.
@@ -341,8 +302,7 @@ class Threads(SocialNetwork):
         Returns:
             dict: Normalized content
         """
-        if not self.api:
-            raise Exception("Threads API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("Post ID is required for get-post action.")
@@ -370,19 +330,48 @@ class Threads(SocialNetwork):
         self._output_content(content)
         return content
 
-    async def get_reply(self, post_id):
+    async def list_posts(self, limit):
         """
-        Read a reply post by ID.
-
-        A reply is a post on Threads, so reading is a proxy of ``get_post``.
+        List the authenticated user's recent posts and return normalized content.
 
         Args:
-            post_id (str): Reply post ID to read
+            limit (int): Maximum number of posts to return
 
         Returns:
-            dict: Normalized content
+            list: Normalized content dicts
         """
-        return await self.get_post(post_id)
+        self._require_api()
+
+        if limit == 0:
+            self._output_list([])
+            return []
+
+        raw_items = await self.api.list_posts(limit)
+        items = []
+        for raw in raw_items:
+            media = []
+            media_url = raw.get("media_url")
+            media_type = (raw.get("media_type") or "").upper()
+            if media_url:
+                media.append(
+                    {
+                        "type": "video" if media_type in ("VIDEO", "REELS") else "image",
+                        "url": media_url,
+                    }
+                )
+            username = raw.get("username")
+            items.append(
+                {
+                    "id": str(raw.get("id")),
+                    "text": raw.get("text"),
+                    "media": media,
+                    "author": {"id": None, "name": username} if username else None,
+                    "created_at": raw.get("timestamp"),
+                    "metadata": {"permalink": raw.get("permalink")} if raw.get("permalink") else {},
+                }
+            )
+        self._output_list(items)
+        return items
 
     async def share(self, post_id):
         """
@@ -394,8 +383,7 @@ class Threads(SocialNetwork):
         Returns:
             str: Repost ID
         """
-        if not self.api:
-            raise Exception("Threads API not initialized")
+        self._require_api()
 
         # Get post_id from parameter or instance attribute
         if not post_id:
@@ -422,24 +410,6 @@ class Threads(SocialNetwork):
             status_text, status_link, status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4
         )
 
-    async def _handle_share_action(self):
-        """Handle share action with Threads-specific parameter extraction."""
-        threads_post_id = self._get_config_value("threads_post_id", "THREADS_POST_ID")
-        if not threads_post_id:
-            raise Exception("Threads post ID is required for share action.")
-        await self.share(threads_post_id)
-
-    async def _handle_like_action(self):
-        """Handle like action - not supported for Threads."""
-        await self.like(None)
-
-    async def _handle_delete_action(self):
-        """Handle delete action with Threads-specific parameter extraction."""
-        threads_post_id = self._get_config_value("threads_post_id", "THREADS_POST_ID")
-        if not threads_post_id:
-            raise Exception("Threads post ID is required for delete action.")
-        await self.delete(threads_post_id)
-
     async def video(self, status_text, video_url, video_title):
         """
         Post a video to Threads.
@@ -452,8 +422,7 @@ class Threads(SocialNetwork):
         Returns:
             str: Post ID
         """
-        if not self.api:
-            raise Exception("Threads API not initialized")
+        self._require_api()
 
         if not video_url:
             raise Exception("Threads video URL is required.")
@@ -493,8 +462,7 @@ class Threads(SocialNetwork):
         Returns:
             str: Reply post ID
         """
-        if not self.api:
-            raise Exception("Threads API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("Threads post ID is required for reply action.")
@@ -536,25 +504,22 @@ class Threads(SocialNetwork):
 
         await self.video(status_text, video_url, video_title)
 
-    async def authorize_credentials(self):
-        """
-        Authorize and store Threads credentials for future use.
+    _post_id_actions = {
+        "like": (None, None),
+        "share": ("threads_post_id", "Threads post ID is required for share action."),
+        "delete": ("threads_post_id", "Threads post ID is required for delete action."),
+    }
 
-        Returns:
-            bool: True if authorization successful
-        """
+    _authorize_keys = {
+        "app_id": "threads_app_id",
+        "app_secret": "threads_app_secret",
+    }
+
+    def _authorize_manager(self):
+        """Return the ThreadsAuthManager used by the shared authorize flow."""
         from .auth import ThreadsAuthManager
 
-        app_id = self._get_config_value("threads_app_id", "THREADS_APP_ID")
-        app_secret = self._get_config_value("threads_app_secret", "THREADS_APP_SECRET")
-
-        auth_manager = ThreadsAuthManager(app_id=app_id, app_secret=app_secret)
-
-        result = await auth_manager.authorize()
-        if result:
-            print(result)
-            return True
-        return False
+        return ThreadsAuthManager
 
     async def execute_action(self, action):
         """
@@ -583,6 +548,7 @@ class Threads(SocialNetwork):
             "delete-reply": self._handle_delete_reply_action,
             "get-post": self._handle_get_post_action,
             "get-reply": self._handle_get_reply_action,
+            "list-posts": self._handle_list_posts_action,
             "last-from-feed": self._handle_last_from_feed_action,
             "random-from-feed": self._handle_random_from_feed_action,
             "schedule": self._handle_schedule_action,
@@ -600,30 +566,14 @@ async def main_async(kwargs):
     Args:
         kwargs (dict): Configuration arguments
     """
-    action = kwargs.get("action", "")
-
-    if action == "":
-        raise Exception("Action is a required argument.")
-
-    # Create Threads instance with configuration
-    instance = Threads(**kwargs)
-
-    # Handle authorize action separately (doesn't need client initialization)
-    if action == "authorize":
-        success = await instance.authorize_credentials()
-        return 0 if success else 1
-
-    try:
-        await instance.execute_action(action)
-    finally:
-        await instance.disconnect()
+    return await run_wrapper_main_async(Threads, kwargs)
 
 
 def main(kwargs):
     """
-    Main function to execute Threads actions.
+    Main function to execute Threads actions (for backwards compatibility).
 
     Args:
         kwargs (dict): Configuration arguments
     """
-    asyncio.run(main_async(kwargs))
+    run_wrapper_main(Threads, kwargs)

@@ -25,9 +25,12 @@ from argparse import ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.telegram.wrapper import main as telegram_main
 
-from ..base import add_common_content_options, add_video_options, prepare_content_args
-from ..converter import ParameterConverter
-from ..validator import ActionValidator
+from ..base import (
+    add_common_content_options,
+    add_profile_to_all,
+    add_video_options,
+    run_platform_command,
+)
 
 
 def create_telegram_parser(subparsers: _SubParsersAction) -> ArgumentParser:
@@ -98,8 +101,20 @@ def create_telegram_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     )
     _add_post_id_option(get_reply)
 
+    # List-posts action
+    list_posts = actions.add_parser(
+        "list-posts",
+        help=(
+            "List recent Telegram messages (not supported). Requires prior "
+            'authorization via "agoras telegram authorize".'
+        ),
+    )
+    _add_limit_option(list_posts)
+
     # Set handler
     parser.set_defaults(command=_handle_telegram_command)
+
+    add_profile_to_all(actions)
 
     return parser
 
@@ -145,6 +160,16 @@ def _add_post_id_option(parser: ArgumentParser):
     parser.add_argument("--post-id", required=True, metavar="<id>", help="Telegram message ID to delete")
 
 
+def _add_limit_option(parser: ArgumentParser):
+    """
+    Add limit option for list-posts action.
+
+    Args:
+        parser: ArgumentParser to add options to
+    """
+    parser.add_argument("--limit", type=int, metavar="<n>", help="Maximum number of posts to list")
+
+
 def _handle_telegram_command(args: Namespace):
     """
     Handle Telegram command by converting args and calling core.
@@ -155,13 +180,4 @@ def _handle_telegram_command(args: Namespace):
     Returns:
         Exit status from core execution
     """
-    # Validate action
-    ActionValidator.validate("telegram", args.action)
-    prepare_content_args(args, "telegram")
-
-    # Convert new args to legacy format
-    converter = ParameterConverter("telegram")
-    legacy_args = converter.convert_to_legacy(args)
-
-    # Call core Telegram module
-    return telegram_main(legacy_args)
+    return run_platform_command("telegram", args, telegram_main)

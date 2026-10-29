@@ -18,7 +18,6 @@
 """Display shared media constraint tables for ops and E2E."""
 
 import json
-import sys
 from argparse import ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.media.constraints import (
@@ -98,18 +97,3 @@ def _handle_media_limits(args: Namespace) -> None:
             f"transfer={row['transfer']:12} "
             f"mime={','.join(row['mime_types'])}"
         )
-
-
-def main(argv=None) -> int:
-    """Optional standalone entry point for media-limits output."""
-    parser = ArgumentParser(description="Show Agoras media limits")
-    parser.add_argument("--platform")
-    parser.add_argument("--kind", choices=["image", "video"])
-    parser.add_argument("--json", action="store_true")
-    args = parser.parse_args(argv)
-    try:
-        _handle_media_limits(args)
-    except Exception as exc:
-        print(str(exc), file=sys.stderr)
-        return 1
-    return 0

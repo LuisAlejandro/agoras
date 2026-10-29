@@ -14,6 +14,37 @@ load_authorize_env "${PROJECT_ROOT}/unattended.env"
 init_agoras_bin "${PROJECT_ROOT}"
 trap cleanup_test_posts EXIT
 
+# verify_list_posts_contains <platform> <post_id>
+# Runs list-posts (with per-platform required flags) and checks the given id
+# appears, retrying briefly to absorb read-after-write lag.
+verify_list_posts_contains() {
+    local platform="$1"
+    local post_id="$2"
+    local extra=()
+    case "${platform}" in
+    facebook) extra=(--object-id "${FACEBOOK_OBJECT_ID}") ;;
+    instagram) extra=(--object-id "${INSTAGRAM_OBJECT_ID}") ;;
+    esac
+
+    local attempt listing found=0
+    for attempt in 1 2 3 4 5 6; do
+        set +e
+        listing=$(run_agoras "${platform}" list-posts --limit 20 "${extra[@]}" 2>/dev/null)
+        set -e
+        if printf '%s' "${listing}" | grep -qF "${post_id}"; then
+            found=1
+            break
+        fi
+        sleep 5
+    done
+
+    if [ "${found}" -eq 1 ]; then
+        echo "OK: ${platform} list-posts contains ${post_id}"
+    else
+        echo "FAIL: ${platform} list-posts did not contain ${post_id}" >&2
+    fi
+}
+
 if [ "${1}" == "x" ]; then
     set +e
     POST_X_ID=$(
@@ -30,6 +61,7 @@ if [ "${1}" == "x" ]; then
         sleep 5
 
         register_test_post_cleanup x "${POST_X_ID}"
+        verify_list_posts_contains x "${POST_X_ID}"
         run_agoras x like --post-id "${POST_X_ID}" || true
         sleep 5
         run_agoras x share --post-id "${POST_X_ID}" || true
@@ -54,6 +86,31 @@ if [ "${1}" == "x" ]; then
         register_test_post_cleanup x "${POST_X_VIDEO_ID}"
         sleep 5
         delete_test_post x "${POST_X_VIDEO_ID}"
+    fi
+
+    # Ordered thread (X-only): publish then delete each entry.
+    THREAD_YAML="${TMPDIR:-/tmp}/agoras-thread-$$.yaml"
+    cat > "${THREAD_YAML}" <<'YAML'
+version: 1
+entries:
+  - text: E2E thread root. It should delete itself in a couple of minutes.
+  - text: E2E thread follow-up. It should delete itself in a couple of minutes.
+YAML
+    set +e
+    THREAD_OUT=$(run_agoras x thread --content "${THREAD_YAML}")
+    thread_exit=$?
+    set -e
+    rm -f "${THREAD_YAML}"
+    if [ "${thread_exit}" -ne 0 ]; then
+        skip_case "x thread unavailable or auth failed"
+    else
+        for tid in $(printf '%s' "${THREAD_OUT}" | jq -er '.ids[]' 2>/dev/null); do
+            register_test_post_cleanup x "${tid}"
+        done
+        for tid in $(printf '%s' "${THREAD_OUT}" | jq -er '.ids[]' 2>/dev/null); do
+            delete_test_post x "${tid}"
+        done
+        echo "x thread published and cleaned (ids: $(printf '%s' "${THREAD_OUT}" | jq -c '.ids' 2>/dev/null))"
     fi
 
     complete_platform_test_cleanup
@@ -126,6 +183,7 @@ elif [ "${1}" == "youtube" ]; then
         skip_case "youtube video unavailable or auth failed"
     else
         register_test_post_cleanup youtube "${POST_YOUTUBE_ID}"
+        verify_list_posts_contains youtube "${POST_YOUTUBE_ID}"
 
         sleep 5
 
@@ -149,6 +207,7 @@ elif [ "${1}" == "facebook" ]; then
         skip_case "facebook post unavailable or auth failed"
     else
         register_test_post_cleanup facebook "${POST_FACEBOOK_ID}"
+        verify_list_posts_contains facebook "${POST_FACEBOOK_ID}"
 
         sleep 5
 
@@ -188,6 +247,7 @@ elif [ "${1}" == "instagram" ]; then
         skip_case "instagram post unavailable or auth failed"
     else
         register_test_post_cleanup instagram "${POST_INSTAGRAM_ID}"
+        verify_list_posts_contains instagram "${POST_INSTAGRAM_ID}"
         echo "Instagram post test created with ID: ${POST_INSTAGRAM_ID}"
 
         sleep 5
@@ -224,6 +284,7 @@ elif [ "${1}" == "discord" ]; then
         skip_case "discord post unavailable or auth failed"
     else
         register_test_post_cleanup discord "${POST_DISCORD_ID}"
+        verify_list_posts_contains discord "${POST_DISCORD_ID}"
 
         sleep 5
 
@@ -260,6 +321,7 @@ elif [ "${1}" == "linkedin" ]; then
         skip_case "linkedin post unavailable or auth failed"
     else
         register_test_post_cleanup linkedin "${POST_LINKEDIN_ID}"
+        verify_list_posts_contains linkedin "${POST_LINKEDIN_ID}"
 
         sleep 5
 
@@ -315,6 +377,7 @@ elif [ "${1}" == "threads" ]; then
         skip_case "threads post unavailable or auth failed"
     else
         register_test_post_cleanup threads "${POST_THREADS_ID}"
+        verify_list_posts_contains threads "${POST_THREADS_ID}"
 
         sleep 5
 

@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import pytest
 
-from agoras.cli.utils.text_limits import _handle_text_limits, main
+from agoras.cli.utils.text_limits import _handle_text_limits
 
 
 def test_text_limits_stdout_contains_telegram_modes():
@@ -40,7 +40,3 @@ def test_text_limits_json_includes_discord_and_x():
 def test_unknown_platform_raises_value_error():
     with pytest.raises(ValueError, match="Unknown platform"):
         _handle_text_limits(Namespace(platform="not-a-platform", json=False))
-
-
-def test_main_unknown_platform_exits_1():
-    assert main(["--platform", "not-a-platform"]) == 1

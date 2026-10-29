@@ -25,10 +25,11 @@ Available Actions
 * ``reply`` - Reply to a comment (CLI only; runtime raises not supported)
 * ``get-post`` - Read a post/message by ID (CLI only; runtime raises not supported)
 * ``get-reply`` - Read a reply/comment by ID (CLI only; runtime raises not supported)
+* ``list-posts`` - List recent posts (CLI only; runtime raises not supported)
 
 .. note::
 
-   ``get-post`` and ``get-reply`` subcommands exist for CLI uniformity with other
+   ``get-post``, ``get-reply``, and ``list-posts`` subcommands exist for CLI uniformity with other
    platforms, but TikTok has no official arbitrary-post read API. Invoking these
    actions raises a not-supported error at runtime. The ``reply`` action is also
    listed for CLI uniformity but is not implemented at runtime. See :doc:`reference/action-support`.
@@ -78,6 +79,14 @@ On that page you choose privacy (no default), interactions, and commercial discl
       --title "${TIKTOK_TITLE}" \
       --image-1 "${IMAGE_URL_1}" \
       --image-2 "${IMAGE_URL_2}"
+
+Optional interaction flags (applied when set):
+
+* ``--allow-comments`` — allow comments (post and video; default: true).
+* ``--allow-duet`` — allow other users to duet with your video (video only; default: true).
+* ``--allow-stitch`` — allow other users to stitch your video (video only; default: true).
+* ``--auto-add-music`` — automatically add music to the slideshow (post only; default: false).
+* ``--description`` — post description/caption (post only; max 4000 UTF-16 runes).
 
 .. note::
    You must run ``agoras tiktok authorize`` first. Piping stdout (for example ``| jq``) does not skip the composer. ``last-from-feed``, ``random-from-feed``, and ``schedule`` never open it.
@@ -151,8 +160,7 @@ Process scheduled messages from a Google Sheet:
       --sheets-id "${GOOGLE_SHEETS_ID}" \
       --sheets-name "TikTok" \
       --sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-      --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" \
-      --tiktok-username "${TIKTOK_USERNAME}"
+      --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
 
 .. note::
    You must run ``agoras tiktok authorize`` first before using this command.

@@ -22,7 +22,8 @@ import json
 import os
 import sys
 
-from agoras.core.interfaces import SocialNetwork
+from agoras.core.api_base import sanitize_error_text
+from agoras.core.interfaces import SocialNetwork, run_wrapper_main, run_wrapper_main_async
 from agoras.core.text_limits import validate_text
 from agoras.media.paths import is_local_media_source, media_is_local
 
@@ -90,7 +91,6 @@ class TikTok(SocialNetwork):
         self.tiktok_auto_add_music = None
         self.brand_organic = None
         self.brand_content = None
-        self.api = None
         # Store action to determine appropriate defaults
         self._action = kwargs.get("action", "")
 
@@ -101,10 +101,10 @@ class TikTok(SocialNetwork):
         Tries to load credentials from CLI params, environment variables, or storage.
         """
         # Try params/environment first
-        self.tiktok_username = self._get_config_value("tiktok_username", "TIKTOK_USERNAME")
-        self.tiktok_client_key = self._get_config_value("tiktok_client_key", "TIKTOK_CLIENT_KEY")
-        self.tiktok_client_secret = self._get_config_value("tiktok_client_secret", "TIKTOK_CLIENT_SECRET")
-        self.tiktok_refresh_token = self._get_config_value("tiktok_refresh_token", "TIKTOK_REFRESH_TOKEN")
+        self.tiktok_username = self._get_auth_config_value("tiktok_username", "TIKTOK_USERNAME")
+        self.tiktok_client_key = self._get_auth_config_value("tiktok_client_key", "TIKTOK_CLIENT_KEY")
+        self.tiktok_client_secret = self._get_auth_config_value("tiktok_client_secret", "TIKTOK_CLIENT_SECRET")
+        self.tiktok_refresh_token = self._get_auth_config_value("tiktok_refresh_token", "TIKTOK_REFRESH_TOKEN")
         # Configuration options
         self.tiktok_title = self._get_config_value("tiktok_title", "TIKTOK_TITLE") or ""
         self.tiktok_privacy_status = (
@@ -142,24 +142,23 @@ class TikTok(SocialNetwork):
                 username=self.tiktok_username or "",
                 client_key=self.tiktok_client_key or "",
                 client_secret=self.tiktok_client_secret or "",
+                profile=self._get_config_value("profile"),
             )
 
-            if auth_manager._load_credentials_from_storage():
-                # Fill in missing credentials from storage
-                if not self.tiktok_username:
-                    self.tiktok_username = auth_manager.username
-                if not self.tiktok_client_key:
-                    self.tiktok_client_key = auth_manager.client_key
-                if not self.tiktok_client_secret:
-                    self.tiktok_client_secret = auth_manager.client_secret
-                if not self.tiktok_refresh_token:
-                    self.tiktok_refresh_token = auth_manager.refresh_token
+            self._fill_missing_credentials(
+                auth_manager,
+                {
+                    "tiktok_username": "username",
+                    "tiktok_client_key": "client_key",
+                    "tiktok_client_secret": "client_secret",
+                    "tiktok_refresh_token": "refresh_token",
+                },
+            )
 
-        # Validate all credentials are now available
-        if not all(
-            [self.tiktok_username, self.tiktok_client_key, self.tiktok_client_secret, self.tiktok_refresh_token]
-        ):
-            raise Exception("Not authenticated. Please run 'agoras tiktok authorize' first.")
+        self._require_credentials(
+            [self.tiktok_username, self.tiktok_client_key, self.tiktok_client_secret, self.tiktok_refresh_token],
+            "tiktok",
+        )
 
         # Initialize TikTok API
         self.api = TikTokAPI(
@@ -168,13 +167,6 @@ class TikTok(SocialNetwork):
 
         # Authenticate with provided credentials
         await self.api.authenticate()
-
-    async def disconnect(self):
-        """
-        Disconnect from TikTok API and clean up resources.
-        """
-        if self.api:
-            await self.api.disconnect()
 
     def _convert_bool(self, value, default=False):
         """Convert various boolean representations to bool."""
@@ -224,19 +216,18 @@ class TikTok(SocialNetwork):
 
     async def _require_fresh_creator_info(self):
         """Re-query creator_info and abort when TikTok says the creator cannot post."""
-        if not self.api:
-            raise Exception("TikTok API not initialized")
+        self._require_api()
         try:
             info = await self.api.refresh_creator_info()
         except Exception as exc:
-            message = str(exc)
+            message = sanitize_error_text(str(exc))
             if "Username mismatch" in message:
-                raise
+                raise Exception(message) from None
             if "not authenticated" in message.lower():
-                raise
+                raise Exception(message) from None
             if "try again later" in message.lower():
-                raise
-            raise Exception(CREATOR_TRY_LATER) from exc
+                raise Exception(message) from None
+            raise Exception(CREATOR_TRY_LATER) from None
         if not info:
             raise Exception(CREATOR_TRY_LATER)
         return info
@@ -334,8 +325,7 @@ class TikTok(SocialNetwork):
         Raises:
             Exception: If post creation fails or duet/stitch not supported for photos
         """
-        if not self.api:
-            raise Exception("TikTok API not initialized")
+        self._require_api()
 
         # Validate settings for photo posts
         if self.tiktok_allow_duet:
@@ -424,8 +414,7 @@ class TikTok(SocialNetwork):
         Returns:
             str: Post ID
         """
-        if not self.api:
-            raise Exception("TikTok API not initialized")
+        self._require_api()
 
         if not video_url:
             raise Exception("Video URL is required.")
@@ -614,38 +603,23 @@ class TikTok(SocialNetwork):
 
         await self.video(video_title, video_url, video_title)
 
-    async def _handle_like_action(self):
-        """Handle like action - not supported for TikTok."""
-        await self.like(None)
+    _post_id_actions = {
+        "like": (None, None),
+        "share": (None, None),
+        "delete": (None, None),
+    }
 
-    async def _handle_share_action(self):
-        """Handle share action - not supported for TikTok."""
-        await self.share(None)
+    _authorize_keys = {
+        "username": "tiktok_username",
+        "client_key": "tiktok_client_key",
+        "client_secret": "tiktok_client_secret",
+    }
 
-    async def _handle_delete_action(self):
-        """Handle delete action - not supported for TikTok."""
-        await self.delete(None)
-
-    async def authorize_credentials(self):
-        """
-        Authorize and store TikTok credentials for future use.
-
-        Returns:
-            bool: True if authorization successful
-        """
+    def _authorize_manager(self):
+        """Return the TikTokAuthManager used by the shared authorize flow."""
         from .auth import TikTokAuthManager
 
-        username = self._get_config_value("tiktok_username", "TIKTOK_USERNAME")
-        client_key = self._get_config_value("tiktok_client_key", "TIKTOK_CLIENT_KEY")
-        client_secret = self._get_config_value("tiktok_client_secret", "TIKTOK_CLIENT_SECRET")
-
-        auth_manager = TikTokAuthManager(username=username, client_key=client_key, client_secret=client_secret)
-
-        result = await auth_manager.authorize()
-        if result:
-            print(result)
-            return True
-        return False
+        return TikTokAuthManager
 
 
 async def main_async(kwargs):
@@ -655,29 +629,14 @@ async def main_async(kwargs):
     Args:
         kwargs (dict): Configuration arguments
     """
-    action = kwargs.get("action", "")
-
-    if action == "":
-        raise Exception("Action is a required argument.")
-
-    # Create TikTok instance with configuration
-    instance = TikTok(**kwargs)
-
-    # Handle authorize action separately (doesn't need client initialization)
-    if action == "authorize":
-        success = await instance.authorize_credentials()
-        return 0 if success else 1
-
-    # Execute other actions using the base class method
-    await instance.execute_action(action)
-    await instance.disconnect()
+    return await run_wrapper_main_async(TikTok, kwargs)
 
 
 def main(kwargs):
     """
-    Main function to execute TikTok actions.
+    Main function to execute TikTok actions (for backwards compatibility).
 
     Args:
         kwargs (dict): Configuration arguments
     """
-    asyncio.run(main_async(kwargs))
+    run_wrapper_main(TikTok, kwargs)

@@ -22,6 +22,7 @@ import os
 from pathlib import Path
 from typing import List, Optional
 
+from agoras.core.api_base import sanitize_error_text
 from agoras.core.interfaces import SocialNetwork
 from agoras.core.text_limits import validate_text
 from agoras.media.paths import media_is_local
@@ -61,7 +62,6 @@ class WhatsApp(SocialNetwork):
         # WhatsApp-specific settings
         self.whatsapp_recipient = None
         self.whatsapp_message_id = None
-        self.api = None
 
     def _require_recipient(self) -> str:
         recipient = self.whatsapp_recipient
@@ -77,8 +77,10 @@ class WhatsApp(SocialNetwork):
         Tries to load credentials from storage if not provided via parameters.
         """
         # Get configuration using existing pattern
-        self.whatsapp_access_token = self._get_config_value("whatsapp_access_token", "WHATSAPP_ACCESS_TOKEN")
-        self.whatsapp_phone_number_id = self._get_config_value("whatsapp_phone_number_id", "WHATSAPP_PHONE_NUMBER_ID")
+        self.whatsapp_access_token = self._get_auth_config_value("whatsapp_access_token", "WHATSAPP_ACCESS_TOKEN")
+        self.whatsapp_phone_number_id = self._get_auth_config_value(
+            "whatsapp_phone_number_id", "WHATSAPP_PHONE_NUMBER_ID"
+        )
         self.whatsapp_business_account_id = self._get_config_value(
             "whatsapp_business_account_id", "WHATSAPP_BUSINESS_ACCOUNT_ID"
         )
@@ -95,44 +97,39 @@ class WhatsApp(SocialNetwork):
                 access_token=self.whatsapp_access_token,
                 phone_number_id=self.whatsapp_phone_number_id,
                 business_account_id=self.whatsapp_business_account_id,
+                profile=self._get_config_value("profile"),
             )
 
-            if auth_manager._load_credentials_from_storage():
-                # Fill in missing credentials from storage
-                if not self.whatsapp_access_token:
-                    self.whatsapp_access_token = auth_manager.access_token
-                if not self.whatsapp_phone_number_id:
-                    self.whatsapp_phone_number_id = auth_manager.phone_number_id
-                if not self.whatsapp_business_account_id:
-                    self.whatsapp_business_account_id = auth_manager.business_account_id
+            self._fill_missing_credentials(
+                auth_manager,
+                {
+                    "whatsapp_access_token": "access_token",
+                    "whatsapp_phone_number_id": "phone_number_id",
+                    "whatsapp_business_account_id": "business_account_id",
+                },
+            )
 
-        if not all([self.whatsapp_access_token, self.whatsapp_phone_number_id]):
-            storage_dir = os.environ.get("AGORAS_STORAGE_DIR")
-            if storage_dir:
-                storage_hint = f" Checked AGORAS_STORAGE_DIR={storage_dir}."
-            else:
-                storage_hint = (
-                    f" Using default storage at {Path.home() / '.agoras'} (set AGORAS_STORAGE_DIR to match authorize)."
-                )
-            raise Exception(f"Not authenticated. Please run 'agoras whatsapp authorize' first.{storage_hint}")
+        storage_dir = os.environ.get("AGORAS_STORAGE_DIR")
+        if storage_dir:
+            storage_hint = f" Checked AGORAS_STORAGE_DIR={storage_dir}."
+        else:
+            storage_hint = (
+                f" Using default storage at {Path.home() / '.agoras'} (set AGORAS_STORAGE_DIR to match authorize)."
+            )
+        self._require_credentials(
+            [self.whatsapp_access_token, self.whatsapp_phone_number_id],
+            "whatsapp",
+            storage_hint,
+        )
 
         access_token = self.whatsapp_access_token
         phone_number_id = self.whatsapp_phone_number_id
-        if not access_token or not phone_number_id:
-            raise Exception("Not authenticated. Please run 'agoras whatsapp authorize' first.")
 
         # Initialize WhatsApp API
         self.api = WhatsAppAPI(access_token, phone_number_id, self.whatsapp_business_account_id)
 
         # Authenticate with provided credentials
         await self.api.authenticate()
-
-    async def disconnect(self):
-        """
-        Disconnect from WhatsApp API and clean up resources.
-        """
-        if self.api:
-            await self.api.disconnect()
 
     async def post(
         self,
@@ -157,8 +154,7 @@ class WhatsApp(SocialNetwork):
         Returns:
             str: Message ID
         """
-        if not self.api:
-            raise Exception("WhatsApp API not initialized")
+        self._require_api()
 
         # Combine text and link
         message_text = f"{status_text}\n{status_link}".strip() if status_link else status_text
@@ -237,8 +233,7 @@ class WhatsApp(SocialNetwork):
         Returns:
             str: Reply message ID
         """
-        if not self.api:
-            raise Exception("WhatsApp API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("WhatsApp message ID is required for reply action.")
@@ -346,8 +341,7 @@ class WhatsApp(SocialNetwork):
         Returns:
             str: Message ID
         """
-        if not self.api:
-            raise Exception("WhatsApp API not initialized")
+        self._require_api()
 
         if not video_url:
             raise Exception("Video URL is required.")
@@ -407,8 +401,7 @@ class WhatsApp(SocialNetwork):
         Returns:
             str: Message ID
         """
-        if not self.api:
-            raise Exception("WhatsApp API not initialized")
+        self._require_api()
 
         if not template_name:
             raise Exception("Template name is required.")
@@ -423,27 +416,6 @@ class WhatsApp(SocialNetwork):
         return message_id
 
     # Override action handlers to use WhatsApp-specific parameter names
-    async def _handle_like_action(self):
-        """Handle like action with WhatsApp-specific parameter extraction."""
-        whatsapp_message_id = self._get_config_value("whatsapp_message_id", "WHATSAPP_MESSAGE_ID")
-        if not whatsapp_message_id:
-            raise Exception("WhatsApp message ID is required for like action.")
-        await self.like(whatsapp_message_id)
-
-    async def _handle_share_action(self):
-        """Handle share action with WhatsApp-specific parameter extraction."""
-        whatsapp_message_id = self._get_config_value("whatsapp_message_id", "WHATSAPP_MESSAGE_ID")
-        if not whatsapp_message_id:
-            raise Exception("WhatsApp message ID is required for share action.")
-        await self.share(whatsapp_message_id)
-
-    async def _handle_delete_action(self):
-        """Handle delete action with WhatsApp-specific parameter extraction."""
-        whatsapp_message_id = self._get_config_value("whatsapp_message_id", "WHATSAPP_MESSAGE_ID")
-        if not whatsapp_message_id:
-            raise Exception("WhatsApp message ID is required for delete action.")
-        await self.delete(whatsapp_message_id)
-
     async def _handle_video_action(self):
         """Handle video action with WhatsApp-specific parameter extraction."""
         status_text = self._get_config_value("status_text", "STATUS_TEXT") or ""
@@ -467,7 +439,7 @@ class WhatsApp(SocialNetwork):
             try:
                 parsed = json.loads(components_raw)
             except json.JSONDecodeError as exc:
-                raise Exception(f"Invalid WhatsApp template components JSON: {exc}") from exc
+                raise Exception(f"Invalid WhatsApp template components JSON: {sanitize_error_text(str(exc))}") from None
             if parsed is not None and not isinstance(parsed, list):
                 raise Exception("WhatsApp template components must be a JSON list")
             components = parsed
@@ -479,28 +451,23 @@ class WhatsApp(SocialNetwork):
 
         await self.send_template(template_name, language_code=language_code, components=components)
 
-    async def authorize_credentials(self):
-        """
-        Authorize and store WhatsApp credentials for future use.
+    _post_id_actions = {
+        "like": ("whatsapp_message_id", "WhatsApp message ID is required for like action."),
+        "share": ("whatsapp_message_id", "WhatsApp message ID is required for share action."),
+        "delete": ("whatsapp_message_id", "WhatsApp message ID is required for delete action."),
+    }
 
-        Returns:
-            bool: True if authorization successful
-        """
+    _authorize_keys = {
+        "access_token": "whatsapp_access_token",
+        "phone_number_id": "whatsapp_phone_number_id",
+        "business_account_id": "whatsapp_business_account_id",
+    }
+
+    def _authorize_manager(self):
+        """Return the WhatsAppAuthManager used by the shared authorize flow."""
         from .auth import WhatsAppAuthManager
 
-        access_token = self._get_config_value("whatsapp_access_token", "WHATSAPP_ACCESS_TOKEN")
-        phone_number_id = self._get_config_value("whatsapp_phone_number_id", "WHATSAPP_PHONE_NUMBER_ID")
-        business_account_id = self._get_config_value("whatsapp_business_account_id", "WHATSAPP_BUSINESS_ACCOUNT_ID")
-
-        auth_manager = WhatsAppAuthManager(
-            access_token=access_token, phone_number_id=phone_number_id, business_account_id=business_account_id
-        )
-
-        result = await auth_manager.authorize()
-        if result:
-            print(result)
-            return True
-        return False
+        return WhatsAppAuthManager
 
     async def execute_action(self, action):
         """
@@ -552,6 +519,12 @@ class WhatsApp(SocialNetwork):
 async def main_async(kwargs):
     """
     Async main function to execute WhatsApp actions.
+
+    Kept as a local runner instead of the base ``run_main_async`` template:
+    WhatsApp handles authorize inside ``execute_action`` (raising "WhatsApp
+    authorization failed." on failure) and skips disconnect for authorize;
+    migrating to the template would change authorize-failure semantics from
+    raise to return 1.
 
     Args:
         kwargs (dict): Configuration arguments

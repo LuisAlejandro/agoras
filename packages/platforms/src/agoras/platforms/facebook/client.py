@@ -25,12 +25,7 @@ import requests
 from pyfacebook import GraphAPI
 
 from agoras.common import __version__
-
-
-def _regular_video_upload_timeout(video_file_size: int) -> int:
-    """Scale Graph video-byte PUT timeout with file size, capped at 10 minutes."""
-    megabytes = max(0, video_file_size) // (1024 * 1024)
-    return max(30, min(600, megabytes * 2 or 30))
+from agoras.common.utils import video_upload_timeout
 
 
 def _is_video_file_processing_error(error: requests.HTTPError) -> bool:
@@ -321,7 +316,7 @@ class FacebookAPIClient:
                 data["attached_media"] = json.dumps(attached_media)
 
             response = self.post_object(object_id=object_id, connection="feed", data=data)
-            return response["id"].split("_")[1]
+            return response["id"]
 
         return await asyncio.to_thread(_sync_create_post)
 
@@ -575,7 +570,7 @@ class FacebookAPIClient:
                 raise Exception("Failed to create upload session")
 
             # Upload video file
-            upload_timeout = _regular_video_upload_timeout(video_file_size)
+            upload_timeout = video_upload_timeout(video_file_size)
             upload_data_response = requests.post(
                 f"https://graph.facebook.com/v21.0/{upload_session_id}",
                 headers={

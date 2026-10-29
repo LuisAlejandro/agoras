@@ -195,13 +195,6 @@ def form_checked(form: Dict[str, str], name: str) -> bool:
     return value not in ("", "0", "false", "False", "off")
 
 
-def consent_copy(*, brand_content: bool) -> str:
-    """Return the live Music Usage / Branded Content consent string."""
-    if brand_content:
-        return BRANDED_CONTENT_CONSENT
-    return MUSIC_USAGE_CONSENT
-
-
 def _validate_interaction_flags(
     request: ComposerRequest,
     allow_comments: bool,

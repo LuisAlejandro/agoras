@@ -962,3 +962,84 @@ async def test_instagram_post_rejects_caption_over_limit(mock_auth_manager_class
 def test_instagram_api_class_exists():
     """Test InstagramAPI class exists."""
     assert InstagramAPI is not None
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
+async def test_instagram_list_posts_returns_normalized_items(mock_auth_manager_class, mock_api_class):
+    """Test Instagram list_posts emits normalized items via api.list_posts."""
+    configure_instagram_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.list_posts = AsyncMock(
+        return_value=[
+            {
+                "id": "media-1",
+                "caption": "hello",
+                "media_url": "https://example.com/a.jpg",
+                "media_type": "IMAGE",
+                "username": "alice",
+                "timestamp": "2026-01-01T00:00:00Z",
+                "permalink": "https://instagram.com/p/1",
+            },
+            {"id": "media-2", "caption": "world", "media_url": None, "media_type": "TEXT", "username": "alice"},
+        ]
+    )
+    mock_api_class.return_value = mock_api
+
+    instagram = Instagram(**INSTAGRAM_KWARGS)
+    await instagram._initialize_client()
+
+    with patch.object(instagram, "_output_list") as mock_out:
+        result = await instagram.list_posts(2)
+
+    assert len(result) == 2
+    assert result[0]["id"] == "media-1"
+    assert result[0]["media"] == [{"type": "image", "url": "https://example.com/a.jpg"}]
+    assert result[0]["author"]["name"] == "alice"
+    assert result[0]["metadata"] == {"permalink": "https://instagram.com/p/1"}
+    assert result[1]["id"] == "media-2"
+    assert result[1]["media"] == []
+    mock_api.list_posts.assert_called_once_with("user123", 2)
+    mock_out.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
+async def test_instagram_list_posts_limit_zero_returns_empty(mock_auth_manager_class, mock_api_class):
+    """Test Instagram list_posts with limit=0 returns an empty list without an API call."""
+    configure_instagram_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.list_posts = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    instagram = Instagram(**INSTAGRAM_KWARGS)
+    await instagram._initialize_client()
+
+    with patch.object(instagram, "_output_list") as mock_out:
+        result = await instagram.list_posts(0)
+
+    assert result == []
+    mock_api.list_posts.assert_not_called()
+    mock_out.assert_called_once_with([])
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.instagram.wrapper.InstagramAPI")
+@patch("agoras.platforms.instagram.auth.InstagramAuthManager")
+async def test_instagram_list_posts_missing_object_id(mock_auth_manager_class, mock_api_class):
+    """Test Instagram list_posts raises when object ID is missing."""
+    configure_instagram_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    instagram = Instagram(**INSTAGRAM_KWARGS)
+    await instagram._initialize_client()
+    instagram.instagram_object_id = None
+
+    with pytest.raises(Exception, match="Instagram object ID is required for list-posts action"):
+        await instagram.list_posts(5)

@@ -136,7 +136,7 @@ Install packages in dependency order to ensure all dependencies are available:
 
 .. code-block:: console
 
-    # Install common (depends on requests, beautifulsoup4)
+    # Install common (depends on requests)
     $ cd packages/common
     $ pip install -e .
 

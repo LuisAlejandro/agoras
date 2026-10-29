@@ -823,7 +823,7 @@ async def test_facebook_load_credentials_from_storage_fills(mock_api_class):
 @pytest.mark.asyncio
 @patch("agoras.platforms.facebook.wrapper.FacebookAPI")
 async def test_facebook_fill_missing_credentials_from_storage(mock_api_class):
-    """Test Facebook _fill_missing_credentials_from_storage method."""
+    """Test Facebook credential fill from the shared storage helper."""
     mock_api = MagicMock()
     mock_api.authenticate = AsyncMock()
     mock_api.check_if_page = AsyncMock(return_value=False)
@@ -837,12 +837,21 @@ async def test_facebook_fill_missing_credentials_from_storage(mock_api_class):
 
     # Mock auth manager with stored values
     mock_auth_manager = MagicMock()
+    mock_auth_manager._load_credentials_from_storage.return_value = True
     mock_auth_manager.client_id = "stored_client_id"
     mock_auth_manager.client_secret = "stored_client_secret"
     mock_auth_manager.refresh_token = "stored_refresh_token"
     mock_auth_manager.user_id = "stored_user_id"
 
-    facebook._fill_missing_credentials_from_storage(mock_auth_manager)
+    facebook._fill_missing_credentials(
+        mock_auth_manager,
+        {
+            "facebook_client_id": "client_id",
+            "facebook_client_secret": "client_secret",
+            "facebook_refresh_token": "refresh_token",
+            "facebook_object_id": "user_id",
+        },
+    )
 
     assert facebook.facebook_client_id == "stored_client_id"
     assert facebook.facebook_client_secret == "stored_client_secret"
@@ -1702,3 +1711,74 @@ async def test_facebook_video_local_regular_uses_bytes(mock_api_class):
 
     assert result == "video-123"
     mock_api.upload_regular_video.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.facebook.wrapper.FacebookAPI")
+async def test_facebook_list_posts_returns_normalized_items(mock_api_class):
+    """Test Facebook list_posts emits normalized items via api.list_posts."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.list_posts = AsyncMock(
+        return_value=[
+            {
+                "id": "post-1",
+                "message": "hello",
+                "from": {"id": "page-1", "name": "Page"},
+                "created_time": "2026-01-01T00:00:00+0000",
+                "full_picture": "https://example.com/pic.jpg",
+            },
+            {"id": "post-2", "message": "world", "from": {"id": "page-1", "name": "Page"}},
+        ]
+    )
+    mock_api_class.return_value = mock_api
+
+    facebook = Facebook(facebook_access_token="token", facebook_object_id="page123")
+    await facebook._initialize_client()
+
+    with patch.object(facebook, "_output_list") as mock_out:
+        result = await facebook.list_posts(2)
+
+    assert len(result) == 2
+    assert result[0]["id"] == "post-1"
+    assert result[0]["media"] == [{"type": "image", "url": "https://example.com/pic.jpg"}]
+    assert result[0]["author"]["name"] == "Page"
+    assert result[1]["id"] == "post-2"
+    assert result[1]["media"] == []
+    mock_api.list_posts.assert_called_once_with("page123", 2)
+    mock_out.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.facebook.wrapper.FacebookAPI")
+async def test_facebook_list_posts_limit_zero_returns_empty(mock_api_class):
+    """Test Facebook list_posts with limit=0 returns an empty list without an API call."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.list_posts = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    facebook = Facebook(facebook_access_token="token", facebook_object_id="page123")
+    await facebook._initialize_client()
+
+    with patch.object(facebook, "_output_list") as mock_out:
+        result = await facebook.list_posts(0)
+
+    assert result == []
+    mock_api.list_posts.assert_not_called()
+    mock_out.assert_called_once_with([])
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.facebook.wrapper.FacebookAPI")
+async def test_facebook_list_posts_missing_object_id(mock_api_class):
+    """Test Facebook list_posts raises when object ID is missing."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    facebook = Facebook(facebook_access_token="token")
+    await facebook._initialize_client()
+
+    with pytest.raises(Exception, match="Facebook object ID is required for list-posts action"):
+        await facebook.list_posts(5)

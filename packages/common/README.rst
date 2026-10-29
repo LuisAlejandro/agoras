@@ -22,7 +22,8 @@ Usage
 
 .. code-block:: python
 
-   from agoras.common import __version__, logger, add_url_timestamp, parse_metatags
+   from agoras.common import __version__, logger
+   from agoras.common.utils import add_url_timestamp, parse_metatags
 
    # Version info
    print(f"Agoras version: {__version__}")

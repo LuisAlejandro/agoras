@@ -61,15 +61,3 @@ def test_platform_runner_does_not_import_validator():
     assert 'ActionValidator' not in source
     assert 'ParameterConverter' not in source
 
-
-@patch('agoras.cli.commands.publish.execute_platform_action')
-@patch('sys.stderr', new_callable=StringIO)
-def test_publish_main_twitter_warns_then_delegates(mock_stderr, mock_execute):
-    from agoras.cli.commands.publish import main as publish_main
-
-    publish_main(network='twitter', action='post')
-
-    stderr_output = mock_stderr.getvalue()
-    assert 'deprecated' in stderr_output.lower()
-    mock_execute.assert_called_once()
-    assert mock_execute.call_args[1]['network'] == 'twitter'

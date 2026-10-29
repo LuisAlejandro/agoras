@@ -159,39 +159,6 @@ async def test_validate_file_type_disallowed(mock_file, mock_mkstemp, mock_urlop
 
 # File Handle Tests
 
-def test_get_file_handle_before_download():
-    """Test get_file_handle raises exception before download."""
-    image = Image('https://example.com/test.jpg')
-
-    with pytest.raises(Exception, match='File must be downloaded'):
-        image.get_file_handle()
-
-
-@pytest.mark.asyncio
-@patch('agoras.media.base.filetype.guess')
-@patch('agoras.media.base.urlopen')
-@patch('agoras.media.base.tempfile.mkstemp')
-@patch('builtins.open', new_callable=mock_open)
-async def test_get_file_handle_after_download(mock_file, mock_mkstemp, mock_urlopen, mock_filetype):
-    """Test get_file_handle returns BytesIO after download."""
-    # Setup mocks
-    mock_mkstemp.return_value = (1, '/tmp/test.bin')
-    mock_response = MagicMock()
-    mock_response.read.return_value = b'image_data'
-    mock_urlopen.return_value = mock_response
-    mock_type = MagicMock()
-    mock_type.mime = 'image/jpeg'
-    mock_filetype.return_value = mock_type
-
-    image = Image('https://example.com/test.jpg')
-    await image.download()
-
-    handle = image.get_file_handle()
-
-    assert isinstance(handle, io.BytesIO)
-    assert handle.read() == b'image_data'
-
-
 def test_get_file_like_object_before_download():
     """Test get_file_like_object raises exception before download."""
     image = Image('https://example.com/test.jpg')

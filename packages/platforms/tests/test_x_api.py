@@ -209,3 +209,25 @@ async def test_x_api_post_rejects_over_limit(x_api):
 
     with pytest.raises(TextValidationError):
         await x_api.post('A' * 400)
+
+
+@pytest.mark.asyncio
+async def test_x_api_list_posts(x_api):
+    """Test XAPI list_posts resolves the user and lists recent tweets."""
+    x_api.client.get_user_info = AsyncMock(return_value={"user_id": "42"})
+    x_api.client.get_users_tweets = AsyncMock(return_value=[{"id": "1", "text": "hello"}])
+
+    result = await x_api.list_posts(5)
+
+    assert result == [{"id": "1", "text": "hello"}]
+    x_api.client.get_user_info.assert_called_once()
+    x_api.client.get_users_tweets.assert_called_once_with("42", 5)
+
+
+@pytest.mark.asyncio
+async def test_x_api_list_posts_no_user_id(x_api):
+    """Test XAPI list_posts raises when the user id cannot be resolved."""
+    x_api.client.get_user_info = AsyncMock(return_value={})
+
+    with pytest.raises(Exception, match="user id"):
+        await x_api.list_posts(5)

@@ -16,8 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -99,23 +97,6 @@ def test_initialization_without_credentials():
 
 # Authentication Tests
 
-@pytest.mark.asyncio
-async def test_is_authenticated_initial_state():
-    """Test is_authenticated returns False initially."""
-    api = ConcreteAPI()
-
-    assert api.is_authenticated() is False
-
-
-@pytest.mark.asyncio
-async def test_is_authenticated_after_auth():
-    """Test is_authenticated returns True after authentication."""
-    api = ConcreteAPI()
-
-    await api.authenticate()
-
-    assert api.is_authenticated() is True
-
 
 # Rate Limiting Tests
 
@@ -158,16 +139,16 @@ def test_handle_api_error_formats_message():
     assert "API returned 404" in str(exc_info.value)
 
 
-def test_handle_api_error_chains_exception():
-    """Test _handle_api_error chains original exception."""
+def test_handle_api_error_severs_chained_cause():
+    """Test _handle_api_error severs the chained cause to avoid token leaks."""
     api = ConcreteAPI()
     original_error = ConnectionError("Network timeout")
 
     with pytest.raises(Exception) as exc_info:
         api._handle_api_error(original_error, "authentication")
 
-    # Verify exception chaining
-    assert exc_info.value.__cause__ is original_error
+    # The raw cause must not leak into tracebacks (R5 chained-cause fix)
+    assert exc_info.value.__cause__ is None
     assert "authentication failed" in str(exc_info.value)
 
 
@@ -184,3 +165,67 @@ def test_handle_api_error_redacts_sensitive_tokens():
     assert "abc123" not in message
     assert "Bearer [REDACTED]" in message
     assert "access_token=[REDACTED]" in message
+
+
+def test_handle_api_error_redacts_telegram_bot_token_in_url():
+    """Telegram bot tokens appear as bot<id>:<token> in library URLs (no space)."""
+    api = ConcreteAPI()
+    original_error = ValueError("Failed to reach https://api.telegram.org/bot123456789:AAbCdEfGhIjKlMnOpQrStUvWxYz/sendMessage")
+
+    with pytest.raises(Exception) as exc_info:
+        api._handle_api_error(original_error, "Telegram send message")
+
+    message = str(exc_info.value)
+    assert "AAbCdEfGhIjKlMnOpQrStUvWxYz" not in message
+    assert "bot[REDACTED]" in message
+
+
+def test_handle_api_error_redacts_api_keys_and_headers():
+    """Google API keys, api_key params, X-API-Key headers, and Basic auth."""
+    api = ConcreteAPI()
+    original_error = ValueError(
+        "GET https://example.com/?key=AIzaSyD1234567890abcdefghijklmnopqrstuvwxyz "
+        "X-API-Key: sekrit-header Authorization: Basic dXNlcjpwYXNzd29yZA== api_key=sekrit-param"
+    )
+
+    with pytest.raises(Exception) as exc_info:
+        api._handle_api_error(original_error, "op")
+
+    message = str(exc_info.value)
+    assert "AIzaSyD1234567890abcdefghijklmnopqrstuvwxyz" not in message
+    assert "sekrit-header" not in message
+    assert "dXNlcjpwYXNzd29yZA==" not in message
+    assert "sekrit-param" not in message
+    assert "key=[REDACTED]" in message
+    assert "X-API-Key: [REDACTED]" in message
+    assert "Authorization: [REDACTED]" in message
+    assert "api_key=[REDACTED]" in message
+
+
+def test_handle_api_error_redacts_signed_url_and_json_shapes():
+    """Signed URLs and quoted JSON credential shapes are redacted."""
+    api = ConcreteAPI()
+    original_error = ValueError(
+        "fetch failed: https://cdn.example.com/v.mp4?X-Amz-Signature=abc123&sig=xyz789 "
+        'payload {"Signature": "tok999"} collected'
+    )
+
+    with pytest.raises(Exception) as exc_info:
+        api._handle_api_error(original_error, "op")
+
+    message = str(exc_info.value)
+    assert "abc123" not in message
+    assert "xyz789" not in message
+    assert "tok999" not in message
+    assert "[REDACTED]" in message
+
+
+def test_handle_api_error_leaves_benign_prose_intact():
+    """Unquoted prose diagnostics are not redacted as credentials."""
+    api = ConcreteAPI()
+    original_error = ValueError("Signature verification failed: signature=invalid")
+
+    with pytest.raises(Exception) as exc_info:
+        api._handle_api_error(original_error, "op")
+
+    assert str(exc_info.value) == "op failed: Signature verification failed: signature=invalid"

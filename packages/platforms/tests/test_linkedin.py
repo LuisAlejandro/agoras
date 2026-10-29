@@ -709,9 +709,87 @@ async def test_linkedin_delete_reply_missing_parent_post_id(mock_auth_manager_cl
         await linkedin.delete_reply("comment-123")
 
 
+@pytest.mark.asyncio
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
+async def test_linkedin_list_posts_returns_normalized_items(mock_auth_manager_class, mock_api_class):
+    """Test LinkedIn list_posts emits normalized items via api.list_posts."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.list_posts = AsyncMock(
+        return_value=[
+            {"id": "urn:li:share:1", "commentary": "hello", "author": "urn:li:person:1", "createdAt": 1700000000000},
+            {"id": "urn:li:share:2", "commentary": "world", "author": "urn:li:person:1"},
+        ]
+    )
+    mock_api_class.return_value = mock_api
+
+    linkedin = LinkedIn(**LINKEDIN_KWARGS)
+    await linkedin._initialize_client()
+
+    with patch.object(linkedin, "_output_list") as mock_out:
+        result = await linkedin.list_posts(2)
+
+    assert len(result) == 2
+    assert result[0]["id"] == "urn:li:share:1"
+    assert result[0]["text"] == "hello"
+    assert result[0]["author"]["id"] == "urn:li:person:1"
+    assert result[1]["id"] == "urn:li:share:2"
+    mock_api.list_posts.assert_called_once_with(2)
+    mock_out.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.linkedin.wrapper.LinkedInAPI")
+@patch("agoras.platforms.linkedin.auth.LinkedInAuthManager")
+async def test_linkedin_list_posts_limit_zero_returns_empty(mock_auth_manager_class, mock_api_class):
+    """Test LinkedIn list_posts with limit=0 returns an empty list without an API call."""
+    configure_linkedin_auth_mock(mock_auth_manager_class)
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.list_posts = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    linkedin = LinkedIn(**LINKEDIN_KWARGS)
+    await linkedin._initialize_client()
+
+    with patch.object(linkedin, "_output_list") as mock_out:
+        result = await linkedin.list_posts(0)
+
+    assert result == []
+    mock_api.list_posts.assert_not_called()
+    mock_out.assert_called_once_with([])
+
+
 # LinkedIn API Tests
 
 
 def test_linkedin_api_class_exists():
     """Test LinkedInAPI class exists."""
     assert LinkedInAPI is not None
+
+
+def test_linkedin_scope_config_never_falls_back_to_env(monkeypatch):
+    """LINKEDIN_SCOPE env var is ignored; other keys keep the generic env fallback."""
+    linkedin = LinkedIn()
+    linkedin.config = {}
+
+    monkeypatch.setenv("LINKEDIN_SCOPE", "w_member_social_feed")
+    monkeypatch.setenv("LINKEDIN_CLIENT_ID", "env_client_id")
+
+    # KTD2: scope override comes only from config (the --scope flag), never env.
+    assert linkedin._get_config_value("linkedin_scope") is None
+
+    # Other authorize keys keep the existing env fallback convention.
+    assert linkedin._get_config_value("linkedin_client_id") == "env_client_id"
+
+
+def test_linkedin_scope_config_value_returned_when_present(monkeypatch):
+    """A configured linkedin_scope wins over the exported LINKEDIN_SCOPE env var."""
+    linkedin = LinkedIn()
+    linkedin.config = {"linkedin_scope": "openid,email"}
+
+    monkeypatch.setenv("LINKEDIN_SCOPE", "w_member_social_feed")
+
+    assert linkedin._get_config_value("linkedin_scope") == "openid,email"

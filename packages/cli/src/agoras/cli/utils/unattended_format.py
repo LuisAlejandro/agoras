@@ -164,17 +164,24 @@ PLATFORM_SECTION_BY_NAME = {section.platform: section for section in PLATFORM_SE
 
 def load_platform_token(storage: SecureTokenStorage, platform: str) -> Optional[dict]:
     """
-    Load token data for a platform using the same order as auth managers.
+    Load token data for a platform.
 
-    Tries the ``default`` identifier first, then the first listed token.
+    Enumerates stored profiles for the platform and returns the first one.
+    The legacy ``default`` alias is no longer written, so it is not consulted.
     """
-    token_data = storage.load_token(platform, "default")
-    if token_data:
-        return token_data
-
-    for listed_platform, identifier in storage.list_tokens(platform):
-        if listed_platform == platform:
+    identifiers = [
+        identifier for listed_platform, identifier in storage.list_tokens(platform) if listed_platform == platform
+    ]
+    # Deterministic selection: always pick the lexicographically first profile
+    # so the export is reproducible when multiple profiles exist, rather than
+    # depending on filesystem enumeration order. Single-profile is unchanged.
+    for identifier in sorted(identifiers):
+        try:
             return storage.load_token(platform, identifier)
+        except ValueError:
+            # Skip reserved/legacy identifiers (e.g. "default") that are
+            # no longer valid profile keys.
+            continue
 
     return None
 

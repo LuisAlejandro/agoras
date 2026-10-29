@@ -80,7 +80,7 @@ Legacy Format (Deprecated)
 ---------------------------
 
 .. warning::
-   The legacy ``agoras publish --action last-from-feed`` format is deprecated.
+   The legacy ``agoras publish --action last-from-feed`` format was deprecated and removed in Agoras 3.0.
    Use ``agoras utils feed-publish`` instead.
 
 Legacy format::

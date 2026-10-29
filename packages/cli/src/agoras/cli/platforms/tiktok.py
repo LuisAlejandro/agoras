@@ -25,11 +25,9 @@ from argparse import SUPPRESS, ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.tiktok.wrapper import main as tiktok_main
 
-from ..base import add_common_content_options, prepare_content_args
+from ..base import add_common_content_options, add_profile_to_all, run_platform_command
 from ..content import add_content_file_option
-from ..converter import ParameterConverter
 from ..media_help import video_url_help
-from ..validator import ActionValidator
 
 
 def create_tiktok_parser(subparsers: _SubParsersAction) -> ArgumentParser:
@@ -90,8 +88,17 @@ def create_tiktok_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     )
     get_reply.add_argument("--post-id", required=True, metavar="<id>", help="TikTok reply ID to read")
 
+    # List-posts action
+    list_posts = actions.add_parser(
+        "list-posts",
+        help='List recent TikTok posts (not supported). Requires prior authorization via "agoras tiktok authorize".',
+    )
+    _add_limit_option(list_posts)
+
     # Set handler
     parser.set_defaults(command=_handle_tiktok_command)
+
+    add_profile_to_all(actions)
 
     return parser
 
@@ -116,8 +123,8 @@ def _add_post_options(parser: ArgumentParser):
     Args:
         parser: ArgumentParser to add options to
     """
-    # Add common content options (text, link, images) including --content
-    add_common_content_options(parser, images=4)
+    # TikTok photo posts carry no link field, so --link is not offered.
+    add_common_content_options(parser, images=4, with_link=False)
 
     # Add TikTok-specific post options (SUPPRESS for XOR-safe content fields)
     post_opts = parser.add_argument_group("TikTok Post Options")
@@ -219,6 +226,16 @@ def _add_post_id_option(parser: ArgumentParser):
     parser.add_argument("--post-id", required=True, metavar="<id>", help="TikTok video ID to interact with")
 
 
+def _add_limit_option(parser: ArgumentParser):
+    """
+    Add limit option for list-posts action.
+
+    Args:
+        parser: ArgumentParser to add options to
+    """
+    parser.add_argument("--limit", type=int, metavar="<n>", help="Maximum number of posts to list")
+
+
 def _handle_tiktok_command(args: Namespace):
     """
     Handle TikTok command by converting args and calling core.
@@ -229,13 +246,4 @@ def _handle_tiktok_command(args: Namespace):
     Returns:
         Exit status from core execution
     """
-    # Validate action
-    ActionValidator.validate("tiktok", args.action)
-    prepare_content_args(args, "tiktok")
-
-    # Convert new args to legacy format
-    converter = ParameterConverter("tiktok")
-    legacy_args = converter.convert_to_legacy(args)
-
-    # Call core TikTok module
-    return tiktok_main(legacy_args)
+    return run_platform_command("tiktok", args, tiktok_main)
