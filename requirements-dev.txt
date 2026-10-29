@@ -16,7 +16,7 @@ vulture==2.16
 
 # Build Tools
 build==1.5.0
-setuptools==83.0.0
+setuptools==84.0.0
 wheel==0.48.0
 
 # Testing Orchestration
