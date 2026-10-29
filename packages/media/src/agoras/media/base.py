@@ -28,6 +28,8 @@ import filetype
 
 from agoras.common import __version__
 
+from .paths import is_local_media_source, normalize_media_path
+
 
 class Media(ABC):
     """
@@ -50,6 +52,12 @@ class Media(ABC):
         self.file_type = None
         self._downloaded = False
         self._file_handle = None
+        self._is_local = False
+
+    @property
+    def is_local(self) -> bool:
+        """True when this instance reads a user-owned local file (not a temp download)."""
+        return self._is_local is True
 
     @property
     @abstractmethod
@@ -74,12 +82,41 @@ class Media(ABC):
         if self._downloaded:
             return self.temp_file, self.content, self.file_type
 
+        if is_local_media_source(self.url):
+
+            def _sync_read_local():
+                local_path = normalize_media_path(self.url)
+                if not os.path.isfile(local_path):
+                    raise FileNotFoundError(f"Local media file not found: {local_path}")
+                max_bytes = getattr(self, "max_size", None)
+                if max_bytes is None:
+                    constraints = getattr(self, "constraints", None)
+                    max_bytes = getattr(constraints, "max_bytes", None)
+                if max_bytes is not None:
+                    file_size = os.path.getsize(local_path)
+                    if file_size > max_bytes:
+                        from .errors import MediaValidationError
+
+                        platform_key = getattr(self, "platform_key", "generic")
+                        media_kind = getattr(self, "media_kind", self.__class__.__name__.lower())
+                        raise MediaValidationError(platform_key, media_kind, "max_bytes", file_size, max_bytes)
+                with open(local_path, "rb") as handle:
+                    content = handle.read()
+                return local_path, content
+
+            self.temp_file, self.content = await asyncio.to_thread(_sync_read_local)
+            self._is_local = True
+            self.file_type = self._validate_file_type()
+            self._validate_content()
+            self._downloaded = True
+            return self.temp_file, self.content, self.file_type
+
         def _sync_download():
             _, tmpfile = tempfile.mkstemp(prefix=self._get_file_prefix(), suffix=".bin")
 
             with open(tmpfile, "wb") as f:
                 request = Request(url=self.url, headers={"User-Agent": f"Agoras/{__version__}"})
-                content = urlopen(request).read()
+                content = urlopen(request, timeout=30).read()
                 f.write(content)
 
             return tmpfile, content
@@ -90,31 +127,6 @@ class Media(ABC):
         self._downloaded = True
 
         return self.temp_file, self.content, self.file_type
-
-    def get_file_handle(self, mode="rb"):
-        """
-        Get a file handle for the downloaded content.
-
-        Args:
-            mode (str): File open mode (default: 'rb')
-
-        Returns:
-            io.BytesIO or file handle: File handle for the content
-
-        Raises:
-            Exception: If file hasn't been downloaded
-        """
-        if not self._downloaded:
-            raise Exception("File must be downloaded before getting file handle")
-
-        if self.content is not None:
-            # Return BytesIO handle from in-memory content
-            return io.BytesIO(self.content)
-        elif self.temp_file and os.path.exists(self.temp_file):
-            # Fallback to file handle if content not in memory
-            return open(self.temp_file, mode)
-        else:
-            raise Exception("No file content available")
 
     def get_file_like_object(self):
         """
@@ -153,10 +165,12 @@ class Media(ABC):
         Raises:
             Exception: If file type is invalid
         """
-        if not self.temp_file:
+        if self.content is not None:
+            kind = filetype.guess(self.content)
+        elif self.temp_file:
+            kind = filetype.guess(self.temp_file)
+        else:
             raise Exception("File must be downloaded before validation")
-
-        kind = filetype.guess(self.temp_file)
 
         if not kind:
             self.cleanup()
@@ -216,7 +230,7 @@ class Media(ABC):
                 pass
             self._file_handle = None
 
-        if self.temp_file and os.path.exists(self.temp_file):
+        if self.temp_file and os.path.exists(self.temp_file) and not self._is_local:
             try:
                 os.unlink(self.temp_file)
             except Exception:

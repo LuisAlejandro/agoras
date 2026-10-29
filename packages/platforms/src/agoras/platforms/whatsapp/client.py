@@ -140,7 +140,9 @@ class WhatsAppAPIClient:
         except requests.exceptions.RequestException as e:
             raise Exception(f"WhatsApp post_object failed: {str(e)}")
 
-    def send_message(self, to: str, text: str, buttons: Optional[List] = None) -> Dict[str, Any]:
+    def send_message(
+        self, to: str, text: str, buttons: Optional[List] = None, context: Optional[Dict] = None
+    ) -> Dict[str, Any]:
         """
         Send text message via Graph API.
 
@@ -148,6 +150,7 @@ class WhatsAppAPIClient:
             to (str): Recipient phone number in E.164 format (e.g., +1234567890)
             text (str): Message text content
             buttons (list, optional): Interactive buttons (not implemented in Phase 2)
+            context (dict, optional): Reply context (e.g. {"message_id": <id>})
 
         Returns:
             dict: Response with message_id and status
@@ -165,6 +168,9 @@ class WhatsAppAPIClient:
             payload["type"] = "interactive"
             payload["interactive"] = {"type": "button", "body": {"text": text}, "action": {"buttons": buttons}}
 
+        if context:
+            payload["context"] = context
+
         try:
             response = self.post_object(object_id=self.phone_number_id, connection="messages", data=payload)
 
@@ -175,14 +181,66 @@ class WhatsAppAPIClient:
         except Exception as e:
             raise Exception(f"WhatsApp send_message failed: {str(e)}")
 
-    def send_image(self, to: str, image_url: str, caption: Optional[str] = None) -> Dict[str, Any]:
+    def upload_media(self, file_bytes: bytes, mime_type: str, filename: str = "media") -> str:
+        """
+        Upload media bytes to WhatsApp Cloud API.
+
+        Args:
+            file_bytes (bytes): Raw media content
+            mime_type (str): MIME type of the media
+            filename (str): Filename for multipart upload
+
+        Returns:
+            str: Uploaded media ID
+
+        Raises:
+            Exception: If upload fails
+        """
+        if not self.access_token:
+            raise Exception("WhatsApp access token not available")
+
+        import requests
+
+        url = f"https://graph.facebook.com/{self.api_version}/{self.phone_number_id}/media"
+        headers = {"Authorization": f"Bearer {self.access_token}"}
+        files = {"file": (filename, file_bytes, mime_type)}
+        data = {"messaging_product": "whatsapp", "type": mime_type}
+
+        try:
+            response = requests.post(url, headers=headers, files=files, data=data, timeout=60)
+            response.raise_for_status()
+            media_id = response.json().get("id")
+            if not media_id:
+                raise Exception(f"WhatsApp media upload missing id: {response.text}")
+            return str(media_id)
+        except requests.exceptions.HTTPError as e:
+            try:
+                error_data = response.json()
+                raise Exception(
+                    f"WhatsApp upload_media failed: {response.status_code} {response.reason} - {error_data}"
+                )
+            except BaseException:
+                raise Exception(f"WhatsApp upload_media failed: {str(e)}")
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"WhatsApp upload_media failed: {str(e)}")
+
+    def send_image(
+        self,
+        to: str,
+        image_url: Optional[str] = None,
+        caption: Optional[str] = None,
+        image_id: Optional[str] = None,
+        context: Optional[Dict] = None,
+    ) -> Dict[str, Any]:
         """
         Send image message via Graph API.
 
         Args:
             to (str): Recipient phone number in E.164 format (e.g., +1234567890)
-            image_url (str): Publicly accessible HTTPS URL of the image
+            image_url (str, optional): Publicly accessible HTTPS URL of the image
             caption (str, optional): Image caption text
+            image_id (str, optional): Uploaded WhatsApp media ID
+            context (dict, optional): Reply context (e.g. {"message_id": <id>})
 
         Returns:
             dict: Response with message_id and status
@@ -193,10 +251,20 @@ class WhatsAppAPIClient:
         if not self.graph_api:
             raise Exception("WhatsApp GraphAPI not initialized")
 
-        payload = {"messaging_product": "whatsapp", "to": to, "type": "image", "image": {"link": image_url}}
+        if image_id:
+            image_payload: Dict[str, Any] = {"id": image_id}
+        elif image_url:
+            image_payload = {"link": image_url}
+        else:
+            raise Exception("WhatsApp send_image requires image_url or image_id")
+
+        payload = {"messaging_product": "whatsapp", "to": to, "type": "image", "image": image_payload}
 
         if caption:
             payload["image"]["caption"] = caption
+
+        if context:
+            payload["context"] = context
 
         try:
             response = self.post_object(object_id=self.phone_number_id, connection="messages", data=payload)
@@ -208,14 +276,23 @@ class WhatsAppAPIClient:
         except Exception as e:
             raise Exception(f"WhatsApp send_image failed: {str(e)}")
 
-    def send_video(self, to: str, video_url: str, caption: Optional[str] = None) -> Dict[str, Any]:
+    def send_video(
+        self,
+        to: str,
+        video_url: Optional[str] = None,
+        caption: Optional[str] = None,
+        video_id: Optional[str] = None,
+        context: Optional[Dict] = None,
+    ) -> Dict[str, Any]:
         """
         Send video message via Graph API.
 
         Args:
             to (str): Recipient phone number in E.164 format (e.g., +1234567890)
-            video_url (str): Publicly accessible HTTPS URL of the video
+            video_url (str, optional): Publicly accessible HTTPS URL of the video
             caption (str, optional): Video caption text
+            video_id (str, optional): Uploaded WhatsApp media ID
+            context (dict, optional): Reply context (e.g. {"message_id": <id>})
 
         Returns:
             dict: Response with message_id and status
@@ -226,10 +303,20 @@ class WhatsAppAPIClient:
         if not self.graph_api:
             raise Exception("WhatsApp GraphAPI not initialized")
 
-        payload = {"messaging_product": "whatsapp", "to": to, "type": "video", "video": {"link": video_url}}
+        if video_id:
+            video_payload: Dict[str, Any] = {"id": video_id}
+        elif video_url:
+            video_payload = {"link": video_url}
+        else:
+            raise Exception("WhatsApp send_video requires video_url or video_id")
+
+        payload = {"messaging_product": "whatsapp", "to": to, "type": "video", "video": video_payload}
 
         if caption:
             payload["video"]["caption"] = caption
+
+        if context:
+            payload["context"] = context
 
         try:
             response = self.post_object(object_id=self.phone_number_id, connection="messages", data=payload)

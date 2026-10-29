@@ -51,13 +51,6 @@ def test_utils_command_accessible():
     assert exc_info.value.code == 0
 
 
-def test_legacy_publish_still_works():
-    """Test that legacy publish command still works."""
-    with pytest.raises(SystemExit) as exc_info:
-        parser, args = commandline(['publish', '--help'])
-    assert exc_info.value.code == 0
-
-
 def test_x_post_complete_flow():
     """Test complete X post command parsing without auth flags."""
     parser, args = commandline([
@@ -97,6 +90,36 @@ def test_youtube_video_complete_flow():
     assert args.video_url == 'video.mp4'
     assert args.title == 'My Video'
     assert args.privacy == 'public'
+
+
+def test_inline_local_video_path_resolved_against_cwd(tmp_path, monkeypatch):
+    """Inline --video-url relative paths resolve against process cwd (R19/CLI)."""
+    from argparse import Namespace
+
+    from agoras.cli.base import prepare_content_args
+
+    monkeypatch.chdir(tmp_path)
+    media = tmp_path / "clip.mp4"
+    media.write_bytes(b"video")
+
+    args = Namespace(action="video", video_url="./clip.mp4", title="Test")
+    prepare_content_args(args, "youtube")
+    assert args.video_url == str(media.resolve())
+
+
+def test_inline_local_image_path_resolved_against_cwd(tmp_path, monkeypatch):
+    """Inline --image-1 relative paths resolve against process cwd."""
+    from argparse import Namespace
+
+    from agoras.cli.base import prepare_content_args
+
+    monkeypatch.chdir(tmp_path)
+    media = tmp_path / "pic.jpg"
+    media.write_bytes(b"jpeg")
+
+    args = Namespace(action="post", image_1="./pic.jpg", text="hi")
+    prepare_content_args(args, "x")
+    assert args.image_1 == str(media.resolve())
 
 
 def test_utils_feed_publish_complete_flow():
@@ -251,16 +274,65 @@ def test_action_validation_integration():
         ActionValidator.validate('tiktok', 'like')
 
 
-def test_legacy_publish_with_migration_flag():
-    """Test legacy publish with --show-migration flag."""
+def test_x_reply_parses_media_flags():
+    """Test X reply subparser accepts text, image, and video flags."""
     parser, args = commandline([
-        'publish',
-        '--network', 'twitter',
-        '--action', 'post',
-        '--twitter-consumer-key', 'key',
-        '--show-migration'
+        'x', 'reply',
+        '--post-id', 'tweet-123',
+        '--text', 'A reply',
+        '--image-1', 'img.jpg',
+        '--video-url', 'clip.mp4',
     ])
 
-    assert args.network == 'twitter'
-    assert args.action == 'post'
-    assert args.show_migration is True
+    assert args.action == 'reply'
+    assert args.post_id == 'tweet-123'
+    assert args.text == 'A reply'
+    assert args.image_1 == 'img.jpg'
+    assert args.video_url == 'clip.mp4'
+
+
+def test_discord_reply_parses_media_flags():
+    """Test Discord reply subparser accepts text and image flags."""
+    parser, args = commandline([
+        'discord', 'reply',
+        '--post-id', 'msg-123',
+        '--text', 'A reply',
+        '--image-1', 'img.jpg',
+    ])
+
+    assert args.action == 'reply'
+    assert args.post_id == 'msg-123'
+    assert args.text == 'A reply'
+    assert args.image_1 == 'img.jpg'
+
+
+def test_telegram_reply_parses_media_flags():
+    """Test Telegram reply subparser accepts text and video flags."""
+    parser, args = commandline([
+        'telegram', 'reply',
+        '--post-id', '456',
+        '--text', 'A reply',
+        '--video-url', 'clip.mp4',
+    ])
+
+    assert args.action == 'reply'
+    assert args.post_id == '456'
+    assert args.text == 'A reply'
+    assert args.video_url == 'clip.mp4'
+
+
+def test_whatsapp_reply_parses_media_flags():
+    """Test WhatsApp reply subparser accepts text and image flags."""
+    parser, args = commandline([
+        'whatsapp', 'reply',
+        '--recipient', '+1234567890',
+        '--post-id', 'wa-msg-1',
+        '--text', 'A reply',
+        '--image-1', 'img.jpg',
+    ])
+
+    assert args.action == 'reply'
+    assert args.recipient == '+1234567890'
+    assert args.post_id == 'wa-msg-1'
+    assert args.text == 'A reply'
+    assert args.image_1 == 'img.jpg'

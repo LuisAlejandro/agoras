@@ -22,7 +22,14 @@ import sys
 import time
 from typing import Any, Dict, List
 
-from agoras.core.api_base import BaseAPI
+from agoras.core.api_base import (
+    BaseAPI,
+    guard_client_presence,
+    guard_ensure_auth_manager,
+    guard_error_wrap,
+    guard_rate_limit,
+    guard_token_presence,
+)
 from agoras.core.auth import raise_authentication_error_from_manager
 
 from .auth import TikTokAuthManager
@@ -35,6 +42,11 @@ class TikTokAPI(BaseAPI):
     Provides methods for TikTok authentication, video uploads, photo posts,
     and all TikTok API operations.
     """
+
+    # Guard message templates (read by the composable guard decorators)
+    _not_authenticated_message = "TikTok API not authenticated"
+    _client_not_available_message = "TikTok client not available"
+    _clears_auth_manager_state_on_disconnect = True
 
     # TikTok API URLs - moved to client
     # DIRECT_POST_URL = "https://open.tiktokapis.com/v2/post/publish/video/init/"
@@ -86,49 +98,50 @@ class TikTokAPI(BaseAPI):
         if not success:
             raise_authentication_error_from_manager(self.auth_manager)
 
-        self.client = self.auth_manager.client
-        self._authenticated = True
-        return self
+        return await super().authenticate()
 
-    async def disconnect(self):
+    @guard_ensure_auth_manager
+    @guard_token_presence(token_attr="auth_manager.access_token")
+    @guard_client_presence
+    async def refresh_creator_info(self) -> Dict[str, Any]:
         """
-        Disconnect from TikTok API and clean up resources.
-        """
-        # Clear auth manager tokens and user info
-        if self.auth_manager:
-            self.auth_manager.access_token = None
-            self.auth_manager.user_info = None
-            self.auth_manager.client = None
-
-        # Clear BaseAPI client
-        self.client = None
-        self._authenticated = False
-
-    async def get_creator_info(self) -> Dict[str, Any]:
-        """
-        Get creator information from TikTok API.
+        Re-query TikTok creator_info and refresh the auth cache.
 
         Returns:
-            dict: Creator information
+            dict: Fresh creator information
 
         Raises:
-            Exception: If API call fails
+            Exception: If the query fails, the creator cannot post, or usernames mismatch
         """
-        if not self.access_token:
-            raise Exception("TikTok API not authenticated")
 
-        def _sync_get_creator_info():
-            return self.creator_info
+        def _sync_refresh():
+            if not self.client:
+                raise Exception("TikTok client not available")
+            user_data = self.client.get_user_info()
+            username = user_data.get("creator_username")
+            expected = self.auth_manager.username
+            if username != expected:
+                raise Exception(f"Username mismatch: {username} != {expected}")
+            return user_data
 
         try:
-            creator_info = await asyncio.to_thread(_sync_get_creator_info)
+            creator_info = await asyncio.to_thread(_sync_refresh)
             if not creator_info:
-                raise Exception("Failed to get creator info")
+                raise Exception("TikTok says this creator cannot post right now. Try again later.")
+            self.auth_manager.user_info = creator_info
             return creator_info
         except Exception as e:
+            message = str(e)
+            if "Username mismatch" in message or "not authenticated" in message.lower():
+                raise
             self._handle_api_error(e, "TikTok get creator info")
             raise
 
+    @guard_ensure_auth_manager
+    @guard_token_presence(token_attr="auth_manager.access_token")
+    @guard_client_presence
+    @guard_rate_limit("upload_video", 2.0)
+    @guard_error_wrap("TikTok video upload")
     async def upload_video(
         self,
         video_url: str,
@@ -159,15 +172,6 @@ class TikTokAPI(BaseAPI):
         Raises:
             Exception: If upload fails
         """
-        self.auth_manager.ensure_authenticated()
-
-        if not self.access_token:
-            raise Exception("TikTok API not authenticated")
-
-        if not self.client:
-            raise Exception("TikTok client not available")
-
-        await self._rate_limit_check("upload_video", 2.0)
 
         def _sync_upload():
             if not self.client:
@@ -183,19 +187,78 @@ class TikTokAPI(BaseAPI):
                 is_brand_content=is_brand_content,
             )
 
-        try:
-            response = await asyncio.to_thread(_sync_upload)
+        response = await asyncio.to_thread(_sync_upload)
 
-            publish_id = response.get("data", {}).get("publish_id")
+        publish_id = response.get("data", {}).get("publish_id")
 
-            # Wait for video processing to complete
-            await self._wait_for_publish_completion(publish_id)
+        # Wait for video processing to complete
+        await self._wait_for_publish_completion(publish_id)
 
-            return {"publish_id": publish_id}
-        except Exception as e:
-            self._handle_api_error(e, "TikTok video upload")
-            raise
+        return {"publish_id": publish_id}
 
+    @guard_ensure_auth_manager
+    @guard_token_presence(token_attr="auth_manager.access_token")
+    @guard_client_presence
+    @guard_rate_limit("upload_video_file", 2.0)
+    @guard_error_wrap("TikTok video file upload")
+    async def upload_video_file(
+        self,
+        file_content: bytes,
+        title: str,
+        privacy_status: str,
+        allow_comments: bool = True,
+        allow_duet: bool = True,
+        allow_stitch: bool = True,
+        is_brand_organic: bool = False,
+        is_brand_content: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Upload a local video file to TikTok via FILE_UPLOAD.
+
+        Args:
+            file_content (bytes): Raw video bytes
+            title (str): Video title
+            privacy_status (str): Privacy level (PUBLIC_TO_EVERYONE, SELF_ONLY, etc.)
+            allow_comments (bool): Whether to allow comments
+            allow_duet (bool): Whether to allow duets
+            allow_stitch (bool): Whether to allow stitches
+            is_brand_organic (bool): Whether this is brand organic content
+            is_brand_content (bool): Whether this is brand content
+
+        Returns:
+            dict: Upload response with publish ID
+
+        Raises:
+            Exception: If upload fails
+        """
+
+        def _sync_upload():
+            if not self.client:
+                raise Exception("TikTok client not available")
+            return self.client.upload_video_file(
+                file_content=file_content,
+                title=title,
+                privacy_status=privacy_status,
+                allow_comments=allow_comments,
+                allow_duet=allow_duet,
+                allow_stitch=allow_stitch,
+                is_brand_organic=is_brand_organic,
+                is_brand_content=is_brand_content,
+            )
+
+        response = await asyncio.to_thread(_sync_upload)
+
+        publish_id = response.get("data", {}).get("publish_id")
+
+        await self._wait_for_publish_completion(publish_id)
+
+        return {"publish_id": publish_id}
+
+    @guard_ensure_auth_manager
+    @guard_token_presence(token_attr="auth_manager.access_token")
+    @guard_client_presence
+    @guard_rate_limit("upload_photo", 2.0)
+    @guard_error_wrap("TikTok photo upload")
     async def upload_photo(
         self,
         photo_images: List[str],
@@ -226,15 +289,6 @@ class TikTokAPI(BaseAPI):
         Raises:
             Exception: If upload fails
         """
-        self.auth_manager.ensure_authenticated()
-
-        if not self.access_token:
-            raise Exception("TikTok API not authenticated")
-
-        if not self.client:
-            raise Exception("TikTok client not available")
-
-        await self._rate_limit_check("upload_photo", 2.0)
 
         def _sync_upload():
             if not self.client:
@@ -250,14 +304,10 @@ class TikTokAPI(BaseAPI):
                 description=description,
             )
 
-        try:
-            response = await asyncio.to_thread(_sync_upload)
-            # TikTok API returns: {"data": {"publish_id": "..."}, "error": {"code": "ok", ...}}
-            # Extract the data object which contains publish_id
-            return response.get("data", {})
-        except Exception as e:
-            self._handle_api_error(e, "TikTok photo upload")
-            raise
+        response = await asyncio.to_thread(_sync_upload)
+        # TikTok API returns: {"data": {"publish_id": "..."}, "error": {"code": "ok", ...}}
+        # Extract the data object which contains publish_id
+        return response.get("data", {})
 
     async def _wait_for_publish_completion(self, publish_id: str, max_wait_time: int = 300) -> None:
         """

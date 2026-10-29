@@ -26,7 +26,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 # Register namespace subpackages so @patch can resolve dotted targets.
-importlib.import_module('agoras.cli.commands.publish')
 importlib.import_module('agoras.core.interfaces')
 importlib.import_module('agoras.platforms.telegram.wrapper')
 importlib.import_module('agoras.platforms.x.wrapper')
@@ -34,130 +33,57 @@ importlib.import_module('agoras.platforms.x.wrapper')
 # Test CLI to Platform Flow
 
 
-@patch('agoras.cli.platform_runner.x')
-def test_cli_to_platform_x_flow(mock_x):
-    """Test CLI parser to X platform execution flow."""
-    from agoras.cli.commands.publish import main
+@patch('agoras.cli.platforms.x.x_main')
+def test_cli_x_post_local_image_reaches_platform(mock_x_main, tmp_path, monkeypatch):
+    """agoras x post --image-1 ./test.jpg resolves cwd and reaches the platform wrapper."""
+    from agoras.cli.main import main as cli_main
 
-    mock_x.return_value = None
+    monkeypatch.chdir(tmp_path)
+    image = tmp_path / "test.jpg"
+    image.write_bytes(b"jpeg")
+    mock_x_main.return_value = 0
 
-    # Simulate CLI arguments for X post
-    result = main(
-        network='x',
-        action='post',
-        twitter_consumer_key='key',
-        twitter_consumer_secret='secret',
-        twitter_oauth_token='token',
-        twitter_oauth_secret='token_secret',
-        status_text='Test post',
-        status_link='http://link.com'
+    status = cli_main(
+        [
+            "x",
+            "post",
+            "--text",
+            "Hello",
+            "--image-1",
+            "./test.jpg",
+        ]
     )
 
-    mock_x.assert_called_once()
+    assert status == 0
+    mock_x_main.assert_called_once()
+    legacy = mock_x_main.call_args[0][0]
+    assert legacy["status_image_url_1"] == str(image.resolve())
 
 
-@patch('agoras.cli.platform_runner.facebook')
-def test_cli_to_platform_facebook_flow(mock_facebook):
-    """Test CLI parser to Facebook platform execution flow."""
-    from agoras.cli.commands.publish import main
+@patch('agoras.cli.platforms.youtube.youtube_main')
+def test_cli_youtube_video_local_path_reaches_platform(mock_youtube_main, tmp_path, monkeypatch):
+    """agoras youtube video --video-url ./clip.mp4 resolves cwd and reaches the wrapper."""
+    from agoras.cli.main import main as cli_main
 
-    mock_facebook.return_value = None
+    monkeypatch.chdir(tmp_path)
+    # Isolate credential storage so profile resolution does not read real ~/.agoras
+    monkeypatch.setenv("AGORAS_STORAGE_DIR", str(tmp_path / "storage"))
+    video = tmp_path / "clip.mp4"
+    video.write_bytes(b"video")
+    mock_youtube_main.return_value = 0
 
-    result = main(
-        network='facebook',
-        action='post',
-        facebook_access_token='token',
-        facebook_object_id='page123',
-        status_text='Test post',
-        status_link='http://link.com'
+    status = cli_main(
+        [
+            "youtube",
+            "video",
+            "--title",
+            "Clip",
+            "--video-url",
+            "./clip.mp4",
+        ]
     )
 
-    mock_facebook.assert_called_once()
-
-
-# Test Feed Integration
-
-@patch('agoras.core.interfaces.Feed')
-@patch('agoras.platforms.x.wrapper.X._initialize_client', new_callable=AsyncMock)
-@patch('agoras.platforms.x.wrapper.X.post', new_callable=AsyncMock)
-def test_feed_integration_flow(mock_post, mock_init_client, mock_feed_class):
-    """Test CLI feed command through Core Feed to Platform post."""
-    from agoras.cli.commands.publish import main
-
-    # Mock feed
-    mock_item = MagicMock()
-    mock_item.link = 'http://item.com'
-    mock_item.title = 'Feed Item'
-    mock_item.image_url = 'img.jpg'
-    mock_item.get_timestamped_link = MagicMock(return_value='http://item.com?t=123')
-
-    mock_feed = MagicMock()
-    # Make download return the mock_feed instance (for method chaining)
-    mock_feed.download = AsyncMock(return_value=mock_feed)
-    mock_feed.get_items_since = MagicMock(return_value=[mock_item])
-    mock_feed_class.return_value = mock_feed
-
-    # Mock platform methods (already AsyncMock from new_callable)
-
-    result = main(
-        network='x',
-        action='last-from-feed',
-        twitter_consumer_key='key',
-        twitter_consumer_secret='secret',
-        twitter_oauth_token='token',
-        twitter_oauth_secret='token_secret',
-        feed_url='http://feed.rss',
-        max_count=1,
-        post_lookback=3600
-    )
-
-    mock_feed.download.assert_called_once()
-    mock_post.assert_called_once()
-
-
-# Test Error Propagation
-
-@patch('agoras.cli.platform_runner.discord')
-def test_platform_error_propagates_to_cli(mock_discord):
-    """Test platform errors propagate correctly to CLI."""
-    from agoras.cli.commands.publish import main
-
-    mock_discord.side_effect = Exception('Platform error')
-
-    with pytest.raises(Exception, match='Platform error'):
-        main(
-            network='discord',
-            action='post',
-            discord_bot_token='token',
-            discord_server_name='Server',
-            discord_channel_name='Channel',
-            status_text='Test',
-            status_link=''
-        )
-
-
-@patch('agoras.core.interfaces.Feed')
-@patch('agoras.platforms.telegram.wrapper.Telegram._initialize_client', new_callable=AsyncMock)
-def test_invalid_feed_url_handling(mock_init_client, mock_feed_class):
-    """Test graceful handling of invalid feed URL."""
-    from agoras.cli.commands.publish import main
-
-    # Mock feed download failure
-    mock_feed = MagicMock()
-
-    async def download_side_effect(*args, **kwargs):
-        raise Exception('Invalid feed URL')
-    mock_feed.download = AsyncMock(side_effect=download_side_effect)
-    mock_feed_class.return_value = mock_feed
-
-    # Mock platform initialization (already AsyncMock from new_callable)
-
-    with pytest.raises(Exception, match='Invalid feed URL'):
-        main(
-            network='telegram',
-            action='last-from-feed',
-            telegram_bot_token='token',
-            telegram_chat_id='123',
-            feed_url='invalid://feed',
-            max_count=1
-        )
+    assert status == 0
+    mock_youtube_main.assert_called_once()
+    legacy = mock_youtube_main.call_args[0][0]
+    assert legacy["youtube_video_url"] == str(video.resolve())

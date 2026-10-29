@@ -41,21 +41,6 @@ RESERVED_CONTENT_KEYS: FrozenSet[str] = frozenset(
     }
 )
 
-# Destination / control flags that may coexist with --content (not payload).
-CONTROL_FLAG_DESTINATIONS: FrozenSet[str] = frozenset(
-    {
-        "recipient",
-        "parse_mode",
-        "profile_id",
-        "object_id",
-        "loglevel",
-        "bot_token",
-        "server_name",
-        "channel_name",
-        "chat_id",
-    }
-)
-
 
 @dataclass(frozen=True)
 class FieldSpec:
@@ -69,6 +54,7 @@ class FieldSpec:
     max_items: Optional[int] = None
     min_items: Optional[int] = None
     http_url: bool = False
+    media_source: bool = False
     max_length: Optional[int] = None
 
 
@@ -112,6 +98,7 @@ def _f(
     max_items: Optional[int] = None,
     min_items: Optional[int] = None,
     http_url: bool = False,
+    media_source: bool = False,
     max_length: Optional[int] = None,
 ) -> FieldSpec:
     return FieldSpec(
@@ -123,6 +110,7 @@ def _f(
         max_items=max_items,
         min_items=min_items,
         http_url=http_url,
+        media_source=media_source,
         max_length=max_length,
     )
 
@@ -130,11 +118,17 @@ def _f(
 _COMMON_POST = (
     _f("text"),
     _f("link", http_url=True),
-    _f("images", "str_list", max_items=MAX_IMAGES, min_items=1, http_url=True),
+    _f("images", "str_list", max_items=MAX_IMAGES, min_items=1, media_source=True),
+)
+
+_COMMON_REPLY = (
+    _f("text"),
+    _f("images", "str_list", max_items=MAX_IMAGES, min_items=1, media_source=True),
+    _f("video_url", media_source=True),
 )
 
 _COMMON_VIDEO = (
-    _f("video_url", required=True, http_url=True),
+    _f("video_url", required=True, media_source=True),
     _f("video_title"),
     _f("text"),
 )
@@ -142,8 +136,8 @@ _COMMON_VIDEO = (
 _THREAD_ENTRY_BASE = (
     _f("text"),
     _f("link", http_url=True),
-    _f("images", "str_list", max_items=MAX_IMAGES, min_items=1, http_url=True),
-    _f("video_url", http_url=True),
+    _f("images", "str_list", max_items=MAX_IMAGES, min_items=1, media_source=True),
+    _f("video_url", media_source=True),
     _f("video_title"),
 )
 
@@ -179,6 +173,14 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
                 require_one_of=(("text", "link", "images"),),
             )
         )
+        add(
+            _spec(
+                platform,
+                "reply",
+                _COMMON_REPLY,
+                require_one_of=(("text", "images", "video_url"),),
+            )
+        )
         add(_spec(platform, "video", _COMMON_VIDEO))
         add(
             _spec(
@@ -205,12 +207,23 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
             "facebook",
             "video",
             (
-                _f("video_url", required=True, http_url=True),
+                _f("video_url", required=True, media_source=True),
                 _f("video_title", required=True),
                 _f("video_description", required=True),
                 _f("video_type", choices=_FACEBOOK_VIDEO_TYPES),
                 _f("text"),
             ),
+        )
+    )
+    add(
+        _spec(
+            "facebook",
+            "reply",
+            (
+                _f("text"),
+                _f("images", "str_list", max_items=1, min_items=1, media_source=True),
+            ),
+            require_one_of=(("text", "images"),),
         )
     )
 
@@ -222,7 +235,7 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
             (
                 _f("text"),
                 _f("link", http_url=True),
-                _f("images", "str_list", required=True, max_items=MAX_IMAGES, min_items=1, http_url=True),
+                _f("images", "str_list", required=True, max_items=MAX_IMAGES, min_items=1, media_source=True),
             ),
         )
     )
@@ -231,11 +244,18 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
             "instagram",
             "video",
             (
-                _f("video_url", required=True, http_url=True),
+                _f("video_url", required=True, media_source=True),
                 _f("video_caption"),
                 _f("video_type", choices=_INSTAGRAM_VIDEO_TYPES),
                 _f("text"),
             ),
+        )
+    )
+    add(
+        _spec(
+            "instagram",
+            "reply",
+            (_f("text", required=True),),
         )
     )
 
@@ -247,12 +267,23 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
             (
                 _f("text"),
                 _f("link", http_url=True),
-                _f("images", "str_list", max_items=MAX_IMAGES, min_items=1, http_url=True),
+                _f("images", "str_list", max_items=MAX_IMAGES, min_items=1, media_source=True),
             ),
             require_one_of=(("text", "link", "images"),),
         )
     )
     add(_spec("linkedin", "video", _COMMON_VIDEO))
+    add(
+        _spec(
+            "linkedin",
+            "reply",
+            (
+                _f("text"),
+                _f("images", "str_list", max_items=MAX_IMAGES, min_items=1, media_source=True),
+            ),
+            require_one_of=(("text", "images"),),
+        )
+    )
 
     # --- Discord ---
     add(
@@ -269,9 +300,20 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
     add(
         _spec(
             "discord",
+            "reply",
+            (
+                *_COMMON_REPLY,
+                _f("embeds", "map_list", max_items=10),
+            ),
+            require_one_of=(("text", "images", "video_url", "embeds"),),
+        )
+    )
+    add(
+        _spec(
+            "discord",
             "video",
             (
-                _f("video_url", required=True, http_url=True),
+                _f("video_url", required=True, media_source=True),
                 _f("video_title"),
                 _f("text"),
                 _f("embeds", "map_list", max_items=10),
@@ -302,13 +344,20 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
             "youtube",
             "video",
             (
-                _f("video_url", required=True, http_url=True),
+                _f("video_url", required=True, media_source=True),
                 _f("title", required=True),
                 _f("description"),
                 _f("category_id"),
                 _f("privacy", default="private", choices=_YOUTUBE_PRIVACY),
                 _f("keywords", "str_list"),
             ),
+        )
+    )
+    add(
+        _spec(
+            "youtube",
+            "reply",
+            (_f("text", required=True),),
         )
     )
 
@@ -318,7 +367,7 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
             "tiktok",
             "post",
             (
-                _f("images", "str_list", required=True, max_items=MAX_IMAGES, min_items=1, http_url=True),
+                _f("images", "str_list", required=True, max_items=MAX_IMAGES, min_items=1, media_source=True),
                 _f("title"),
                 _f("description"),
                 _f("privacy", default="SELF_ONLY", choices=_TIKTOK_PRIVACY),
@@ -334,7 +383,7 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
             "tiktok",
             "video",
             (
-                _f("video_url", required=True, http_url=True),
+                _f("video_url", required=True, media_source=True),
                 _f("title", required=True),
                 _f("privacy", default="SELF_ONLY", choices=_TIKTOK_PRIVACY),
                 _f("allow_comments", "bool"),
@@ -364,11 +413,23 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
             "threads",
             "video",
             (
-                _f("video_url", required=True, http_url=True),
+                _f("video_url", required=True, media_source=True),
                 _f("video_title"),
                 _f("text"),
                 _f("who_can_reply", default="everyone", choices=_THREADS_REPLY),
             ),
+        )
+    )
+    add(
+        _spec(
+            "threads",
+            "reply",
+            (
+                *_COMMON_REPLY,
+                _f("who_can_reply", default="everyone", choices=_THREADS_REPLY),
+                _f("alt_texts", "str_list", max_items=MAX_IMAGES),
+            ),
+            require_one_of=(("text", "images", "video_url"),),
         )
     )
     add(
@@ -403,6 +464,17 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
     add(
         _spec(
             "telegram",
+            "reply",
+            (
+                *_COMMON_REPLY,
+                _f("parse_mode", default="HTML", choices=_TELEGRAM_PARSE),
+            ),
+            require_one_of=(("text", "images", "video_url"),),
+        )
+    )
+    add(
+        _spec(
+            "telegram",
             "video",
             (
                 *_COMMON_VIDEO,
@@ -418,6 +490,14 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
             "post",
             _COMMON_POST,
             require_one_of=(("text", "link", "images"),),
+        )
+    )
+    add(
+        _spec(
+            "whatsapp",
+            "reply",
+            _COMMON_REPLY,
+            require_one_of=(("text", "images", "video_url"),),
         )
     )
     add(_spec("whatsapp", "video", _COMMON_VIDEO))
@@ -539,9 +619,3 @@ def get_action_spec(platform: str, action: str) -> ActionSpec:
 def supports_content_file(platform: str, action: str) -> bool:
     """True when (platform, action) accepts --content."""
     return (canonical_platform(platform), action) in CONTENT_SPECS
-
-
-def content_capable_actions(platform: str) -> FrozenSet[str]:
-    """Actions that accept --content for a platform."""
-    platform = canonical_platform(platform)
-    return frozenset(action for (plat, action) in CONTENT_SPECS if plat == platform)

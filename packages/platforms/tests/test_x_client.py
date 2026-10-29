@@ -402,3 +402,153 @@ class TestXAPIClient:
 
         assert result == "tweet123"
         client.client_v2.delete_tweet.assert_called_once_with("tweet123")
+
+    @pytest.mark.asyncio
+    async def test_x_client_get_subscription_type_no_client(self):
+        """get_subscription_type raises when v2 client is missing."""
+        client = XAPIClient("ck", "cs", "ot", "os")
+        client.client_v2 = None
+
+        with pytest.raises(Exception, match="X v2 client not initialized"):
+            await client.get_subscription_type()
+
+    @patch("asyncio.to_thread")
+    @pytest.mark.asyncio
+    async def test_x_client_get_subscription_type_premium(self, mock_to_thread):
+        """get_me subscription_type Premium is returned."""
+        mock_to_thread.side_effect = lambda func: func()
+        data = MagicMock()
+        data.subscription_type = "Premium"
+        response = MagicMock()
+        response.data = data
+
+        client = XAPIClient("ck", "cs", "ot", "os")
+        client.client_v2 = MagicMock()
+        client.client_v2.get_me.return_value = response
+
+        result = await client.get_subscription_type()
+
+        assert result == "Premium"
+        client.client_v2.get_me.assert_called_once_with(user_fields=["subscription_type"])
+
+    @patch("asyncio.to_thread")
+    @pytest.mark.asyncio
+    async def test_x_client_get_subscription_type_missing_data(self, mock_to_thread):
+        """get_me with no data returns None."""
+        mock_to_thread.side_effect = lambda func: func()
+        response = MagicMock()
+        response.data = None
+
+        client = XAPIClient("ck", "cs", "ot", "os")
+        client.client_v2 = MagicMock()
+        client.client_v2.get_me.return_value = response
+
+        assert await client.get_subscription_type() is None
+
+    @patch("asyncio.to_thread")
+    @pytest.mark.asyncio
+    async def test_x_client_get_subscription_type_missing_field(self, mock_to_thread):
+        """get_me user object without subscription_type returns None."""
+        mock_to_thread.side_effect = lambda func: func()
+
+        class _UserWithoutSubscription:
+            pass
+
+        response = MagicMock()
+        response.data = _UserWithoutSubscription()
+
+        client = XAPIClient("ck", "cs", "ot", "os")
+        client.client_v2 = MagicMock()
+        client.client_v2.get_me.return_value = response
+
+        assert await client.get_subscription_type() is None
+
+    @patch("asyncio.to_thread")
+    @pytest.mark.asyncio
+    async def test_x_client_get_tweet_resolves_media(self, mock_to_thread):
+        """get_tweet resolves attached media from includes."""
+        mock_to_thread.side_effect = lambda func: func()
+        response_data = {
+            "id": "1",
+            "text": "hello",
+            "author_id": "42",
+            "created_at": "2026-01-01T00:00:00Z",
+            "attachments": {"media_keys": ["mk1"]},
+        }
+        includes = {
+            "media": [
+                {"media_key": "mk1", "type": "photo", "url": "https://example.com/a.jpg"},
+            ]
+        }
+        response = MagicMock()
+        response.data = response_data
+        response.includes = includes
+
+        client = XAPIClient("ck", "cs", "ot", "os")
+        client.client_v2 = MagicMock()
+        client.client_v2.get_tweet.return_value = response
+
+        result = await client.get_tweet("1")
+
+        assert result["media"] == [{"type": "image", "url": "https://example.com/a.jpg"}]
+        client.client_v2.get_tweet.assert_called_once()
+
+    @patch("asyncio.to_thread")
+    @pytest.mark.asyncio
+    async def test_x_client_get_users_tweets(self, mock_to_thread):
+        """get_users_tweets lists recent tweets for a user with resolved media."""
+        mock_to_thread.side_effect = lambda func: func()
+        response_data = [
+            {
+                "id": "1",
+                "text": "hello",
+                "author_id": "42",
+                "created_at": "2026-01-01T00:00:00Z",
+                "attachments": {"media_keys": ["mk1"]},
+            },
+            {"id": "2", "text": "world", "author_id": "42", "created_at": "2026-01-02T00:00:00Z"},
+        ]
+        includes = {
+            "media": [
+                {"media_key": "mk1", "type": "photo", "url": "https://example.com/a.jpg"},
+            ]
+        }
+        response = MagicMock()
+        response.data = response_data
+        response.includes = includes
+
+        client = XAPIClient("ck", "cs", "ot", "os")
+        client.client_v2 = MagicMock()
+        client.client_v2.get_users_tweets.return_value = response
+
+        result = await client.get_users_tweets("42", 2)
+
+        assert len(result) == 2
+        assert result[0]["id"] == "1"
+        assert result[0]["media"] == [{"type": "image", "url": "https://example.com/a.jpg"}]
+        assert result[1]["id"] == "2"
+        assert result[1]["media"] == []
+        client.client_v2.get_users_tweets.assert_called_once_with(
+            "42",
+            max_results=2,
+            tweet_fields=["created_at", "author_id", "attachments"],
+            expansions=["attachments.media_keys"],
+            media_fields=["url", "preview_image_url", "type", "variants"],
+            user_auth=True,
+        )
+
+    @patch("asyncio.to_thread")
+    @pytest.mark.asyncio
+    async def test_x_client_get_users_tweets_empty(self, mock_to_thread):
+        """get_users_tweets returns [] when there are no tweets."""
+        mock_to_thread.side_effect = lambda func: func()
+        response = MagicMock()
+        response.data = None
+
+        client = XAPIClient("ck", "cs", "ot", "os")
+        client.client_v2 = MagicMock()
+        client.client_v2.get_users_tweets.return_value = response
+
+        result = await client.get_users_tweets("42", 2)
+
+        assert result == []

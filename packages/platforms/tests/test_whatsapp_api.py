@@ -87,7 +87,9 @@ async def test_whatsapp_api_send_message(whatsapp_api):
     result = await whatsapp_api.send_message('+1234567890', 'Test message')
 
     assert result == 'msg-123'
-    whatsapp_api.client.send_message.assert_called_once_with('+1234567890', 'Test message', buttons=None)
+    whatsapp_api.client.send_message.assert_called_once_with(
+        '+1234567890', 'Test message', buttons=None, context=None
+    )
 
 
 @pytest.mark.asyncio
@@ -96,7 +98,9 @@ async def test_whatsapp_api_send_image(whatsapp_api):
     result = await whatsapp_api.send_image('+1234567890', 'http://image.jpg', caption='Image caption')
 
     assert result == 'msg-124'
-    whatsapp_api.client.send_image.assert_called_once_with('+1234567890', 'http://image.jpg', caption='Image caption')
+    whatsapp_api.client.send_image.assert_called_once_with(
+        '+1234567890', image_url='http://image.jpg', caption='Image caption', image_id=None, context=None
+    )
 
 
 @pytest.mark.asyncio
@@ -105,7 +109,44 @@ async def test_whatsapp_api_send_video(whatsapp_api):
     result = await whatsapp_api.send_video('+1234567890', 'http://video.mp4', caption='Video caption')
 
     assert result == 'msg-125'
-    whatsapp_api.client.send_video.assert_called_once_with('+1234567890', 'http://video.mp4', caption='Video caption')
+    whatsapp_api.client.send_video.assert_called_once_with(
+        '+1234567890', video_url='http://video.mp4', caption='Video caption', video_id=None, context=None
+    )
+
+
+@pytest.mark.asyncio
+async def test_whatsapp_api_reply_text(whatsapp_api):
+    """Test WhatsAppAPI reply with text only."""
+    result = await whatsapp_api.reply('+1234567890', 'wa-msg-1', text='A reply')
+
+    assert result == 'msg-123'
+    whatsapp_api.client.send_message.assert_called_once_with(
+        '+1234567890', 'A reply', buttons=None, context={'message_id': 'wa-msg-1'}
+    )
+
+
+@pytest.mark.asyncio
+async def test_whatsapp_api_reply_image(whatsapp_api):
+    """Test WhatsAppAPI reply with an image."""
+    result = await whatsapp_api.reply('+1234567890', 'wa-msg-1', text='A reply', image_url='http://image.jpg')
+
+    assert result == 'msg-124'
+    whatsapp_api.client.send_image.assert_called_once_with(
+        '+1234567890', image_url='http://image.jpg', caption='A reply', image_id=None,
+        context={'message_id': 'wa-msg-1'}
+    )
+
+
+@pytest.mark.asyncio
+async def test_whatsapp_api_reply_video(whatsapp_api):
+    """Test WhatsAppAPI reply with a video."""
+    result = await whatsapp_api.reply('+1234567890', 'wa-msg-1', text='A reply', video_url='http://video.mp4')
+
+    assert result == 'msg-125'
+    whatsapp_api.client.send_video.assert_called_once_with(
+        '+1234567890', video_url='http://video.mp4', caption='A reply', video_id=None,
+        context={'message_id': 'wa-msg-1'}
+    )
 
 
 @pytest.mark.asyncio
@@ -120,7 +161,7 @@ async def test_whatsapp_api_send_template(whatsapp_api):
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.whatsapp.api.MediaFactory')
+@patch('agoras.platforms.whatsapp.api.download_images', new_callable=AsyncMock)
 async def test_whatsapp_api_post_wrapper_text(mock_media_factory, whatsapp_api):
     """Test WhatsAppAPI post wrapper with text."""
     result = await whatsapp_api.post(to='+1234567890', text='Test message')
@@ -130,7 +171,7 @@ async def test_whatsapp_api_post_wrapper_text(mock_media_factory, whatsapp_api):
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.whatsapp.api.MediaFactory')
+@patch('agoras.platforms.whatsapp.api.download_images', new_callable=AsyncMock)
 async def test_whatsapp_api_post_wrapper_image(mock_media_factory, whatsapp_api):
     """Test WhatsAppAPI post wrapper with image."""
     mock_image = MagicMock()
@@ -138,7 +179,7 @@ async def test_whatsapp_api_post_wrapper_image(mock_media_factory, whatsapp_api)
     mock_image.file_type = MagicMock()
     mock_image.url = 'http://image.jpg'
     mock_image.cleanup = MagicMock()
-    mock_media_factory.download_images = AsyncMock(return_value=[mock_image])
+    mock_media_factory.return_value = [mock_image]
 
     result = await whatsapp_api.post(to='+1234567890', image_url='http://image.jpg', text='Caption')
 
@@ -147,7 +188,7 @@ async def test_whatsapp_api_post_wrapper_image(mock_media_factory, whatsapp_api)
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.whatsapp.api.MediaFactory')
+@patch('agoras.platforms.whatsapp.api.create_video', new_callable=MagicMock)
 async def test_whatsapp_api_post_wrapper_video(mock_media_factory, whatsapp_api):
     """Test WhatsAppAPI post wrapper with video."""
     mock_video = MagicMock()
@@ -155,7 +196,7 @@ async def test_whatsapp_api_post_wrapper_video(mock_media_factory, whatsapp_api)
     mock_video.file_type = MagicMock()
     mock_video.url = 'http://video.mp4'
     mock_video.cleanup = MagicMock()
-    mock_media_factory.create_video = MagicMock(return_value=mock_video)
+    mock_media_factory.return_value = mock_video
     mock_video.download = AsyncMock()
 
     result = await whatsapp_api.post(to='+1234567890', video_url='http://video.mp4', text='Caption')
@@ -247,11 +288,13 @@ async def test_whatsapp_api_send_message_with_buttons(whatsapp_api):
     result = await whatsapp_api.send_message('+1234567890', 'Test message', buttons=buttons)
 
     assert result == 'msg-123'
-    whatsapp_api.client.send_message.assert_called_once_with('+1234567890', 'Test message', buttons=buttons)
+    whatsapp_api.client.send_message.assert_called_once_with(
+        '+1234567890', 'Test message', buttons=buttons, context=None
+    )
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.whatsapp.api.MediaFactory')
+@patch('agoras.platforms.whatsapp.api.download_images', new_callable=AsyncMock)
 async def test_whatsapp_api_post_no_content_error(mock_media_factory, whatsapp_api):
     """Test WhatsAppAPI post raises error when no text/image/video provided."""
     with pytest.raises(Exception, match='No text, image, or video provided'):
@@ -259,7 +302,7 @@ async def test_whatsapp_api_post_no_content_error(mock_media_factory, whatsapp_a
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.whatsapp.api.MediaFactory')
+@patch('agoras.platforms.whatsapp.api.download_images', new_callable=AsyncMock)
 async def test_whatsapp_api_post_image_validation_failure(mock_media_factory, whatsapp_api):
     """Test WhatsAppAPI post handles image validation failure."""
     mock_image = MagicMock()
@@ -267,14 +310,14 @@ async def test_whatsapp_api_post_image_validation_failure(mock_media_factory, wh
     mock_image.file_type = None
     mock_image.url = 'http://image.jpg'
     mock_image.cleanup = MagicMock()
-    mock_media_factory.download_images = AsyncMock(return_value=[mock_image])
+    mock_media_factory.return_value = [mock_image]
 
     with pytest.raises(Exception, match='Failed to validate image'):
         await whatsapp_api.post(to='+1234567890', image_url='http://image.jpg')
 
 
 @pytest.mark.asyncio
-@patch('agoras.platforms.whatsapp.api.MediaFactory')
+@patch('agoras.platforms.whatsapp.api.create_video', new_callable=MagicMock)
 async def test_whatsapp_api_post_video_validation_failure(mock_media_factory, whatsapp_api):
     """Test WhatsAppAPI post handles video validation failure."""
     mock_video = MagicMock()
@@ -282,7 +325,7 @@ async def test_whatsapp_api_post_video_validation_failure(mock_media_factory, wh
     mock_video.file_type = None
     mock_video.url = 'http://video.mp4'
     mock_video.cleanup = MagicMock()
-    mock_media_factory.create_video = MagicMock(return_value=mock_video)
+    mock_media_factory.return_value = mock_video
     mock_video.download = AsyncMock()
 
     with pytest.raises(Exception, match='Failed to validate video'):

@@ -78,15 +78,6 @@ async def test_telegram_api_disconnect(telegram_api):
     assert telegram_api.client is None
 
 
-@pytest.mark.asyncio
-async def test_telegram_api_get_bot_info(telegram_api):
-    """Test TelegramAPI get_bot_info method."""
-    result = await telegram_api.get_bot_info()
-
-    assert result == {'id': 123, 'username': 'testbot'}
-    telegram_api.client.get_me.assert_called_once()
-
-
 # Messaging Tests
 
 @pytest.mark.asyncio
@@ -98,7 +89,8 @@ async def test_telegram_api_send_message(telegram_api):
     telegram_api.client.send_message.assert_called_once_with(
         chat_id='chat_id',
         text='Test message',
-        parse_mode=None
+        parse_mode=None,
+        reply_to_message_id=None
     )
 
 
@@ -112,12 +104,13 @@ async def test_telegram_api_send_photo(telegram_api):
         chat_id='chat_id',
         photo=b'image_data',
         caption='Photo caption',
-        parse_mode=None
+        parse_mode=None,
+        reply_to_message_id=None
     )
 
 
 @pytest.mark.asyncio
-@patch('agoras.media.MediaFactory')
+@patch('agoras.media.download_images', new_callable=AsyncMock)
 async def test_telegram_api_send_photo_with_url(mock_media_factory, telegram_api):
     """Test TelegramAPI send_photo with URL."""
     mock_image = MagicMock()
@@ -127,7 +120,7 @@ async def test_telegram_api_send_photo_with_url(mock_media_factory, telegram_api
     mock_image.file_type = mock_file_type
     mock_image.url = 'http://image.jpg'
     mock_image.cleanup = MagicMock()
-    mock_media_factory.download_images = AsyncMock(return_value=[mock_image])
+    mock_media_factory.return_value = [mock_image]
 
     result = await telegram_api.send_photo('chat_id', photo_url='http://image.jpg')
 
@@ -145,12 +138,13 @@ async def test_telegram_api_send_video(telegram_api):
         chat_id='chat_id',
         video=b'video_data',
         caption='Video caption',
-        parse_mode=None
+        parse_mode=None,
+        reply_to_message_id=None
     )
 
 
 @pytest.mark.asyncio
-@patch('agoras.media.MediaFactory')
+@patch('agoras.media.create_video', new_callable=MagicMock)
 async def test_telegram_api_send_video_with_url(mock_media_factory, telegram_api):
     """Test TelegramAPI send_video with URL."""
     mock_video = MagicMock()
@@ -161,7 +155,7 @@ async def test_telegram_api_send_video_with_url(mock_media_factory, telegram_api
     mock_video.url = 'http://video.mp4'
     mock_video.cleanup = MagicMock()
     mock_video.download = AsyncMock()  # Mock download to avoid actual HTTP call
-    mock_media_factory.create_video = MagicMock(return_value=mock_video)
+    mock_media_factory.return_value = mock_video
 
     result = await telegram_api.send_video('chat_id', video_url='http://video.mp4')
 
@@ -182,7 +176,8 @@ async def test_telegram_api_send_media_group(telegram_api):
     assert result == ['129', '130']
     telegram_api.client.send_media_group.assert_called_once_with(
         chat_id='chat_id',
-        media=media
+        media=media,
+        reply_to_message_id=None
     )
 
 
@@ -195,7 +190,64 @@ async def test_telegram_api_send_message_with_reply_markup(telegram_api):
     telegram_api.client.send_message.assert_called_once_with(
         chat_id='chat_id',
         text='Test message',
-        parse_mode='HTML'
+        parse_mode='HTML',
+        reply_to_message_id=None
+    )
+
+
+@pytest.mark.asyncio
+async def test_telegram_api_reply_text(telegram_api):
+    """Test TelegramAPI reply with text only."""
+    result = await telegram_api.reply('456', 'A reply')
+
+    assert result == '123'
+    telegram_api.client.send_message.assert_called_once_with(
+        chat_id='chat_id',
+        text='A reply',
+        parse_mode=None,
+        reply_to_message_id=456
+    )
+
+
+@pytest.mark.asyncio
+async def test_telegram_api_reply_photo(telegram_api):
+    """Test TelegramAPI reply with photo content."""
+    result = await telegram_api.reply('456', 'A reply', photo_content=b'image_data')
+
+    assert result == '124'
+    telegram_api.client.send_photo.assert_called_once_with(
+        chat_id='chat_id',
+        photo=b'image_data',
+        caption='A reply',
+        parse_mode=None,
+        reply_to_message_id=456
+    )
+
+
+@pytest.mark.asyncio
+async def test_telegram_api_reply_video(telegram_api):
+    """Test TelegramAPI reply with video content."""
+    result = await telegram_api.reply('456', 'A reply', video_content=b'video_data')
+
+    assert result == '125'
+    telegram_api.client.send_video.assert_called_once_with(
+        chat_id='chat_id',
+        video=b'video_data',
+        caption='A reply',
+        parse_mode=None,
+        reply_to_message_id=456
+    )
+
+
+@pytest.mark.asyncio
+async def test_telegram_api_reply_media_group(telegram_api):
+    """Test TelegramAPI reply with a media group."""
+    media = [{'type': 'photo', 'media': b'image_data'}]
+    result = await telegram_api.reply('456', 'A reply', media=media)
+
+    assert result == '129'
+    telegram_api.client.send_media_group.assert_called_once_with(
+        chat_id='chat_id', media=media, reply_to_message_id=456
     )
 
 
@@ -248,12 +300,12 @@ async def test_telegram_api_send_error(telegram_api):
 
 @pytest.mark.asyncio
 async def test_telegram_api_not_authenticated(telegram_api):
-    """Test TelegramAPI methods require authentication."""
+    """Test TelegramAPI methods require authentication (ensure dialect)."""
     telegram_api._authenticated = False
     telegram_api.client = None
-    telegram_api.authenticate = AsyncMock(side_effect=Exception('Authentication failed'))
+    telegram_api.auth_manager.ensure_authenticated.side_effect = AuthenticationError('Telegram token expired')
 
-    with pytest.raises(Exception, match='Authentication failed'):
+    with pytest.raises(AuthenticationError):
         await telegram_api.send_message('chat_id', 'Test')
 
 
@@ -290,7 +342,9 @@ async def test_telegram_api_send_media_group_single_item(telegram_api):
     result = await telegram_api.send_media_group('chat_id', media)
 
     assert result == ['129']
-    telegram_api.client.send_media_group.assert_called_once_with(chat_id='chat_id', media=media)
+    telegram_api.client.send_media_group.assert_called_once_with(
+        chat_id='chat_id', media=media, reply_to_message_id=None
+    )
 
 
 @pytest.mark.asyncio
@@ -312,7 +366,7 @@ async def test_telegram_api_send_media_group_mixed_types(telegram_api):
 
 
 @pytest.mark.asyncio
-@patch('agoras.media.MediaFactory')
+@patch('agoras.media.download_images', new_callable=AsyncMock)
 async def test_telegram_api_send_photo_with_parse_mode(mock_media_factory, telegram_api):
     """Test TelegramAPI send_photo with parse mode in caption."""
     mock_image = MagicMock()
@@ -322,7 +376,7 @@ async def test_telegram_api_send_photo_with_parse_mode(mock_media_factory, teleg
     mock_image.file_type = mock_file_type
     mock_image.url = 'http://image.jpg'
     mock_image.cleanup = MagicMock()
-    mock_media_factory.download_images = AsyncMock(return_value=[mock_image])
+    mock_media_factory.return_value = [mock_image]
 
     result = await telegram_api.send_photo('chat_id', photo_url='http://image.jpg', caption='<b>Caption</b>', parse_mode='HTML')
 
@@ -333,7 +387,7 @@ async def test_telegram_api_send_photo_with_parse_mode(mock_media_factory, teleg
 
 
 @pytest.mark.asyncio
-@patch('agoras.media.MediaFactory')
+@patch('agoras.media.create_video', new_callable=MagicMock)
 async def test_telegram_api_send_video_with_parse_mode(mock_media_factory, telegram_api):
     """Test TelegramAPI send_video with parse mode in caption."""
     mock_video = MagicMock()
@@ -344,7 +398,7 @@ async def test_telegram_api_send_video_with_parse_mode(mock_media_factory, teleg
     mock_video.url = 'http://video.mp4'
     mock_video.cleanup = MagicMock()
     mock_video.download = AsyncMock()
-    mock_media_factory.create_video = MagicMock(return_value=mock_video)
+    mock_media_factory.return_value = mock_video
 
     result = await telegram_api.send_video('chat_id', video_url='http://video.mp4', caption='*Bold* caption', parse_mode='Markdown')
 
@@ -363,22 +417,23 @@ async def test_telegram_api_send_message_markdown_v2(telegram_api):
     telegram_api.client.send_message.assert_called_once_with(
         chat_id='chat_id',
         text='Test *message*',
-        parse_mode='MarkdownV2'
+        parse_mode='MarkdownV2',
+        reply_to_message_id=None
     )
 
 
 @pytest.mark.asyncio
-@patch('agoras.media.MediaFactory')
+@patch('agoras.media.download_images', new_callable=AsyncMock)
 async def test_telegram_api_send_photo_download_failure(mock_media_factory, telegram_api):
     """Test TelegramAPI send_photo handles download failure."""
-    mock_media_factory.download_images = AsyncMock(return_value=[])  # Empty list
+    mock_media_factory.return_value = []  # Empty list
 
     with pytest.raises(Exception, match='Failed to download image'):
         await telegram_api.send_photo('chat_id', photo_url='http://image.jpg')
 
 
 @pytest.mark.asyncio
-@patch('agoras.media.MediaFactory')
+@patch('agoras.media.create_video', new_callable=MagicMock)
 async def test_telegram_api_send_video_download_failure(mock_media_factory, telegram_api):
     """Test TelegramAPI send_video handles download failure."""
     mock_video = MagicMock()
@@ -387,7 +442,7 @@ async def test_telegram_api_send_video_download_failure(mock_media_factory, tele
     mock_video.url = 'http://video.mp4'
     mock_video.cleanup = MagicMock()
     mock_video.download = AsyncMock()
-    mock_media_factory.create_video = MagicMock(return_value=mock_video)
+    mock_media_factory.return_value = mock_video
 
     with pytest.raises(Exception, match='Failed to validate video'):
         await telegram_api.send_video('chat_id', video_url='http://video.mp4')
@@ -426,7 +481,7 @@ async def test_telegram_api_all_methods_use_rate_limiting(telegram_api):
     await telegram_api.send_video('chat_id', video_content=b'data')
     await telegram_api.send_media_group('chat_id', [{'type': 'photo', 'media': 'http://img.jpg'}])
     await telegram_api.delete_message('chat_id', 123)
-    # get_bot_info doesn't use rate limiting, so we expect 5 calls
+    # all methods here use rate limiting, so we expect 5 calls
 
     # Rate limit should be called for methods that use it
     assert telegram_api._rate_limit_check.call_count == 5

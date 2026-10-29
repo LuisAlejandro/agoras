@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import re
 import sys
 from pathlib import Path
@@ -204,19 +205,28 @@ def build_root_sections(
     return flat, sections
 
 
-def write_if_changed(path: Path, content: str) -> bool:
+def write_if_changed(path: Path, content: str, check: bool = False) -> bool:
     if path.exists() and path.read_text(encoding="utf-8") == content:
         return False
-    path.write_text(content, encoding="utf-8")
+    if not check:
+        path.write_text(content, encoding="utf-8")
     return True
 
 
-def write_requirements_txt(path: Path, resolved: list[str]) -> bool:
+def write_requirements_txt(path: Path, resolved: list[str], check: bool = False) -> bool:
     content = GENERATED_HEADER + "\n".join(resolved) + "\n"
-    return write_if_changed(path, content)
+    return write_if_changed(path, content, check)
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="report drift and exit 1 without writing any file",
+    )
+    check = parser.parse_args().check
+
     package_requires: dict[str, list[str]] = {}
     setup_contents: dict[str, str] = {}
 
@@ -239,10 +249,10 @@ def main() -> int:
         path = setup_path(package)
         new_block = build_install_requires_block(package_requires[package])
         new_content = replace_install_requires(setup_contents[package], new_block)
-        if write_if_changed(path, new_content):
+        if write_if_changed(path, new_content, check):
             changed_files.append(str(path.relative_to(REPO_ROOT)))
         req_path = requirements_path(package)
-        if write_requirements_txt(req_path, package_requires[package]):
+        if write_requirements_txt(req_path, package_requires[package], check):
             changed_files.append(str(req_path.relative_to(REPO_ROOT)))
 
     root_flat, root_sections = build_root_sections(package_requires)
@@ -253,17 +263,21 @@ def main() -> int:
         sections=root_sections,
     )
     new_root_content = replace_install_requires(root_content, root_block)
-    if write_if_changed(setup_path("root"), new_root_content):
+    if write_if_changed(setup_path("root"), new_root_content, check):
         changed_files.append("setup.py")
-    if write_requirements_txt(requirements_path("root"), root_flat):
+    if write_requirements_txt(requirements_path("root"), root_flat, check):
         changed_files.append("requirements.txt")
 
-    if changed_files:
-        print("Updated files:")
-        for path in changed_files:
-            print(f"  - {path}")
-    else:
+    if not changed_files:
         print("All package dependencies are already in sync.")
+        return 0
+
+    print("Out of sync files:" if check else "Updated files:")
+    for path in changed_files:
+        print(f"  - {path}")
+    if check:
+        print("\nRun: python3 scripts/sync_package_deps.py")
+        return 1
     return 0
 
 

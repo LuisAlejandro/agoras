@@ -155,6 +155,30 @@ async def test_youtube_api_share_not_supported(youtube_api):
         await youtube_api.share('video-123')
 
 
+# Reply Tests
+
+@pytest.mark.asyncio
+async def test_youtube_api_reply(youtube_api):
+    """Test YouTubeAPI reply method."""
+    youtube_api.client.insert_comment = AsyncMock(return_value='comment-123')
+
+    result = await youtube_api.reply('video-123', 'A comment')
+
+    assert result == 'comment-123'
+    youtube_api.client.insert_comment.assert_called_once_with('video-123', 'A comment')
+
+
+@pytest.mark.asyncio
+async def test_youtube_api_delete_reply(youtube_api):
+    """Test YouTubeAPI delete_reply delegates to client.delete_comment."""
+    youtube_api.client.delete_comment = AsyncMock(return_value='comment-123')
+
+    result = await youtube_api.delete_reply(comment_id='comment-123')
+
+    assert result == 'comment-123'
+    youtube_api.client.delete_comment.assert_called_once_with('comment-123')
+
+
 # Error Handling Tests
 
 @pytest.mark.asyncio
@@ -195,6 +219,21 @@ async def test_youtube_api_error_handling(youtube_api):
 
     with pytest.raises(Exception, match='API error'):
         await youtube_api.like('video-123')
+
+
+@pytest.mark.asyncio
+async def test_youtube_api_list_posts(youtube_api):
+    """Test YouTubeAPI list_posts calls client.list_uploads."""
+    youtube_api.client.list_uploads = AsyncMock(
+        return_value=[{"id": "vid1", "title": "Video One"}]
+    )
+
+    result = await youtube_api.list_posts(5)
+
+    assert len(result) == 1
+    assert result[0]["id"] == "vid1"
+    youtube_api.auth_manager.ensure_authenticated.assert_called_once()
+    youtube_api.client.list_uploads.assert_called_once_with(5)
 
 
 # Property Tests

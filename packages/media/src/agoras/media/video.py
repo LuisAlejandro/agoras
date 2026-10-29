@@ -55,9 +55,7 @@ class Video(Media):
             self.cleanup()
             raise MediaValidationError(self.platform_key, self.media_kind, "max_bytes", file_size, self.max_size)
 
-        duration = None
-        if self._downloaded and self.temp_file:
-            duration = self.get_duration()
+        duration, dimensions = self._probe_video()
         if duration is not None:
             if limits.max_duration_s is not None and duration > limits.max_duration_s:
                 self.cleanup()
@@ -78,7 +76,6 @@ class Video(Media):
                     limits.min_duration_s,
                 )
 
-        dimensions = self._get_frame_dimensions()
         if dimensions:
             width, height = dimensions
             if limits.max_width is not None and width > limits.max_width:
@@ -100,6 +97,28 @@ class Video(Media):
                     limits.max_height,
                 )
 
+    def _probe_video(self):
+        """Return (duration_s, dimensions) from a single OpenCV open."""
+        if not self._downloaded or not self.temp_file:
+            return None, None
+        try:
+            cap = cv2.VideoCapture(self.temp_file)
+            try:
+                fps = cap.get(cv2.CAP_PROP_FPS)
+                frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+                try:
+                    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
+                    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
+                except (TypeError, ValueError):
+                    width, height = 0, 0
+            finally:
+                cap.release()
+            duration = float(frame_count / fps) if fps > 0 else None
+            dimensions = (width, height) if width > 0 and height > 0 else None
+            return duration, dimensions
+        except Exception:
+            return None, None
+
     def get_duration(self):
         """
         Get video duration using OpenCV.
@@ -112,30 +131,5 @@ class Video(Media):
         """
         if not self._downloaded or not self.temp_file:
             raise Exception("Video must be downloaded before getting duration")
-
-        try:
-            cap = cv2.VideoCapture(self.temp_file)
-            fps = cap.get(cv2.CAP_PROP_FPS)
-            frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
-            cap.release()
-
-            if fps > 0:
-                return float(frame_count / fps)
-            return None
-        except Exception:
-            return None
-
-    def _get_frame_dimensions(self):
-        """Return (width, height) of the first video frame."""
-        if not self._downloaded or not self.temp_file:
-            return None
-        try:
-            cap = cv2.VideoCapture(self.temp_file)
-            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            cap.release()
-            if width > 0 and height > 0:
-                return width, height
-        except Exception:
-            pass
-        return None
+        duration, _dimensions = self._probe_video()
+        return duration

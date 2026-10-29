@@ -134,6 +134,61 @@ def test_facebook_client_post_object_exception(mock_graph_api_class):
 
 
 @patch("agoras.platforms.facebook.client.GraphAPI")
+async def test_facebook_client_create_comment(mock_graph_api_class):
+    """Test FacebookAPIClient create_comment targets the comments connection."""
+    mock_graph_api = MagicMock()
+    mock_graph_api.post_object.return_value = {"id": "comment-123"}
+    mock_graph_api_class.return_value = mock_graph_api
+
+    client = FacebookAPIClient("access_token")
+    client.graph_api = mock_graph_api
+    client._authenticated = True
+
+    result = await client.create_comment("post-123", "A comment")
+
+    assert result == "comment-123"
+    mock_graph_api.post_object.assert_called_once_with(
+        object_id="post-123", connection="comments", data={"message": "A comment"}
+    )
+
+
+@patch("agoras.platforms.facebook.client.GraphAPI")
+async def test_facebook_client_create_comment_with_image(mock_graph_api_class):
+    """Test FacebookAPIClient create_comment includes attachment_url."""
+    mock_graph_api = MagicMock()
+    mock_graph_api.post_object.return_value = {"id": "comment-123"}
+    mock_graph_api_class.return_value = mock_graph_api
+
+    client = FacebookAPIClient("access_token")
+    client.graph_api = mock_graph_api
+    client._authenticated = True
+
+    result = await client.create_comment("post-123", "A comment", image_url="http://example.com/a.jpg")
+
+    assert result == "comment-123"
+    mock_graph_api.post_object.assert_called_once_with(
+        object_id="post-123",
+        connection="comments",
+        data={"message": "A comment", "attachment_url": "http://example.com/a.jpg"},
+    )
+
+
+@patch("agoras.platforms.facebook.client.GraphAPI")
+async def test_facebook_client_create_comment_missing_id_raises(mock_graph_api_class):
+    """Test FacebookAPIClient create_comment raises when response lacks an id."""
+    mock_graph_api = MagicMock()
+    mock_graph_api.post_object.return_value = {}
+    mock_graph_api_class.return_value = mock_graph_api
+
+    client = FacebookAPIClient("access_token")
+    client.graph_api = mock_graph_api
+    client._authenticated = True
+
+    with pytest.raises(Exception, match="Invalid response from Facebook API: missing comment id"):
+        await client.create_comment("post-123", "A comment")
+
+
+@patch("agoras.platforms.facebook.client.GraphAPI")
 def test_facebook_client_delete_object_success(mock_graph_api_class):
     """Test FacebookAPIClient delete_object success."""
     mock_graph_api = MagicMock()
@@ -341,7 +396,7 @@ async def test_facebook_client_create_post(mock_graph_api_class):
 
     result = await client.create_post("user_id", message="Test post")
 
-    assert result == "123"
+    assert result == "user_123"
     mock_graph_api.post_object.assert_called_once()
     call_args = mock_graph_api.post_object.call_args
     assert call_args[1]["object_id"] == "user_id"
@@ -439,6 +494,70 @@ async def test_facebook_client_delete_post_uses_existing_composite_id(mock_graph
 
     assert result == "page123_post456"
     mock_graph_api.delete_object.assert_called_once_with(object_id="page123_post456")
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.facebook.client.GraphAPI")
+async def test_facebook_client_delete_comment(mock_graph_api_class):
+    """Test FacebookAPIClient delete_comment issues a Graph DELETE on the comment ID."""
+    mock_graph_api = MagicMock()
+    mock_graph_api_class.return_value = mock_graph_api
+
+    client = FacebookAPIClient("access_token")
+    client.graph_api = mock_graph_api
+    client._authenticated = True
+
+    result = await client.delete_comment("comment-123")
+
+    assert result == "comment-123"
+    mock_graph_api.delete_object.assert_called_once_with(object_id="comment-123")
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.facebook.client.GraphAPI")
+async def test_facebook_client_delete_comment_no_id(mock_graph_api_class):
+    """Test FacebookAPIClient delete_comment raises when comment ID missing."""
+    mock_graph_api = MagicMock()
+    mock_graph_api_class.return_value = mock_graph_api
+
+    client = FacebookAPIClient("access_token")
+    client.graph_api = mock_graph_api
+    client._authenticated = True
+
+    with pytest.raises(Exception, match="Facebook comment ID is required"):
+        await client.delete_comment(None)
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.facebook.client.GraphAPI")
+async def test_facebook_client_delete_comment_permission_error(mock_graph_api_class):
+    """Test FacebookAPIClient delete_comment surfaces a permission error clearly."""
+    mock_graph_api = MagicMock()
+    mock_graph_api.delete_object.side_effect = Exception("(#200) no permission")
+    mock_graph_api_class.return_value = mock_graph_api
+
+    client = FacebookAPIClient("access_token")
+    client.graph_api = mock_graph_api
+    client._authenticated = True
+
+    with pytest.raises(Exception, match="Facebook comment delete"):
+        await client.delete_comment("comment-123")
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.facebook.client.GraphAPI")
+async def test_facebook_client_delete_comment_generic_error(mock_graph_api_class):
+    """Test FacebookAPIClient delete_comment surfaces generic delete failures."""
+    mock_graph_api = MagicMock()
+    mock_graph_api.delete_object.side_effect = Exception("boom")
+    mock_graph_api_class.return_value = mock_graph_api
+
+    client = FacebookAPIClient("access_token")
+    client.graph_api = mock_graph_api
+    client._authenticated = True
+
+    with pytest.raises(Exception, match="Unable to delete comment comment-123"):
+        await client.delete_comment("comment-123")
 
 
 @pytest.mark.asyncio
@@ -557,3 +676,30 @@ async def test_facebook_client_upload_regular_video_falls_back_to_file_url(mock_
     assert fallback_call[1]["data"]["file_url"] == "https://example.com/video.mp4"
     assert fallback_call[1]["data"]["title"] == "Video Title"
     assert fallback_call[1]["data"]["description"] == "Video description"
+
+
+@pytest.mark.asyncio
+@patch("agoras.platforms.facebook.client.requests.post")
+async def test_facebook_client_upload_photo_file(mock_requests_post):
+    """Test FacebookAPIClient upload_photo_file multipart source upload."""
+    mock_response = MagicMock()
+    mock_response.raise_for_status.return_value = None
+    mock_response.json.return_value = {"id": "photo-1", "post_id": "post-123"}
+    mock_requests_post.return_value = mock_response
+
+    client = FacebookAPIClient("page-token")
+    result = await client.upload_photo_file(
+        object_id="page123",
+        file_content=b"jpeg-bytes",
+        published=True,
+        filename="photo.jpg",
+        mime_type="image/jpeg",
+        message="caption",
+    )
+
+    assert result["id"] == "photo-1"
+    mock_requests_post.assert_called_once()
+    call_kwargs = mock_requests_post.call_args.kwargs
+    assert call_kwargs["files"]["source"] == ("photo.jpg", b"jpeg-bytes", "image/jpeg")
+    assert call_kwargs["data"]["published"] == "true"
+    assert call_kwargs["data"]["message"] == "caption"

@@ -28,6 +28,11 @@ The Threads platform supports the following actions:
 * ``thread`` - Publish an ordered reply-chain thread from a YAML content file
 * ``share`` - Share/repost existing content
 * ``delete`` - Delete a Threads post
+* ``delete-reply`` - Delete a Threads reply
+* ``reply`` - Reply to a Threads post
+* ``get-post`` - Read a post/message by ID
+* ``get-reply`` - Read a reply/comment by ID
+* ``list-posts`` - List recent posts from the authenticated user
 
 Authorization
 -------------
@@ -86,7 +91,7 @@ Upload a video to Threads::
 Publish a Thread
 ----------------
 
-.. versionadded:: 2.2
+.. versionadded:: 2.1
 
 ``thread`` is YAML-only. Each entry may include text/link/images **or** one
 video URL. Replies chain on published media IDs. Tokens need

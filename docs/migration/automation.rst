@@ -30,8 +30,8 @@ New (2.1.0+)::
 
 .. note::
    The ``--network twitter`` alias is deprecated. Use ``--network x`` instead.
-   Utils commands accept ``twitter`` silently (no stderr warning); legacy
-   ``agoras publish`` still emits a deprecation warning.
+   Utils commands accept ``twitter`` silently (no stderr warning). The legacy
+   ``agoras publish`` command (which emitted the warning) was removed in Agoras 3.0.
 
 **Publishing Random Entry from Feed**
 

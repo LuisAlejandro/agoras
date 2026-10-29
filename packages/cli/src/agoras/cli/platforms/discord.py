@@ -25,10 +25,13 @@ from argparse import ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.platforms.discord.wrapper import main as discord_main
 
-from ..base import add_common_content_options, add_video_options, prepare_content_args
+from ..base import (
+    add_common_content_options,
+    add_profile_to_all,
+    add_video_options,
+    run_platform_command,
+)
 from ..content import add_content_file_option
-from ..converter import ParameterConverter
-from ..validator import ActionValidator
 
 
 def create_discord_parser(subparsers: _SubParsersAction) -> ArgumentParser:
@@ -77,8 +80,46 @@ def create_discord_parser(subparsers: _SubParsersAction) -> ArgumentParser:
     )
     _add_post_id_option(delete)
 
+    # Delete-reply action (alias for delete on Discord)
+    delete_reply = actions.add_parser(
+        "delete-reply",
+        help='Delete a Discord reply message. Requires prior authorization via "agoras discord authorize".',
+    )
+    _add_post_id_option(delete_reply)
+
+    # Reply action
+    reply = actions.add_parser(
+        "reply", help='Reply to a Discord message. Requires prior authorization via "agoras discord authorize".'
+    )
+    _add_post_id_option(reply)
+    add_common_content_options(reply, images=4)
+    add_video_options(reply, platform="discord", with_content_file=False)
+
+    # Get-post action
+    get_post = actions.add_parser(
+        "get-post",
+        help='Read a Discord message. Requires prior authorization via "agoras discord authorize".',
+    )
+    _add_post_id_option(get_post)
+
+    # Get-reply action
+    get_reply = actions.add_parser(
+        "get-reply",
+        help='Read a Discord reply message. Requires prior authorization via "agoras discord authorize".',
+    )
+    _add_post_id_option(get_reply)
+
+    # List-posts action
+    list_posts = actions.add_parser(
+        "list-posts",
+        help='List recent Discord messages. Requires prior authorization via "agoras discord authorize".',
+    )
+    _add_limit_option(list_posts)
+
     # Set handler
     parser.set_defaults(command=_handle_discord_command)
+
+    add_profile_to_all(actions)
 
     return parser
 
@@ -111,6 +152,16 @@ def _add_post_id_option(parser: ArgumentParser):
     parser.add_argument("--post-id", required=True, metavar="<id>", help="Discord message ID to delete")
 
 
+def _add_limit_option(parser: ArgumentParser):
+    """
+    Add limit option for list-posts action.
+
+    Args:
+        parser: ArgumentParser to add options to
+    """
+    parser.add_argument("--limit", type=int, metavar="<n>", help="Maximum number of posts to list")
+
+
 def _handle_discord_command(args: Namespace):
     """
     Handle Discord command by converting args and calling core.
@@ -121,13 +172,4 @@ def _handle_discord_command(args: Namespace):
     Returns:
         Exit status from core execution
     """
-    # Validate action
-    ActionValidator.validate("discord", args.action)
-    prepare_content_args(args, "discord")
-
-    # Convert new args to legacy format
-    converter = ParameterConverter("discord")
-    legacy_args = converter.convert_to_legacy(args)
-
-    # Call core Discord module
-    return discord_main(legacy_args)
+    return run_platform_command("discord", args, discord_main)

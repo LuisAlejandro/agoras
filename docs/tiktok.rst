@@ -22,6 +22,17 @@ Available Actions
 * ``authorize`` - Set up OAuth 2.0 authentication (required first step)
 * ``video`` - Upload videos to TikTok
 * ``post`` - Create photo slideshow posts
+* ``reply`` - Reply to a comment (CLI only; runtime raises not supported)
+* ``get-post`` - Read a post/message by ID (CLI only; runtime raises not supported)
+* ``get-reply`` - Read a reply/comment by ID (CLI only; runtime raises not supported)
+* ``list-posts`` - List recent posts (CLI only; runtime raises not supported)
+
+.. note::
+
+   ``get-post``, ``get-reply``, and ``list-posts`` subcommands exist for CLI uniformity with other
+   platforms, but TikTok has no official arbitrary-post read API. Invoking these
+   actions raises a not-supported error at runtime. The ``reply`` action is also
+   listed for CLI uniformity but is not implemented at runtime. See :doc:`reference/action-support`.
 
 Authorization
 -------------
@@ -49,60 +60,55 @@ After successful authorization, your refresh token will be stored locally and us
 
 For CI/CD environments, see :doc:`credentials/tiktok` for unattended execution setup.
 
-Publish a TikTok video
-----------------------
+Share to TikTok (interactive post and video)
+--------------------------------------------
 
-This command will upload and publish a video to TikTok. ``--video-url`` is required and must point to a downloadable video file in MP4, MOV, or WebM format. ``--title`` is optional and will be used as the video's caption.
+Interactive ``agoras tiktok post`` and ``agoras tiktok video`` (TTY stdin, ``CI`` unset) open a localhost Share-to-TikTok page **before** Direct Post ``init/``. Authorize still uses ``https://localhost:3456/callback`` (HTTPS). The composer binds HTTP on ``127.0.0.1`` with a different ephemeral port and always prints the URL.
 
-.. note::
-   You must run ``agoras tiktok authorize`` first before using this command.
+On that page you choose privacy (no default), interactions, and commercial disclosure, then confirm. Media URLs stay on the CLI (``PULL_FROM_URL`` or local ``FILE_UPLOAD``); they are not taken from the form. Local video files are previewed from the composer loopback server so Publish can stay enabled.
 
-**New format**::
+::
 
     agoras tiktok video \
       --video-url "${TIKTOK_VIDEO_URL}" \
-      --title "${TIKTOK_TITLE}" \
-      --privacy "${TIKTOK_PRIVACY_STATUS}"
+      --title "${TIKTOK_TITLE}"
 
-Optional parameters for video posts:
-
-- ``--allow-comments``: Allow comments on the video (default: true)
-- ``--allow-duet``: Allow other users to duet with your video (default: true)
-- ``--allow-stitch``: Allow other users to stitch your video (default: true)
-- ``--brand-organic``: Mark content as promotional (displays "Promotional content" label)
-- ``--brand-content``: Mark content as paid partnership (displays "Paid partnership" label)
-
-Privacy status options:
-- ``PUBLIC_TO_EVERYONE``: Public to everyone
-- ``MUTUAL_FOLLOW_FRIENDS``: Friends only
-- ``FOLLOWER_OF_CREATOR``: Followers only
-- ``SELF_ONLY``: Private (only you can see it)
-
-Publish a TikTok photo slideshow
---------------------------------
-
-This command will create a photo slideshow post on TikTok. You can include up to 4 images using the ``--image-X`` parameters. TikTok will automatically add music to photo posts.
-
-.. note::
-   You must run ``agoras tiktok authorize`` first before using this command.
-
-**New format**::
+::
 
     agoras tiktok post \
       --title "${TIKTOK_TITLE}" \
       --image-1 "${IMAGE_URL_1}" \
-      --image-2 "${IMAGE_URL_2}" \
-      --image-3 "${IMAGE_URL_3}" \
-      --image-4 "${IMAGE_URL_4}" \
-      --privacy "${TIKTOK_PRIVACY_STATUS}"
+      --image-2 "${IMAGE_URL_2}"
 
-Optional parameters for photo posts:
+Optional interaction flags (applied when set):
 
-- ``--allow-comments``: Allow comments on the post (default: true)
-- ``--auto-add-music``: Automatically add music to the slideshow (default: false)
-- ``--description``: Post description/caption (max 4000 UTF-16 runes, optional)
-- ``--brand-organic``: Mark content as promotional
-- ``--brand-content``: Mark content as paid partnership
+* ``--allow-comments`` — allow comments (post and video; default: true).
+* ``--allow-duet`` — allow other users to duet with your video (video only; default: true).
+* ``--allow-stitch`` — allow other users to stitch your video (video only; default: true).
+* ``--auto-add-music`` — automatically add music to the slideshow (post only; default: false).
+* ``--description`` — post description/caption (post only; max 4000 UTF-16 runes).
+
+.. note::
+   You must run ``agoras tiktok authorize`` first. Piping stdout (for example ``| jq``) does not skip the composer. ``last-from-feed``, ``random-from-feed``, and ``schedule`` never open it.
+
+Unattended private posts
+------------------------
+
+When stdin is not a TTY, or ``CI`` is set, Agoras uses the flag path. Only ``SELF_ONLY`` is allowed (omitted ``--privacy`` defaults to ``SELF_ONLY``). Public, friends, and followers fail closed. ``--brand-organic`` and ``--brand-content`` are rejected; commercial disclosure is composer-only.
+
+::
+
+    agoras tiktok post \
+      --title "${TIKTOK_TITLE}" \
+      --image-1 "${IMAGE_URL_1}" \
+      --privacy SELF_ONLY
+
+Privacy values the composer may offer (from live ``creator_info``):
+
+- ``PUBLIC_TO_EVERYONE``: Everyone
+- ``MUTUAL_FOLLOW_FRIENDS``: Friends
+- ``FOLLOWER_OF_CREATOR``: Followers
+- ``SELF_ONLY``: Only me
 
 **Note**: Duet and stitch options are not available for photo posts.
 
@@ -154,8 +160,7 @@ Process scheduled messages from a Google Sheet:
       --sheets-id "${GOOGLE_SHEETS_ID}" \
       --sheets-name "TikTok" \
       --sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
-      --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}" \
-      --tiktok-username "${TIKTOK_USERNAME}"
+      --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
 
 .. note::
    You must run ``agoras tiktok authorize`` first before using this command.
@@ -167,7 +172,7 @@ Your Google Sheet should have the following columns:
 
 - ``tiktok_video_url``: URL to the video file
 - ``tiktok_title``: Video title/caption
-- ``tiktok_privacy_status``: Privacy status (``PUBLIC_TO_EVERYONE``, ``MUTUAL_FOLLOW_FRIENDS``, ``FOLLOWER_OF_CREATOR``, ``SELF_ONLY``)
+- ``tiktok_privacy_status``: Unattended privacy; only ``SELF_ONLY`` is published without the composer
 - ``allow_comments``: Allow comments (``TRUE`` or ``FALSE``)
 - ``allow_duet``: Allow duets (``TRUE`` or ``FALSE``)
 - ``allow_stitch``: Allow stitches (``TRUE`` or ``FALSE``)
@@ -183,7 +188,7 @@ Your Google Sheet should have the following columns:
 ::
 
     tiktok_video_url,tiktok_title,tiktok_privacy_status,allow_comments,allow_duet,allow_stitch,is_brand_organic,is_brand_content,auto_add_music,date,hour,state
-    "https://example.com/video.mp4","My awesome TikTok video","PUBLIC_TO_EVERYONE","TRUE","TRUE","TRUE","FALSE","FALSE","FALSE","21-11-2022","17","pending"
+    "https://example.com/video.mp4","My awesome TikTok video","SELF_ONLY","TRUE","TRUE","TRUE","FALSE","FALSE","FALSE","21-11-2022","17","pending"
 
 Scheduling Logic
 ~~~~~~~~~~~~~~~~
@@ -197,23 +202,7 @@ Scheduling Logic
 Brand Content and Promotional Content
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-TikTok requires proper labeling of commercial content:
-
-**Promotional Content** (``--brand-organic``):
-  - Use when featuring your own products/services
-  - Displays "Promotional content" label
-  - Requires agreement to TikTok's Music Usage Confirmation
-
-**Paid Partnership** (``--brand-content``):
-  - Use when content is sponsored by another brand
-  - Displays "Paid partnership" label
-  - Requires agreement to TikTok's Branded Content Policy and Music Usage Confirmation
-
-**Combined** (both flags):
-  - Displays "Paid partnership" label
-  - Requires agreement to both policies
-
-**Important**: You cannot use ``--brand-content`` with ``--privacy SELF_ONLY`` (private posts).
+Commercial disclosure is set on the interactive Share-to-TikTok page (Your Brand / Branded Content plus TikTok's consent copy). Unattended ``--brand-organic`` and ``--brand-content`` are rejected. Branded content cannot be combined with Only me (``SELF_ONLY``).
 
 Limitations
 ~~~~~~~~~~~

@@ -20,7 +20,9 @@ Platform Commands vs Utils Commands
     agoras utils feed-publish --network x --mode last --feed-url "https://example.com/feed.xml"
 
 .. note::
-   The ``agoras twitter`` command and ``--twitter-*`` parameters are deprecated. Use ``agoras x`` and ``--x-*`` parameters instead.
+   The ``agoras twitter`` command is deprecated. Use ``agoras x`` instead. The
+   legacy ``--twitter-*``/``--x-*`` credential parameters applied to the removed
+   ``agoras publish`` command only; utils commands accept no credential flags.
 
 Authentication Parameters
 =========================
@@ -36,10 +38,12 @@ X (formerly Twitter)
 * ``--consumer-key`` - X API consumer key (required)
 * ``--consumer-secret`` - X API consumer secret (required)
 
-**Action commands** (``post``, ``video``, ``like``, ``share``, ``delete``, ``thread``, ``template``): no credential flags; use content/action parameters such as ``--text``, ``--post-id``, ``--video-url``, or ``--content``.
+**Action commands** (``post``, ``video``, ``like``, ``share``, ``delete``, ``thread``, ``reply``): no credential flags; use content/action parameters such as ``--text``, ``--post-id``, ``--video-url``, or ``--content``.
 
 .. deprecated:: 2.0
-   The ``--twitter-*`` parameters in utils commands are deprecated. Use ``--x-*`` parameters instead.
+   The legacy ``--twitter-*``/``--x-*`` credential parameters in utils commands
+   are removed. Use ``agoras x authorize`` or the ``TWITTER_*`` environment
+   variables instead.
 
 .. note::
    The ``agoras twitter`` command is deprecated. Use ``agoras x`` instead.
@@ -56,7 +60,7 @@ Facebook
 * ``--client-id`` - Facebook App client ID (required for authorize)
 * ``--client-secret`` - Facebook App client secret (required for authorize)
 * ``--app-id`` - Facebook App ID (required for authorize)
-* ``--object-id`` - Facebook page or profile ID (required for authorize and post/video)
+* ``--object-id`` - Facebook page or profile ID (required for authorize; supplied on post/video via ``FACEBOOK_OBJECT_ID`` env var or stored credentials)
 
 .. note::
    OAuth platforms require authorization via ``agoras <platform> authorize`` before use.
@@ -72,7 +76,7 @@ Instagram
 * ``authorize`` - OAuth 2.0 authorization action (required first step)
 * ``--client-id`` - Facebook App client ID (required for authorize, Instagram uses Facebook OAuth)
 * ``--client-secret`` - Facebook App client secret (required for authorize)
-* ``--object-id`` - Facebook user ID for Instagram business account (required for authorize and post/video)
+* ``--object-id`` - Facebook user ID for Instagram business account (required for authorize; supplied on post/video via ``INSTAGRAM_OBJECT_ID`` env var or stored credentials)
 
 .. note::
    OAuth platforms require authorization via ``agoras <platform> authorize`` before use.
@@ -89,6 +93,7 @@ LinkedIn
 * ``--client-id`` - LinkedIn App client ID (required for authorize)
 * ``--client-secret`` - LinkedIn App client secret (required for authorize)
 * ``--object-id`` - LinkedIn user/organization ID (required for authorize)
+* ``--scope`` - Comma-separated scopes that replace the default ``openid,profile,email,w_member_social`` for this authorize run (add ``w_member_social_feed`` on apps that hold it to enable comment/reply actions)
 
 .. note::
    OAuth platforms require authorization via ``agoras <platform> authorize`` before use.
@@ -157,7 +162,7 @@ Telegram
 --------
 
 .. versionchanged:: 2.1
-   ``--bot-token`` and ``--chat-id`` are accepted on ``authorize`` only. ``--parse-mode`` remains on ``post`` and ``video``.
+   ``--bot-token`` and ``--chat-id`` are accepted on ``authorize`` only. ``--parse-mode`` remains on ``post``, ``video``, and ``reply``.
 
 **``authorize`` action**:
 
@@ -166,7 +171,7 @@ Telegram
 
 **Action commands**:
 
-* ``--parse-mode`` - Message parse mode: ``HTML``, ``Markdown``, ``MarkdownV2``, or ``None`` (default: HTML; ``post``/``video`` only)
+* ``--parse-mode`` - Message parse mode: ``HTML``, ``Markdown``, ``MarkdownV2``, or ``None`` (default: HTML; ``post``/``video``/``reply``)
 * ``--post-id`` - Message ID for delete action (required for delete)
 
 WhatsApp
@@ -204,20 +209,28 @@ Text and Links
 Images
 ------
 
-* ``--image-1`` - First image URL (replaces ``--status-image-url-1``)
-* ``--image-2`` - Second image URL (replaces ``--status-image-url-2``)
-* ``--image-3`` - Third image URL (replaces ``--status-image-url-3``)
-* ``--image-4`` - Fourth image URL (replaces ``--status-image-url-4``)
+* ``--image-1`` - First image HTTP(s) URL, local path, or ``file://`` URI
+  (replaces ``--status-image-url-1``)
+* ``--image-2`` - Second image HTTP(s) URL, local path, or ``file://`` URI
+* ``--image-3`` - Third image HTTP(s) URL, local path, or ``file://`` URI
+* ``--image-4`` - Fourth image HTTP(s) URL, local path, or ``file://`` URI
 
 .. note::
    Not all platforms support 4 images. Check platform-specific documentation.
+   TikTok photo posts, Instagram stills, and Threads reject local paths
+   (those APIs pull media from public URLs). Instagram **videos** upload local
+   files via resumable rupload. Discord YAML ``embeds[].image_url``
+   remains HTTP(s)-only; ``--image-N`` / YAML ``images`` become attachments.
 
 Video
 -----
 
-* ``--video-url`` - URL of video file to upload (required for video actions)
+* ``--video-url`` - HTTP(s) URL, local path, or ``file://`` URI of the video
+  (required for video actions). CLI relative paths resolve against the process
+  working directory; YAML relative paths resolve against the content file
+  directory.
 * ``--video-title`` - Video title or caption
-* ``--video-description`` - Video description (YouTube, Facebook)
+* ``--video-description`` - Video description (Facebook)
 * ``--video-caption`` - Video caption (Instagram)
 * ``--video-type`` - Video type (Instagram, Facebook)
 
@@ -250,6 +263,7 @@ TikTok
 ------
 
 * ``--title`` - Video title/caption (maps to ``tiktok_title``)
+* ``--description`` - Post description/caption (maps to ``tiktok_description``; max 4000 UTF-16 runes)
 * ``--privacy`` - Privacy status (default: ``SELF_ONLY``):
 
   * ``PUBLIC_TO_EVERYONE``
@@ -271,18 +285,20 @@ Platform Authentication (legacy utils reference)
 .. versionchanged:: 2.1
    Prefixed platform credential flags (``--x-consumer-key``, ``--facebook-access-token``, etc.) were removed from utils commands. Use ``authorize`` or environment variables; see :doc:`platform-arguments-envvars`.
 
-The following applied before 2.1.0 and remain valid on legacy ``agoras publish`` until 3.0:
+The following applied before 2.1.0 and remained valid on legacy ``agoras publish`` through 2.x (removed in Agoras 3.0):
 
 X (formerly Twitter)
 ~~~~~~~~~~~~~~~~~~~~
 
-* ``--x-consumer-key`` - X API consumer key (legacy publish / pre-2.1 utils)
+* ``--x-consumer-key`` - X API consumer key (legacy publish / pre-2.1 utils; command removed in 3.0)
 * ``--x-consumer-secret`` - X API consumer secret
 * ``--x-oauth-token`` - X OAuth token
 * ``--x-oauth-secret`` - X OAuth secret
 
 .. deprecated:: 2.0
-   The ``--twitter-*`` parameters in utils commands are deprecated. Use ``--x-*`` parameters instead.
+   The legacy ``--twitter-*``/``--x-*`` credential parameters in utils commands
+   are removed. Use ``agoras x authorize`` or the ``TWITTER_*`` environment
+   variables instead.
 
 Facebook
 ~~~~~~~~
@@ -367,10 +383,11 @@ Schedule Automation
 * ``--sheets-name`` - Sheet name within document (required)
 * ``--sheets-client-email`` - Google service account email (required)
 * ``--sheets-private-key`` - Google service account private key (required)
+* ``--whatsapp-recipient`` - WhatsApp recipient phone number when not set in the sheet (optional)
 
 Legacy Parameters
 =================
 
-The legacy ``agoras publish`` command uses the original parameter names with platform prefixes. These are maintained for backward compatibility but are deprecated.
+The legacy ``agoras publish`` command used the original parameter names with platform prefixes through Agoras 2.x; the command was removed in Agoras 3.0.
 
 See the :doc:`../migration/index` for a complete mapping of legacy to new parameters.

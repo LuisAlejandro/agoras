@@ -58,6 +58,22 @@ Configure OAuth Settings
 
 3. Save changes
 
+Required Permissions
+--------------------
+
+To use the ``reply`` action (commenting on a post), your Facebook App's OAuth
+client must have the ``instagram_manage_comments`` **permission** enabled and
+approved. Without it, the API returns
+``(#10) Application does not have permission for this action``.
+
+1. In your app dashboard, go to **App Review** > **Permissions and Features**.
+2. Find **instagram_manage_comments**. To request *advanced access* to this
+   permission, you must first make a successful test API call; the "request
+   advanced access" button may take up to 24 hours after the first API call
+   to become active.
+3. After enabling the permission, re-run ``agoras instagram authorize`` so the
+   fresh token includes it.
+
 Get Object ID (Instagram Business Account ID)
 ---------------------------------------------
 

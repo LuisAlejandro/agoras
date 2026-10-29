@@ -21,7 +21,3 @@ Agoras CLI Package.
 This package provides the command-line interface for agoras, enabling
 interaction with various social media platforms through a unified CLI.
 """
-
-from agoras.common.version import __author__, __email__, __version__
-
-__all__ = ["__version__", "__author__", "__email__"]

@@ -23,6 +23,9 @@ from typing import Any, Dict, List, Optional
 
 from pyfacebook import GraphAPI
 
+from agoras.common import __version__
+from agoras.common.utils import build_upload_session, video_upload_timeout
+
 
 class InstagramAPIClient:
     """
@@ -44,6 +47,8 @@ class InstagramAPIClient:
         self.graph_api: Optional[GraphAPI] = None
         self.api_version = "21.0"
         self._authenticated = False
+        self._RUPLOAD_RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
+        self._RUPLOAD_MAX_ATTEMPTS = 3
 
     async def authenticate(self) -> bool:
         """
@@ -97,6 +102,90 @@ class InstagramAPIClient:
             return self.graph_api.post_object(object_id=object_id, connection=connection, data=data or {})
         except Exception as e:
             raise Exception(f"Instagram post_object failed: {str(e)}")
+
+    async def create_comment(self, post_id: str, text: str) -> str:
+        """
+        Comment on an Instagram media post.
+
+        Args:
+            post_id (str): Instagram media ID to comment on
+            text (str): Comment text
+
+        Returns:
+            str: Comment ID
+
+        Raises:
+            Exception: If comment fails
+        """
+        response = self.post_object(post_id, connection="comments", data={"message": text})
+        comment_id = response.get("id")
+        if not comment_id:
+            raise Exception("Invalid response from Instagram API: missing comment id")
+        return str(comment_id)
+
+    async def delete_comment(self, comment_id: str) -> str:
+        """
+        Delete an Instagram comment.
+
+        Args:
+            comment_id (str): Comment ID to delete
+
+        Returns:
+            str: Deleted comment ID
+
+        Raises:
+            Exception: If deletion fails
+        """
+        if not self.graph_api:
+            raise Exception("Instagram GraphAPI not initialized")
+        if not comment_id:
+            raise Exception("Instagram comment ID is required for delete-reply action.")
+
+        graph_api = self.graph_api
+
+        def _sync_delete_comment():
+            try:
+                graph_api.delete_object(object_id=comment_id)
+            except Exception as exc:
+                message = str(exc).lower()
+                if "permission" in message or "not exist" in message or "not found" in message:
+                    raise Exception(f"Instagram comment delete: {str(exc)}") from exc
+                raise Exception(f"Unable to delete comment {comment_id}: {str(exc)}") from exc
+            return comment_id
+
+        return await asyncio.to_thread(_sync_delete_comment)
+
+    async def delete_media(self, media_id: str) -> str:
+        """
+        Delete an Instagram media post.
+
+        Args:
+            media_id (str): Instagram media ID to delete
+
+        Returns:
+            str: Deleted media ID
+
+        Raises:
+            Exception: If deletion fails
+        """
+        if not self.graph_api:
+            raise Exception("Instagram GraphAPI not initialized")
+        if not media_id:
+            raise Exception("Instagram media ID is required for delete action.")
+
+        graph_api = self.graph_api
+
+        def _sync_delete_media():
+            try:
+                graph_api.delete_object(object_id=media_id)
+            except Exception as exc:
+                message = str(exc).lower()
+                if "permission" in message or "not exist" in message or "not found" in message:
+                    raise Exception(f"Instagram media delete: {str(exc)}") from exc
+                raise Exception(f"Unable to delete media {media_id}: {str(exc)}") from exc
+            return media_id
+
+        return await asyncio.to_thread(_sync_delete_media)
 
     def get_object(self, object_id: str, fields: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -208,6 +297,74 @@ class InstagramAPIClient:
         await self.wait_for_media_container(media_id)
         return media_id
 
+    def _rupload_url(self, container_id: str, uri: Optional[str] = None) -> str:
+        """Return the rupload endpoint, preferring Meta's uri when it is on rupload.facebook.com."""
+        if uri and uri.startswith("https://rupload.facebook.com/"):
+            return uri
+        return f"https://rupload.facebook.com/ig-api-upload/v{self.api_version}/{container_id}"
+
+    def upload_resumable_video(self, container_id: str, video_content: bytes, upload_uri: Optional[str] = None) -> None:
+        """POST local video bytes to rupload.facebook.com for a resumable container."""
+        if not video_content:
+            raise Exception("Video file is empty")
+
+        url = self._rupload_url(container_id, upload_uri)
+        headers = {
+            "Authorization": f"OAuth {self.access_token}",
+            "offset": "0",
+            "file_size": str(len(video_content)),
+            "User-Agent": f"Agoras/{__version__}",
+        }
+        timeout = video_upload_timeout(len(video_content))
+        with build_upload_session(self._RUPLOAD_MAX_ATTEMPTS, self._RUPLOAD_RETRY_STATUSES, ["POST"]) as session:
+            response = session.post(url, headers=headers, data=video_content, timeout=timeout)
+        if response.status_code not in (200, 201):
+            raise Exception(f"Instagram resumable video upload failed: HTTP {response.status_code}")
+
+    async def create_resumable_video(
+        self,
+        object_id: str,
+        video_content: bytes,
+        caption: Optional[str] = None,
+        media_type: Optional[str] = None,
+    ) -> str:
+        """
+        Create a resumable Instagram video container and upload local bytes.
+
+        Args:
+            object_id (str): Instagram object ID
+            video_content (bytes): Raw video file bytes
+            caption (str, optional): Video caption
+            media_type (str, optional): REELS or STORIES
+
+        Returns:
+            str: Media container ID ready to publish
+
+        Raises:
+            Exception: If container creation or rupload fails
+        """
+        if not video_content:
+            raise Exception("Video file is empty")
+
+        def _sync_create_resumable():
+            data: Dict[str, Any] = {
+                "upload_type": "resumable",
+                "media_type": media_type or "REELS",
+            }
+            if caption:
+                data["caption"] = caption
+
+            response = self.post_object(object_id=object_id, connection="media", data=data)
+            container_id = response.get("id")
+            if not container_id:
+                raise Exception("Instagram resumable upload did not return a container id")
+            self.upload_resumable_video(container_id, video_content, response.get("uri"))
+            return container_id
+
+        container_id = await asyncio.to_thread(_sync_create_resumable)
+        await self.wait_for_media_container(container_id)
+        return container_id
+
     async def create_carousel(self, object_id: str, media_ids: List[str], caption: Optional[str] = None) -> str:
         """
         Create carousel media for Instagram.
@@ -298,40 +455,6 @@ class InstagramAPIClient:
         # Then publish it
         return await self.publish_media(object_id=object_id, creation_id=media_id)
 
-    async def create_carousel_post(
-        self, object_id: str, media_items: List[Dict[str, Any]], caption: Optional[str] = None
-    ) -> str:
-        """
-        Create and publish a carousel post with multiple media items.
-
-        Args:
-            object_id (str): Instagram object ID
-            media_items (list): List of media items, each with 'image_url' or 'video_url'
-            caption (str, optional): Carousel caption
-
-        Returns:
-            str: Published carousel post ID
-
-        Raises:
-            Exception: If carousel creation fails
-        """
-        # Create individual media items
-        media_ids = []
-        for item in media_items:
-            media_id = await self.create_media(
-                object_id=object_id,
-                image_url=item.get("image_url"),
-                video_url=item.get("video_url"),
-                is_carousel_item=True,
-            )
-            media_ids.append(media_id)
-
-        # Create carousel
-        carousel_id = await self.create_carousel(object_id=object_id, media_ids=media_ids, caption=caption)
-
-        # Publish carousel
-        return await self.publish_media(object_id=object_id, creation_id=carousel_id)
-
     async def get_user_media(self, object_id: str, fields: Optional[str] = None, limit: int = 25) -> Dict[str, Any]:
         """
         Get user's Instagram media.
@@ -352,26 +475,8 @@ class InstagramAPIClient:
             default_fields = "id,caption,media_type,media_url,permalink,timestamp"
             query_fields = fields or default_fields
 
-            return self.get_object(object_id=f"{object_id}/media", fields=f"{query_fields}&limit={limit}")
+            if not self.graph_api:
+                raise Exception("Instagram API client not initialized")
+            return self.graph_api.get_object(object_id=f"{object_id}/media", fields=query_fields, limit=limit)
 
         return await asyncio.to_thread(_sync_get_user_media)
-
-    async def get_media_insights(self, media_id: str, metrics: List[str]) -> Dict[str, Any]:
-        """
-        Get insights for a specific Instagram media item.
-
-        Args:
-            media_id (str): Instagram media ID
-            metrics (list): List of metrics to retrieve
-
-        Returns:
-            dict: Insights data from Instagram API
-
-        Raises:
-            Exception: If insights retrieval fails
-        """
-
-        def _sync_get_media_insights():
-            return self.get_object(object_id=f"{media_id}/insights", fields=f"metric={','.join(metrics)}")
-
-        return await asyncio.to_thread(_sync_get_media_insights)

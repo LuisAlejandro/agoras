@@ -11,7 +11,6 @@ This package provides:
 - Main entry point (`agoras.cli.main`) for the ``agoras`` command-line tool
 - Platform-specific command parsers for all 10 supported platforms
 - Utility commands for feed automation and scheduling
-- Legacy command support for backward compatibility
 - Platform registry for managing platform actions
 
 **Dependencies:** Requires ``agoras-platforms>=2.0.0``.
@@ -65,29 +64,6 @@ Platform registry for managing supported platforms and their actions.
     :undoc-members:
     :show-inheritance:
 
-agoras.cli.commands package
----------------------------
-
-CLI command implementations.
-
-agoras.cli.commands package
----------------------------
-
-.. automodule:: agoras.cli.commands
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-agoras.cli.commands.publish module
-------------------------------------
-
-Publish command for posting to social networks.
-
-.. automodule:: agoras.cli.commands.publish
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 agoras.cli.utils package
 -------------------------
 
@@ -121,6 +97,46 @@ Scheduling utilities for Google Sheets integration.
     :undoc-members:
     :show-inheritance:
 
+agoras.cli.utils.tokens module
+--------------------------------
+
+Token storage and retrieval utilities.
+
+.. automodule:: agoras.cli.utils.tokens
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+agoras.cli.utils.media_limits module
+--------------------------------------
+
+Media upload size/format limit utilities.
+
+.. automodule:: agoras.cli.utils.media_limits
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+agoras.cli.utils.text_limits module
+-------------------------------------
+
+Text length limit utilities.
+
+.. automodule:: agoras.cli.utils.text_limits
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+agoras.cli.utils.unattended_format module
+--------------------------------------------
+
+Unattended (CI) output formatting utilities.
+
+.. automodule:: agoras.cli.utils.unattended_format
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 agoras.cli.validator module
 ---------------------------
 
@@ -141,22 +157,9 @@ Conversion utilities for CLI data formats.
     :undoc-members:
     :show-inheritance:
 
-agoras.cli.migration module
-----------------------------
+agoras.cli.publish_stub module
+-----------------------------
 
-Migration utilities for CLI configuration.
+Pointer stub for the legacy ``agoras publish`` command, removed in Agoras 3.0.
 
-.. automodule:: agoras.cli.migration
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-agoras.cli.legacy module
-------------------------
-
-Legacy command support for backward compatibility.
-
-.. automodule:: agoras.cli.legacy
-    :members:
-    :undoc-members:
-    :show-inheritance:
+.. automodule:: agoras.cli.publish_stub

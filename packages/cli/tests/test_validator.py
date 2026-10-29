@@ -21,6 +21,7 @@ Tests for ActionValidator.
 
 import pytest
 
+from agoras.cli.registry import PlatformRegistry
 from agoras.cli.validator import ActionValidator
 
 
@@ -87,10 +88,27 @@ def test_validate_invalid_platform():
     assert 'twitter' in str(exc_info.value)
 
 
-def test_get_supported_actions():
+def test_tiktok_get_post_passes_cli_validator():
+    """CLI validator accepts get-post on runtime-blocked TikTok (footnote [5] contract)."""
+    ActionValidator.validate('tiktok', 'get-post')
+    ActionValidator.validate('telegram', 'get-reply')
+
+
+def test_registry_supported_actions():
     """Test getting supported actions for a platform."""
-    actions = ActionValidator.get_supported_actions('twitter')
+    actions = PlatformRegistry.get_supported_actions('twitter')
 
     assert set(actions) == {
-        'authorize', 'post', 'video', 'like', 'share', 'delete', 'thread',
+        'authorize',
+        'post',
+        'video',
+        'like',
+        'share',
+        'delete',
+        'delete-reply',
+        'thread',
+        'reply',
+        'get-post',
+        'get-reply',
+        'list-posts',
     }

@@ -18,7 +18,6 @@
 """Display shared text-limit tables for ops and E2E."""
 
 import json
-import sys
 from argparse import ArgumentParser, Namespace, _SubParsersAction
 
 from agoras.core.text_limits import TEXT_LIMITS, iter_text_limits
@@ -71,17 +70,3 @@ def _handle_text_limits(args: Namespace) -> None:
         print(
             f"{row['platform']:12} {row['field']:18} limit={row['limit']:<6} counting={row['counting']:12} mode={mode}"
         )
-
-
-def main(argv=None) -> int:
-    """Optional standalone entry point for text-limits output."""
-    parser = ArgumentParser(description="Show Agoras text limits")
-    parser.add_argument("--platform")
-    parser.add_argument("--json", action="store_true")
-    args = parser.parse_args(argv)
-    try:
-        _handle_text_limits(args)
-    except Exception as exc:
-        print(str(exc), file=sys.stderr)
-        return 1
-    return 0

@@ -17,9 +17,16 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.instagram.api module."""
 
-from typing import List, Optional
+import asyncio
+from typing import Any, Dict, List, Optional
 
-from agoras.core.api_base import BaseAPI
+from agoras.core.api_base import (
+    BaseAPI,
+    guard_client_presence,
+    guard_ensure_auth_manager,
+    guard_error_wrap,
+    guard_rate_limit,
+)
 from agoras.core.auth import raise_authentication_error_from_manager
 
 from .auth import InstagramAuthManager
@@ -32,6 +39,9 @@ class InstagramAPI(BaseAPI):
     Provides methods for Instagram authentication, token management,
     and all Instagram API operations including posts, videos, and media uploads.
     """
+
+    # Guard message template (read by the composable guard decorators)
+    _client_not_available_message = "Instagram API not authenticated"
 
     def __init__(self, user_id, client_id, client_secret, refresh_token=None):
         """
@@ -50,16 +60,6 @@ class InstagramAPI(BaseAPI):
             user_id=user_id, client_id=client_id, client_secret=client_secret, refresh_token=refresh_token
         )
 
-    @property
-    def access_token(self):
-        """Get the Instagram access token from the auth manager."""
-        return self.auth_manager.access_token if self.auth_manager else None
-
-    @property
-    def user_info(self):
-        """Get the Instagram user info from the auth manager."""
-        return self.auth_manager.user_info if self.auth_manager else None
-
     async def authenticate(self):
         """
         Authenticate with Instagram API using the auth manager.
@@ -77,27 +77,12 @@ class InstagramAPI(BaseAPI):
         if not success:
             raise_authentication_error_from_manager(self.auth_manager)
 
-        # Set the client from auth manager for BaseAPI compatibility
-        self.client = self.auth_manager.client
-        self._authenticated = True
-        return self
+        return await super().authenticate()
 
-    async def disconnect(self):
-        """
-        Disconnect from Instagram API and clean up resources.
-        """
-        # Disconnect the client first
-        if self.client:
-            self.client.disconnect()
-
-        # Clear auth manager tokens
-        if self.auth_manager:
-            self.auth_manager.access_token = None
-
-        # Clear BaseAPI client
-        self.client = None
-        self._authenticated = False
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("post", 1.0)
+    @guard_error_wrap("Instagram post creation")
     async def post(
         self,
         object_id: str,
@@ -120,22 +105,15 @@ class InstagramAPI(BaseAPI):
         Raises:
             Exception: If post creation fails
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        return await self.client.create_post(
+            object_id=object_id, image_url=image_url, video_url=video_url, caption=caption
+        )
 
-        if not self.client:
-            raise Exception("Instagram API not authenticated")
-
-        await self._rate_limit_check("post", 1.0)
-
-        try:
-            # Use client's create_post method which creates and publishes in one step
-            return await self.client.create_post(
-                object_id=object_id, image_url=image_url, video_url=video_url, caption=caption
-            )
-        except Exception as e:
-            self._handle_api_error(e, "Instagram post creation")
-            raise
-
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("create_media", 1.0)
+    @guard_error_wrap("Instagram media creation")
     async def create_media(
         self,
         object_id: str,
@@ -162,26 +140,53 @@ class InstagramAPI(BaseAPI):
         Raises:
             Exception: If media creation fails
         """
-        self.auth_manager.ensure_authenticated()
+        assert self.client is not None
+        return await self.client.create_media(
+            object_id=object_id,
+            image_url=image_url,
+            video_url=video_url,
+            caption=caption,
+            is_carousel_item=is_carousel_item,
+            media_type=media_type,
+        )
 
-        if not self.client:
-            raise Exception("Instagram API not authenticated")
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("create_resumable_video", 1.0)
+    @guard_error_wrap("Instagram resumable video upload")
+    async def create_resumable_video(
+        self,
+        object_id: str,
+        video_content: bytes,
+        caption: Optional[str] = None,
+        media_type: Optional[str] = None,
+    ) -> str:
+        """
+        Upload a local video via Instagram's resumable rupload protocol.
 
-        await self._rate_limit_check("create_media", 1.0)
+        Args:
+            object_id (str): Instagram object ID
+            video_content (bytes): Raw video file bytes
+            caption (str, optional): Video caption
+            media_type (str, optional): REELS or STORIES
 
-        try:
-            return await self.client.create_media(
-                object_id=object_id,
-                image_url=image_url,
-                video_url=video_url,
-                caption=caption,
-                is_carousel_item=is_carousel_item,
-                media_type=media_type,
-            )
-        except Exception as e:
-            self._handle_api_error(e, "Instagram media creation")
-            raise
+        Returns:
+            str: Media container ID
 
+        Raises:
+            Exception: If upload fails
+        """
+        assert self.client is not None
+        return await self.client.create_resumable_video(
+            object_id=object_id,
+            video_content=video_content,
+            caption=caption,
+            media_type=media_type,
+        )
+
+    @guard_client_presence
+    @guard_rate_limit("create_carousel", 1.0)
+    @guard_error_wrap("Instagram carousel creation")
     async def create_carousel(self, object_id: str, media_ids: List[str], caption: Optional[str] = None) -> str:
         """
         Create carousel media for Instagram.
@@ -197,17 +202,12 @@ class InstagramAPI(BaseAPI):
         Raises:
             Exception: If carousel creation fails
         """
-        if not self.client:
-            raise Exception("Instagram API not authenticated")
+        assert self.client is not None
+        return await self.client.create_carousel(object_id=object_id, media_ids=media_ids, caption=caption)
 
-        await self._rate_limit_check("create_carousel", 1.0)
-
-        try:
-            return await self.client.create_carousel(object_id=object_id, media_ids=media_ids, caption=caption)
-        except Exception as e:
-            self._handle_api_error(e, "Instagram carousel creation")
-            raise
-
+    @guard_client_presence
+    @guard_rate_limit("publish_media", 1.0)
+    @guard_error_wrap("Instagram media publishing")
     async def publish_media(self, object_id: str, creation_id: str) -> str:
         """
         Publish created media to Instagram.
@@ -222,16 +222,8 @@ class InstagramAPI(BaseAPI):
         Raises:
             Exception: If media publishing fails
         """
-        if not self.client:
-            raise Exception("Instagram API not authenticated")
-
-        await self._rate_limit_check("publish_media", 1.0)
-
-        try:
-            return await self.client.publish_media(object_id=object_id, creation_id=creation_id)
-        except Exception as e:
-            self._handle_api_error(e, "Instagram media publishing")
-            raise
+        assert self.client is not None
+        return await self.client.publish_media(object_id=object_id, creation_id=creation_id)
 
     async def like(self, post_id: str) -> str:
         """
@@ -245,17 +237,25 @@ class InstagramAPI(BaseAPI):
         """
         raise Exception("Like not supported for Instagram")
 
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("delete", 0.5)
+    @guard_error_wrap("Instagram delete")
     async def delete(self, post_id: str) -> str:
         """
-        Delete an Instagram post (not supported via API).
+        Delete an Instagram media post.
 
         Args:
-            post_id (str): Post ID to delete
+            post_id (str): Media ID to delete
+
+        Returns:
+            str: Deleted media ID
 
         Raises:
-            Exception: Delete not supported for Instagram
+            Exception: If deletion fails
         """
-        raise Exception("Delete not supported for Instagram")
+        assert self.client is not None
+        return await self.client.delete_media(post_id)
 
     async def share(self, post_id: str) -> str:
         """
@@ -268,3 +268,118 @@ class InstagramAPI(BaseAPI):
             Exception: Share not supported for Instagram
         """
         raise Exception("Share not supported for Instagram")
+
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("reply", 0.5)
+    @guard_error_wrap("Instagram comment")
+    async def reply(self, post_id: str, text: str) -> str:
+        """
+        Comment on an Instagram media post.
+
+        Args:
+            post_id (str): Media ID to comment on
+            text (str): Comment text
+
+        Returns:
+            str: Comment ID
+
+        Raises:
+            Exception: If comment operation fails
+        """
+        assert self.client is not None
+        return await self.client.create_comment(post_id, text)
+
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("delete", 0.5)
+    @guard_error_wrap("Instagram delete-reply")
+    async def delete_reply(self, comment_id: str) -> str:
+        """
+        Delete an Instagram comment.
+
+        Args:
+            comment_id (str): ID of the comment to delete
+
+        Returns:
+            str: Deleted comment ID
+
+        Raises:
+            Exception: If deletion fails
+        """
+        assert self.client is not None
+        return await self.client.delete_comment(comment_id)
+
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("get_post", 0.5)
+    @guard_error_wrap("Instagram get-post")
+    async def get_post(self, post_id: str) -> Dict[str, Any]:
+        """
+        Read an Instagram media object by ID.
+
+        Args:
+            post_id (str): Media ID to read
+
+        Returns:
+            dict: Media fields from Graph API
+
+        Raises:
+            Exception: If the media cannot be read
+        """
+        assert self.client is not None
+        return await asyncio.to_thread(
+            self.client.get_object,
+            post_id,
+            "id,caption,timestamp,username,media_type,media_url,permalink",
+        )
+
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("get_reply", 0.5)
+    @guard_error_wrap("Instagram get-reply")
+    async def get_reply(self, comment_id: str) -> Dict[str, Any]:
+        """
+        Read an Instagram comment by ID.
+
+        Args:
+            comment_id (str): Comment ID to read
+
+        Returns:
+            dict: Comment fields from Graph API
+
+        Raises:
+            Exception: If the comment cannot be read
+        """
+        assert self.client is not None
+        return await asyncio.to_thread(
+            self.client.get_object,
+            comment_id,
+            "id,text,timestamp,username,from",
+        )
+
+    @guard_ensure_auth_manager
+    @guard_client_presence
+    @guard_rate_limit("list_posts", 0.5)
+    @guard_error_wrap("Instagram list-posts")
+    async def list_posts(self, object_id: str, limit: int) -> List[Dict[str, Any]]:
+        """
+        List recent media from an Instagram account.
+
+        Args:
+            object_id (str): Instagram object ID
+            limit (int): Maximum number of media items to return
+
+        Returns:
+            list: Media fields from the Graph API
+
+        Raises:
+            Exception: If the media cannot be read
+        """
+        assert self.client is not None
+        result = await self.client.get_user_media(
+            object_id,
+            fields="id,caption,timestamp,username,media_type,media_url,permalink",
+            limit=limit,
+        )
+        return result.get("data") or []

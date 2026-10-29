@@ -19,17 +19,57 @@
 Core interfaces and shared social network abstractions for Agoras.
 """
 
+import asyncio
 import datetime
 import json
 import os
 import sys
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Dict, List
 
 from agoras.core.feed import Feed
 from agoras.core.sheet import ScheduleSheet
-from agoras.media import MediaFactory
+from agoras.media import create_video, download_images
 from agoras.media.constraints import resolve_platform
+
+
+def _entry_images(entry: Dict[str, Any]) -> List[str]:
+    """Collect flattened image_1..image_4 URLs from a thread entry."""
+    return list(
+        filter(
+            None,
+            [
+                entry.get("image_1"),
+                entry.get("image_2"),
+                entry.get("image_3"),
+                entry.get("image_4"),
+            ],
+        )
+    )
+
+
+def _is_uncertain_publish_error(exc: BaseException) -> bool:
+    """Classify timeout/uncertain errors after a publish dispatch."""
+    if isinstance(exc, (TimeoutError, asyncio.TimeoutError)):
+        return True
+    message = str(exc).lower()
+    return any(token in message for token in ("timeout", "timed out", "temporarily unavailable"))
+
+
+async def run_wrapper_main_async(cls, kwargs):
+    """
+    Shared body of every wrapper's ``main_async`` shim.
+
+    Dispatches through ``SocialNetwork.run_main_async`` unbound so test mocks
+    of the wrapper class (which stub ``execute_action``/``disconnect``/
+    ``authorize_credentials`` but not the base method) keep working.
+    """
+    return await SocialNetwork.run_main_async(cls(**kwargs), kwargs)
+
+
+def run_wrapper_main(cls, kwargs):
+    """Shared body of every wrapper's synchronous ``main`` shim."""
+    asyncio.run(run_wrapper_main_async(cls, kwargs))
 
 
 class SocialNetwork(ABC):
@@ -50,6 +90,7 @@ class SocialNetwork(ABC):
         """
         self.config = kwargs
         self.client = None
+        self.api: Any = None
 
     @abstractmethod
     async def _initialize_client(self):
@@ -60,11 +101,122 @@ class SocialNetwork(ABC):
         their specific API clients and authentication.
         """
 
-    @abstractmethod
     async def disconnect(self):
         """
         Disconnect from the social network.
         """
+        if self.api:
+            await self.api.disconnect()
+
+    def _require_api(self):
+        """
+        Raise the platform's not-initialized message when no api is available.
+
+        Guard-phase helper replacing the per-platform
+        ``if not self.api: raise Exception("<Platform> API not initialized")``
+        pairs. The message matches the historical per-platform text.
+        """
+        if not self.api:
+            raise Exception(f"{self.__class__.__name__} API not initialized")
+
+    async def authorize_credentials(self):
+        """
+        Authorize credentials for the social network.
+
+        Platforms declare ``_authorize_manager`` (an auth-manager factory) and
+        ``_authorize_keys`` (auth-manager kwarg -> config key); the shared flow
+        reads the values, builds the manager, and runs ``authorize()``.
+        Platforms without an ``_authorize_manager`` do not support interactive
+        authorization.
+
+        Returns:
+            bool: True if authorization succeeded
+
+        Raises:
+            Exception: If authorization is not supported
+        """
+        factory = self._authorize_manager()
+        if factory is None:
+            raise Exception(f"Authorize not supported for {self.__class__.__name__}")
+
+        kwargs = {param: self._get_config_value(config_key) for param, config_key in self._authorize_keys.items()}
+        if self._authorize_uses_profile:
+            kwargs["profile"] = self._get_config_value("profile")
+
+        result = await factory(**kwargs).authorize()
+        if result:
+            # The token is already persisted to storage; never echo it to stdout.
+            print("Authorization successful. Credentials stored securely.")
+            return True
+        return False
+
+    # Auth-manager factory for `authorize_credentials`; None means unsupported.
+    _authorize_keys: Dict[str, Any] = {}
+    _authorize_uses_profile = True
+
+    def _authorize_manager(self) -> Any:
+        """Return the platform's auth-manager class, or None when unsupported."""
+        return None
+
+    def _fill_missing_credentials(self, auth_manager, attr_map):
+        """
+        Fill blank credential attributes from a loaded auth manager.
+
+        ``attr_map`` maps this instance's attribute name to the auth manager's
+        attribute name. Only attributes that are currently falsy are filled, so
+        explicit CLI/env values always win over stored ones.
+        """
+        if not auth_manager._load_credentials_from_storage():
+            return
+        for own_attr, manager_attr in attr_map.items():
+            if not getattr(self, own_attr):
+                setattr(self, own_attr, getattr(auth_manager, manager_attr))
+
+    def _require_credentials(self, values, platform, hint=""):
+        """Raise the shared not-authenticated message when any credential is missing."""
+        if not all(values):
+            raise Exception(f"Not authenticated. Please run 'agoras {platform} authorize' first.{hint}")
+
+    async def run_main_async(self, kwargs):
+        """
+        Template runner for the CLI main entry point.
+
+        Dispatches the authorize action directly to ``authorize_credentials``
+        without client initialization, and sends every other action through
+        ``execute_action`` (which initializes the client internally).
+        Note: the action path now guarantees ``disconnect`` on every exit,
+        including failures — six platforms (facebook, instagram, linkedin,
+        tiktok, youtube, telegram) historically disconnected only on success;
+        this is an accepted, documented deviation from strict parity (in-memory
+        auth state is cleared on failure too, and teardown errors never mask
+        the action outcome). The authorize branch deliberately skips teardown
+        because no ``authorize_credentials`` implementation sets ``self.api``.
+
+        Args:
+            kwargs (dict): Configuration arguments
+
+        Returns:
+            int or None: 0 if authorize succeeded, 1 if it failed,
+                None for other actions
+        """
+        action = kwargs.get("action", "")
+
+        if action == "":
+            raise Exception("Action is a required argument.")
+
+        if action == "authorize":
+            success = await self.authorize_credentials()
+            return 0 if success else 1
+
+        try:
+            await self.execute_action(action)
+        finally:
+            try:
+                await self.disconnect()
+            except Exception:
+                # Teardown must never replace the action's outcome or exception.
+                print("Warning: disconnect failed after action execution.", file=sys.stderr)
+        return None
 
     @abstractmethod
     async def post(
@@ -161,6 +313,121 @@ class SocialNetwork(ABC):
         """
         raise Exception(f"Thread publishing not supported for {self.__class__.__name__}")
 
+    async def reply(
+        self,
+        post_id,
+        text,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+        video_url=None,
+    ):
+        """
+        Reply to a post/message on the social network.
+
+        Default implementation raises not supported. Platforms that support
+        replying (commenting on a post, replying to a message) override this
+        and return the created reply/comment ID.
+
+        Args:
+            post_id (str): ID of the post/message to reply to
+            text (str): Reply/comment text
+            status_image_url_1 (str, optional): First image URL
+            status_image_url_2 (str, optional): Second image URL
+            status_image_url_3 (str, optional): Third image URL
+            status_image_url_4 (str, optional): Fourth image URL
+            video_url (str, optional): URL of a video to attach to the reply
+
+        Returns:
+            str: Reply/comment ID
+
+        Raises:
+            Exception: If replying is not supported
+        """
+        raise Exception(f"Reply not supported for {self.__class__.__name__}")
+
+    async def delete_reply(self, post_id):
+        """
+        Delete a reply/comment on the social network.
+
+        Default implementation raises not supported. Platforms that support
+        deleting a reply (a comment on a post, or a reply message) override
+        this and return the deleted reply/comment ID. Pure-proxy platforms
+        set ``_proxy_delete_reply = True`` to delegate to ``delete``.
+
+        Args:
+            post_id (str): ID of the reply/comment to delete
+
+        Returns:
+            str: Deleted reply/comment ID
+
+        Raises:
+            Exception: If deleting a reply is not supported
+        """
+        if getattr(self, "_proxy_delete_reply", False):
+            return await self.delete(post_id)
+        raise Exception(f"Delete reply not supported for {self.__class__.__name__}")
+
+    async def get_post(self, post_id):
+        """
+        Read a post/message by ID and return its normalized content.
+
+        Default implementation raises not supported. Platforms that support
+        reading a post override this and return a normalized content dict.
+
+        Args:
+            post_id (str): ID of the post/message to read
+
+        Returns:
+            dict: Normalized content (id, text, media, author, created_at, metadata)
+
+        Raises:
+            Exception: If reading a post is not supported
+        """
+        raise Exception(f"Get post not supported for {self.__class__.__name__}")
+
+    async def get_reply(self, post_id):
+        """
+        Read a reply/comment by ID and return its normalized content.
+
+        Default implementation raises not supported. Platforms that support
+        reading a reply override this and return a normalized content dict.
+        Pure-proxy platforms set ``_proxy_get_reply = True`` to delegate
+        to ``get_post``.
+
+        Args:
+            post_id (str): ID of the reply/comment to read
+
+        Returns:
+            dict: Normalized content (id, text, media, author, created_at, metadata)
+
+        Raises:
+            Exception: If reading a reply is not supported
+        """
+        if getattr(self, "_proxy_get_reply", False):
+            return await self.get_post(post_id)
+        raise Exception(f"Get reply not supported for {self.__class__.__name__}")
+
+    async def list_posts(self, limit):
+        """
+        List the account's recent posts and return a list of normalized content.
+
+        Default implementation raises not supported. Platforms that support
+        listing posts override this and return a list of normalized content
+        dicts.
+
+        Args:
+            limit (int): Maximum number of posts to return
+
+        Returns:
+            list: Normalized content dicts (id, text, media, author, created_at, metadata)
+
+        Raises:
+            Exception: If listing posts is not supported
+        """
+        raise Exception(f"List posts not supported for {self.__class__.__name__}")
+
     def get_platform_name(self):
         """
         Get the platform name for media handling.
@@ -184,7 +451,7 @@ class SocialNetwork(ABC):
             list: List of downloaded Image instances
         """
         platform = resolve_platform(self.get_platform_name())
-        return await MediaFactory.download_images(image_urls, platform=platform)
+        return await download_images(image_urls, platform=platform)
 
     async def download_video(self, video_url):
         """
@@ -197,7 +464,7 @@ class SocialNetwork(ABC):
             Video: Downloaded Video instance
         """
         platform = resolve_platform(self.get_platform_name())
-        video = MediaFactory.create_video(video_url, platform)
+        video = create_video(video_url, platform)
         await video.download()
         return video
 
@@ -338,6 +605,80 @@ class SocialNetwork(ABC):
         status = {"id": post_id}
         print(json.dumps(status, separators=(",", ":")))
 
+    @staticmethod
+    def _normalize_content(content):
+        """
+        Normalize a content dict onto the stable get-post/get-reply schema.
+
+        Missing fields become null (not omitted) so the key set is stable
+        across networks. ``media`` defaults to an empty list; ``metadata``
+        defaults to an empty dict.
+
+        Args:
+            content (dict): Partial or full content mapping
+
+        Returns:
+            dict: Normalized content with a stable key set
+        """
+        content = content or {}
+        author = content.get("author")
+        if author is None:
+            author = None
+        elif isinstance(author, dict):
+            author = {
+                "id": author.get("id"),
+                "name": author.get("name"),
+            }
+        media = content.get("media")
+        if media is None:
+            media = []
+        metadata = content.get("metadata")
+        if metadata is None:
+            metadata = {}
+        return {
+            "id": content.get("id"),
+            "text": content.get("text"),
+            "media": media,
+            "author": author,
+            "created_at": content.get("created_at"),
+            "metadata": metadata,
+        }
+
+    def _output_content(self, content_dict):
+        """
+        Output full get-post/get-reply content as normalized JSON.
+
+        Args:
+            content_dict (dict): Content mapping (normalized before emit)
+        """
+        print(json.dumps(self._normalize_content(content_dict), separators=(",", ":")))
+
+    def _output_list(self, items):
+        """
+        Output a list of normalized content items as a JSON array.
+
+        Args:
+            items (list): Content mappings (each normalized before emit)
+        """
+        print(json.dumps([self._normalize_content(c) for c in items], separators=(",", ":")))
+
+    @staticmethod
+    def _collect_status_image_urls(
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+        limit=4,
+    ):
+        """Collect non-empty status image URLs in order."""
+        urls = [
+            status_image_url_1,
+            status_image_url_2,
+            status_image_url_3,
+            status_image_url_4,
+        ][:limit]
+        return [url for url in urls if url]
+
     def _get_config_value(self, key, env_key=None) -> Any:
         """
         Get configuration value from kwargs or environment.
@@ -363,24 +704,17 @@ class SocialNetwork(ABC):
 
         return os.environ.get(env_key)
 
-    def _require_config_value(self, key, env_key=None) -> str:
+    def _get_auth_config_value(self, key, env_key=None) -> Any:
         """
-        Get a required configuration value from kwargs or environment.
+        Get an auth credential, skipping env when a profile is selected.
 
-        Args:
-            key (str): Configuration key
-            env_key (str, optional): Environment variable key
-
-        Returns:
-            str: Configuration value
-
-        Raises:
-            ValueError: If the configuration value is missing or empty
+        When an explicit ``--profile`` is set, the selected profile is the sole
+        credential source: env is not consulted for auth keys. Without a
+        profile, this falls back to the normal kwargs-then-env resolution.
         """
-        value = self._get_config_value(key, env_key)
-        if value is None or value == "":
-            raise ValueError(f"Missing required configuration for {key}")
-        return str(value)
+        if self.config.get("profile"):
+            return self.config.get(key)
+        return self._get_config_value(key, env_key)
 
     async def execute_action(self, action):
         """
@@ -398,26 +732,26 @@ class SocialNetwork(ABC):
         # Initialize client before executing other actions
         await self._initialize_client()
 
-        if action == "post":
-            await self._handle_post_action()
-        elif action == "like":
-            await self._handle_like_action()
-        elif action == "share":
-            await self._handle_share_action()
-        elif action == "delete":
-            await self._handle_delete_action()
-        elif action == "video":
-            await self._handle_video_action()
-        elif action == "thread":
-            await self._handle_thread_action()
-        elif action == "last-from-feed":
-            await self._handle_last_from_feed_action()
-        elif action == "random-from-feed":
-            await self._handle_random_from_feed_action()
-        elif action == "schedule":
-            await self._handle_schedule_action()
-        else:
+        handlers = {
+            "post": self._handle_post_action,
+            "like": self._handle_like_action,
+            "share": self._handle_share_action,
+            "delete": self._handle_delete_action,
+            "video": self._handle_video_action,
+            "thread": self._handle_thread_action,
+            "reply": self._handle_reply_action,
+            "delete-reply": self._handle_delete_reply_action,
+            "get-post": self._handle_get_post_action,
+            "get-reply": self._handle_get_reply_action,
+            "list-posts": self._handle_list_posts_action,
+            "last-from-feed": self._handle_last_from_feed_action,
+            "random-from-feed": self._handle_random_from_feed_action,
+            "schedule": self._handle_schedule_action,
+        }
+        handler = handlers.get(action)
+        if handler is None:
             raise Exception(f'"{action}" action not supported.')
+        await handler()
 
     async def _handle_post_action(self):
         """Handle post action with common parameter extraction."""
@@ -432,26 +766,33 @@ class SocialNetwork(ABC):
             status_text, status_link, status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4
         )
 
+    # Per-action post-id lookup, overridden per platform:
+    #   action -> (config key, error message)
+    # A None config key passes None through (unsupported actions whose
+    # method raises); a None error message skips the required-value guard.
+    _post_id_actions: Dict[str, Any] = {}
+
+    def _action_post_id(self, action):
+        """Resolve the post-id argument for a like/share/delete action."""
+        key, error = self._post_id_actions.get(action, ("post_id", f"Post ID is required for {action} action."))
+        if key is None:
+            return None
+        value = self._get_config_value(key)
+        if error and not value:
+            raise Exception(error)
+        return value
+
     async def _handle_like_action(self):
         """Handle like action with common parameter extraction."""
-        post_id = self._get_config_value("post_id")
-        if not post_id:
-            raise Exception("Post ID is required for like action.")
-        await self.like(post_id)
+        await self.like(self._action_post_id("like"))
 
     async def _handle_share_action(self):
         """Handle share action with common parameter extraction."""
-        post_id = self._get_config_value("post_id")
-        if not post_id:
-            raise Exception("Post ID is required for share action.")
-        await self.share(post_id)
+        await self.share(self._action_post_id("share"))
 
     async def _handle_delete_action(self):
         """Handle delete action with common parameter extraction."""
-        post_id = self._get_config_value("post_id")
-        if not post_id:
-            raise Exception("Post ID is required for delete action.")
-        await self.delete(post_id)
+        await self.delete(self._action_post_id("delete"))
 
     async def _handle_video_action(self):
         """Handle video action with common parameter extraction."""
@@ -489,6 +830,81 @@ class SocialNetwork(ABC):
         emit_thread_result(result)
         if not result.complete:
             raise ThreadPublishError(result)
+
+    async def _handle_reply_action(self):
+        """Handle reply action with common parameter extraction.
+
+        Delegates to ``self.reply`` so the base default raises "not supported"
+        for networks without a reply backend, even when ``post_id``/``text``
+        are absent (the CLI converter maps ``post_id`` to a platform-specific
+        key, so it is not present here for unimplemented networks). Networks
+        that implement ``reply`` validate their own parameters.
+        """
+        post_id, text, media = self._extract_reply_params()
+        await self.reply(post_id, text, **media)
+
+    def _extract_reply_params(self):
+        """Extract reply parameters (post_id, text, media) from config.
+
+        Shared by the base ``_handle_reply_action`` and the WhatsApp
+        ``execute_action`` override so the WhatsApp reply branch cannot diverge
+        from the base handler's media extraction and validation.
+        """
+        post_id = self._get_config_value("post_id")
+        text = self._get_config_value("status_text")
+        media = {
+            "status_image_url_1": self._get_config_value("status_image_url_1", "STATUS_IMAGE_URL_1"),
+            "status_image_url_2": self._get_config_value("status_image_url_2", "STATUS_IMAGE_URL_2"),
+            "status_image_url_3": self._get_config_value("status_image_url_3", "STATUS_IMAGE_URL_3"),
+            "status_image_url_4": self._get_config_value("status_image_url_4", "STATUS_IMAGE_URL_4"),
+            "video_url": self._get_config_value("video_url"),
+        }
+        return post_id, text, media
+
+    async def _handle_delete_reply_action(self):
+        """Handle delete-reply action with common parameter extraction.
+
+        Delegates to ``self.delete_reply`` so the base default raises "not
+        supported" for networks without a delete-reply backend, even when
+        ``post_id`` is absent. Networks that implement ``delete_reply``
+        validate their own parameters.
+        """
+        post_id = self._get_config_value("post_id")
+        await self.delete_reply(post_id)
+
+    async def _handle_get_post_action(self):
+        """Handle get-post action with common parameter extraction.
+
+        Delegates to ``self.get_post`` so the base default raises "not
+        supported" for networks without a get-post backend, even when
+        ``post_id`` is absent. Networks that implement ``get_post``
+        validate their own parameters.
+        """
+        post_id = self._get_config_value("post_id")
+        await self.get_post(post_id)
+
+    async def _handle_get_reply_action(self):
+        """Handle get-reply action with common parameter extraction.
+
+        Delegates to ``self.get_reply`` so the base default raises "not
+        supported" for networks without a get-reply backend, even when
+        ``post_id`` is absent. Networks that implement ``get_reply``
+        validate their own parameters.
+        """
+        post_id = self._get_config_value("post_id")
+        await self.get_reply(post_id)
+
+    async def _handle_list_posts_action(self):
+        """Handle list-posts action with common parameter extraction.
+
+        Delegates to ``self.list_posts`` so the base default raises "not
+        supported" for networks without a list-posts backend, even when
+        ``limit`` is absent. Networks that implement ``list_posts`` validate
+        their own parameters.
+        """
+        raw_limit = self._get_config_value("limit")
+        limit = int(raw_limit) if raw_limit not in (None, "") else 10
+        await self.list_posts(limit)
 
     async def _handle_last_from_feed_action(self):
         """Handle last-from-feed action with common parameter extraction."""

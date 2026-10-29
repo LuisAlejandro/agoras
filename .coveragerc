@@ -17,7 +17,6 @@ omit =
 [paths]
 source =
     */packages/*/src/agoras
-    */packages/*/src/agoras
 
 [report]
 exclude_lines =

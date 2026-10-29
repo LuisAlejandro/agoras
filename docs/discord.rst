@@ -31,6 +31,11 @@ Available Actions
 * ``video`` - Upload and send video files
 * ``thread`` - Create a public text-channel thread from a YAML content file
 * ``delete`` - Delete messages
+* ``delete-reply`` - Delete a reply message
+* ``reply`` - Reply to a message
+* ``get-post`` - Read a post/message by ID
+* ``get-reply`` - Read a reply/comment by ID
+* ``list-posts`` - List recent messages in the configured channel
 
 Authorization
 -------------
@@ -78,12 +83,12 @@ Parameters:
 **Note**: You must provide at least one of ``--text``, ``--link``, or ``--image-1``.
 
 .. deprecated:: 2.0
-   The ``agoras publish --network "discord"`` command is deprecated. Use ``agoras discord post`` instead.
+   The ``agoras publish --network "discord"`` command was deprecated in 2.0 and removed in Agoras 3.0. Use ``agoras discord post`` instead.
 
 Publish a Discord thread
 ------------------------
 
-.. versionadded:: 2.2
+.. versionadded:: 2.1
 
 ``thread`` is YAML-only. Agoras posts the first entry in the configured text
 channel, creates a public thread named ``thread_name``, then sends remaining
@@ -111,14 +116,12 @@ This command will upload and send a video file to a Discord channel. The video c
 
     agoras discord video \
       --video-url "${DISCORD_VIDEO_URL}" \
-      --video-title "${DISCORD_VIDEO_TITLE}" \
-      --text "${STATUS_TEXT}"
+      --video-title "${DISCORD_VIDEO_TITLE}"
 
 Parameters:
 
 - ``--video-url``: URL pointing to a downloadable video file (required)
 - ``--video-title``: Title for the video (optional)
-- ``--text``: Additional description text (optional)
 
 **Video requirements**:
 - **Supported formats**: MP4, MOV, WebM, AVI

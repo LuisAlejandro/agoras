@@ -29,6 +29,17 @@ Available Actions
 * ``post`` - Send text messages with links and images (up to 4 images)
 * ``video`` - Upload and send video files
 * ``delete`` - Delete messages
+* ``delete-reply`` - Delete a Telegram reply message
+* ``reply`` - Reply to a message
+* ``get-post`` - Read a post/message by ID (CLI only; runtime raises not supported)
+* ``get-reply`` - Read a reply/comment by ID (CLI only; runtime raises not supported)
+* ``list-posts`` - List recent messages (CLI only; runtime raises not supported)
+
+.. note::
+
+   ``get-post``, ``get-reply``, and ``list-posts`` subcommands exist for CLI uniformity with other
+   platforms, but Telegram's Bot API cannot read arbitrary messages by ID. Invoking
+   these actions raises a not-supported error at runtime. See :doc:`reference/action-support`.
 
 Authorization
 -------------
@@ -75,7 +86,7 @@ Parameters:
 **Note**: You must provide at least one of ``--text``, ``--link``, or ``--image-1``.
 
 .. deprecated:: 2.0
-   The ``agoras publish --network "telegram"`` command is deprecated. Use ``agoras telegram post`` instead.
+   The ``agoras publish --network "telegram"`` command was deprecated in 2.0 and removed in Agoras 3.0. Use ``agoras telegram post`` instead.
 
 Publish a Telegram video
 -------------------------
@@ -86,14 +97,14 @@ This command will upload and send a video file to a Telegram chat. The video can
 
     agoras telegram video \
       --video-url "${VIDEO_URL}" \
-      --video-title "${VIDEO_TITLE}" \
-      --text "${STATUS_TEXT}"
+      --video-title "${VIDEO_TITLE}"
 
 Parameters:
 
 - ``--video-url``: URL pointing to a downloadable video file (required)
-- ``--video-title``: Title for the video (optional, used as caption if text not provided)
-- ``--text``: Caption text for the video (optional)
+- ``--video-title``: Title for the video (optional, used as caption)
+
+**Note**: ``--text`` is not accepted on the ``video`` action. To attach a caption to a video, use a ``--content`` YAML file (see :doc:`content-files`).
 
 **Video requirements**:
 - **Supported formats**: MP4, MOV, WebM, AVI, MKV

@@ -139,7 +139,8 @@ async def test_telegram_client_send_message_success(mock_bot_class):
         chat_id='chat_id',
         text='Test message',
         parse_mode='HTML',
-        reply_markup=None
+        reply_markup=None,
+        reply_to_message_id=None
     )
 
 
@@ -162,7 +163,8 @@ async def test_telegram_client_send_message_with_parse_mode_none(mock_bot_class)
         chat_id='chat_id',
         text='Test message',
         parse_mode='HTML',  # Should use default
-        reply_markup=None
+        reply_markup=None,
+        reply_to_message_id=None
     )
 
 
@@ -198,7 +200,8 @@ async def test_telegram_client_send_message_with_parse_mode_none(mock_bot_class)
         chat_id='chat_id',
         text='Test message',
         parse_mode='HTML',  # Should use default
-        reply_markup=None
+        reply_markup=None,
+        reply_to_message_id=None
     )
 
 
@@ -238,7 +241,8 @@ async def test_telegram_client_send_photo_success(mock_bot_class):
         chat_id='chat_id',
         photo='photo_data',
         caption='Test caption',
-        parse_mode='HTML'
+        parse_mode='HTML',
+        reply_to_message_id=None
     )
 
 
@@ -294,7 +298,8 @@ async def test_telegram_client_send_video_success(mock_bot_class):
         parse_mode='HTML',
         duration=None,
         width=None,
-        height=None
+        height=None,
+        reply_to_message_id=None
     )
 
 
@@ -530,7 +535,8 @@ async def test_telegram_client_send_photo_without_caption(mock_bot_class):
         chat_id='chat_id',
         photo='photo_data',
         caption=None,
-        parse_mode='HTML'
+        parse_mode='HTML',
+        reply_to_message_id=None
     )
 
 
@@ -555,7 +561,8 @@ async def test_telegram_client_send_video_without_caption(mock_bot_class):
         parse_mode='HTML',
         duration=None,
         width=None,
-        height=None
+        height=None,
+        reply_to_message_id=None
     )
 
 
@@ -580,7 +587,8 @@ async def test_telegram_client_send_video_with_dimensions(mock_bot_class):
         parse_mode='HTML',
         duration=60,
         width=1920,
-        height=1080
+        height=1080,
+        reply_to_message_id=None
     )
 
 
@@ -602,7 +610,8 @@ async def test_telegram_client_send_photo_with_parse_mode(mock_bot_class):
         chat_id='chat_id',
         photo='photo_data',
         caption='Test **caption**',
-        parse_mode='Markdown'
+        parse_mode='Markdown',
+        reply_to_message_id=None
     )
 
 
@@ -627,7 +636,8 @@ async def test_telegram_client_send_video_with_parse_mode(mock_bot_class):
         parse_mode='Markdown',
         duration=None,
         width=None,
-        height=None
+        height=None,
+        reply_to_message_id=None
     )
 
 
@@ -650,7 +660,8 @@ async def test_telegram_client_send_message_with_reply_markup(mock_bot_class):
         chat_id='chat_id',
         text='Test message',
         parse_mode='HTML',
-        reply_markup=reply_markup
+        reply_markup=reply_markup,
+        reply_to_message_id=None
     )
 
 

@@ -370,6 +370,39 @@ async def test_x_post_with_image_urls(mock_api_class):
 
 @pytest.mark.asyncio
 @patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_post_with_local_image_path(mock_api_class):
+    """X post uploads bytes from a local image path."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.upload_media = AsyncMock(return_value='media-local')
+    mock_api.post = AsyncMock(return_value='tweet-local')
+    mock_api_class.return_value = mock_api
+
+    mock_media = MagicMock()
+    mock_media.content = b'local_jpeg'
+    mock_media.file_type.mime = 'image/jpeg'
+    mock_media.cleanup = MagicMock()
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret'
+    )
+
+    await x._initialize_client()
+
+    with patch.object(x, 'download_images', return_value=[mock_media]), \
+         patch.object(x, '_output_status'):
+        result = await x.post('Hello', '', '/tmp/local.jpg')
+
+    assert result == 'tweet-local'
+    mock_api.upload_media.assert_called_once_with(b'local_jpeg', 'image/jpeg')
+    mock_api.post.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
 async def test_x_post_media_upload_exception_continues(mock_api_class):
     """Test X post continues when media upload fails."""
     mock_api = MagicMock()
@@ -400,6 +433,170 @@ async def test_x_post_media_upload_exception_continues(mock_api_class):
     assert result == 'tweet-456'
     # Should still call post even though upload failed
     mock_api.post.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_reply_text_only(mock_api_class):
+    """Test X reply with text only posts a reply tweet."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.reply = AsyncMock(return_value='reply-789')
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret'
+    )
+
+    await x._initialize_client()
+
+    with patch.object(x, '_output_status'):
+        result = await x.reply('tweet-123', 'A reply')
+
+    assert result == 'reply-789'
+    mock_api.reply.assert_called_once_with('A reply', [], 'tweet-123')
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_reply_via_base_handler_uses_converter_key(mock_api_class):
+    """End-to-end: CLI converter emits tweet_id, base _handle_reply_action must reach X.reply.
+
+    Regression for the P1 where the base handler read config key ``post_id`` but the
+    converter maps ``--post-id`` to ``tweet_id`` for X. The wrapper __init__ remaps
+    ``tweet_id`` -> ``post_id`` so the shared handler can drive the reply.
+    """
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.reply = AsyncMock(return_value='reply-789')
+    mock_api_class.return_value = mock_api
+
+    # Simulate the CLI converter output for `agoras x reply --post-id tweet-123 --text "A reply"`
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret',
+        action='reply',
+        tweet_id='tweet-123',
+        status_text='A reply',
+    )
+
+    await x._initialize_client()
+
+    with patch.object(x, '_output_status'):
+        await x._handle_reply_action()
+
+    mock_api.reply.assert_called_once_with('A reply', [], 'tweet-123')
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_reply_with_image(mock_api_class):
+    """Test X reply with an image posts a reply tweet with media."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.upload_media = AsyncMock(return_value='media123')
+    mock_api.reply = AsyncMock(return_value='reply-789')
+    mock_api_class.return_value = mock_api
+
+    mock_media = MagicMock()
+    mock_media.content = b'fake_image_data'
+    mock_media.file_type.mime = 'image/jpeg'
+    mock_media.cleanup = MagicMock()
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret'
+    )
+
+    await x._initialize_client()
+
+    with patch.object(x, 'download_images', return_value=[mock_media]), \
+         patch.object(x, '_output_status'):
+        result = await x.reply('tweet-123', 'A reply', 'http://image1.jpg')
+
+    assert result == 'reply-789'
+    mock_api.upload_media.assert_called_once()
+    mock_api.reply.assert_called_once_with('A reply', ['media123'], 'tweet-123')
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_reply_media_only_fails_when_upload_fails(mock_api_class):
+    """Test X reply with only media raises instead of publishing an empty reply when uploads fail."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.upload_media = AsyncMock(return_value=None)
+    mock_api.reply = AsyncMock(return_value='reply-789')
+    mock_api_class.return_value = mock_api
+
+    mock_media = MagicMock()
+    mock_media.content = b'fake_image_data'
+    mock_media.file_type.mime = 'image/jpeg'
+    mock_media.cleanup = MagicMock()
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret'
+    )
+
+    await x._initialize_client()
+
+    with patch.object(x, 'download_images', return_value=[mock_media]):
+        with pytest.raises(Exception, match="Failed to upload reply media"):
+            await x.reply('tweet-123', None, 'http://image1.jpg')
+
+    mock_api.reply.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_reply_no_post_id(mock_api_class):
+    """Test X reply raises when no post_id provided."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret'
+    )
+
+    await x._initialize_client()
+
+    with pytest.raises(Exception, match="Tweet ID is required for reply action."):
+        await x.reply(None, 'A reply')
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_reply_no_content(mock_api_class):
+    """Test X reply raises when no text or media provided."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret'
+    )
+
+    await x._initialize_client()
+
+    with pytest.raises(Exception, match="No reply text or media provided."):
+        await x.reply('tweet-123', None)
 
 
 @pytest.mark.asyncio
@@ -470,6 +667,231 @@ async def test_x_delete_no_tweet_id(mock_api_class):
 
     with pytest.raises(Exception, match="Tweet ID is required"):
         await x.delete()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_delete_reply_proxies_delete(mock_api_class):
+    """Test X delete_reply delegates to the existing delete path."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.delete = AsyncMock(return_value='reply-789')
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret'
+    )
+
+    await x._initialize_client()
+
+    with patch.object(x, '_output_status'):
+        result = await x.delete_reply('reply-789')
+
+    assert result == 'reply-789'
+    mock_api.delete.assert_called_once_with('reply-789')
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_get_post_returns_normalized_content(mock_api_class):
+    """Test X get_post emits normalized content via api.get_post."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.get_post = AsyncMock(
+        return_value={
+            "id": "tweet-1",
+            "text": "hello",
+            "author_id": "user-1",
+            "created_at": "2026-01-01T00:00:00Z",
+        }
+    )
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret'
+    )
+
+    await x._initialize_client()
+
+    with patch.object(x, '_output_content') as mock_out:
+        result = await x.get_post('tweet-1')
+
+    assert result["id"] == "tweet-1"
+    assert result["text"] == "hello"
+    assert result["author"]["id"] == "user-1"
+    mock_api.get_post.assert_called_once_with('tweet-1')
+    mock_out.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_get_post_includes_resolved_media(mock_api_class):
+    """Test X get_post maps client media list into normalized content."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.get_post = AsyncMock(
+        return_value={
+            "id": "tweet-1",
+            "text": "photo tweet",
+            "author_id": "user-1",
+            "created_at": "2026-01-01T00:00:00Z",
+            "media": [{"type": "image", "url": "https://pbs.twimg.com/media/abc.jpg"}],
+        }
+    )
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret',
+    )
+
+    await x._initialize_client()
+
+    with patch.object(x, '_output_content'):
+        result = await x.get_post('tweet-1')
+
+    assert result["media"] == [{"type": "image", "url": "https://pbs.twimg.com/media/abc.jpg"}]
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_get_reply_proxies_get_post(mock_api_class):
+    """Test X get_reply delegates to get_post."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.get_post = AsyncMock(
+        return_value={"id": "reply-1", "text": "r", "author_id": None, "created_at": None}
+    )
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret'
+    )
+
+    await x._initialize_client()
+
+    with patch.object(x, '_output_content'):
+        result = await x.get_reply('reply-1')
+
+    assert result["id"] == "reply-1"
+    mock_api.get_post.assert_called_once_with('reply-1')
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_get_post_requires_explicit_post_id(mock_api_class):
+    """Test X get_post does not fall back to instance tweet_id."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.get_post = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret',
+        tweet_id='stale-tweet-id',
+    )
+
+    await x._initialize_client()
+
+    with pytest.raises(Exception, match='Tweet ID is required'):
+        await x.get_post(None)
+
+    mock_api.get_post.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_list_posts_returns_normalized_items(mock_api_class):
+    """Test X list_posts emits normalized items via api.list_posts."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.list_posts = AsyncMock(
+        return_value=[
+            {"id": "1", "text": "hello", "author_id": "user-1", "created_at": "2026-01-01T00:00:00Z"},
+            {"id": "2", "text": "world", "author_id": "user-1", "created_at": "2026-01-02T00:00:00Z"},
+        ]
+    )
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret',
+    )
+
+    await x._initialize_client()
+
+    with patch.object(x, '_output_list') as mock_out:
+        result = await x.list_posts(2)
+
+    assert len(result) == 2
+    assert result[0]["id"] == "1"
+    assert result[0]["author"]["id"] == "user-1"
+    assert result[1]["id"] == "2"
+    mock_api.list_posts.assert_called_once_with(2)
+    mock_out.assert_called_once_with(result)
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_list_posts_limit_zero_returns_empty(mock_api_class):
+    """Test X list_posts with limit=0 returns an empty list without an API call."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.list_posts = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret',
+    )
+
+    await x._initialize_client()
+
+    with patch.object(x, '_output_list') as mock_out:
+        result = await x.list_posts(0)
+
+    assert result == []
+    mock_api.list_posts.assert_not_called()
+    mock_out.assert_called_once_with([])
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_delete_reply_no_post_id(mock_api_class):
+    """Test X delete_reply raises when no post ID provided."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api_class.return_value = mock_api
+
+    x = X(
+        twitter_consumer_key='key',
+        twitter_consumer_secret='secret',
+        twitter_oauth_token='token',
+        twitter_oauth_secret='secret'
+    )
+
+    await x._initialize_client()
+
+    with pytest.raises(Exception, match="Tweet ID is required"):
+        await x.delete_reply(None)
 
 
 @pytest.mark.asyncio
@@ -771,6 +1193,139 @@ async def test_x_post_allows_premium_long_text(mock_api_class):
     assert result == 'tweet-1'
     mock_api.post.assert_called_once()
     assert len(mock_api.post.call_args[0][0]) == 1000
+
+
+_X_CREDS = {
+    'twitter_consumer_key': 'key',
+    'twitter_consumer_secret': 'secret',
+    'twitter_oauth_token': 'token',
+    'twitter_oauth_secret': 'secret',
+}
+
+
+def _x_api_with_live_subscription(mock_api_class, subscription_type=None, *, error=None):
+    """Build a mocked XAPI whose client.get_subscription_type is awaitable."""
+    mock_api = MagicMock()
+    mock_api.authenticate = AsyncMock()
+    mock_api.post = AsyncMock(return_value='tweet-1')
+    mock_client = MagicMock()
+    if error is not None:
+        mock_client.get_subscription_type = AsyncMock(side_effect=error)
+    else:
+        mock_client.get_subscription_type = AsyncMock(return_value=subscription_type)
+    mock_api.client = mock_client
+    mock_api_class.return_value = mock_api
+    return mock_api
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('tier', ['Premium', 'Basic', 'PremiumPlus'])
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_post_live_premium_family_allows_long_text(mock_api_class, tier):
+    """Live get_me Premium-family tiers allow 1000-char posts and do not write storage."""
+    mock_api = _x_api_with_live_subscription(mock_api_class, tier)
+    x = X(**_X_CREDS)
+
+    with patch.object(XAuthManager, '_save_credentials_to_storage') as mock_save:
+        await x._initialize_client()
+        with patch.object(x, '_output_status'):
+            result = await x.post('A' * 1000, '')
+
+    assert result == 'tweet-1'
+    assert x._subscription_type == tier
+    mock_api.client.get_subscription_type.assert_awaited_once()
+    mock_save.assert_not_called()
+    mock_api.post.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_post_live_lookup_error_fail_closed(mock_api_class):
+    """get_me raise fail-closes to 280; auth already succeeded; short posts still work."""
+    from agoras.core.text_limits import TextValidationError
+
+    mock_api = _x_api_with_live_subscription(mock_api_class, error=Exception('403'))
+    x = X(**_X_CREDS)
+    await x._initialize_client()
+
+    mock_api.authenticate.assert_awaited_once()
+    assert x._subscription_type is None
+
+    with pytest.raises(TextValidationError, match='280'):
+        await x.post('A' * 281, '')
+    mock_api.post.assert_not_called()
+
+    with patch.object(x, '_output_status'):
+        result = await x.post('A' * 100, '')
+    assert result == 'tweet-1'
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('tier', [None, 'premium', 'Free'])
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_post_live_non_premium_fail_closed_to_280(mock_api_class, tier):
+    """None, lowercase premium, and Free fail-closed to 280."""
+    from agoras.core.text_limits import TextValidationError
+
+    mock_api = _x_api_with_live_subscription(mock_api_class, tier)
+    x = X(**_X_CREDS)
+    await x._initialize_client()
+
+    with pytest.raises(TextValidationError, match='280'):
+        await x.post('A' * 281, '')
+    mock_api.post.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_post_live_premium_wins_over_empty_storage(mock_api_class):
+    """Empty storage must not clobber a live Premium fetch back to 280."""
+    mock_api = _x_api_with_live_subscription(mock_api_class, 'Premium')
+    x = X(**_X_CREDS)
+
+    def clobber_from_storage():
+        x._subscription_type = None
+        return None
+
+    with patch.object(x, '_load_subscription_type', side_effect=clobber_from_storage) as mock_load:
+        await x._initialize_client()
+        with patch.object(x, '_output_status'):
+            result = await x.post('A' * 1000, '')
+
+    assert result == 'tweet-1'
+    assert x._subscription_type == 'Premium'
+    mock_load.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_thread_lookup_failed_rejects_over_280_before_create(mock_api_class):
+    """Thread entry over 280 with failed lookup rejects before any create_tweet."""
+    from agoras.core.text_limits import TextValidationError
+
+    mock_api = _x_api_with_live_subscription(mock_api_class, error=Exception('429'))
+    x = X(**_X_CREDS)
+    await x._initialize_client()
+
+    with pytest.raises(TextValidationError, match='280'):
+        await x.thread([{'text': 'A' * 281}, {'text': 'ok'}])
+    mock_api.post.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch('agoras.platforms.x.wrapper.XAPI')
+async def test_x_initialize_fetches_subscription_on_existing_client(mock_api_class):
+    """Post-time fetch uses the authenticated client, not a second _create_client."""
+    mock_api = _x_api_with_live_subscription(mock_api_class, 'Premium')
+    x = X(**_X_CREDS)
+
+    with patch.object(XAuthManager, '_create_client') as mock_create:
+        await x._initialize_client()
+
+    mock_create.assert_not_called()
+    mock_api.client.get_subscription_type.assert_awaited_once()
+    assert x._subscription_type == 'Premium'
+
 
 @pytest.mark.asyncio
 async def test_x_handle_like_action_no_tweet_id():

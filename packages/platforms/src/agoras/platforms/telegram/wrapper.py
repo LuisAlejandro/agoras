@@ -17,10 +17,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.platforms.telegram.wrapper module."""
 
-import asyncio
-from typing import List
+from typing import List, Optional
 
-from agoras.core.interfaces import SocialNetwork
+from agoras.core.interfaces import SocialNetwork, run_wrapper_main, run_wrapper_main_async
 from agoras.core.text_limits import validate_text
 
 from .api import TelegramAPI
@@ -35,6 +34,9 @@ class Telegram(SocialNetwork):
     images, videos, and managing Telegram interactions asynchronously.
     """
 
+    # Pure-proxy platform: delete_reply/get_reply delegate to delete/get_post
+    _proxy_delete_reply = True
+
     def __init__(self, **kwargs):
         """
         Initialize Telegram instance.
@@ -47,6 +49,10 @@ class Telegram(SocialNetwork):
                 - telegram_message_id: Message ID for delete action
                 - telegram_reply_to_message_id: Message ID to reply to
         """
+        # Map platform-specific keys to generic keys for core interface compatibility
+        if "telegram_message_id" in kwargs:
+            kwargs["post_id"] = kwargs["telegram_message_id"]
+
         super().__init__(**kwargs)
         # Platform-specific configuration attributes
         self.telegram_bot_token = None
@@ -55,7 +61,6 @@ class Telegram(SocialNetwork):
         # Action-specific attributes
         self.telegram_message_id = None
         self.telegram_reply_to_message_id = None
-        self.api = None
 
     def _require_chat_id(self) -> str:
         chat_id = self.telegram_chat_id
@@ -71,8 +76,8 @@ class Telegram(SocialNetwork):
         Tries to load credentials from storage if not provided via parameters.
         """
         # Get configuration values
-        self.telegram_bot_token = self._get_config_value("telegram_bot_token", "TELEGRAM_BOT_TOKEN")
-        self.telegram_chat_id = normalize_chat_id(self._get_config_value("telegram_chat_id", "TELEGRAM_CHAT_ID"))
+        self.telegram_bot_token = self._get_auth_config_value("telegram_bot_token", "TELEGRAM_BOT_TOKEN")
+        self.telegram_chat_id = normalize_chat_id(self._get_auth_config_value("telegram_chat_id", "TELEGRAM_CHAT_ID"))
         self.telegram_parse_mode = self._get_config_value("telegram_parse_mode", "TELEGRAM_PARSE_MODE") or "HTML"
         self.telegram_reply_to_message_id = self._get_config_value(
             "telegram_reply_to_message_id", "TELEGRAM_REPLY_TO_MESSAGE_ID"
@@ -83,36 +88,27 @@ class Telegram(SocialNetwork):
         if not all([self.telegram_bot_token, self.telegram_chat_id]):
             from .auth import TelegramAuthManager
 
-            auth_manager = TelegramAuthManager(bot_token=self.telegram_bot_token, chat_id=self.telegram_chat_id)
+            auth_manager = TelegramAuthManager(
+                bot_token=self.telegram_bot_token,
+                chat_id=self.telegram_chat_id,
+                profile=self._get_config_value("profile"),
+            )
 
-            if auth_manager._load_credentials_from_storage():
-                # Fill in missing credentials from storage
-                if not self.telegram_bot_token:
-                    self.telegram_bot_token = auth_manager.bot_token
-                if not self.telegram_chat_id:
-                    self.telegram_chat_id = auth_manager.chat_id
+            self._fill_missing_credentials(
+                auth_manager,
+                {"telegram_bot_token": "bot_token", "telegram_chat_id": "chat_id"},
+            )
 
-        # Validate all credentials are now available
-        if not all([self.telegram_bot_token, self.telegram_chat_id]):
-            raise Exception("Not authenticated. Please run 'agoras telegram authorize' first.")
+        self._require_credentials([self.telegram_bot_token, self.telegram_chat_id], "telegram")
 
         bot_token = self.telegram_bot_token
         chat_id = self.telegram_chat_id
-        if not bot_token or not chat_id:
-            raise Exception("Not authenticated. Please run 'agoras telegram authorize' first.")
 
         # Initialize Telegram API
         self.api = TelegramAPI(bot_token, chat_id)
 
         # Authenticate with provided credentials
         await self.api.authenticate()
-
-    async def disconnect(self):
-        """
-        Disconnect from Telegram API and clean up resources.
-        """
-        if self.api:
-            await self.api.disconnect()
 
     async def post(
         self,
@@ -137,15 +133,14 @@ class Telegram(SocialNetwork):
         Returns:
             str: Message ID
         """
-        if not self.api:
-            raise Exception("Telegram API not initialized")
+        self._require_api()
 
         # Combine text and link
         message_text = f"{status_text}\n{status_link}".strip() if status_link else status_text
 
         # Handle images
-        image_urls = list(
-            filter(None, [status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4])
+        image_urls = self._collect_status_image_urls(
+            status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4
         )
 
         if image_urls:
@@ -180,7 +175,115 @@ class Telegram(SocialNetwork):
         self._output_status(message_id)
         return message_id
 
-    async def _send_media_group(self, image_urls: List[str], caption: str) -> str:
+    async def _prepare_telegram_reply_payload(self, text, image_urls, video_url):
+        """Download reply media and return api.reply keyword arguments."""
+        photo_content = None
+        video_content = None
+        media = None
+        cleanup_targets = []
+
+        if video_url:
+            validate_text("telegram", "caption", text or "", mode="caption")
+            video = await self.download_video(video_url)
+            cleanup_targets.append(video)
+            if not video.content or not video.file_type:
+                raise Exception("Failed to download or validate video")
+            video_content = video.content
+        elif len(image_urls) > 1:
+            validate_text("telegram", "caption", text or "", mode="caption")
+            images = await self.download_images(image_urls)
+            cleanup_targets.extend(images)
+            media = []
+            for index, image in enumerate(images):
+                if image.content and image.file_type:
+                    media.append(
+                        {
+                            "type": "photo",
+                            "media": image.content,
+                            "caption": (text or "") if index == 0 else None,
+                        }
+                    )
+                else:
+                    raise Exception(f"Failed to validate image: {image.url}")
+            if not media:
+                raise Exception("No valid images to send")
+        elif image_urls:
+            validate_text("telegram", "caption", text or "", mode="caption")
+            images = await self.download_images(image_urls)
+            cleanup_targets.extend(images)
+            image = images[0]
+            if image.content and image.file_type:
+                photo_content = image.content
+            else:
+                raise Exception(f"Failed to validate image: {image.url}")
+        else:
+            validate_text("telegram", "text", text or "", mode="text")
+
+        return photo_content, video_content, media, cleanup_targets
+
+    async def reply(
+        self,
+        post_id,
+        text,
+        status_image_url_1=None,
+        status_image_url_2=None,
+        status_image_url_3=None,
+        status_image_url_4=None,
+        video_url=None,
+    ):
+        """
+        Reply to a Telegram message with optional media.
+
+        Args:
+            post_id (str): Message ID to reply to
+            text (str): Reply text/caption
+            status_image_url_1 (str, optional): First image URL
+            status_image_url_2 (str, optional): Second image URL
+            status_image_url_3 (str, optional): Third image URL
+            status_image_url_4 (str, optional): Fourth image URL
+            video_url (str, optional): URL of a video to attach to the reply
+
+        Returns:
+            str: Reply message ID
+        """
+        self._require_api()
+
+        if not post_id:
+            raise Exception("Message ID is required for reply action.")
+
+        image_urls = self._collect_status_image_urls(
+            status_image_url_1, status_image_url_2, status_image_url_3, status_image_url_4
+        )
+
+        if not image_urls and not text and not video_url:
+            raise Exception("No reply text or media provided.")
+
+        cleanup_targets = []
+        try:
+            photo_content, video_content, media, cleanup_targets = await self._prepare_telegram_reply_payload(
+                text, image_urls, video_url
+            )
+            message_id = await self.api.reply(
+                post_id,
+                text or "",
+                parse_mode=self.telegram_parse_mode,
+                photo_content=photo_content,
+                video_content=video_content,
+                media=media,
+            )
+        finally:
+            for item in cleanup_targets:
+                try:
+                    item.cleanup()
+                except Exception:
+                    pass
+
+        self._output_status(message_id)
+        return message_id
+
+    async def _send_media_group(
+        self, image_urls: List[str], caption: str, reply_to_message_id: Optional[int] = None
+    ) -> str:
         """
         Send multiple images as a media group (album).
 
@@ -195,9 +298,8 @@ class Telegram(SocialNetwork):
         """
         # Download all images
         images = await self.download_images(image_urls)
+        self._require_api()
         api = self.api
-        if not api:
-            raise Exception("Telegram API not initialized")
         chat_id = self._require_chat_id()
         try:
             # Prepare media items for Telegram API
@@ -218,7 +320,9 @@ class Telegram(SocialNetwork):
                 raise Exception("No valid images to send")
 
             # Send as media group
-            message_ids = await api.send_media_group(chat_id=chat_id, media=media_items)
+            message_ids = await api.send_media_group(
+                chat_id=chat_id, media=media_items, reply_to_message_id=reply_to_message_id
+            )
 
             # Return first message ID
             return message_ids[0] if message_ids else ""
@@ -238,8 +342,7 @@ class Telegram(SocialNetwork):
         Returns:
             str: Message ID
         """
-        if not self.api:
-            raise Exception("Telegram API not initialized")
+        self._require_api()
 
         if not video_url:
             raise Exception("Video URL is required.")
@@ -269,13 +372,6 @@ class Telegram(SocialNetwork):
             # Clean up downloaded video
             video.cleanup()
 
-    async def _handle_delete_action(self):
-        """Handle delete action with Telegram-specific parameter extraction."""
-        message_id = self._get_config_value("telegram_message_id", "TELEGRAM_MESSAGE_ID")
-        if not message_id:
-            raise Exception("Message ID is required for delete action.")
-        await self.delete(message_id)
-
     async def like(self, post_id):
         """
         Like is not supported for Telegram.
@@ -298,8 +394,7 @@ class Telegram(SocialNetwork):
         Returns:
             str: Message ID
         """
-        if not self.api:
-            raise Exception("Telegram API not initialized")
+        self._require_api()
 
         if not post_id:
             raise Exception("Message ID is required for deletion")
@@ -321,25 +416,20 @@ class Telegram(SocialNetwork):
         """
         raise Exception("Share not supported for Telegram")
 
-    async def authorize_credentials(self):
-        """
-        Authorize and store Telegram credentials for future use.
+    _post_id_actions = {
+        "delete": ("telegram_message_id", "Message ID is required for delete action."),
+    }
 
-        Returns:
-            bool: True if authorization successful
-        """
+    _authorize_keys = {
+        "bot_token": "telegram_bot_token",
+        "chat_id": "telegram_chat_id",
+    }
+
+    def _authorize_manager(self):
+        """Return the TelegramAuthManager used by the shared authorize flow."""
         from .auth import TelegramAuthManager
 
-        bot_token = self._get_config_value("telegram_bot_token", "TELEGRAM_BOT_TOKEN")
-        chat_id = self._get_config_value("telegram_chat_id", "TELEGRAM_CHAT_ID")
-
-        auth_manager = TelegramAuthManager(bot_token=bot_token, chat_id=chat_id)
-
-        result = await auth_manager.authorize()
-        if result:
-            print(result)
-            return True
-        return False
+        return TelegramAuthManager
 
 
 async def main_async(kwargs):
@@ -349,29 +439,14 @@ async def main_async(kwargs):
     Args:
         kwargs (dict): Configuration arguments
     """
-    action = kwargs.get("action", "")
-
-    if action == "":
-        raise Exception("Action is a required argument.")
-
-    # Create Telegram instance with configuration
-    instance = Telegram(**kwargs)
-
-    # Handle authorize action separately (doesn't need client initialization)
-    if action == "authorize":
-        success = await instance.authorize_credentials()
-        return 0 if success else 1
-
-    # Execute other actions using the base class method
-    await instance.execute_action(action)
-    await instance.disconnect()
+    return await run_wrapper_main_async(Telegram, kwargs)
 
 
 def main(kwargs):
     """
-    Main function to execute Telegram actions.
+    Main function to execute Telegram actions (for backwards compatibility).
 
     Args:
         kwargs (dict): Configuration arguments
     """
-    asyncio.run(main_async(kwargs))
+    run_wrapper_main(Telegram, kwargs)
