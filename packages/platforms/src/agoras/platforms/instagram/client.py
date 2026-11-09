@@ -18,16 +18,21 @@
 """agoras.platforms.instagram.client module."""
 
 import asyncio
-import time
 from typing import Any, Dict, List, Optional
 
 from pyfacebook import GraphAPI
 
 from agoras.common import __version__
 from agoras.common.utils import build_upload_session, video_upload_timeout
+from agoras.core.api_base import AuthLifecycle, AuthState
+from agoras.core.polling import poll_status
+
+# Media container readiness vocabulary (Meta Graph status_code).
+CONTAINER_READY_STATUSES = frozenset({"FINISHED", "PUBLISHED"})
+CONTAINER_FAILED_STATUSES = frozenset({"ERROR", "EXPIRED"})
 
 
-class InstagramAPIClient:
+class InstagramAPIClient(AuthLifecycle):
     """
     Instagram API client that centralizes Instagram operations.
 
@@ -46,7 +51,6 @@ class InstagramAPIClient:
         self.access_token = access_token
         self.graph_api: Optional[GraphAPI] = None
         self.api_version = "21.0"
-        self._authenticated = False
         self._RUPLOAD_RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
         self._RUPLOAD_MAX_ATTEMPTS = 3
 
@@ -68,7 +72,7 @@ class InstagramAPIClient:
 
         try:
             self.graph_api = GraphAPI(access_token=self.access_token, version=self.api_version)
-            self._authenticated = True
+            self._set_auth_state(AuthState.AUTHENTICATED)
             return True
         except Exception as e:
             raise Exception(f"Instagram client authentication failed: {str(e)}")
@@ -78,7 +82,7 @@ class InstagramAPIClient:
         Disconnect and clean up client resources.
         """
         self.graph_api = None
-        self._authenticated = False
+        self._set_auth_state(AuthState.UNAUTHENTICATED)
 
     def post_object(self, object_id: str, connection: str, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
@@ -224,27 +228,23 @@ class InstagramAPIClient:
             poll_interval (float): Seconds between status checks
 
         Raises:
-            Exception: If container fails, expires, or times out
+            ProcessingFailedError: If the container fails or expires
+            ProcessingTimeoutError: If it is not ready within ``max_wait_time``
         """
+        await asyncio.to_thread(
+            poll_status,
+            lambda: self._container_status(container_id),
+            ready=CONTAINER_READY_STATUSES,
+            failed=CONTAINER_FAILED_STATUSES,
+            subject=f"Instagram media container {container_id}",
+            timeout_s=max_wait_time,
+            interval_s=poll_interval,
+        )
 
-        def _sync_wait():
-            start = time.time()
-            while True:
-                if time.time() - start > max_wait_time:
-                    raise Exception(f"Instagram media container {container_id} not ready after {max_wait_time} seconds")
-
-                response = self.get_object(object_id=container_id, fields="status_code,status")
-                status_code = response.get("status_code")
-
-                if status_code in ("FINISHED", "PUBLISHED"):
-                    return
-                if status_code in ("ERROR", "EXPIRED"):
-                    detail = response.get("status", status_code)
-                    raise Exception(f"Instagram media container {container_id} failed: {detail}")
-
-                time.sleep(poll_interval)
-
-        await asyncio.to_thread(_sync_wait)
+    def _container_status(self, container_id: str) -> str:
+        """Return one status_code reading for a media container."""
+        response = self.get_object(object_id=container_id, fields="status_code,status")
+        return response.get("status_code") or ""
 
     async def create_media(
         self,

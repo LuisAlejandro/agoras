@@ -55,7 +55,7 @@ class ThreadsAuthManager(BaseAuthManager):
         Returns:
             bool: True if authentication successful, False otherwise
         """
-        self.last_auth_failure = None
+        self._begin_auth_attempt()
         # If already authenticated, return True
         if self.authenticated:
             return True
@@ -81,6 +81,7 @@ class ThreadsAuthManager(BaseAuthManager):
                 self.client = self._create_client(self.access_token, self.user_id)
                 self.user_info = await self._get_user_info()
 
+            self._mark_authenticated()
             return True
         except Exception as exc:
             return self._authentication_failed(exc)

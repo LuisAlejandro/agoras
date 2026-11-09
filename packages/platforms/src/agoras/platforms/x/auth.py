@@ -64,16 +64,6 @@ class XAuthManager(BaseAuthManager):
         self.oauth_secret = oauth_secret
         self.subscription_type: Optional[str] = None
 
-    @property
-    def authenticated(self) -> bool:
-        """Check if currently authenticated.
-
-        X uses OAuth 1.0a with no user_info at authenticate time, so only
-        the access token and client are required (unlike the base check
-        which also requires user_info).
-        """
-        return bool(self.access_token and self.client)
-
     async def authenticate(self) -> bool:
         """
         Authenticate with X API using OAuth 1.0a credentials.
@@ -81,7 +71,7 @@ class XAuthManager(BaseAuthManager):
         Returns:
             bool: True if authentication successful, False otherwise
         """
-        self.last_auth_failure = None
+        self._begin_auth_attempt()
         # Validate all credentials are present (fail fast if missing)
         if not self._validate_credentials():
             return self._missing_credentials_failed()
@@ -95,6 +85,7 @@ class XAuthManager(BaseAuthManager):
                 self.client = self._create_client()
                 await self.client.authenticate()
 
+            self._mark_authenticated()
             return True
         except Exception as exc:
             return self._authentication_failed(exc)

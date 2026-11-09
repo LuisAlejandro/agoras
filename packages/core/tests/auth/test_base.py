@@ -31,12 +31,13 @@ class _StubAuthManager(BaseAuthManager):
         self._has_creds = has_creds
 
     async def authenticate(self) -> bool:
-        self.last_auth_failure = None
+        self._begin_auth_attempt()
         if not self._has_creds:
             return self._missing_credentials_failed()
         self.access_token = "token"
         self.client = object()
         self.user_info = {"id": "1"}
+        self._mark_authenticated()
         return True
 
     async def authorize(self):

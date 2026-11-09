@@ -69,7 +69,7 @@ class WhatsAppAuthManager(BaseAuthManager):
         Returns:
             bool: True if authentication successful, False otherwise
         """
-        self.last_auth_failure = None
+        self._begin_auth_attempt()
         if not self._validate_credentials():
             return self._missing_credentials_failed()
 
@@ -84,6 +84,7 @@ class WhatsAppAuthManager(BaseAuthManager):
                 await self.client.authenticate()
                 self.user_info = await self._get_user_info()
 
+            self._mark_authenticated()
             return True
         except Exception as exc:
             return self._authentication_failed(exc)

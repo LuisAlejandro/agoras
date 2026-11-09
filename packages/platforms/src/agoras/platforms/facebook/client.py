@@ -26,6 +26,7 @@ from pyfacebook import GraphAPI
 
 from agoras.common import __version__
 from agoras.common.utils import video_upload_timeout
+from agoras.core.api_base import AuthLifecycle, AuthState
 
 
 def _is_video_file_processing_error(error: requests.HTTPError) -> bool:
@@ -43,7 +44,7 @@ def _is_video_file_processing_error(error: requests.HTTPError) -> bool:
     return facebook_error.get("code") == 6000 and facebook_error.get("error_subcode") == 1363019
 
 
-class FacebookAPIClient:
+class FacebookAPIClient(AuthLifecycle):
     """
     Facebook API client that centralizes Facebook operations.
 
@@ -60,7 +61,6 @@ class FacebookAPIClient:
         """
         self.access_token = access_token
         self.graph_api: Optional[GraphAPI] = None
-        self._authenticated = False
 
     async def authenticate(self) -> bool:
         """
@@ -80,7 +80,7 @@ class FacebookAPIClient:
 
         try:
             self.graph_api = GraphAPI(access_token=self.access_token, version="21.0")
-            self._authenticated = True
+            self._set_auth_state(AuthState.AUTHENTICATED)
             return True
         except Exception as e:
             raise Exception(f"Facebook client authentication failed: {str(e)}")
@@ -90,7 +90,7 @@ class FacebookAPIClient:
         Disconnect and clean up client resources.
         """
         self.graph_api = None
-        self._authenticated = False
+        self._set_auth_state(AuthState.UNAUTHENTICATED)
 
     def post_object(self, object_id: str, connection: str, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
@@ -486,9 +486,10 @@ class FacebookAPIClient:
             video_id = response.get("video_id")
             upload_url = response.get("upload_url")
 
-            # Upload video
+            # Upload video; the fetch happens here, so a failure must surface now
+            # instead of advancing to finish and reporting the wrong cause.
             if upload_url:
-                requests.post(
+                upload_response = requests.post(
                     upload_url,
                     headers={
                         "file_url": video_url,
@@ -497,6 +498,8 @@ class FacebookAPIClient:
                     },
                     timeout=30,
                 )
+                if not upload_response.ok:
+                    raise Exception(f"Facebook {video_type} upload failed: HTTP {upload_response.status_code}")
 
             # Finish upload
             self.post_object(
