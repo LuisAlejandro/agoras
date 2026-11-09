@@ -21,7 +21,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from agoras.core.auth.callback_server import OAuthCallbackHandler, OAuthCallbackServer
+from agoras.core.auth.callback_server import (
+    CallbackOutcome,
+    CallbackState,
+    OAuthCallbackHandler,
+    OAuthCallbackServer,
+)
 
 # Helper class for testing
 
@@ -30,8 +35,7 @@ class MockServer:
     """Mock server object for testing handler."""
 
     def __init__(self):
-        self.auth_code = None
-        self.error = None
+        self.callback = CallbackState()
         self.expected_state = None
 
 
@@ -77,7 +81,7 @@ def test_do_GET_with_auth_code():
 
     handler.do_GET()
 
-    assert handler.server.auth_code == 'abc123'
+    assert handler.server.callback.auth_code == 'abc123'
     handler.send_response.assert_called_with(200)
 
 
@@ -95,7 +99,7 @@ def test_do_GET_with_state_validation_success():
 
     handler.do_GET()
 
-    assert handler.server.auth_code == 'abc123'
+    assert handler.server.callback.auth_code == 'abc123'
     handler.send_response.assert_called_with(200)
 
 
@@ -113,7 +117,7 @@ def test_do_GET_with_state_mismatch():
 
     handler.do_GET()
 
-    assert 'State mismatch' in handler.server.error
+    assert 'State mismatch' in handler.server.callback.error
     handler.send_response.assert_called_with(400)
 
 
@@ -130,7 +134,7 @@ def test_do_GET_with_oauth_error():
 
     handler.do_GET()
 
-    assert 'access_denied' in handler.server.error
+    assert 'access_denied' in handler.server.callback.error
     handler.send_response.assert_called_with(400)
 
 
@@ -147,7 +151,7 @@ def test_do_GET_with_invalid_callback():
 
     handler.do_GET()
 
-    assert 'Invalid callback URL' in handler.server.error
+    assert 'Invalid callback URL' in handler.server.callback.error
     handler.send_response.assert_called_with(400)
 
 
@@ -215,9 +219,9 @@ async def test_start_and_wait_success(mock_httpserver_class, mock_print):
     mock_server.handle_request = MagicMock()
 
     def side_effect_set_auth_code():
-        mock_server.auth_code = 'auth_code_123'
-        mock_server.error = None
+        mock_server.callback.settle_code('auth_code_123')
 
+    mock_server.callback = CallbackState()
     mock_server.handle_request.side_effect = side_effect_set_auth_code
     mock_httpserver_class.return_value = mock_server
 
@@ -266,9 +270,9 @@ async def test_start_and_wait_with_error(mock_httpserver_class, mock_print):
     mock_server.handle_request = MagicMock()
 
     def side_effect_set_error():
-        mock_server.auth_code = None
-        mock_server.error = 'State validation error'
+        mock_server.callback.settle_failed('State validation error')
 
+    mock_server.callback = CallbackState()
     mock_server.handle_request.side_effect = side_effect_set_error
     mock_httpserver_class.return_value = mock_server
 
@@ -288,9 +292,9 @@ async def test_start_and_wait_no_auth_code(mock_httpserver_class, mock_print):
     mock_server.handle_request = MagicMock()
 
     def side_effect_no_code():
-        mock_server.auth_code = None
-        mock_server.error = None
+        pass
 
+    mock_server.callback = CallbackState()
     mock_server.handle_request.side_effect = side_effect_no_code
     mock_httpserver_class.return_value = mock_server
 
@@ -329,9 +333,9 @@ async def test_start_and_wait_prints_callback_url(mock_httpserver, mock_print):
     mock_srv.handle_request = MagicMock()
 
     def side_effect_success():
-        mock_srv.auth_code = 'code123'
-        mock_srv.error = None
+        mock_srv.callback.settle_code('code123')
 
+    mock_srv.callback = CallbackState()
     mock_srv.handle_request.side_effect = side_effect_success
     mock_httpserver.return_value = mock_srv
 
@@ -397,7 +401,7 @@ def test_do_GET_extracts_state_parameter():
 
     handler.do_GET()
 
-    assert handler.server.auth_code == 'abc'
+    assert handler.server.callback.auth_code == 'abc'
 
 
 def test_do_GET_with_error_description():
@@ -413,4 +417,26 @@ def test_do_GET_with_error_description():
 
     handler.do_GET()
 
-    assert 'invalid_request' in handler.server.error
+    assert 'invalid_request' in handler.server.callback.error
+
+
+def test_first_terminal_outcome_latches():
+    """A second callback cannot overwrite a result that was already recorded."""
+    state = CallbackState()
+
+    assert state.settle_code('abc123') is True
+    assert state.settled is True
+    assert state.settle_failed('handler blew up') is False
+    assert state.outcome is CallbackOutcome.AUTHORIZED
+    assert state.auth_code == 'abc123'
+    assert state.error is None
+
+
+def test_late_cancel_does_not_follow_a_recorded_error():
+    """A latched failure is not cleared by a later request either."""
+    state = CallbackState()
+
+    assert state.settle_failed('State mismatch - possible CSRF attack') is True
+    assert state.settle_code('abc123') is False
+    assert state.outcome is CallbackOutcome.FAILED
+    assert state.auth_code is None

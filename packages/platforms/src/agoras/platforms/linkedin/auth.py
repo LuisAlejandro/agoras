@@ -114,7 +114,7 @@ class LinkedInAuthManager(BaseAuthManager):
         Returns:
             bool: True if authentication successful, False otherwise
         """
-        self.last_auth_failure = None
+        self._begin_auth_attempt()
         if not self._validate_credentials():
             return self._missing_credentials_failed()
 
@@ -140,6 +140,7 @@ class LinkedInAuthManager(BaseAuthManager):
                 self.client = self._create_client(self.access_token)
                 self.user_info = await self._get_user_info()
 
+            self._mark_authenticated()
             return True
         except Exception as exc:
             return self._authentication_failed(exc)

@@ -211,9 +211,16 @@ class Feed:
             url (str): RSS feed URL
         """
         self.url = url
-        self._feed_data = None
         self._items = None
-        self._downloaded = False
+
+    def _set_items(self, items):
+        """Enter the downloaded state with the parsed items. The only writer of the list."""
+        self._items = items
+
+    @property
+    def _downloaded(self) -> bool:
+        """True once the feed has been parsed (derived, never stored)."""
+        return self._items is not None
 
     async def download(self):
         """
@@ -235,9 +242,8 @@ class Feed:
             request = Request(url=self.url, headers={"User-Agent": f"Agoras/{__version__}"})
             return parse_rss_bytes(urlopen(request).read())
 
-        self._feed_data = await asyncio.to_thread(_sync_download)
-        self._items = [FeedItem(item) for item in self._feed_data.items]
-        self._downloaded = True
+        feed_data = await asyncio.to_thread(_sync_download)
+        self._set_items([FeedItem(item) for item in feed_data.items])
 
         return self
 

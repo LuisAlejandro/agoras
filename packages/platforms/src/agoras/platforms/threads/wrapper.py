@@ -22,9 +22,9 @@ from typing import Any, Dict, List, Optional
 
 from agoras.core.api_base import sanitize_error_text
 from agoras.core.interfaces import SocialNetwork, _entry_images, run_wrapper_main, run_wrapper_main_async
+from agoras.core.polling import ProcessingTimeoutError
 from agoras.core.text_limits import validate_text
 from agoras.core.threading import ThreadPublishError, ThreadResult, partial_result, success_result
-from agoras.platforms.threads.client import ThreadsContainerTimeoutError
 
 from .api import ThreadsAPI
 
@@ -42,7 +42,7 @@ def _compose_post_text(entry: Dict[str, Any]) -> str:
 
 def _is_uncertain_publish_error(exc: BaseException) -> bool:
     """Classify timeout/uncertain errors after a publish dispatch."""
-    if isinstance(exc, (TimeoutError, asyncio.TimeoutError, ThreadsContainerTimeoutError)):
+    if isinstance(exc, (TimeoutError, asyncio.TimeoutError, ProcessingTimeoutError)):
         return True
     message = str(exc).lower()
     return any(token in message for token in ("timeout", "timed out", "not ready after"))

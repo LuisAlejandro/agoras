@@ -18,9 +18,21 @@
 """agoras.core.feed.item module."""
 
 import datetime
+from dataclasses import dataclass
 from html import unescape
+from typing import Optional
 
 from agoras.common.utils import add_url_timestamp
+
+
+@dataclass(frozen=True)
+class _ParsedItem:
+    """Cleaned fields extracted from one raw RSS item."""
+
+    title: str
+    link: str
+    pub_date: Optional[datetime.datetime]
+    image_url: str
 
 
 class FeedItem:
@@ -38,63 +50,67 @@ class FeedItem:
             item: Parsed RSS item from the feed parser
         """
         self.raw_item = item
-        self._processed = False
-        self._title = None
-        self._link = None
-        self._pub_date = None
-        self._image_url = None
+        self._parsed: Optional[_ParsedItem] = None
+
+    def _set_parsed(self, parsed):
+        """Record the parsed fields. The only writer of the parsed value."""
+        self._parsed = parsed
+
+    @property
+    def _processed(self) -> bool:
+        """True once the raw item has been cleaned (derived, never stored)."""
+        return self._parsed is not None
+
+    def _field(self, name):
+        """Return one parsed field, parsing the raw item on first access."""
+        if self._parsed is None:
+            self._process_item()
+        return getattr(self._parsed, name)
 
     @property
     def title(self):
         """Get cleaned title."""
-        if not self._processed:
-            self._process_item()
-        return self._title or ""
+        return self._field("title")
 
     @property
     def link(self):
         """Get link URL."""
-        if not self._processed:
-            self._process_item()
-        return self._link or ""
+        return self._field("link")
 
     @property
     def pub_date(self):
         """Get publication date."""
-        if not self._processed:
-            self._process_item()
-        return self._pub_date
+        return self._field("pub_date")
 
     @property
     def image_url(self):
         """Get image URL from enclosures."""
-        if not self._processed:
-            self._process_item()
-        return self._image_url or ""
+        return self._field("image_url")
 
     def _process_item(self):
         """Process raw RSS item into cleaned properties."""
-        if self._processed:
+        if self._parsed is not None:
             return
 
-        # Clean title
-        if self.raw_item.title:
-            self._title = unescape(self.raw_item.title)
+        title = unescape(self.raw_item.title) if self.raw_item.title else ""
+        link = self.raw_item.link or self.raw_item.guid or ""
+        pub_date = self.raw_item.pub_date
 
-        # Get link
-        self._link = self.raw_item.link or self.raw_item.guid or ""
-
-        # Get publication date
-        self._pub_date = self.raw_item.pub_date
-
-        # Get image URL from enclosures
+        image_url = ""
         try:
             if self.raw_item.enclosures and len(self.raw_item.enclosures) > 0:
-                self._image_url = self.raw_item.enclosures[0].url
+                image_url = self.raw_item.enclosures[0].url
         except (AttributeError, IndexError):
             pass
 
-        self._processed = True
+        self._set_parsed(
+            _ParsedItem(
+                title=title or "",
+                link=link or "",
+                pub_date=pub_date,
+                image_url=image_url or "",
+            )
+        )
 
     def get_timestamped_link(self, timestamp=None):
         """

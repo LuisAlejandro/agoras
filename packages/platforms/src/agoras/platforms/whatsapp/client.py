@@ -21,8 +21,10 @@ from typing import Any, Dict, List, Optional
 
 from pyfacebook import GraphAPI
 
+from agoras.core.api_base import AuthLifecycle, AuthState
 
-class WhatsAppAPIClient:
+
+class WhatsAppAPIClient(AuthLifecycle):
     """
     WhatsApp API client that centralizes WhatsApp Business API operations.
 
@@ -43,7 +45,6 @@ class WhatsAppAPIClient:
         self.phone_number_id = phone_number_id
         self.graph_api: Optional[GraphAPI] = None
         self.api_version = "v23.0"
-        self._authenticated = False
 
     async def authenticate(self) -> bool:
         """
@@ -63,7 +64,7 @@ class WhatsAppAPIClient:
 
         try:
             self.graph_api = GraphAPI(access_token=self.access_token, version=self.api_version)
-            self._authenticated = True
+            self._set_auth_state(AuthState.AUTHENTICATED)
             return True
         except Exception as e:
             raise Exception(f"WhatsApp client authentication failed: {str(e)}")
@@ -73,7 +74,7 @@ class WhatsAppAPIClient:
         Disconnect and clean up client resources.
         """
         self.graph_api = None
-        self._authenticated = False
+        self._set_auth_state(AuthState.UNAUTHENTICATED)
 
     def get_object(self, object_id: str, fields: Optional[str] = None) -> Dict[str, Any]:
         """

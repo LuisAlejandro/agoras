@@ -253,4 +253,4 @@ Getting Help
 
 - **Documentation**: https://agoras.luisalejandro.org
 - **Issues**: https://github.com/LuisAlejandro/agoras/issues
-- **Discord**: https://discord.gg/GRnq3qQ9SB
+- **Discord**: https://discord.gg/4UCXWhYEhR

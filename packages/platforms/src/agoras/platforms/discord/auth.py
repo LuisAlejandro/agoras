@@ -67,7 +67,12 @@ class DiscordAuthManager(BaseAuthManager):
         self.channel_name = channel_name
 
         # Load cached bot token validation if available
+        self._cached_user_info = None
         self._load_cached_validation()
+
+    def _cache_user_info(self, info):
+        """Record validated bot/guild/channel info. The only writer of that cache."""
+        self._cached_user_info = info
 
     async def authenticate(self) -> bool:
         """
@@ -78,7 +83,7 @@ class DiscordAuthManager(BaseAuthManager):
         Returns:
             bool: True if authentication successful, False otherwise
         """
-        self.last_auth_failure = None
+        self._begin_auth_attempt()
         if not self._validate_credentials():
             return self._missing_credentials_failed()
 
@@ -101,6 +106,7 @@ class DiscordAuthManager(BaseAuthManager):
                 # Cache successful validation
                 self._save_validation_cache()
 
+                self._mark_authenticated()
                 return True
             return self._wrong_token_failed()
         except Exception as e:
@@ -218,7 +224,7 @@ class DiscordAuthManager(BaseAuthManager):
 
             if validation_result["success"]:
                 # Store the user info for later use
-                self._cached_user_info = validation_result["user_info"]
+                self._cache_user_info(validation_result["user_info"])
                 return True
             return False
         except Exception as e:
@@ -252,7 +258,7 @@ class DiscordAuthManager(BaseAuthManager):
 
         def _sync_get_info():
             # Return cached user info from validation if available
-            if hasattr(self, "_cached_user_info") and self._cached_user_info:
+            if self._cached_user_info:
                 return self._cached_user_info
 
             # Fallback to basic info if no cached validation
@@ -364,11 +370,11 @@ class DiscordAuthManager(BaseAuthManager):
 
         # Only load if the bot token matches (for security)
         if token_data and token_data.get("bot_token_hash") == hash(self.bot_token):
-            self._cached_user_info = token_data.get("user_info")
+            self._cache_user_info(token_data.get("user_info"))
 
     def _save_validation_cache(self):
         """Save validation results to secure storage."""
-        if hasattr(self, "_cached_user_info") and self._cached_user_info:
+        if self._cached_user_info:
             platform_name = self._get_platform_name()
             identifier = self._get_token_identifier()
 

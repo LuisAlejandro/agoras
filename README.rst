@@ -32,8 +32,8 @@
    :target: https://readthedocs.org/projects/agoras/?badge=latest
    :alt: Read The Docs
 
-.. image:: https://img.shields.io/discord/809504357359157288.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2
-   :target: https://discord.gg/GRnq3qQ9SB
+.. image:: https://img.shields.io/discord/1556678684063301682.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2
+   :target: https://discord.gg/4UCXWhYEhR
    :alt: Discord Channel
 
 |
@@ -267,7 +267,7 @@ Credentials
 Getting help
 ============
 
-.. _Discord server: https://discord.gg/GRnq3qQ9SB
+.. _Discord server: https://discord.gg/4UCXWhYEhR
 .. _StackOverflow: http://stackoverflow.com/questions/ask
 
 If you have any doubts or problems, subscribe to our `Discord server`_ and ask for help. You can also

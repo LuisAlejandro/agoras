@@ -18,8 +18,6 @@
 """agoras.platforms.tiktok.api module."""
 
 import asyncio
-import sys
-import time
 from typing import Any, Dict, List
 
 from agoras.core.api_base import (
@@ -31,8 +29,14 @@ from agoras.core.api_base import (
     guard_token_presence,
 )
 from agoras.core.auth import raise_authentication_error_from_manager
+from agoras.core.polling import poll_status
 
 from .auth import TikTokAuthManager
+
+# TikTok publish status vocabulary (post/publish/status/fetch/).
+PUBLISH_COMPLETE_STATUS = "PUBLISH_COMPLETE"
+PUBLISH_FAILED_STATUSES = frozenset({"FAILED"})
+PUBLISH_POLL_INTERVAL_S = 10
 
 
 class TikTokAPI(BaseAPI):
@@ -307,51 +311,44 @@ class TikTokAPI(BaseAPI):
         response = await asyncio.to_thread(_sync_upload)
         # TikTok API returns: {"data": {"publish_id": "..."}, "error": {"code": "ok", ...}}
         # Extract the data object which contains publish_id
-        return response.get("data", {})
+        result = response.get("data", {})
+        await self._wait_for_publish_completion(result.get("publish_id"))
+        return result
 
     async def _wait_for_publish_completion(self, publish_id: str, max_wait_time: int = 300) -> None:
         """
-        Wait for TikTok post to be published.
+        Wait for a TikTok publish to reach PUBLISH_COMPLETE.
 
         Args:
             publish_id (str): Publish ID to check status for
             max_wait_time (int): Maximum time to wait in seconds
 
         Raises:
-            Exception: If publish fails or times out
+            ProcessingFailedError: If TikTok reports a terminal failure
+            ProcessingTimeoutError: If completion is not reached in time
         """
-        start_time = time.time()
+        if not publish_id:
+            return
 
-        while True:
-            # Check if we've exceeded max wait time
-            if time.time() - start_time > max_wait_time:
-                raise Exception(f"Publish timeout after {max_wait_time} seconds")
+        def _probe() -> str:
+            if not self.client:
+                raise Exception("TikTok client not available")
+            data = self.client.get_publish_status(publish_id).get("data", {})
+            # The published id list is the reliable completion signal; the API
+            # spells the field "publicaly_available_post_id".
+            if data.get("publicaly_available_post_id"):
+                return PUBLISH_COMPLETE_STATUS
+            return data.get("status") or ""
 
-            await asyncio.sleep(10)
-            print("Waiting for post status ...", file=sys.stderr)
-
-            def _sync_check_status():
-                if not self.client:
-                    raise Exception("TikTok client not available")
-                return self.client.get_publish_status(publish_id)
-
-            try:
-                status = await asyncio.to_thread(_sync_check_status)
-                publish_status = status.get("data", {}).get("status")
-                publish_id_list = status.get("data", {}).get("publicaly_available_post_id", [])
-
-                if len(publish_id_list) > 0 or publish_status == "PUBLISH_COMPLETE":
-                    try:
-                        print("Post published!", file=sys.stderr)
-                    except BrokenPipeError:
-                        pass
-                    break
-
-            except BrokenPipeError:
-                break
-            except Exception as e:
-                self._handle_api_error(e, "TikTok status check")
-                raise
+        await asyncio.to_thread(
+            poll_status,
+            _probe,
+            ready={PUBLISH_COMPLETE_STATUS},
+            failed=PUBLISH_FAILED_STATUSES,
+            subject=f"TikTok publish {publish_id}",
+            timeout_s=max_wait_time,
+            interval_s=PUBLISH_POLL_INTERVAL_S,
+        )
 
     async def post(self, *args, **kwargs) -> str:
         """

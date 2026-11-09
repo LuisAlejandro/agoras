@@ -84,6 +84,8 @@ verify-wrapper-parity: start
 	@$(exec_on_docker) python3 scripts/verify_api_guard_order.py
 	@$(exec_on_docker) python3 scripts/verify_api_rate_limit_parity.py --self-test
 	@$(exec_on_docker) python3 scripts/verify_api_rate_limit_parity.py
+	@$(exec_on_docker) python3 scripts/verify_single_state_writer.py --self-test
+	@$(exec_on_docker) python3 scripts/verify_single_state_writer.py
 	@$(exec_on_docker) python3 scripts/verify_dead_code.py --self-test
 	@$(exec_on_docker) python3 scripts/verify_dead_code.py
 	@$(exec_on_docker) python3 scripts/sync_package_deps.py --check

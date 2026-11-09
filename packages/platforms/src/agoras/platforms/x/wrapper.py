@@ -18,6 +18,7 @@
 """agoras.platforms.x.wrapper module."""
 
 import sys
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from agoras.core.api_base import sanitize_error_text
@@ -45,6 +46,20 @@ def _compose_tweet_text(entry: Dict[str, Any]) -> str:
     elif video_url and video_title and text:
         text = f"{video_title} - {text}"
     return f"{text} {link}".strip()
+
+
+@dataclass(frozen=True)
+class SubscriptionTier:
+    """A resolved X subscription tier and where it came from.
+
+    ``value`` is the provider's ``subscription_type`` (``None`` on the free
+    tier). ``live`` marks a reading from the authenticated API, which outranks a
+    value read from local storage: storage can be stale for a session that has
+    since upgraded.
+    """
+
+    value: Optional[str]
+    live: bool
 
 
 class X(SocialNetwork):
@@ -83,8 +98,27 @@ class X(SocialNetwork):
         self.twitter_oauth_token = None
         self.twitter_oauth_secret = None
         self.tweet_id = None
-        self._subscription_type = None
-        self._subscription_resolved = False
+        self._subscription: Optional[SubscriptionTier] = None
+
+    @property
+    def _subscription_type(self):
+        """Resolved tier value, or None when unresolved or on the free tier."""
+        return None if self._subscription is None else self._subscription.value
+
+    @_subscription_type.setter
+    def _subscription_type(self, value):
+        """ponytail: migration shim for direct writes; drop with its last assignment."""
+        self._subscription = SubscriptionTier(value=value, live=False)
+
+    @property
+    def _subscription_resolved(self) -> bool:
+        """True once a tier was resolved from storage or the live API (derived)."""
+        return self._subscription is not None
+
+    def _set_subscription(self, tier, *, live):
+        """Record a resolved tier. A live reading outranks a stored one."""
+        if live or self._subscription is None:
+            self._subscription = SubscriptionTier(value=tier, live=live)
 
     def _load_subscription_type(self):
         """Load stored X subscription_type bound to active oauth tokens (no network)."""
@@ -98,7 +132,7 @@ class X(SocialNetwork):
             profile=self._get_config_value("profile"),
         )
         # Bind tier to active oauth only — never adopt unrelated stored tokens
-        self._subscription_type = auth_manager.load_subscription_type_for_active_oauth()
+        self._set_subscription(auth_manager.load_subscription_type_for_active_oauth(), live=False)
         return self._subscription_type
 
     async def _fetch_live_subscription_type(self) -> None:
@@ -106,20 +140,18 @@ class X(SocialNetwork):
         client = getattr(self.api, "client", None) if self.api else None
         getter = getattr(client, "get_subscription_type", None) if client is not None else None
         if getter is None:
-            self._subscription_type = None
-            self._subscription_resolved = True
+            self._set_subscription(None, live=True)
             return
         try:
-            self._subscription_type = await getter()
+            tier = await getter()
         except Exception:
-            self._subscription_type = None
-        self._subscription_resolved = True
+            tier = None
+        self._set_subscription(tier, live=True)
 
     def _validate_tweet_text(self, tweet_text: str) -> None:
         """Reject oversized tweet text using live entitlement (fail closed to free)."""
         if not self._subscription_resolved:
             self._load_subscription_type()
-            self._subscription_resolved = True
         mode = x_mode_for_subscription(self._subscription_type)
         validate_text("twitter", "text", tweet_text, mode=mode)
 
