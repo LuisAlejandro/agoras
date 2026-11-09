@@ -15,11 +15,8 @@ exec_on_docker = docker compose \
 	--user agoras app
 
 define BROWSER_PYSCRIPT
-import os, webbrowser, sys
-try:
-	from urllib import pathname2url
-except:
-	from urllib.request import pathname2url
+import os, sys, webbrowser
+from urllib.request import pathname2url
 
 webbrowser.open("file://" + pathname2url(os.path.abspath(sys.argv[1])))
 endef
@@ -102,13 +99,6 @@ test: start
 
 test-all: start
 	@$(exec_on_docker) tox -e all
-
-functional-test: start
-	# @$(exec_on_docker) bash test.sh twitter
-	# @$(exec_on_docker) bash test.sh facebook
-	# @$(exec_on_docker) bash test.sh linkedin
-	# @$(exec_on_docker) bash test.sh instagram
-	@$(exec_on_docker) bash test.sh discord
 
 coverage: start
 	@$(exec_on_docker) tox -e coverage
@@ -206,7 +196,7 @@ undo-release:
 	@VERSION=$${VERSION} ./scripts/rollback.sh release
 
 .PHONY: clean clean-pyc clean-build clean-test clean-docs \
-	help lint format lint-and-format verify-wrapper-parity test test-all functional-test coverage \
+	help lint format lint-and-format verify-wrapper-parity test test-all coverage \
 	docs servedocs build dependencies install console virtualenv \
 	image start stop down destroy cataplum \
 	release release-patch release-minor release-major release-preflight undo-release
