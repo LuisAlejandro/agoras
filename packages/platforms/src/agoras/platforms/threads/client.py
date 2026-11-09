@@ -22,15 +22,13 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
+from agoras.core.polling import ProcessingTimeoutError, poll_status
+
 # Bounded container readiness poll (~5 minutes at 5s intervals).
 VIDEO_POLL_INTERVAL_S = 5
 VIDEO_POLL_MAX_WAIT_S = 300
 CONTAINER_READY_STATUSES = frozenset({"FINISHED", "PUBLISHED"})
 CONTAINER_FAILED_STATUSES = frozenset({"ERROR", "EXPIRED"})
-
-
-class ThreadsContainerTimeoutError(Exception):
-    """Raised when container processing does not finish within the poll budget."""
 
 
 class ThreadsAPIClient:
@@ -85,26 +83,29 @@ class ThreadsAPIClient:
             creation_id (str): Container creation ID
 
         Raises:
-            Exception: On terminal ERROR/EXPIRED status
-            ThreadsContainerTimeoutError: If readiness is not reached in time
+            ProcessingFailedError: On a terminal ERROR/EXPIRED status
+            ProcessingTimeoutError: If readiness is not reached in time
         """
-        deadline = time.monotonic() + VIDEO_POLL_MAX_WAIT_S
-        status = "IN_PROGRESS"
-        while status not in CONTAINER_READY_STATUSES:
-            if time.monotonic() >= deadline:
-                raise ThreadsContainerTimeoutError(
-                    f"Threads container {creation_id} not ready after {VIDEO_POLL_MAX_WAIT_S}s"
-                )
-            time.sleep(VIDEO_POLL_INTERVAL_S)
-            status_resp = requests.get(
-                f"{self.base_url}/{creation_id}",
-                params={"fields": "status", "access_token": self.access_token},
-                timeout=30,
-            )
-            self._check_response(status_resp)
-            status = status_resp.json().get("status", "")
-            if status in CONTAINER_FAILED_STATUSES:
-                raise Exception(f"Threads video processing failed with status {status}")
+        poll_status(
+            lambda: self._container_status(creation_id),
+            ready=CONTAINER_READY_STATUSES,
+            failed=CONTAINER_FAILED_STATUSES,
+            subject=f"Threads container {creation_id}",
+            timeout_s=VIDEO_POLL_MAX_WAIT_S,
+            interval_s=VIDEO_POLL_INTERVAL_S,
+            clock=time.monotonic,
+            sleep=time.sleep,
+        )
+
+    def _container_status(self, creation_id: str) -> str:
+        """Return one status reading for a container."""
+        status_resp = requests.get(
+            f"{self.base_url}/{creation_id}",
+            params={"fields": "status", "access_token": self.access_token},
+            timeout=30,
+        )
+        self._check_response(status_resp)
+        return status_resp.json().get("status", "")
 
     def _publish_container(self, creation_id: str) -> Dict[str, Any]:
         """Publish a ready container and return the published media ID payload."""
@@ -193,7 +194,7 @@ class ThreadsAPIClient:
 
             return self._publish_container(creation_id)
 
-        except ThreadsContainerTimeoutError:
+        except ProcessingTimeoutError:
             raise
         except Exception as e:
             raise Exception(f"Failed to create post: {str(e)}")
@@ -230,7 +231,7 @@ class ThreadsAPIClient:
 
         Raises:
             Exception: If video post creation fails or not authenticated
-            ThreadsContainerTimeoutError: If processing does not finish in time
+            ProcessingTimeoutError: If processing does not finish in time
         """
         if not self.access_token:
             raise Exception("No access token available")
@@ -259,7 +260,7 @@ class ThreadsAPIClient:
             self._wait_for_container_ready(creation_id)
             return self._publish_container(creation_id)
 
-        except ThreadsContainerTimeoutError:
+        except ProcessingTimeoutError:
             raise
         except Exception as e:
             raise Exception(f"Failed to create video post: {str(e)}")
