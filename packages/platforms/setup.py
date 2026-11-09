@@ -43,7 +43,7 @@ setup(
         'google-auth==2.56.3',
         'google-auth-httplib2==0.4.1',
         'authlib==1.7.2',
-        'cryptography>=50.0.0',
+        'cryptography>=50.0.1',
         'python-telegram-bot>=22.1',
     ],
 
