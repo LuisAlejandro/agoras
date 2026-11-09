@@ -53,21 +53,12 @@ class _MetaTagParser(HTMLParser):
         self.meta_tags = []
 
     def handle_starttag(self, tag, attrs):
+        # Same predicate as ``metatag`` applied straight to the attribute dict;
+        # the tag name is already known to be "meta" here.
         if tag == "meta":
             attrs_dict = dict(attrs)
-            if metatag(_MetaTag(attrs_dict)):
+            if "content" in attrs_dict and ("property" in attrs_dict or "name" in attrs_dict):
                 self.meta_tags.append(attrs_dict)
-
-
-class _MetaTag:
-    """Minimal tag stand-in for the metatag filter."""
-
-    def __init__(self, attrs):
-        self.name = "meta"
-        self._attrs = attrs
-
-    def has_attr(self, key):
-        return key in self._attrs
 
 
 def build_upload_session(max_attempts, retry_statuses, allowed_methods):
