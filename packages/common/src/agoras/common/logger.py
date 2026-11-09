@@ -24,7 +24,21 @@ until the logger is started.
 
 import logging
 import sys
+from enum import Enum
 from typing import cast
+
+
+class LoggerState(str, Enum):
+    """
+    Whether the global logger is emitting.
+
+    ``disabled`` is derived from this. It is kept as a property rather than a
+    plain attribute because the stdlib consults ``Logger.disabled`` in
+    ``isEnabledFor``, so the name has to stay live and truthful.
+    """
+
+    STOPPED = "stopped"
+    RUNNING = "running"
 
 
 class ControlableLogger(logging.Logger):
@@ -53,14 +67,27 @@ class ControlableLogger(logging.Logger):
 
         self.parent = logging.root
 
-        #: Attribute ``disabled`` (boolean): Stores the current status of the
-        #: logger.
-        self.disabled = True
+        #: Attribute ``_state`` (LoggerState): the stored lifecycle state.
+        self._state = LoggerState.STOPPED
         self.propagate = False
 
         #: Attribute ``formatstring`` (string): Stores the string that
         #: will be used to format the logger output.
         self.formatstring = "[%(levelname)s] %(message)s"
+
+    def _set_state(self, state):
+        """Enter ``state``. The only writer of the logger lifecycle."""
+        self._state = state
+
+    @property
+    def disabled(self):
+        """True while the logger is stopped (derived from the state)."""
+        return self._state is LoggerState.STOPPED
+
+    @disabled.setter
+    def disabled(self, value):
+        """ponytail: migration shim for direct writes; drop with its last assignment."""
+        self._state = LoggerState.STOPPED if value else LoggerState.RUNNING
 
     def start(self, filename=None):
         """
@@ -79,7 +106,7 @@ class ControlableLogger(logging.Logger):
                 fh = logging.FileHandler(filename, mode="w")
                 fh.setFormatter(logging.Formatter(self.formatstring))
                 self.addHandler(fh)
-            self.disabled = False
+            self._set_state(LoggerState.RUNNING)
 
     def stop(self):
         """
@@ -92,7 +119,7 @@ class ControlableLogger(logging.Logger):
         if not self.disabled:
             for h in list(self.handlers):
                 self.removeHandler(h)
-            self.disabled = True
+            self._set_state(LoggerState.STOPPED)
 
     def loglevel(self, level="INFO"):
         """

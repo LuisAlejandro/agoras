@@ -771,3 +771,15 @@ async def test_discord_client_list_messages_empty():
         result = await client.list_messages(5)
 
     assert result == []
+
+
+def test_discord_client_declares_the_manual_fetch_cache():
+    """The fallback guild cache is an empty list by default, not a missing attribute."""
+    client = DiscordAPIClient('token', 'server', 'channel')
+
+    assert client._fetched_guilds == []
+
+    client.client = MagicMock()
+    client.client.guilds = []
+    with pytest.raises(Exception, match='Guild server not found'):
+        client._get_guild()

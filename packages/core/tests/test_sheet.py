@@ -547,3 +547,49 @@ async def test_schedulesheet_day_first_ambiguity_pinned():
             assert len(posts) == 1
             assert posts[0]['_sheet_row'] == 1
             mock_update.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_schedulesheet_skips_settled_states():
+    """Failed, skipped, or hand-typed states are not due; no duplicate posts."""
+    sheet = ScheduleSheet('sheet-id', 'email@example.com', 'key')
+    rows = [
+        SheetRow(['failed post', '', '', '', '', '', '15-01-2024', '14', 'failed']),
+        SheetRow(['skipped post', '', '', '', '', '', '15-01-2024', '14', 'skipped']),
+        SheetRow(['hand typed', '', '', '', '', '', '15-01-2024', '14', 'Published']),
+    ]
+
+    with patch('agoras.core.sheet.schedule.datetime') as mock_datetime:
+        mock_datetime.datetime.now.return_value = datetime.datetime(2024, 1, 15, 14, 0, 0)
+        mock_datetime.datetime.strptime.return_value = datetime.datetime(2024, 1, 15)
+        with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
+            mock_read.return_value = rows
+            posts = await sheet.process_scheduled_posts()
+
+    assert posts == []
+
+
+@pytest.mark.asyncio
+async def test_schedulesheet_explicit_pending_is_due():
+    """An explicit ``pending`` state is still due."""
+    sheet = ScheduleSheet('sheet-id', 'email@example.com', 'key')
+    rows = [SheetRow(['pending post', '', '', '', '', '', '15-01-2024', '14', 'pending'])]
+
+    with patch('agoras.core.sheet.schedule.datetime') as mock_datetime:
+        mock_datetime.datetime.now.return_value = datetime.datetime(2024, 1, 15, 14, 0, 0)
+        mock_datetime.datetime.strptime.return_value = datetime.datetime(2024, 1, 15)
+        with patch.object(sheet, 'read_all', new_callable=AsyncMock) as mock_read:
+            mock_read.return_value = rows
+            posts = await sheet.process_scheduled_posts()
+
+    assert len(posts) == 1
+
+
+@pytest.mark.asyncio
+async def test_schedulesheet_mark_as_failed_parks_the_row():
+    """A failed post is parked in the state column so it stops re-queueing."""
+    sheet = ScheduleSheet('sheet-id', 'email@example.com', 'key')
+
+    with patch.object(sheet, 'update_cell', new_callable=AsyncMock) as mock_update:
+        await sheet.mark_as_failed(4)
+        mock_update.assert_called_once_with(4, 9, 'failed')
