@@ -40,10 +40,10 @@
 |
 
 .. _GitHub actions: https://github.com/LuisAlejandro/agoras-actions
-.. _full documentation: https://agoras.luisalejandro.org
-.. _migration guide: https://agoras.luisalejandro.org/en/latest/migration.html
+.. _full documentation: https://agoras.dev
+.. _migration guide: https://agoras.dev/en/latest/migration.html
 
-Current version: 3.0.0
+Current version: 3.0.1
 
 .. note::
 
@@ -212,17 +212,17 @@ Run scheduled posts from Google Sheets::
 Examples of usage
 ~~~~~~~~~~~~~~~~~
 
-.. _Using Agoras with X: https://agoras.luisalejandro.org/en/latest/x.html
-.. _Using Agoras with Facebook: https://agoras.luisalejandro.org/en/latest/facebook.html
-.. _Using Agoras with Instagram: https://agoras.luisalejandro.org/en/latest/instagram.html
-.. _Using Agoras with LinkedIn: https://agoras.luisalejandro.org/en/latest/linkedin.html
-.. _Using Agoras with Discord: https://agoras.luisalejandro.org/en/latest/discord.html
-.. _Using Agoras with YouTube: https://agoras.luisalejandro.org/en/latest/youtube.html
-.. _Using Agoras with TikTok: https://agoras.luisalejandro.org/en/latest/tiktok.html
-.. _Using Agoras with Threads: https://agoras.luisalejandro.org/en/latest/threads.html
-.. _Using Agoras with Telegram: https://agoras.luisalejandro.org/en/latest/telegram.html
-.. _Using Agoras with WhatsApp: https://agoras.luisalejandro.org/en/latest/whatsapp.html
-.. _Migration Guide: https://agoras.luisalejandro.org/en/latest/migration.html
+.. _Using Agoras with X: https://agoras.dev/en/latest/x.html
+.. _Using Agoras with Facebook: https://agoras.dev/en/latest/facebook.html
+.. _Using Agoras with Instagram: https://agoras.dev/en/latest/instagram.html
+.. _Using Agoras with LinkedIn: https://agoras.dev/en/latest/linkedin.html
+.. _Using Agoras with Discord: https://agoras.dev/en/latest/discord.html
+.. _Using Agoras with YouTube: https://agoras.dev/en/latest/youtube.html
+.. _Using Agoras with TikTok: https://agoras.dev/en/latest/tiktok.html
+.. _Using Agoras with Threads: https://agoras.dev/en/latest/threads.html
+.. _Using Agoras with Telegram: https://agoras.dev/en/latest/telegram.html
+.. _Using Agoras with WhatsApp: https://agoras.dev/en/latest/whatsapp.html
+.. _Migration Guide: https://agoras.dev/en/latest/migration.html
 
 - `Using Agoras with X`_
 - `Using Agoras with Facebook`_
@@ -240,17 +240,17 @@ Examples of usage
 Credentials
 ~~~~~~~~~~~
 
-.. _How to get credentials for X: https://agoras.luisalejandro.org/en/latest/credentials/x.html
-.. _How to get credentials for Facebook: https://agoras.luisalejandro.org/en/latest/credentials/facebook.html
-.. _How to get credentials for Instagram: https://agoras.luisalejandro.org/en/latest/credentials/instagram.html
-.. _How to get credentials for LinkedIn: https://agoras.luisalejandro.org/en/latest/credentials/linkedin.html
-.. _How to get credentials for Discord: https://agoras.luisalejandro.org/en/latest/credentials/discord.html
-.. _How to get credentials for YouTube: https://agoras.luisalejandro.org/en/latest/credentials/youtube.html
-.. _How to get credentials for TikTok: https://agoras.luisalejandro.org/en/latest/credentials/tiktok.html
-.. _How to get credentials for Threads: https://agoras.luisalejandro.org/en/latest/credentials/threads.html
-.. _How to get credentials for Telegram: https://agoras.luisalejandro.org/en/latest/credentials/telegram.html
-.. _How to get credentials for WhatsApp: https://agoras.luisalejandro.org/en/latest/credentials/whatsapp.html
-.. _How to get credentials for Google spreadsheets: https://agoras.luisalejandro.org/en/latest/credentials/google.html
+.. _How to get credentials for X: https://agoras.dev/en/latest/credentials/x.html
+.. _How to get credentials for Facebook: https://agoras.dev/en/latest/credentials/facebook.html
+.. _How to get credentials for Instagram: https://agoras.dev/en/latest/credentials/instagram.html
+.. _How to get credentials for LinkedIn: https://agoras.dev/en/latest/credentials/linkedin.html
+.. _How to get credentials for Discord: https://agoras.dev/en/latest/credentials/discord.html
+.. _How to get credentials for YouTube: https://agoras.dev/en/latest/credentials/youtube.html
+.. _How to get credentials for TikTok: https://agoras.dev/en/latest/credentials/tiktok.html
+.. _How to get credentials for Threads: https://agoras.dev/en/latest/credentials/threads.html
+.. _How to get credentials for Telegram: https://agoras.dev/en/latest/credentials/telegram.html
+.. _How to get credentials for WhatsApp: https://agoras.dev/en/latest/credentials/whatsapp.html
+.. _How to get credentials for Google spreadsheets: https://agoras.dev/en/latest/credentials/google.html
 
 - `How to get credentials for X`_
 - `How to get credentials for Facebook`_

@@ -1,0 +1,459 @@
+{#-
+   Standalone homepage, rendered by Sphinx via html_additional_pages.
+   Deliberately does not extend the alabaster layout: this page is a product
+   landing page, not a documentation page. Links into the docs use pathto()
+   so they stay correct under versioned URLs (/en/latest/, /en/3.0.0/).
+-#}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>agoras — publish and delete posts across ten social networks</title>
+    <meta
+      name="description"
+      content="Agoras is a Python CLI that publishes and deletes posts on X, Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, Threads, Telegram and WhatsApp from one command."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="agoras — one CLI for ten social networks" />
+    <meta
+      property="og:description"
+      content="Publish and delete posts on X, Facebook, Instagram, LinkedIn, Discord, YouTube, TikTok, Threads, Telegram and WhatsApp from one command."
+    />
+    <meta property="og:image" content="{{ pathto('_static/social-card.svg', 1) }}" />
+    <link rel="icon" href="{{ pathto('_static/logo.svg', 1) }}" type="image/svg+xml" />
+    <style>
+      :root {
+        --ink: #2d2b2b;
+        --ink-soft: #5b5858;
+        --paper: #ffffff;
+        --paper-2: #f7f6f3;
+        --line: #e4e1da;
+        --green: #5da649;
+        --green-dark: #108c55;
+        --radius: 12px;
+        --max: 1040px;
+        --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+          "Liberation Mono", monospace;
+        --sans: system-ui, -apple-system, "Segoe UI", Roboto, Inter, sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        margin: 0;
+        font-family: var(--sans);
+        color: var(--ink);
+        background: var(--paper);
+        line-height: 1.6;
+        font-size: 17px;
+      }
+      a {
+        color: var(--green-dark);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .wrap {
+        max-width: var(--max);
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+
+      /* header */
+      header {
+        border-bottom: 1px solid var(--line);
+      }
+      header .wrap {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        height: 64px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--ink);
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .brand img {
+        height: 26px;
+        width: auto;
+      }
+      header nav {
+        margin-left: auto;
+        display: flex;
+        gap: 22px;
+        font-size: 15px;
+      }
+      header nav a {
+        color: var(--ink-soft);
+      }
+      header nav a:hover {
+        color: var(--ink);
+      }
+      @media (max-width: 620px) {
+        header nav {
+          gap: 14px;
+          font-size: 14px;
+        }
+        header nav a.optional {
+          display: none;
+        }
+      }
+
+      /* hero */
+      .hero {
+        padding: 72px 0 56px;
+        border-bottom: 1px solid var(--line);
+        background: linear-gradient(180deg, var(--paper) 0%, var(--paper-2) 100%);
+      }
+      .hero h1 {
+        font-size: clamp(30px, 5.2vw, 52px);
+        line-height: 1.12;
+        letter-spacing: -0.025em;
+        margin: 0 0 20px;
+        max-width: 20em;
+      }
+      .hero h1 em {
+        font-style: normal;
+        color: var(--green-dark);
+      }
+      .hero p.lede {
+        font-size: clamp(17px, 2.2vw, 20px);
+        color: var(--ink-soft);
+        max-width: 44em;
+        margin: 0 0 32px;
+      }
+      .install {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        font-family: var(--mono);
+        font-size: 15px;
+        background: var(--ink);
+        color: #f4f2ed;
+        padding: 12px 18px;
+        border-radius: var(--radius);
+        margin-bottom: 28px;
+      }
+      .install span.prompt {
+        color: var(--green);
+        user-select: none;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .btn {
+        display: inline-block;
+        padding: 12px 22px;
+        border-radius: var(--radius);
+        font-weight: 600;
+        font-size: 16px;
+        border: 1px solid transparent;
+      }
+      .btn:hover {
+        text-decoration: none;
+      }
+      .btn-primary {
+        background: var(--green-dark);
+        color: #fff;
+      }
+      .btn-primary:hover {
+        background: #0c7446;
+      }
+      .btn-ghost {
+        border-color: var(--line);
+        color: var(--ink);
+        background: var(--paper);
+      }
+      .btn-ghost:hover {
+        border-color: var(--ink-soft);
+      }
+
+      /* sections */
+      section {
+        padding: 64px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      section:last-of-type {
+        border-bottom: 0;
+      }
+      h2 {
+        font-size: 22px;
+        letter-spacing: -0.015em;
+        margin: 0 0 8px;
+      }
+      .section-note {
+        color: var(--ink-soft);
+        margin: 0 0 28px;
+        max-width: 46em;
+      }
+
+      /* platforms */
+      .platforms {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px;
+        margin-top: 8px;
+      }
+      .platforms span {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 8px 14px;
+        font-size: 15px;
+        text-align: center;
+        background: var(--paper-2);
+      }
+
+      /* two column */
+      .cols {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 40px;
+      }
+      @media (max-width: 760px) {
+        .cols {
+          grid-template-columns: 1fr;
+          gap: 28px;
+        }
+      }
+
+      pre {
+        font-family: var(--mono);
+        font-size: 14px;
+        line-height: 1.65;
+        background: #23211f;
+        color: #ecebe6;
+        padding: 18px 20px;
+        border-radius: var(--radius);
+        overflow-x: auto;
+        margin: 0;
+      }
+      pre .c {
+        color: #8c8880;
+      }
+      pre .g {
+        color: #8ccf72;
+      }
+      code {
+        font-family: var(--mono);
+        font-size: 0.92em;
+        background: var(--paper-2);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 1px 6px;
+      }
+      pre code {
+        background: none;
+        border: 0;
+        padding: 0;
+        font-size: inherit;
+      }
+
+      ul.plain {
+        margin: 0;
+        padding-left: 20px;
+        color: var(--ink-soft);
+      }
+      ul.plain li {
+        margin-bottom: 10px;
+      }
+      ul.plain strong {
+        color: var(--ink);
+      }
+
+      /* footer */
+      footer {
+        padding: 40px 0 56px;
+        font-size: 15px;
+        color: var(--ink-soft);
+      }
+      footer .wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px;
+        align-items: center;
+      }
+      footer nav {
+        margin-left: auto;
+        display: flex;
+        gap: 18px;
+        flex-wrap: wrap;
+      }
+      footer a {
+        color: var(--ink-soft);
+      }
+      footer a:hover {
+        color: var(--ink);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="wrap">
+        <a class="brand" href="./">
+          <img src="{{ pathto('_static/logo.svg', 1) }}" alt="" />
+          agoras
+        </a>
+        <nav>
+          <a href="{{ pathto('contents') }}">Documentation</a>
+          <a href="{{ pathto('installation') }}">Install</a>
+          <a class="optional" href="https://github.com/LuisAlejandro/agoras">GitHub</a>
+          <a class="optional" href="https://pypi.org/project/agoras/">PyPI</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <div class="hero">
+        <div class="wrap">
+          <h1>
+            Publish and delete posts on <em>ten social networks</em> from one
+            command.
+          </h1>
+          <p class="lede">
+            Agoras is a Python command line utility for X, Facebook, Instagram,
+            LinkedIn, Discord, YouTube, TikTok, Threads, Telegram and WhatsApp.
+            Authorize once, then post, thread, upload video or delete — by hand
+            or from CI.
+          </p>
+          <div class="install">
+            <span class="prompt">$</span>
+            <span>pip install agoras</span>
+          </div>
+          <div class="actions">
+            <a class="btn btn-primary" href="{{ pathto('installation') }}">Get started</a>
+            <a class="btn btn-ghost" href="{{ pathto('contents') }}">Read the docs</a>
+          </div>
+        </div>
+      </div>
+
+      <section>
+        <div class="wrap">
+          <h2>Supported networks</h2>
+          <p class="section-note">
+            One CLI, one credential store, one content format. Each platform
+            keeps its own guide and its own action set.
+          </p>
+          <div class="platforms">
+            <span>X</span>
+            <span>Facebook</span>
+            <span>Instagram</span>
+            <span>LinkedIn</span>
+            <span>Discord</span>
+            <span>YouTube</span>
+            <span>TikTok</span>
+            <span>Threads</span>
+            <span>Telegram</span>
+            <span>WhatsApp</span>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <div class="cols">
+            <div>
+              <h2>Authorize once, post many times</h2>
+              <p class="section-note">
+                Credentials are stored encrypted under
+                <code>~/.agoras/tokens/</code>. OAuth platforms refresh their
+                own tokens; action commands never take credential flags.
+              </p>
+<pre><code><span class="c"># once, per platform</span>
+agoras x authorize \
+  --consumer-key "$CONSUMER_KEY" \
+  --consumer-secret "$CONSUMER_SECRET"
+
+<span class="c"># as often as you like</span>
+agoras x post --text "Hello World"
+agoras facebook video --video-url clip.mp4 \
+  --video-title "My Video"</code></pre>
+            </div>
+            <div>
+              <h2>Built for automation</h2>
+              <p class="section-note">
+                Content files, environment variables and GitHub Actions let the
+                same command run unchanged on a laptop or in a pipeline.
+              </p>
+<pre><code><span class="c"># post.yaml</span>
+text: Hello World
+media:
+  - url: https://example.com/image.png
+
+<span class="g">$</span> agoras x post --content post.yaml</code></pre>
+              <p class="section-note" style="margin-top: 24px">
+                See <a href="{{ pathto('content-files') }}">content files</a> and
+                the
+                <a href="https://github.com/LuisAlejandro/agoras-actions">GitHub action</a>.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <div class="cols">
+            <div>
+              <h2>Modular by design</h2>
+              <p class="section-note">
+                Install the whole CLI, or only the layers you need. Platform
+                support, core logic, media handling and shared utilities ship as
+                separate packages.
+              </p>
+<pre><code>agoras (CLI)
+└── agoras-platforms
+    └── agoras-core
+        ├── agoras-media
+        └── agoras-common</code></pre>
+            </div>
+            <div>
+              <h2>What you get</h2>
+              <ul class="plain">
+                <li>
+                  <strong>Platform-first CLI</strong> — <code>agoras x post</code>
+                  instead of a flag maze.
+                </li>
+                <li>
+                  <strong>OAuth callback server</strong> — browser-based
+                  authorization where the network supports it.
+                </li>
+                <li>
+                  <strong>Encrypted token store</strong> — re-authorize once, not
+                  every run.
+                </li>
+                <li>
+                  <strong>Delete and thread actions</strong> alongside posting,
+                  with the same content rules.
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <span>agoras — free software under the GPLv3.</span>
+        <nav>
+          <a href="{{ pathto('contents') }}">Docs</a>
+          <a href="{{ pathto('history') }}">Changelog</a>
+          <a href="https://github.com/LuisAlejandro/agoras">GitHub</a>
+          <a href="https://pypi.org/project/agoras/">PyPI</a>
+          <a href="https://discord.gg/4UCXWhYEhR">Discord</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>

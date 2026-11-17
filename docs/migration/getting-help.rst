@@ -13,7 +13,7 @@ For more detailed migration information, see:
 Resources
 =========
 
-* **Documentation**: https://agoras.luisalejandro.org/en/latest/
+* **Documentation**: https://agoras.dev/en/latest/
 * **Migration Issues**: https://github.com/LuisAlejandro/agoras/issues
 * **Community**: https://discord.gg/4UCXWhYEhR
 

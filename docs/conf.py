@@ -86,7 +86,7 @@ source_suffix = ".rst"
 # source_encoding = 'utf-8-sig'
 
 # The master toctree document.
-master_doc = "index"
+master_doc = "contents"
 
 # General information about the project.
 project = "agoras"
@@ -216,7 +216,11 @@ html_css_files = [
 
 # Additional templates that should be rendered to pages, maps page names
 # to template names.
-# html_additional_pages = {}
+#
+# The homepage is a standalone landing page rather than a documentation page:
+# it lives in _templates/landing.html and does not extend the alabaster
+# layout. The docs hub moved to contents.rst (master_doc above).
+html_additional_pages = {"index": "landing.html"}
 
 # If false, no module index is generated.
 # html_domain_indices = True
