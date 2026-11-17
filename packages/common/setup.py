@@ -19,7 +19,7 @@
 
 from setuptools import find_namespace_packages, setup
 
-version = '3.0.0'
+version = '3.0.1'
 
 setup(
     name='agoras-common',
@@ -35,7 +35,7 @@ setup(
     python_requires='>=3.10',
     install_requires=[
         'requests==2.34.2',
-        'urllib3>=1.26,<3',
+        'urllib3>=2.8.0,<3',
     ],
 
     classifiers=[

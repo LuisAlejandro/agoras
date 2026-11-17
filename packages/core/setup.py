@@ -19,7 +19,7 @@
 
 from setuptools import find_namespace_packages, setup
 
-version = '3.0.0'
+version = '3.0.1'
 
 setup(
     name='agoras-core',
@@ -39,7 +39,7 @@ setup(
         f'agoras-common=={version}',
         f'agoras-media=={version}',
         'gspread==6.2.1',
-        'google-auth==2.56.3',
+        'google-auth==2.58.0',
     ],
 
     classifiers=[

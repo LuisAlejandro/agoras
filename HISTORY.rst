@@ -2,6 +2,31 @@ Changelog
 ============
 
 
+3.0.1 (2026-11-17)
+------------
+
+Other
+~~~~~~~~~~~~
+
+* Chore(deps): update python-telegram-bot requirement from >=22.1 to >=22.8 in /packages/platforms. [Luis Alejandro Martínez Faneyth]
+
+* Chore(deps): bump google-auth-httplib2 from 0.4.1 to 0.4.2 in /packages/platforms. [Luis Alejandro Martínez Faneyth]
+
+* Chore(deps): regenerate root dependency files after develop merge. [Luis Alejandro Martínez Faneyth]
+
+* Align google-auth to 2.58.0 across platforms and root setup. [Cursor Agent]
+
+* Chore(deps): align cryptography>=50.0.1 in setup.py and root deps. [Cursor Agent]
+
+* Chore(deps): sync root setup.py and requirements.txt for google-api-python-client 2.200.0. [Cursor Agent]
+
+* Fix(ci): sync urllib3 bump in setup.py via sync_package_deps. [Cursor Agent]
+
+* Chore(deps): sync google-api-python-client 2.200.0 in platforms package. [Cursor Agent]
+
+* Chore(deps): bump cryptography to >=50.0.1 in platforms setup.py. [Cursor Agent]
+
+
 3.0.0 (2026-11-17)
 ------------
 

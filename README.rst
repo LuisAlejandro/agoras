@@ -43,7 +43,7 @@
 .. _full documentation: https://agoras.dev
 .. _migration guide: https://agoras.dev/en/latest/migration.html
 
-Current version: 3.0.0
+Current version: 3.0.1
 
 .. note::
 

@@ -37,7 +37,7 @@ def find_monorepo_packages():
 
 packages, package_dir = find_monorepo_packages()
 
-version = "3.0.0"
+version = "3.0.1"
 
 setup(
     name="agoras-meta",
@@ -59,24 +59,24 @@ setup(
     install_requires=[
         # From agoras-common
         'requests==2.34.2',
-        'urllib3>=1.26,<3',
+        'urllib3>=2.8.0,<3',
         # From agoras-media
         'filetype==1.2.0',
         'opencv-python-headless==5.0.0.93',
         'Pillow>=12.3.0',
         # From agoras-core
         'gspread==6.2.1',
-        'google-auth==2.56.3',
+        'google-auth==2.58.0',
         # From agoras-platforms
         'tweepy==4.17.0',
         'python-facebook-api==0.24.0',
         'linkedin-api-client==0.3.0',
         'discord.py==2.7.1',
-        'google-api-python-client==2.198.0',
-        'google-auth-httplib2==0.4.1',
-        'authlib==1.7.2',
-        'cryptography>=50.0.0',
-        'python-telegram-bot>=22.1',
+        'google-api-python-client==2.200.0',
+        'google-auth-httplib2==0.4.2',
+        'authlib==1.9.1',
+        'cryptography>=50.0.1',
+        'python-telegram-bot>=22.8',
         # From agoras
         'PyYAML==6.0.3',
     ],
