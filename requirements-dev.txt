@@ -9,7 +9,7 @@ coverage==7.15.4
 
 # Code Quality
 ruff==0.16.3
-pyright==1.1.411
+pyright==1.1.414
 pydocstyle==6.3.0
 bandit==1.9.4
 vulture==2.16
