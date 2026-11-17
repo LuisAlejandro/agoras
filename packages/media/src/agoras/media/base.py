@@ -22,6 +22,7 @@ import io
 import os
 import tempfile
 from abc import ABC, abstractmethod
+from enum import Enum
 from urllib.request import Request, urlopen
 
 import filetype
@@ -29,6 +30,23 @@ import filetype
 from agoras.common import __version__
 
 from .paths import is_local_media_source, normalize_media_path
+
+
+class MediaState(str, Enum):
+    """
+    Lifecycle state of a media object.
+
+    ``_set_state`` is the only writer. Everything the rest of the codebase
+    reads about lifecycle (``_downloaded``) or source (``_is_local``) is
+    derived from here, so the two can never disagree.
+
+    ``DOWNLOADED`` is entered *before* validation runs so the content probes
+    (``_probe_video``, ``get_dimensions``) see the state they require.
+    """
+
+    NEW = "new"
+    DOWNLOADED = "downloaded"
+    CLEANED = "cleaned"
 
 
 class Media(ABC):
@@ -50,14 +68,34 @@ class Media(ABC):
         self.temp_file = None
         self.content = None
         self.file_type = None
-        self._downloaded = False
         self._file_handle = None
-        self._is_local = False
+        self._state = MediaState.NEW
+
+    def _set_state(self, state, **fields):
+        """Move to ``state``, applying its field values. The only state writer."""
+        for name, value in fields.items():
+            setattr(self, name, value)
+        self._state = state
+
+    @property
+    def _downloaded(self) -> bool:
+        """True only in ``DOWNLOADED`` (derived, never stored)."""
+        return self._state is MediaState.DOWNLOADED
+
+    @_downloaded.setter
+    def _downloaded(self, value):
+        """ponytail: migration shim for direct flag writes; drop with its last assignment."""
+        self._state = MediaState.DOWNLOADED if value else MediaState.NEW
+
+    @property
+    def _is_local(self) -> bool:
+        """True when the source is a local file (derived from url, never stored)."""
+        return isinstance(self.url, str) and is_local_media_source(self.url)
 
     @property
     def is_local(self) -> bool:
         """True when this instance reads a user-owned local file (not a temp download)."""
-        return self._is_local is True
+        return self._is_local
 
     @property
     @abstractmethod
@@ -82,7 +120,7 @@ class Media(ABC):
         if self._downloaded:
             return self.temp_file, self.content, self.file_type
 
-        if is_local_media_source(self.url):
+        if self._is_local:
 
             def _sync_read_local():
                 local_path = normalize_media_path(self.url)
@@ -105,26 +143,26 @@ class Media(ABC):
                 return local_path, content
 
             self.temp_file, self.content = await asyncio.to_thread(_sync_read_local)
-            self._is_local = True
-            self.file_type = self._validate_file_type()
-            self._validate_content()
-            self._downloaded = True
-            return self.temp_file, self.content, self.file_type
+        else:
 
-        def _sync_download():
-            _, tmpfile = tempfile.mkstemp(prefix=self._get_file_prefix(), suffix=".bin")
+            def _sync_download():
+                _, tmpfile = tempfile.mkstemp(prefix=self._get_file_prefix(), suffix=".bin")
 
-            with open(tmpfile, "wb") as f:
-                request = Request(url=self.url, headers={"User-Agent": f"Agoras/{__version__}"})
-                content = urlopen(request, timeout=30).read()
-                f.write(content)
+                with open(tmpfile, "wb") as f:
+                    request = Request(url=self.url, headers={"User-Agent": f"Agoras/{__version__}"})
+                    content = urlopen(request, timeout=30).read()
+                    f.write(content)
 
-            return tmpfile, content
+                return tmpfile, content
 
-        self.temp_file, self.content = await asyncio.to_thread(_sync_download)
+            self.temp_file, self.content = await asyncio.to_thread(_sync_download)
+
+        # Enter DOWNLOADED before validating: the content probes gate on the
+        # lifecycle state and previously ran half-initialized (state still NEW),
+        # which silently skipped every duration/dimension limit.
+        self._set_state(MediaState.DOWNLOADED)
         self.file_type = self._validate_file_type()
         self._validate_content()
-        self._downloaded = True
 
         return self.temp_file, self.content, self.file_type
 
@@ -143,8 +181,7 @@ class Media(ABC):
 
         if self.content is not None:
             return io.BytesIO(self.content)
-        else:
-            raise Exception("No file content available in memory")
+        raise Exception("No file content available in memory")
 
     def _get_file_prefix(self):
         """
@@ -214,10 +251,9 @@ class Media(ABC):
         """
         if self.content is not None:
             return len(self.content)
-        elif self._downloaded and self.temp_file:
+        if self._downloaded and self.temp_file:
             return os.path.getsize(self.temp_file)
-        else:
-            raise Exception("File must be downloaded before getting size")
+        raise Exception("File must be downloaded before getting size")
 
     def cleanup(self):
         """
@@ -228,18 +264,16 @@ class Media(ABC):
                 self._file_handle.close()
             except Exception:
                 pass
-            self._file_handle = None
 
         if self.temp_file and os.path.exists(self.temp_file) and not self._is_local:
             try:
                 os.unlink(self.temp_file)
             except Exception:
                 pass
-            self.temp_file = None
 
-        self.content = None
-        self.file_type = None
-        self._downloaded = False
+        # Local sources are never unlinked, but the pointer is always dropped so
+        # CLEANED has exactly one shape.
+        self._set_state(MediaState.CLEANED, _file_handle=None, temp_file=None, content=None, file_type=None)
 
     def __enter__(self):
         """Context manager entry."""

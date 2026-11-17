@@ -593,6 +593,11 @@ class SocialNetwork(ABC):
                 if sheet_row is not None:
                     await sheet.mark_as_published(sheet_row)
             except Exception as exc:
+                sheet_row = post_data.get("_sheet_row")
+                if sheet_row is not None:
+                    # Park the row: a scheduler that silently retries a broken
+                    # post forever is worse than one that stops and says so.
+                    await sheet.mark_as_failed(sheet_row)
                 print(f"Scheduled item failed ({index}): {exc}", file=sys.stderr)
 
     def _output_status(self, post_id):

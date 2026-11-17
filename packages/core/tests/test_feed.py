@@ -600,3 +600,42 @@ def test_parse_rss_bytes_entity_marker_in_comment_not_rejected():
 </channel></rss>"""
     feed = parse_rss_bytes(rss)
     assert len(feed.items) == 1
+
+
+@pytest.mark.asyncio
+@patch('agoras.core.feed.feed.urlopen')
+@patch('agoras.core.feed.feed.parse_rss_bytes')
+async def test_feed_downloaded_state_derives_from_items(mock_parse, mock_urlopen):
+    """DOWNLOADED is a view over the item list, not a parallel flag."""
+    mock_feed_data = MagicMock()
+    mock_feed_data.items = []
+    mock_parse.return_value = mock_feed_data
+    mock_urlopen.return_value = MagicMock(read=MagicMock(return_value=b'<rss/>'))
+
+    feed = Feed('https://example.com/feed.xml')
+    assert feed._downloaded is False
+    assert feed._items is None
+
+    await feed.download()
+
+    assert feed._downloaded is True
+    assert feed._items == []
+    assert feed.items == []
+
+
+def test_feed_item_parses_once():
+    """Cleaned fields are cached: mutating the raw item afterwards changes nothing."""
+    raw = MagicMock()
+    raw.title = 'First title'
+    raw.link = 'http://first.example'
+    raw.guid = None
+    raw.pub_date = None
+    raw.enclosures = []
+
+    item = FeedItem(raw)
+    assert item._processed is False
+    assert item.title == 'First title'
+    assert item._processed is True
+
+    raw.title = 'Second title'
+    assert item.title == 'First title'

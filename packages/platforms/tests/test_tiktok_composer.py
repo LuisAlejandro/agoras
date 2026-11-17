@@ -31,6 +31,7 @@ from agoras.platforms.tiktok.composer import (
     MUSIC_USAGE_CONSENT,
     OAUTH_CALLBACK_PORT,
     PROCESSING_NOTICE,
+    ComposerOutcome,
     ComposerRequest,
     ComposerValidationError,
     bind_composer_server,
@@ -410,7 +411,10 @@ def test_composer_http_csrf_and_cancel_and_path_traversal():
 
         cancel_body = _http_get(port, "/cancel", host="127.0.0.1")
         assert "cancelled" in cancel_body.lower()
-        assert server.cancelled is True
+        # A terminal outcome latches: a late cancel cannot revoke a confirmed session.
+        assert server.cancelled is False
+        assert server.outcome is ComposerOutcome.CONFIRMED
+        assert server.payload.title == "From HTTP"
     finally:
         server.cancelled = True
         server.server_close()
@@ -471,3 +475,12 @@ def _http_post(port, path, body, origin, expect_status=None):
         return response.status, text
     finally:
         conn.close()
+
+
+def test_run_composer_raises_on_idle_timeout():
+    """An idle session is a timeout, not a cancel."""
+    from agoras.core.polling import ProcessingTimeoutError
+    from agoras.platforms.tiktok.composer import run_composer
+
+    with pytest.raises(ProcessingTimeoutError, match='idle for'):
+        run_composer(_request(), timeout=0, open_browser=False)

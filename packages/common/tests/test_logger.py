@@ -24,7 +24,7 @@ import sys
 import tempfile
 import unittest
 
-from agoras.common.logger import logger
+from agoras.common.logger import ControlableLogger, LoggerState, logger
 
 
 class TestLogger(unittest.TestCase):
@@ -251,3 +251,34 @@ def load_tests(loader, tests, pattern):
 
 if __name__ == '__main__':
     sys.exit(unittest.main())
+
+
+def test_logger_disabled_is_derived_from_state():
+    """disabled is a view over the lifecycle state, not a second flag."""
+    logger = ControlableLogger('derived-state-probe')
+    logger.propagate = False
+
+    assert logger._state is LoggerState.STOPPED
+    assert logger.disabled is True
+
+    logger.start()
+    try:
+        assert logger._state is LoggerState.RUNNING
+        assert logger.disabled is False
+    finally:
+        logger.stop()
+
+    assert logger._state is LoggerState.STOPPED
+    assert logger.disabled is True
+
+
+def test_logger_disabled_shim_moves_the_state():
+    """The old boolean name still works while call sites migrate."""
+    logger = ControlableLogger('shim-probe')
+    logger.propagate = False
+
+    logger.disabled = False
+    assert logger._state is LoggerState.RUNNING
+
+    logger.disabled = True
+    assert logger._state is LoggerState.STOPPED

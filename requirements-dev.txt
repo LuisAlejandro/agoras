@@ -9,24 +9,24 @@ coverage==7.15.4
 
 # Code Quality
 ruff==0.16.3
-pyright==1.1.411
+pyright==1.1.414
 pydocstyle==6.3.0
 bandit==1.9.4
 vulture==2.16
 
 # Build Tools
 build==1.5.0
-setuptools==83.0.0
+setuptools==84.0.0
 wheel==0.48.0
 
 # Testing Orchestration
-tox==4.58.0
+tox==4.60.0
 
 # Documentation (9.1.0 requires Python >=3.12; pin older sphinx on matrix runners)
 sphinx==9.1.0; python_version >= '3.12'
 sphinx==9.0.4; python_version == '3.11'
 sphinx==8.1.3; python_version < '3.11'
-mako==1.4.1
+mako==1.4.2
 
 # Publishing
 twine==7.0.0

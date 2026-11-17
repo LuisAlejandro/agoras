@@ -19,6 +19,7 @@
 
 import sys
 
+from agoras.core.api_base import AuthState
 from agoras.core.interfaces import SocialNetwork, run_wrapper_main, run_wrapper_main_async
 from agoras.core.text_limits import validate_text
 from agoras.media.paths import is_local_media_source, media_is_local
@@ -62,6 +63,8 @@ class Facebook(SocialNetwork):
         self.facebook_post_id = None
         self.facebook_profile_id = None
         self.facebook_app_id = None
+        # Declared default: flipped by the page-token exchange, read by post().
+        self._is_page_target = False
 
     async def _initialize_client(self):
         """
@@ -213,7 +216,7 @@ class Facebook(SocialNetwork):
 
         api.client = FacebookAPIClient(access_token)
         await api.client.authenticate()
-        api._authenticated = True
+        api._set_auth_state(AuthState.AUTHENTICATED)
         # Mark the auth manager as authenticated too
         api.auth_manager.access_token = access_token
         api.auth_manager.client = api.client
@@ -360,7 +363,7 @@ class Facebook(SocialNetwork):
         validate_text("facebook", "message", status_text or "")
 
         # Handle posting differently for pages vs profiles
-        is_page_target = getattr(self, "_is_page_target", False)
+        is_page_target = self._is_page_target
 
         if source_media:
             images = await self.download_images(source_media)

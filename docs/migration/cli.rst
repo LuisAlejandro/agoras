@@ -79,7 +79,7 @@ Within platform commands, platform prefixes are removed:
      - ``--consumer-key``
    * - X (formerly Twitter)
      - ``--twitter-oauth-token``
-     - ``--oauth-token``
+     - (env var ``TWITTER_OAUTH_TOKEN``; not a CLI flag)
    * - Facebook
      - ``--facebook-access-token``
      - (Removed in v2.0 - use ``agoras facebook authorize`` first)

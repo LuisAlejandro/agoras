@@ -102,6 +102,22 @@ def test_linkedin_authorize_accepts_scope_flag():
     assert args.scope == 'openid,w_member_social_feed'
 
 
+def test_linkedin_authorize_help_lists_default_scope_set():
+    """LinkedIn authorize --scope help renders the auth manager's default scopes."""
+    from agoras.platforms.linkedin.auth import LINKEDIN_OAUTH_DEFAULT_SCOPES
+
+    expected_default = ",".join(LINKEDIN_OAUTH_DEFAULT_SCOPES.split())
+
+    root_parser = ArgumentParser()
+    subparsers = root_parser.add_subparsers(dest='platform')
+    create_linkedin_parser(subparsers)
+    linkedin_parser = subparsers.choices['linkedin']
+    choices = linkedin_parser._subparsers._group_actions[0].choices
+    authorize_help = choices['authorize'].format_help()
+
+    assert f"'{expected_default}'" in authorize_help
+
+
 def test_non_linkedin_authorize_rejects_scope_flag():
     """Other platforms' authorize commands reject --scope as unknown."""
     root_parser = ArgumentParser()

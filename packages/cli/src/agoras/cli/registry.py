@@ -24,43 +24,31 @@ supported actions.
 
 from typing import Any, Dict, List, Set
 
+# Action set shared by the "x" command and its deprecated "twitter" alias.
+_X_ACTIONS = {
+    "authorize",
+    "post",
+    "video",
+    "thread",
+    "like",
+    "share",
+    "delete",
+    "delete-reply",
+    "reply",
+    "get-post",
+    "get-reply",
+    "list-posts",
+}
+
 
 class PlatformRegistry:
     """Registry of all platforms and their supported actions."""
 
     PLATFORMS: Dict[str, Dict[str, Any]] = {
-        "x": {
-            "actions": {
-                "authorize",
-                "post",
-                "video",
-                "thread",
-                "like",
-                "share",
-                "delete",
-                "delete-reply",
-                "reply",
-                "get-post",
-                "get-reply",
-                "list-posts",
-            },
-        },
-        "twitter": {
-            "actions": {
-                "authorize",
-                "post",
-                "video",
-                "thread",
-                "like",
-                "share",
-                "delete",
-                "delete-reply",
-                "reply",
-                "get-post",
-                "get-reply",
-                "list-posts",
-            },
-        },
+        # "twitter" stays a distinct entry: it is a separate CLI command whose
+        # alias identity survives into the legacy argument shape.
+        "x": {"actions": _X_ACTIONS},
+        "twitter": {"actions": _X_ACTIONS},
         "facebook": {
             "actions": {
                 "authorize",

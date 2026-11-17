@@ -15,24 +15,29 @@ X (formerly Twitter) Parameters
      - New (Utils)
    * - ``--twitter-consumer-key``
      - ``--consumer-key``
-     - ``--x-consumer-key`` (``--twitter-consumer-key`` deprecated)
+     - (use platform ``authorize`` or env vars)
    * - ``--twitter-consumer-secret``
      - ``--consumer-secret``
-     - ``--x-consumer-secret`` (``--twitter-consumer-secret`` deprecated)
+     - (use platform ``authorize`` or env vars)
    * - ``--twitter-oauth-token``
-     - ``--oauth-token``
-     - ``--x-oauth-token`` (``--twitter-oauth-token`` deprecated)
+     - (env var ``TWITTER_OAUTH_TOKEN``; not a CLI flag)
+     - (use platform ``authorize`` or env vars)
    * - ``--twitter-oauth-secret``
-     - ``--oauth-secret``
-     - ``--x-oauth-secret`` (``--twitter-oauth-secret`` deprecated)
+     - (env var ``TWITTER_OAUTH_SECRET``; not a CLI flag)
+     - (use platform ``authorize`` or env vars)
    * - ``--tweet-id``
      - ``--post-id``
      - ``--post-id``
 
 .. note::
-   For utils commands, use ``--x-*`` parameters. The ``--twitter-*`` parameters are deprecated but still work with deprecation warnings.
+   Utils commands accept no credential flags; run ``agoras x authorize`` or set
+   the ``TWITTER_*`` environment variables. The legacy ``--twitter-*`` credential
+   parameters applied to the removed ``agoras publish`` command only.
 
-   Since 2.1.0, ``--consumer-key``, ``--consumer-secret``, ``--oauth-token``, and ``--oauth-secret`` in the **New (Platform)** column apply to ``agoras x authorize`` only, not to action commands.
+   Since 2.1.0, ``--consumer-key`` and ``--consumer-secret`` in the **New
+   (Platform)** column apply to ``agoras x authorize`` only, not to action
+   commands. OAuth token/secret are set via the ``TWITTER_OAUTH_TOKEN`` and
+   ``TWITTER_OAUTH_SECRET`` environment variables, not CLI flags.
 
 Facebook Parameters
 -------------------
@@ -48,13 +53,13 @@ Facebook Parameters
      - (Removed in v2.0)
    * - ``--facebook-object-id``
      - ``--object-id``
-     - ``--facebook-object-id``
+     - (use platform ``authorize`` or env vars)
    * - ``--facebook-post-id``
      - ``--post-id``
      - ``--post-id``
    * - ``--facebook-app-id``
      - ``--app-id``
-     - ``--facebook-app-id``
+     - (use platform ``authorize`` or env vars)
 
 Discord Parameters
 ------------------

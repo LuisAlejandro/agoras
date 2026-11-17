@@ -197,7 +197,7 @@ def classify_oauth_error(exc: Exception, platform: str) -> AuthFailureDetails:
 def record_auth_failure(auth_manager: BaseAuthManager, exc: Exception) -> bool:
     """Set last_auth_failure from an exception and signal authenticate() failure."""
     platform = auth_manager._get_platform_name()
-    auth_manager.last_auth_failure = classify_oauth_error(exc, platform)
+    auth_manager._record_auth_failure(classify_oauth_error(exc, platform))
     return False
 
 

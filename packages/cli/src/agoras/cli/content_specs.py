@@ -47,7 +47,7 @@ class FieldSpec:
     """One content field allowed for a platform action."""
 
     name: str
-    kind: FieldKind
+    kind: FieldKind = "str"
     required: bool = False
     default: Any = None
     choices: Optional[FrozenSet[str]] = None
@@ -88,57 +88,30 @@ class ActionSpec:
         return frozenset(self.field_map.keys())
 
 
-def _f(
-    name: str,
-    kind: FieldKind = "str",
-    *,
-    required: bool = False,
-    default: Any = None,
-    choices: Optional[FrozenSet[str]] = None,
-    max_items: Optional[int] = None,
-    min_items: Optional[int] = None,
-    http_url: bool = False,
-    media_source: bool = False,
-    max_length: Optional[int] = None,
-) -> FieldSpec:
-    return FieldSpec(
-        name=name,
-        kind=kind,
-        required=required,
-        default=default,
-        choices=choices,
-        max_items=max_items,
-        min_items=min_items,
-        http_url=http_url,
-        media_source=media_source,
-        max_length=max_length,
-    )
-
-
 _COMMON_POST = (
-    _f("text"),
-    _f("link", http_url=True),
-    _f("images", "str_list", max_items=MAX_IMAGES, min_items=1, media_source=True),
+    FieldSpec("text"),
+    FieldSpec("link", http_url=True),
+    FieldSpec("images", "str_list", max_items=MAX_IMAGES, min_items=1, media_source=True),
 )
 
 _COMMON_REPLY = (
-    _f("text"),
-    _f("images", "str_list", max_items=MAX_IMAGES, min_items=1, media_source=True),
-    _f("video_url", media_source=True),
+    FieldSpec("text"),
+    FieldSpec("images", "str_list", max_items=MAX_IMAGES, min_items=1, media_source=True),
+    FieldSpec("video_url", media_source=True),
 )
 
 _COMMON_VIDEO = (
-    _f("video_url", required=True, media_source=True),
-    _f("video_title"),
-    _f("text"),
+    FieldSpec("video_url", required=True, media_source=True),
+    FieldSpec("video_title"),
+    FieldSpec("text"),
 )
 
 _THREAD_ENTRY_BASE = (
-    _f("text"),
-    _f("link", http_url=True),
-    _f("images", "str_list", max_items=MAX_IMAGES, min_items=1, media_source=True),
-    _f("video_url", media_source=True),
-    _f("video_title"),
+    FieldSpec("text"),
+    FieldSpec("link", http_url=True),
+    FieldSpec("images", "str_list", max_items=MAX_IMAGES, min_items=1, media_source=True),
+    FieldSpec("video_url", media_source=True),
+    FieldSpec("video_title"),
 )
 
 _THREAD_ENTRY_REQUIRE = (("text", "link", "images", "video_url"),)
@@ -153,10 +126,6 @@ _TELEGRAM_PARSE = frozenset({"HTML", "Markdown", "MarkdownV2", "None"})
 _DISCORD_ARCHIVE = frozenset({60, 1440, 4320, 10080})
 
 
-def _spec(platform: str, action: str, fields: Tuple[FieldSpec, ...], **kwargs: Any) -> ActionSpec:
-    return ActionSpec(platform=platform, action=action, fields=fields, **kwargs)
-
-
 def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
     specs: Dict[Tuple[str, str], ActionSpec] = {}
 
@@ -166,7 +135,7 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
     # --- X / twitter ---
     for platform in ("x", "twitter"):
         add(
-            _spec(
+            ActionSpec(
                 platform,
                 "post",
                 _COMMON_POST,
@@ -174,19 +143,23 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
             )
         )
         add(
-            _spec(
+            ActionSpec(
                 platform,
                 "reply",
                 _COMMON_REPLY,
                 require_one_of=(("text", "images", "video_url"),),
             )
         )
-        add(_spec(platform, "video", _COMMON_VIDEO))
+        add(ActionSpec(platform, "video", _COMMON_VIDEO))
         add(
-            _spec(
+            ActionSpec(
                 platform,
                 "thread",
-                (_f("entries", "entries", required=True, min_items=MIN_THREAD_ENTRIES, max_items=MAX_THREAD_ENTRIES),),
+                (
+                    FieldSpec(
+                        "entries", "entries", required=True, min_items=MIN_THREAD_ENTRIES, max_items=MAX_THREAD_ENTRIES
+                    ),
+                ),
                 entry_fields=_THREAD_ENTRY_BASE,
                 entry_require_one_of=_THREAD_ENTRY_REQUIRE,
                 entry_conflicts=_THREAD_ENTRY_CONFLICTS,
@@ -195,7 +168,7 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
 
     # --- Facebook ---
     add(
-        _spec(
+        ActionSpec(
             "facebook",
             "post",
             _COMMON_POST,
@@ -203,25 +176,25 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
         )
     )
     add(
-        _spec(
+        ActionSpec(
             "facebook",
             "video",
             (
-                _f("video_url", required=True, media_source=True),
-                _f("video_title", required=True),
-                _f("video_description", required=True),
-                _f("video_type", choices=_FACEBOOK_VIDEO_TYPES),
-                _f("text"),
+                FieldSpec("video_url", required=True, media_source=True),
+                FieldSpec("video_title", required=True),
+                FieldSpec("video_description", required=True),
+                FieldSpec("video_type", choices=_FACEBOOK_VIDEO_TYPES),
+                FieldSpec("text"),
             ),
         )
     )
     add(
-        _spec(
+        ActionSpec(
             "facebook",
             "reply",
             (
-                _f("text"),
-                _f("images", "str_list", max_items=1, min_items=1, media_source=True),
+                FieldSpec("text"),
+                FieldSpec("images", "str_list", max_items=1, min_items=1, media_source=True),
             ),
             require_one_of=(("text", "images"),),
         )
@@ -229,57 +202,57 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
 
     # --- Instagram ---
     add(
-        _spec(
+        ActionSpec(
             "instagram",
             "post",
             (
-                _f("text"),
-                _f("link", http_url=True),
-                _f("images", "str_list", required=True, max_items=MAX_IMAGES, min_items=1, media_source=True),
+                FieldSpec("text"),
+                FieldSpec("link", http_url=True),
+                FieldSpec("images", "str_list", required=True, max_items=MAX_IMAGES, min_items=1, media_source=True),
             ),
         )
     )
     add(
-        _spec(
+        ActionSpec(
             "instagram",
             "video",
             (
-                _f("video_url", required=True, media_source=True),
-                _f("video_caption"),
-                _f("video_type", choices=_INSTAGRAM_VIDEO_TYPES),
-                _f("text"),
+                FieldSpec("video_url", required=True, media_source=True),
+                FieldSpec("video_caption"),
+                FieldSpec("video_type", choices=_INSTAGRAM_VIDEO_TYPES),
+                FieldSpec("text"),
             ),
         )
     )
     add(
-        _spec(
+        ActionSpec(
             "instagram",
             "reply",
-            (_f("text", required=True),),
+            (FieldSpec("text", required=True),),
         )
     )
 
     # --- LinkedIn ---
     add(
-        _spec(
+        ActionSpec(
             "linkedin",
             "post",
             (
-                _f("text"),
-                _f("link", http_url=True),
-                _f("images", "str_list", max_items=MAX_IMAGES, min_items=1, media_source=True),
+                FieldSpec("text"),
+                FieldSpec("link", http_url=True),
+                FieldSpec("images", "str_list", max_items=MAX_IMAGES, min_items=1, media_source=True),
             ),
             require_one_of=(("text", "link", "images"),),
         )
     )
-    add(_spec("linkedin", "video", _COMMON_VIDEO))
+    add(ActionSpec("linkedin", "video", _COMMON_VIDEO))
     add(
-        _spec(
+        ActionSpec(
             "linkedin",
             "reply",
             (
-                _f("text"),
-                _f("images", "str_list", max_items=MAX_IMAGES, min_items=1, media_source=True),
+                FieldSpec("text"),
+                FieldSpec("images", "str_list", max_items=MAX_IMAGES, min_items=1, media_source=True),
             ),
             require_one_of=(("text", "images"),),
         )
@@ -287,51 +260,53 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
 
     # --- Discord ---
     add(
-        _spec(
+        ActionSpec(
             "discord",
             "post",
             (
                 *_COMMON_POST,
-                _f("embeds", "map_list", max_items=10),
+                FieldSpec("embeds", "map_list", max_items=10),
             ),
             require_one_of=(("text", "link", "images", "embeds"),),
         )
     )
     add(
-        _spec(
+        ActionSpec(
             "discord",
             "reply",
             (
                 *_COMMON_REPLY,
-                _f("embeds", "map_list", max_items=10),
+                FieldSpec("embeds", "map_list", max_items=10),
             ),
             require_one_of=(("text", "images", "video_url", "embeds"),),
         )
     )
     add(
-        _spec(
+        ActionSpec(
             "discord",
             "video",
             (
-                _f("video_url", required=True, media_source=True),
-                _f("video_title"),
-                _f("text"),
-                _f("embeds", "map_list", max_items=10),
+                FieldSpec("video_url", required=True, media_source=True),
+                FieldSpec("video_title"),
+                FieldSpec("text"),
+                FieldSpec("embeds", "map_list", max_items=10),
             ),
         )
     )
     add(
-        _spec(
+        ActionSpec(
             "discord",
             "thread",
             (
-                _f("thread_name", required=True, max_length=100),
-                _f("auto_archive_duration", "int", choices=frozenset(str(v) for v in _DISCORD_ARCHIVE)),
-                _f("entries", "entries", required=True, min_items=MIN_THREAD_ENTRIES, max_items=MAX_THREAD_ENTRIES),
+                FieldSpec("thread_name", required=True, max_length=100),
+                FieldSpec("auto_archive_duration", "int", choices=frozenset(str(v) for v in _DISCORD_ARCHIVE)),
+                FieldSpec(
+                    "entries", "entries", required=True, min_items=MIN_THREAD_ENTRIES, max_items=MAX_THREAD_ENTRIES
+                ),
             ),
             entry_fields=(
                 *_THREAD_ENTRY_BASE,
-                _f("embeds", "map_list", max_items=10),
+                FieldSpec("embeds", "map_list", max_items=10),
             ),
             entry_require_one_of=(("text", "link", "images", "video_url", "embeds"),),
             entry_conflicts=_THREAD_ENTRY_CONFLICTS,
@@ -340,109 +315,111 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
 
     # --- YouTube ---
     add(
-        _spec(
+        ActionSpec(
             "youtube",
             "video",
             (
-                _f("video_url", required=True, media_source=True),
-                _f("title", required=True),
-                _f("description"),
-                _f("category_id"),
-                _f("privacy", default="private", choices=_YOUTUBE_PRIVACY),
-                _f("keywords", "str_list"),
+                FieldSpec("video_url", required=True, media_source=True),
+                FieldSpec("title", required=True),
+                FieldSpec("description"),
+                FieldSpec("category_id"),
+                FieldSpec("privacy", default="private", choices=_YOUTUBE_PRIVACY),
+                FieldSpec("keywords", "str_list"),
             ),
         )
     )
     add(
-        _spec(
+        ActionSpec(
             "youtube",
             "reply",
-            (_f("text", required=True),),
+            (FieldSpec("text", required=True),),
         )
     )
 
     # --- TikTok ---
     add(
-        _spec(
+        ActionSpec(
             "tiktok",
             "post",
             (
-                _f("images", "str_list", required=True, max_items=MAX_IMAGES, min_items=1, media_source=True),
-                _f("title"),
-                _f("description"),
-                _f("privacy", default="SELF_ONLY", choices=_TIKTOK_PRIVACY),
-                _f("allow_comments", "bool"),
-                _f("auto_add_music", "bool"),
-                _f("brand_organic", "bool"),
-                _f("brand_content", "bool"),
+                FieldSpec("images", "str_list", required=True, max_items=MAX_IMAGES, min_items=1, media_source=True),
+                FieldSpec("title"),
+                FieldSpec("description"),
+                FieldSpec("privacy", default="SELF_ONLY", choices=_TIKTOK_PRIVACY),
+                FieldSpec("allow_comments", "bool"),
+                FieldSpec("auto_add_music", "bool"),
+                FieldSpec("brand_organic", "bool"),
+                FieldSpec("brand_content", "bool"),
             ),
         )
     )
     add(
-        _spec(
+        ActionSpec(
             "tiktok",
             "video",
             (
-                _f("video_url", required=True, media_source=True),
-                _f("title", required=True),
-                _f("privacy", default="SELF_ONLY", choices=_TIKTOK_PRIVACY),
-                _f("allow_comments", "bool"),
-                _f("allow_duet", "bool"),
-                _f("allow_stitch", "bool"),
-                _f("brand_organic", "bool"),
-                _f("brand_content", "bool"),
+                FieldSpec("video_url", required=True, media_source=True),
+                FieldSpec("title", required=True),
+                FieldSpec("privacy", default="SELF_ONLY", choices=_TIKTOK_PRIVACY),
+                FieldSpec("allow_comments", "bool"),
+                FieldSpec("allow_duet", "bool"),
+                FieldSpec("allow_stitch", "bool"),
+                FieldSpec("brand_organic", "bool"),
+                FieldSpec("brand_content", "bool"),
             ),
         )
     )
 
     # --- Meta Threads ---
     add(
-        _spec(
+        ActionSpec(
             "threads",
             "post",
             (
                 *_COMMON_POST,
-                _f("who_can_reply", default="everyone", choices=_THREADS_REPLY),
-                _f("alt_texts", "str_list", max_items=MAX_IMAGES),
+                FieldSpec("who_can_reply", default="everyone", choices=_THREADS_REPLY),
+                FieldSpec("alt_texts", "str_list", max_items=MAX_IMAGES),
             ),
             require_one_of=(("text", "link", "images"),),
         )
     )
     add(
-        _spec(
+        ActionSpec(
             "threads",
             "video",
             (
-                _f("video_url", required=True, media_source=True),
-                _f("video_title"),
-                _f("text"),
-                _f("who_can_reply", default="everyone", choices=_THREADS_REPLY),
+                FieldSpec("video_url", required=True, media_source=True),
+                FieldSpec("video_title"),
+                FieldSpec("text"),
+                FieldSpec("who_can_reply", default="everyone", choices=_THREADS_REPLY),
             ),
         )
     )
     add(
-        _spec(
+        ActionSpec(
             "threads",
             "reply",
             (
                 *_COMMON_REPLY,
-                _f("who_can_reply", default="everyone", choices=_THREADS_REPLY),
-                _f("alt_texts", "str_list", max_items=MAX_IMAGES),
+                FieldSpec("who_can_reply", default="everyone", choices=_THREADS_REPLY),
+                FieldSpec("alt_texts", "str_list", max_items=MAX_IMAGES),
             ),
             require_one_of=(("text", "images", "video_url"),),
         )
     )
     add(
-        _spec(
+        ActionSpec(
             "threads",
             "thread",
             (
-                _f("who_can_reply", default="everyone", choices=_THREADS_REPLY),
-                _f("entries", "entries", required=True, min_items=MIN_THREAD_ENTRIES, max_items=MAX_THREAD_ENTRIES),
+                FieldSpec("who_can_reply", default="everyone", choices=_THREADS_REPLY),
+                FieldSpec(
+                    "entries", "entries", required=True, min_items=MIN_THREAD_ENTRIES, max_items=MAX_THREAD_ENTRIES
+                ),
             ),
             entry_fields=(
                 *_THREAD_ENTRY_BASE,
-                _f("alt_texts", "str_list", max_items=MAX_IMAGES),
+                FieldSpec("alt_texts", "str_list", max_items=MAX_IMAGES),
             ),
             entry_require_one_of=_THREAD_ENTRY_REQUIRE,
             entry_conflicts=_THREAD_ENTRY_CONFLICTS,
@@ -451,41 +428,41 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
 
     # --- Telegram ---
     add(
-        _spec(
+        ActionSpec(
             "telegram",
             "post",
             (
                 *_COMMON_POST,
-                _f("parse_mode", default="HTML", choices=_TELEGRAM_PARSE),
+                FieldSpec("parse_mode", default="HTML", choices=_TELEGRAM_PARSE),
             ),
             require_one_of=(("text", "link", "images"),),
         )
     )
     add(
-        _spec(
+        ActionSpec(
             "telegram",
             "reply",
             (
                 *_COMMON_REPLY,
-                _f("parse_mode", default="HTML", choices=_TELEGRAM_PARSE),
+                FieldSpec("parse_mode", default="HTML", choices=_TELEGRAM_PARSE),
             ),
             require_one_of=(("text", "images", "video_url"),),
         )
     )
     add(
-        _spec(
+        ActionSpec(
             "telegram",
             "video",
             (
                 *_COMMON_VIDEO,
-                _f("parse_mode", default="HTML", choices=_TELEGRAM_PARSE),
+                FieldSpec("parse_mode", default="HTML", choices=_TELEGRAM_PARSE),
             ),
         )
     )
 
     # --- WhatsApp ---
     add(
-        _spec(
+        ActionSpec(
             "whatsapp",
             "post",
             _COMMON_POST,
@@ -493,22 +470,22 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
         )
     )
     add(
-        _spec(
+        ActionSpec(
             "whatsapp",
             "reply",
             _COMMON_REPLY,
             require_one_of=(("text", "images", "video_url"),),
         )
     )
-    add(_spec("whatsapp", "video", _COMMON_VIDEO))
+    add(ActionSpec("whatsapp", "video", _COMMON_VIDEO))
     add(
-        _spec(
+        ActionSpec(
             "whatsapp",
             "template",
             (
-                _f("template_name", required=True),
-                _f("language_code", default="en"),
-                _f("template_components", "any"),
+                FieldSpec("template_name", required=True),
+                FieldSpec("language_code", default="en"),
+                FieldSpec("template_components", "any"),
             ),
         )
     )
@@ -517,51 +494,6 @@ def _build_specs() -> Dict[Tuple[str, str], ActionSpec]:
 
 
 CONTENT_SPECS: Dict[Tuple[str, str], ActionSpec] = _build_specs()
-
-# Union of all content keys across specs (for incompatible-vs-unknown).
-ALL_CONTENT_KEYS: FrozenSet[str] = frozenset(
-    key
-    for spec in CONTENT_SPECS.values()
-    for key in list(spec.allowed_keys)
-    + [f.name for f in spec.entry_fields]
-    + ["version", "entries", "thread_name", "auto_archive_duration"]
-) | frozenset(
-    {
-        "text",
-        "link",
-        "images",
-        "image_1",
-        "image_2",
-        "image_3",
-        "image_4",
-        "video_url",
-        "video_title",
-        "video_description",
-        "video_type",
-        "video_caption",
-        "title",
-        "description",
-        "category_id",
-        "privacy",
-        "keywords",
-        "allow_comments",
-        "allow_duet",
-        "allow_stitch",
-        "auto_add_music",
-        "brand_organic",
-        "brand_content",
-        "who_can_reply",
-        "alt_texts",
-        "parse_mode",
-        "template_name",
-        "language_code",
-        "template_components",
-        "embeds",
-        "thread_name",
-        "auto_archive_duration",
-        "entries",
-    }
-)
 
 # Destinations that conflict with --content when explicitly supplied on CLI.
 INLINE_CONTENT_DESTINATIONS: FrozenSet[str] = frozenset(
@@ -600,6 +532,20 @@ INLINE_CONTENT_DESTINATIONS: FrozenSet[str] = frozenset(
         # parse_mode is control for telegram (destination), not XOR content —
         # kept off this set intentionally.
     }
+)
+
+# Union of all content keys across specs (for incompatible-vs-unknown).
+# Every inline destination counts as known even when no spec declares it, plus
+# the aggregate "images" key and telegram's parse_mode, which is a destination
+# deliberately excluded from INLINE_CONTENT_DESTINATIONS above.
+ALL_CONTENT_KEYS: FrozenSet[str] = (
+    frozenset(
+        key
+        for spec in CONTENT_SPECS.values()
+        for key in list(spec.allowed_keys) + [f.name for f in spec.entry_fields] + ["version"]
+    )
+    | INLINE_CONTENT_DESTINATIONS
+    | frozenset({"images", "parse_mode"})
 )
 
 

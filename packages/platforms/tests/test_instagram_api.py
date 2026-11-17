@@ -39,7 +39,7 @@ def instagram_api():
         api.client.create_media = AsyncMock(return_value='container-123')
         api.client.publish_media = AsyncMock(return_value='media-123')
         api.client.like_media = AsyncMock(return_value=True)
-        api.client.delete_media = AsyncMock(return_value=True)
+        api.client.delete_media = AsyncMock(return_value='media-123')
         yield api
 
 

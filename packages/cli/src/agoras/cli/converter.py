@@ -25,6 +25,21 @@ This is a skeleton implementation to be fully populated in later phases.
 from argparse import Namespace
 from typing import Any, Dict
 
+# Parameter renames shared by the "x" command and its deprecated "twitter"
+# alias. Both keep their own registry entry because the alias identity is
+# carried through to the legacy argument shape as ``network``.
+_X_MAPPING = {
+    # Auth
+    "consumer_key": "twitter_consumer_key",
+    "consumer_secret": "twitter_consumer_secret",
+    "oauth_token": "twitter_oauth_token",
+    "oauth_secret": "twitter_oauth_secret",
+    # Content
+    "post_id": "tweet_id",
+    "video_url": "twitter_video_url",
+    "video_title": "twitter_video_title",
+}
+
 
 class ParameterConverter:
     """Convert between new and legacy parameter formats."""
@@ -32,28 +47,8 @@ class ParameterConverter:
     # Platform-specific parameter mappings
     # To be fully populated in Phase 3 (Week 5)
     PLATFORM_MAPPINGS: Dict[str, Dict[str, str]] = {
-        "x": {
-            # Auth
-            "consumer_key": "twitter_consumer_key",
-            "consumer_secret": "twitter_consumer_secret",
-            "oauth_token": "twitter_oauth_token",
-            "oauth_secret": "twitter_oauth_secret",
-            # Content
-            "post_id": "tweet_id",
-            "video_url": "twitter_video_url",
-            "video_title": "twitter_video_title",
-        },
-        "twitter": {
-            # Auth
-            "consumer_key": "twitter_consumer_key",
-            "consumer_secret": "twitter_consumer_secret",
-            "oauth_token": "twitter_oauth_token",
-            "oauth_secret": "twitter_oauth_secret",
-            # Content
-            "post_id": "tweet_id",
-            "video_url": "twitter_video_url",
-            "video_title": "twitter_video_title",
-        },
+        "x": _X_MAPPING,
+        "twitter": _X_MAPPING,
         "facebook": {
             "client_id": "facebook_client_id",
             "client_secret": "facebook_client_secret",
@@ -151,7 +146,9 @@ class ParameterConverter:
         },
     }
 
-    # Common parameter mappings (apply to all platforms)
+    # Common parameter mappings (apply to all platforms).
+    # Renames only: identity entries are omitted because unmapped parameters
+    # already pass through unchanged (see convert_to_legacy).
     COMMON_MAPPINGS = {
         # Content parameters
         "text": "status_text",
@@ -160,15 +157,11 @@ class ParameterConverter:
         "image_2": "status_image_url_2",
         "image_3": "status_image_url_3",
         "image_4": "status_image_url_4",
-        # Feed parameters
-        "feed_url": "feed_url",
         # Google Sheets parameters
         "sheets_id": "google_sheets_id",
         "sheets_name": "google_sheets_name",
         "sheets_client_email": "google_sheets_client_email",
         "sheets_private_key": "google_sheets_private_key",
-        # System parameters
-        "loglevel": "loglevel",
     }
 
     def __init__(self, platform: str):

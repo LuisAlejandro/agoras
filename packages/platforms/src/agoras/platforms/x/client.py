@@ -25,6 +25,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from tweepy import API, Client, OAuth1UserHandler
 
+from agoras.core.api_base import AuthLifecycle, AuthState
+
 
 def _x_media_type_and_url(item: Any) -> Optional[Dict[str, str]]:
     """Map a tweepy/media object to normalized {type, url}."""
@@ -99,7 +101,7 @@ def _upload_path_for_media_type(media_type: str) -> Tuple[str, Optional[str]]:
     return ".bin", None
 
 
-class XAPIClient:
+class XAPIClient(AuthLifecycle):
     """
     X API client that centralizes both v1.1 and v2 API operations.
 
@@ -123,7 +125,6 @@ class XAPIClient:
         self.oauth_secret = oauth_secret
         self.client_v1: Optional[API] = None
         self.client_v2: Optional[Client] = None
-        self._authenticated = False
 
     async def authenticate(self) -> bool:
         """
@@ -179,7 +180,7 @@ class XAPIClient:
 
             # Skip credential verification - other platforms don't verify during auth
             # Invalid tokens will fail during actual API calls with clearer errors
-            self._authenticated = True
+            self._set_auth_state(AuthState.AUTHENTICATED)
             return True
 
         except Exception:
@@ -191,7 +192,7 @@ class XAPIClient:
         """
         self.client_v1 = None
         self.client_v2 = None
-        self._authenticated = False
+        self._set_auth_state(AuthState.UNAUTHENTICATED)
 
     async def get_user_info(self) -> dict:
         """

@@ -15,7 +15,7 @@ Resources
 
 * **Documentation**: https://agoras.luisalejandro.org/en/latest/
 * **Migration Issues**: https://github.com/LuisAlejandro/agoras/issues
-* **Community**: https://discord.gg/GRnq3qQ9SB
+* **Community**: https://discord.gg/4UCXWhYEhR
 
 Support Timeline
 ================

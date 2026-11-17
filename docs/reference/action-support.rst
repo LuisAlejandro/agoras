@@ -55,7 +55,7 @@ Complete Support Matrix
      - ✗
      - ✗
      - ✗
-     - ✗
+     - ✓
      - ✓
      - ✓
      - ✓
@@ -201,7 +201,7 @@ Limited Action Platforms
 
 These platforms have specific API limitations:
 
-* **Instagram**: Post and video only (no like, share, or delete via API)
+* **Instagram**: Post, video, and delete (no like or share via API)
 * **Discord**: Bot-based messaging (post, video, thread, delete; no traditional likes)
 * **Threads**: Post, video, thread, share, and delete (no like via CLI)
 * **Telegram**: Post, video, and delete (messaging platform)
@@ -231,10 +231,9 @@ The help output will only show actions that the platform supports.
 Action Validation
 -----------------
 
-Agoras automatically validates that the requested action is supported by the platform. If you try an unsupported action, you'll get a clear error message::
+Agoras validates that the requested action is supported by the platform. If you try an unsupported action, the CLI rejects it with an invalid-choice error::
 
-    $ agoras youtube post --help
-    Error: Action 'post' is not supported by youtube.
-    Supported actions: authorize, video, like, delete
+    $ agoras youtube post
+    agoras youtube: error: argument action: invalid choice: 'post' (choose from authorize, video, like, delete, delete-reply, reply, get-post, get-reply, list-posts)
 
 This prevents wasted API calls and provides immediate feedback.

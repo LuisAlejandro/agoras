@@ -1,7 +1,7 @@
 Usage for Instagram
 ===================
 
-Instagram is a social network that allows you to share photos and videos with your friends and followers. Agoras uses a popular `Facebook Graph API client <https://github.com/sns-sdks/python-facebook>`_ to publish posts. Only publishing is allowed by the API, so you can't like, share or delete posts.
+Instagram is a social network that allows you to share photos and videos with your friends and followers. Agoras uses a popular `Facebook Graph API client <https://github.com/sns-sdks/python-facebook>`_ to publish posts. Only publishing is allowed by the API, so you can't like or share posts.
 
 Required Credentials
 --------------------
@@ -20,6 +20,8 @@ Available Actions
 * ``authorize`` - Set up OAuth 2.0 authentication (required first step)
 * ``post`` - Create Instagram posts with images
 * ``video`` - Upload videos to Instagram
+* ``reply`` - Comment on an Instagram post
+* ``delete`` - Delete an Instagram media post
 * ``delete-reply`` - Delete an Instagram comment you posted
 * ``get-post`` - Read a post/message by ID
 * ``get-reply`` - Read a reply/comment by ID
@@ -53,7 +55,7 @@ For CI/CD environments, see :doc:`credentials/instagram` for unattended executio
 Publish a Instagram post
 ------------------------
 
-This command will publish a post on the ``--object-id`` (read about how to get the id of an account :ref:`here <how-to-get-instagram-account-id>`). ``--text`` is the text of your post (URLs won't be transformed into clickable links). A instagram post can have a maximum of 2200 characters, so be careful not to exceed it. You can also add up to 4 images in your post using ``--image-1``, ``--image-2``, ``--image-3`` and ``--image-4``, which must be public HTTP(s) URLs. Instagram stills are pull-only and reject local paths.
+This command will publish a post to the Instagram account configured via the ``INSTAGRAM_OBJECT_ID`` environment variable or stored credentials (read about how to get the id of an account :ref:`here <how-to-get-instagram-account-id>`). ``--text`` is the text of your post (URLs won't be transformed into clickable links). A instagram post can have a maximum of 2200 characters, so be careful not to exceed it. A post requires at least one image, added with ``--image-1`` (and optional ``--image-2``, ``--image-3``, ...), which must be a public HTTP(s) URL; a text-only post is rejected. Instagram stills are pull-only and reject local paths.
 
 .. note::
    You must run ``agoras instagram authorize`` first before using this command.
@@ -61,12 +63,8 @@ This command will publish a post on the ``--object-id`` (read about how to get t
 **New format**::
 
     agoras instagram post \
-      --object-id "${INSTAGRAM_OBJECT_ID}" \
       --text "${STATUS_TEXT}" \
-      --image-1 "${IMAGE_URL_1}" \
-      --image-2 "${IMAGE_URL_2}" \
-      --image-3 "${IMAGE_URL_3}" \
-      --image-4 "${IMAGE_URL_4}"
+      --image-1 "${IMAGE_URL_1}"
 
 Publish an Instagram video (Reels or Stories)
 ---------------------------------------------
@@ -76,9 +74,8 @@ Publish an Instagram video (Reels or Stories)
 ::
 
     agoras instagram video \
-      --object-id "${INSTAGRAM_OBJECT_ID}" \
       --video-url ./clip.mp4 \
-      --text "${STATUS_TEXT}"
+      --video-caption "${STATUS_TEXT}"
 
 
 Like a Instagram post
@@ -94,12 +91,20 @@ Action not supported by Instagram Graph API.
 Delete a Instagram post
 -----------------------
 
-Action not supported by Instagram Graph API.
+This command will delete a media post identified by ``--post-id``.
+
+.. note::
+   You must run ``agoras instagram authorize`` first before using this command.
+
+**New format**::
+
+    agoras instagram delete \
+      --post-id "${INSTAGRAM_POST_ID}"
 
 Post the last URL from an RSS feed into Instagram
 --------------------------------------------------
 
-This command will parse an RSS feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published on ``--instagram-object-id`` (read about how to get the id of an account :ref:`here <how-to-get-instagram-account-id>`).
+This command will parse an RSS feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published to the Instagram account configured via the ``INSTAGRAM_OBJECT_ID`` environment variable or stored credentials (read about how to get the id of an account :ref:`here <how-to-get-instagram-account-id>`).
 
 .. note::
    You must run ``agoras instagram authorize`` first before using this command.
@@ -119,7 +124,7 @@ Please read about how the RSS feed should be structured in the :doc:`RSS feed se
 Post a random URL from an RSS feed into Instagram
 --------------------------------------------------
 
-This command will parse an RSS feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published on ``--instagram-object-id`` (read about how to get the id of an account :ref:`here <how-to-get-instagram-account-id>`).
+This command will parse an RSS feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published to the Instagram account configured via the ``INSTAGRAM_OBJECT_ID`` environment variable or stored credentials (read about how to get the id of an account :ref:`here <how-to-get-instagram-account-id>`).
 
 .. note::
    You must run ``agoras instagram authorize`` first before using this command.
@@ -188,8 +193,8 @@ Scheduling Logic
 
 .. _how-to-get-instagram-account-id:
 
-How to get ``--instagram-object-id`` parameter
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+How to get the Instagram account ID
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 With Agoras you can use the Instagram network to create posts. You're going to need the ID of the instagram account, for that we're going to need the id of the facebook page that's associated with the instagram account.
 

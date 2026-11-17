@@ -20,8 +20,28 @@
 import datetime
 import datetime as _real_datetime
 import logging
+from enum import Enum
 
 from .sheet import Sheet
+
+
+class RowState(str, Enum):
+    """
+    Schedule row state, stored in column 9 of the worksheet.
+
+    ``PENDING`` and a blank cell both mean "still due". Every other value is a
+    settled state: the row is not re-queued, so a hand-typed ``published`` or an
+    operator's own wording never causes a duplicate post.
+    """
+
+    PENDING = "pending"
+    PUBLISHED = "published"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
+#: Normalized cell values that mean the row is still due.
+DUE_STATES = frozenset({"", RowState.PENDING.value})
 
 
 class ScheduleSheet(Sheet):
@@ -76,8 +96,8 @@ class ScheduleSheet(Sheet):
                 state,
             ) = row_data.data[:9]
 
-            # Skip already published posts
-            if state == "published":
+            # Only blank/pending rows are due; anything else is a settled state.
+            if str(state).strip().lower() not in DUE_STATES:
                 continue
 
             try:
@@ -136,4 +156,16 @@ class ScheduleSheet(Sheet):
             sheet_row (int): 1-indexed worksheet row number
         """
         # Column 9 is the state field (status_text…hour, state)
-        await self.update_cell(sheet_row, 9, "published")
+        await self.update_cell(sheet_row, 9, RowState.PUBLISHED.value)
+
+    async def mark_as_failed(self, sheet_row):
+        """
+        Park a schedule row after a failed post so it is not retried forever.
+
+        The failure reason is not written: column 9 is the state field and the
+        workbook layout is a user contract. Callers log the reason instead.
+
+        Args:
+            sheet_row (int): 1-indexed worksheet row number
+        """
+        await self.update_cell(sheet_row, 9, RowState.FAILED.value)

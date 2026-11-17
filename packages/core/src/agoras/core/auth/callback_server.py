@@ -25,6 +25,7 @@ import ssl
 import tempfile
 import time
 from datetime import datetime, timedelta
+from enum import Enum
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Optional, cast
 from urllib.parse import parse_qs, urlparse
@@ -40,23 +41,81 @@ except ImportError:
     CRYPTOGRAPHY_AVAILABLE = False
 
 
+class CallbackOutcome(str, Enum):
+    """
+    Outcome of one OAuth callback.
+
+    ``PENDING`` until the provider hands something back. The first terminal
+    outcome latches: a second request (browser retry, favicon refresh) can never
+    overwrite a result that was already recorded, and a handler error can never
+    coexist with a later success.
+    """
+
+    PENDING = "pending"
+    AUTHORIZED = "authorized"
+    DENIED = "denied"
+    FAILED = "failed"
+
+
+class CallbackState:
+    """
+    Single-writer state for one OAuth callback.
+
+    ``settle`` is the only writer. ``auth_code``, ``callback_url``,
+    ``oauth_version`` and ``error`` are payload applied by that transition, so
+    which one is set always follows from the outcome.
+    """
+
+    def __init__(self):
+        """Initialize a pending callback."""
+        self.outcome = CallbackOutcome.PENDING
+        self.auth_code: Optional[str] = None
+        self.callback_url: Optional[str] = None
+        self.oauth_version: Optional[str] = None
+        self.error: Optional[str] = None
+
+    def settle(self, outcome, **fields):
+        """Record a terminal outcome; returns False when one was already recorded."""
+        if self.outcome is not CallbackOutcome.PENDING:
+            return False
+        for name, value in fields.items():
+            setattr(self, name, value)
+        self.outcome = outcome
+        return True
+
+    def settle_code(self, code):
+        """Record an OAuth 2.0 authorization code."""
+        return self.settle(CallbackOutcome.AUTHORIZED, auth_code=code, oauth_version="2.0")
+
+    def settle_callback_url(self, callback_url):
+        """Record an OAuth 1.0a callback URL."""
+        return self.settle(CallbackOutcome.AUTHORIZED, callback_url=callback_url, oauth_version="1.0a")
+
+    def settle_denied(self, error):
+        """Record a user denial."""
+        return self.settle(CallbackOutcome.DENIED, error=error)
+
+    def settle_failed(self, error):
+        """Record a provider or handler failure."""
+        return self.settle(CallbackOutcome.FAILED, error=error)
+
+    @property
+    def settled(self) -> bool:
+        """True once a terminal outcome was recorded (derived, never stored)."""
+        return self.outcome is not CallbackOutcome.PENDING
+
+
 class OAuthHTTPServer(HTTPServer):
     """HTTPServer subclass that stores OAuth callback state."""
 
     expected_state: Optional[str]
-    auth_code: Optional[str]
-    callback_url: Optional[str]
-    oauth_version: Optional[str]
-    error: Optional[str]
+    callback: CallbackState
 
     def __init__(self, server_address, RequestHandlerClass):
         """Initialize OAuth callback state on the HTTP server."""
         super().__init__(server_address, RequestHandlerClass)
         self.expected_state = None
-        self.auth_code = None
-        self.callback_url = None
-        self.oauth_version = None
-        self.error = None
+        self.callback = CallbackState()
 
 
 class OAuthCallbackHandler(BaseHTTPRequestHandler):
@@ -79,51 +138,45 @@ class OAuthCallbackHandler(BaseHTTPRequestHandler):
                 state = params.get("state", [None])[0]
 
                 # Validate state if expected_state is set
-                if hasattr(server, "expected_state") and server.expected_state:
-                    if state != server.expected_state:
-                        server.error = "State mismatch - possible CSRF attack"
-                        self._send_error_response("Authorization failed: State validation error")
-                        return
+                if server.expected_state and state != server.expected_state:
+                    server.callback.settle_failed("State mismatch - possible CSRF attack")
+                    self._send_error_response("Authorization failed: State validation error")
+                    return
 
-                # Store the authorization code
-                server.auth_code = code
-                server.oauth_version = "2.0"
+                server.callback.settle_code(code)
                 self._send_success_response()
 
             # Check for OAuth 1.0a callback
             elif "oauth_token" in params and "oauth_verifier" in params:
                 # Store the full callback URL for OAuth 1.0a parsing
-                server.callback_url = self.path  # Full path with query string
-                server.oauth_version = "1.0a"
+                server.callback.settle_callback_url(self.path)  # Full path with query string
                 self._send_success_response()
 
             # Check for OAuth 1.0a denial
             elif "denied" in params:
-                server.error = "User denied authorization"
-                server.oauth_version = "1.0a"
+                server.callback.settle_denied("User denied authorization")
                 self._send_error_response("Authorization denied by user")
 
             # Check for OAuth 1.0a errors
             elif "oauth_problem" in params:
                 oauth_problem = params["oauth_problem"][0]
-                server.error = f"OAuth 1.0a error: {oauth_problem}"
-                server.oauth_version = "1.0a"
+                server.callback.settle_failed(f"OAuth 1.0a error: {oauth_problem}")
                 self._send_error_response(f"Authorization failed: {oauth_problem}")
 
             elif "error" in params:
                 # OAuth error from provider
                 error = params["error"][0]
                 error_description = params.get("error_description", [""])[0]
-                server.error = f"{error}: {error_description}"
+                server.callback.settle_failed(f"{error}: {error_description}")
                 self._send_error_response(f"Authorization failed: {error}")
 
             else:
                 # Unknown callback format
-                server.error = "Invalid callback URL"
+                server.callback.settle_failed("Invalid callback URL")
                 self._send_error_response("Invalid callback URL")
         except Exception as e:
             # Catch any exceptions to prevent connection reset
-            server.error = f"Handler error: {str(e)}"
+            server.callback.settle_failed(f"Handler error: {str(e)}")
             try:
                 self._send_error_response(f"Server error: {str(e)}")
             except Exception:
@@ -516,10 +569,7 @@ class OAuthCallbackServer:
         self.server = SSLHTTPServer(("localhost", self.port), OAuthCallbackHandler, ssl_context)
 
         self.server.expected_state = self.expected_state
-        self.server.auth_code = None
-        self.server.callback_url = None
-        self.server.oauth_version = None
-        self.server.error = None
+        self.server.callback = CallbackState()
 
         print(f"Waiting for OAuth callback on https://localhost:{self.port}/callback")
         print("Note: Your browser may show a security warning for the self-signed certificate.")
@@ -564,10 +614,10 @@ class OAuthCallbackServer:
         )
 
     def _has_callback_result(self) -> bool:
-        """Check if we have received a callback result."""
+        """Check if we have received a terminal callback outcome."""
         if self.server is None:
             return False
-        return bool(self.server.auth_code or self.server.callback_url or self.server.error)
+        return self.server.callback.settled
 
     def _handle_connection_error(self, error: Exception):
         """Handle connection errors during callback waiting."""
@@ -598,14 +648,15 @@ class OAuthCallbackServer:
         if self.server is None:
             raise Exception("Authorization failed: callback server not initialized")
 
-        if self.server.error:
-            raise Exception(f"Authorization failed: {self.server.error}")
-
-        if self.server.oauth_version == "1.0a":
-            if self.server.callback_url:
-                return self.server.callback_url
-            raise Exception("No callback URL received")
-
-        if self.server.auth_code:
-            return self.server.auth_code
-        raise Exception("No authorization code received")
+        state = self.server.callback
+        if state.outcome in (CallbackOutcome.DENIED, CallbackOutcome.FAILED):
+            raise Exception(f"Authorization failed: {state.error}")
+        if state.outcome is CallbackOutcome.AUTHORIZED:
+            if state.oauth_version == "1.0a":
+                if state.callback_url:
+                    return state.callback_url
+                raise Exception("No callback URL received")
+            if state.auth_code:
+                return state.auth_code
+            raise Exception("No authorization code received")
+        raise Exception("No authorization response received")

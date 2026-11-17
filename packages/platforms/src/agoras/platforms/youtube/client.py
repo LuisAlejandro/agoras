@@ -26,6 +26,8 @@ from google.auth.exceptions import RefreshError
 from google.oauth2.credentials import Credentials
 from google_auth_httplib2 import AuthorizedHttp
 
+from agoras.core.api_base import AuthLifecycle, AuthState
+
 
 class _HttpErrorResponse:
     """Minimal response stand-in for a synthesized 401 HttpError."""
@@ -63,7 +65,7 @@ class _AuthErrorConvertingHttp:
         return getattr(self._http, name)
 
 
-class YouTubeAPIClient:
+class YouTubeAPIClient(AuthLifecycle):
     """
     YouTube API client that centralizes YouTube operations.
 
@@ -85,7 +87,6 @@ class YouTubeAPIClient:
         """
         self.access_token = access_token
         self.youtube_client = None
-        self._authenticated = False
 
         # Set up retry configuration
         httplib2.RETRIES = 1
@@ -122,7 +123,7 @@ class YouTubeAPIClient:
                 return discovery.build("youtube", "v3", http=_AuthErrorConvertingHttp(authorized_http))
 
             self.youtube_client = await asyncio.to_thread(_sync_create)
-            self._authenticated = True
+            self._set_auth_state(AuthState.AUTHENTICATED)
             return True
         except Exception as e:
             raise Exception(f"YouTube client authentication failed: {str(e)}")
@@ -132,7 +133,7 @@ class YouTubeAPIClient:
         Disconnect and clean up client resources.
         """
         self.youtube_client = None
-        self._authenticated = False
+        self._set_auth_state(AuthState.UNAUTHENTICATED)
 
     async def upload_video(
         self,

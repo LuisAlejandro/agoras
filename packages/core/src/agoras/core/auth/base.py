@@ -17,9 +17,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """agoras.core.auth.base module."""
 
+import asyncio
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
+from ..api_base import AuthState
 from .failure import (
     AuthFailureCategory,
     AuthFailureDetails,
@@ -51,9 +53,31 @@ class BaseAuthManager(ABC):
         self.last_auth_failure: Optional[AuthFailureDetails] = None
 
     @property
+    def _auth_state(self) -> AuthState:
+        """Derive the single auth state from the payload: token, client, last failure."""
+        if self.access_token and self.client:
+            return AuthState.AUTHENTICATED
+        if self.last_auth_failure is not None:
+            return AuthState.FAILED
+        return AuthState.UNAUTHENTICATED
+
+    def _record_auth_failure(self, details):
+        """Record (or, with None, clear) the last failure. The only writer of that field."""
+        self.last_auth_failure = details
+
+    def _begin_auth_attempt(self):
+        """Start a fresh attempt by clearing the last recorded failure."""
+        self._record_auth_failure(None)
+
+    def _mark_authenticated(self):
+        """Assert the payload really establishes authentication before returning success."""
+        if self._auth_state is not AuthState.AUTHENTICATED:
+            raise RuntimeError(f"{type(self).__name__} reported success without an access token and a client")
+
+    @property
     def authenticated(self) -> bool:
-        """Check if currently authenticated with valid access token."""
-        return bool(self.access_token and self.client and self.user_info)
+        """Check whether authentication is established (derived from the state)."""
+        return self._auth_state is AuthState.AUTHENTICATED
 
     def ensure_authenticated(self):
         """
@@ -95,60 +119,63 @@ class BaseAuthManager(ABC):
         """Record failure details and return False from authenticate()."""
         if exc is not None:
             return record_auth_failure(self, exc)
-        platform = self._get_platform_name()
-        self.last_auth_failure = AuthFailureDetails(
-            platform=platform,
-            category=AuthFailureCategory.UNKNOWN,
+        self._record_auth_failure(
+            AuthFailureDetails(
+                platform=self._get_platform_name(),
+                category=AuthFailureCategory.UNKNOWN,
+            )
         )
         return False
 
     def _missing_credentials_failed(self) -> bool:
         """Record missing-credentials failure and return False from authenticate()."""
-        self.last_auth_failure = AuthFailureDetails(
-            platform=self._get_platform_name(),
-            category=AuthFailureCategory.MISSING,
+        self._record_auth_failure(
+            AuthFailureDetails(
+                platform=self._get_platform_name(),
+                category=AuthFailureCategory.MISSING,
+            )
         )
         return False
 
     def _wrong_token_failed(self) -> bool:
         """Record invalid-token failure and return False from authenticate()."""
-        self.last_auth_failure = AuthFailureDetails(
-            platform=self._get_platform_name(),
-            category=AuthFailureCategory.WRONG_TOKEN,
+        self._record_auth_failure(
+            AuthFailureDetails(
+                platform=self._get_platform_name(),
+                category=AuthFailureCategory.WRONG_TOKEN,
+            )
         )
         return False
 
     def _load_and_refresh_from_storage(self) -> bool:
         """
-        Load credentials from secure storage and refresh if needed.
+        Load credentials from secure storage and refresh them.
+
+        The refresh runs ``authenticate()`` in a fresh event loop, so calling
+        this from inside a running loop fails closed: the ``RuntimeError``
+        becomes a recorded auth failure instead of a silent success. The return
+        value is the resulting state, never an unchecked claim.
 
         Returns:
-            bool: True if successfully loaded and refreshed, False otherwise
+            bool: True only when the manager really is authenticated afterward.
         """
+        refresh_token = self._load_refresh_token_from_storage()
+        if not refresh_token:
+            return False
+
+        # Set the refresh token so authenticate() can use it
+        if hasattr(self, "refresh_token"):
+            self.refresh_token = refresh_token
+
+        coro = self.authenticate()
         try:
-            # Extract refresh token
-            refresh_token = self._load_refresh_token_from_storage()
-            if not refresh_token:
-                return False
-
-            # Set the refresh token so authenticate() can use it
-            if hasattr(self, "refresh_token"):
-                self.refresh_token = refresh_token
-
-            # Call authenticate to refresh and get access token
-            # This is async, but we need to handle it synchronously here
-            import asyncio
-
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # If we're already in an async context, this is tricky
-                # For now, we'll set the refresh_token and let authenticate handle it
-                return True
-            else:
-                result = loop.run_until_complete(self.authenticate())
-                return result
+            asyncio.run(coro)
         except Exception as exc:
+            # asyncio.run() refuses to start inside a running loop; close the
+            # never-awaited coroutine so it cannot surface as a runtime warning.
+            coro.close()
             return self._authentication_failed(exc)
+        return self.authenticated
 
     def _load_refresh_token_from_storage(self) -> Optional[str]:
         """

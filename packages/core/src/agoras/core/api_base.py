@@ -22,11 +22,58 @@ import functools
 import re
 import time
 from abc import ABC, abstractmethod
+from enum import Enum
 from typing import Any, Awaitable, Callable, Concatenate, NoReturn, ParamSpec, TypeVar
 
 P = ParamSpec("P")
 R = TypeVar("R")
 T = TypeVar("T", bound="BaseAPI")
+
+
+class AuthState(str, Enum):
+    """
+    Authentication state of an API, client, or auth manager.
+
+    One stored value per object; every boolean the codebase reads about
+    authentication is derived from it. ``FAILED`` is auth-manager only: a
+    client or API that fails to build a connection simply stays
+    ``UNAUTHENTICATED``.
+    """
+
+    UNAUTHENTICATED = "unauthenticated"
+    AUTHENTICATED = "authenticated"
+    FAILED = "failed"
+
+
+class AuthLifecycle:
+    """
+    Authentication flag shared by API and client objects.
+
+    ``_auth_state`` is the only stored decision and ``_set_auth_state`` is its
+    only writer. ``_authenticated`` is derived, so a client cannot report one
+    state while holding another. The setter is a migration shim that keeps the
+    pre-existing boolean name working for the call sites (mostly tests) that
+    still assign it directly.
+
+    Subclasses inherit ``UNAUTHENTICATED`` from the class attribute and need no
+    ``__init__`` change.
+    """
+
+    _auth_state: AuthState = AuthState.UNAUTHENTICATED
+
+    def _set_auth_state(self, state):
+        """Move to ``state``. The only writer of ``_auth_state``."""
+        self._auth_state = state
+
+    @property
+    def _authenticated(self) -> bool:
+        """True only in ``AUTHENTICATED`` (derived, never stored)."""
+        return self._auth_state is AuthState.AUTHENTICATED
+
+    @_authenticated.setter
+    def _authenticated(self, value):
+        """ponytail: migration shim for direct flag writes; drop with its last assignment."""
+        self._auth_state = AuthState.AUTHENTICATED if value else AuthState.UNAUTHENTICATED
 
 
 def guard_ensure_auth_manager(
@@ -195,7 +242,7 @@ def sanitize_error_text(text: str) -> str:
     return sanitized
 
 
-class BaseAPI(ABC):
+class BaseAPI(AuthLifecycle, ABC):
     """
     Abstract base class for social network API implementations.
 
@@ -213,9 +260,11 @@ class BaseAPI(ABC):
         self.credentials = credentials
         self.client: Any = None
         self.auth_manager: Any = None
-        self._authenticated = False
         self._rate_limit_cache = {}
         self._last_request_time = 0
+        # Guards authenticate/disconnect interleaving. Creating a Lock outside a
+        # running loop is safe on 3.10+ (no loop binding since 3.10).
+        self._auth_lock = asyncio.Lock()
 
     async def authenticate(self):
         """
@@ -236,7 +285,7 @@ class BaseAPI(ABC):
         """
         await self._post_authenticate()
         self.client = self.auth_manager.client
-        self._authenticated = True
+        self._set_auth_state(AuthState.AUTHENTICATED)
         return self
 
     async def _post_authenticate(self):
@@ -255,11 +304,11 @@ class BaseAPI(ABC):
         """
         Disconnect from the API and clean up resources.
 
-        Acquires the auth lock when one exists so a disconnect cannot
-        interleave with an in-flight ``authenticate()`` and leave the
-        instance half-authenticated (flag set with a torn-down client).
-        Like the guard, ``disconnect`` must not be called from inside
-        ``authenticate()`` or ``_post_authenticate`` on the same instance.
+        Acquires the auth lock so a disconnect cannot interleave with an
+        in-flight ``authenticate()`` and leave the instance half-authenticated
+        (flag set with a torn-down client). Like the guard, ``disconnect`` must
+        not be called from inside ``authenticate()`` or ``_post_authenticate``
+        on the same instance.
         """
         lock = getattr(self, "_auth_lock", None)
         if lock is None:
@@ -273,7 +322,7 @@ class BaseAPI(ABC):
             self._disconnect_hook()
         finally:
             self.client = None
-            self._authenticated = False
+            self._set_auth_state(AuthState.UNAUTHENTICATED)
 
     def _disconnect_hook(self):
         """

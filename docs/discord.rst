@@ -32,6 +32,7 @@ Available Actions
 * ``thread`` - Create a public text-channel thread from a YAML content file
 * ``delete`` - Delete messages
 * ``delete-reply`` - Delete a reply message
+* ``reply`` - Reply to a message
 * ``get-post`` - Read a post/message by ID
 * ``get-reply`` - Read a reply/comment by ID
 * ``list-posts`` - List recent messages in the configured channel
@@ -87,7 +88,7 @@ Parameters:
 Publish a Discord thread
 ------------------------
 
-.. versionadded:: 2.2
+.. versionadded:: 2.1
 
 ``thread`` is YAML-only. Agoras posts the first entry in the configured text
 channel, creates a public thread named ``thread_name``, then sends remaining
@@ -115,14 +116,12 @@ This command will upload and send a video file to a Discord channel. The video c
 
     agoras discord video \
       --video-url "${DISCORD_VIDEO_URL}" \
-      --video-title "${DISCORD_VIDEO_TITLE}" \
-      --text "${STATUS_TEXT}"
+      --video-title "${DISCORD_VIDEO_TITLE}"
 
 Parameters:
 
 - ``--video-url``: URL pointing to a downloadable video file (required)
 - ``--video-title``: Title for the video (optional)
-- ``--text``: Additional description text (optional)
 
 **Video requirements**:
 - **Supported formats**: MP4, MOV, WebM, AVI

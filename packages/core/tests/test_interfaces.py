@@ -1221,6 +1221,7 @@ async def test_schedule_continues_after_item_failure(mock_sheet_class):
     mock_sheet.get_worksheet = AsyncMock()
     mock_sheet.process_scheduled_posts = AsyncMock(return_value=post_data)
     mock_sheet.mark_as_published = AsyncMock()
+    mock_sheet.mark_as_failed = AsyncMock()
     mock_sheet_class.return_value = mock_sheet
 
     network = ConcreteSocialNetwork()
@@ -1237,6 +1238,9 @@ async def test_schedule_continues_after_item_failure(mock_sheet_class):
     # Failed item must not be marked published (no ghost published)
     marked_rows = [c.args[0] for c in mock_sheet.mark_as_published.await_args_list]
     assert marked_rows == [1, 3]
+    # ...and it is parked as failed instead of being retried forever
+    failed_rows = [c.args[0] for c in mock_sheet.mark_as_failed.await_args_list]
+    assert failed_rows == [2]
 
 
 @pytest.mark.asyncio

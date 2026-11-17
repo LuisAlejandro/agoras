@@ -29,10 +29,12 @@ import sys
 import time
 import webbrowser
 from dataclasses import dataclass, replace
+from enum import Enum
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any, Dict, List, Optional, Sequence, Tuple, cast
 from urllib.parse import parse_qs
 
+from agoras.core.polling import ProcessingTimeoutError
 from agoras.core.text_limits import TextValidationError, validate_text
 from agoras.media.paths import is_local_media_source, normalize_media_path
 
@@ -96,13 +98,26 @@ class ComposerPayload:
     brand_content: bool
 
 
+class ComposerOutcome(str, Enum):
+    """
+    Terminal outcome of one Share-to-TikTok session.
+
+    ``OPEN`` until the user confirms or cancels. An idle timeout is *not* a
+    fourth state: the session never settled, and the caller must be able to tell
+    that apart from a real cancel.
+    """
+
+    OPEN = "open"
+    CONFIRMED = "confirmed"
+    CANCELLED = "cancelled"
+
+
 class ComposerHTTPServer(HTTPServer):
     """HTTPServer that stores composer session state."""
 
     composer_request: ComposerRequest
     csrf_token: str
-    payload: Optional[ComposerPayload]
-    cancelled: bool
+    outcome: ComposerOutcome
     error_message: Optional[str]
     preview_files: Tuple[Optional[str], ...]
 
@@ -120,10 +135,51 @@ class ComposerHTTPServer(HTTPServer):
             preview_urls=(),
         )
         self.csrf_token = ""
-        self.payload = None
-        self.cancelled = False
+        self._payload: Optional[ComposerPayload] = None
+        self.outcome = ComposerOutcome.OPEN
         self.error_message = None
         self.preview_files = ()
+
+    def reset(self, request, *, csrf_token, preview_files=()):
+        """Open a fresh session, discarding any previous outcome."""
+        self.composer_request = request
+        self.csrf_token = csrf_token
+        self._payload = None
+        self.outcome = ComposerOutcome.OPEN
+        self.error_message = None
+        self.preview_files = preview_files
+
+    def settle(self, outcome, *, payload=None):
+        """Move to a terminal outcome. The first terminal wins; later ones are ignored."""
+        if self.outcome is not ComposerOutcome.OPEN:
+            return False
+        self.outcome = outcome
+        if payload is not None:
+            self._payload = payload
+        return True
+
+    @property
+    def payload(self) -> Optional[ComposerPayload]:
+        """The confirmed payload, or None while open or after a cancel."""
+        return self._payload
+
+    @payload.setter
+    def payload(self, value):
+        """ponytail: migration shim for direct writes; drop with its last assignment."""
+        self._payload = value
+        if value is not None:
+            self.settle(ComposerOutcome.CONFIRMED, payload=value)
+
+    @property
+    def cancelled(self) -> bool:
+        """True only in CANCELLED (derived, never stored)."""
+        return self.outcome is ComposerOutcome.CANCELLED
+
+    @cancelled.setter
+    def cancelled(self, value):
+        """ponytail: migration shim for direct writes; drop with its last assignment."""
+        if value:
+            self.settle(ComposerOutcome.CANCELLED)
 
 
 def bind_preview_assets(sources: Sequence[str], port: int) -> Tuple[Tuple[str, ...], Tuple[Optional[str], ...]]:
@@ -563,7 +619,7 @@ class ComposerHandler(BaseHTTPRequestHandler):
             return
         path = self.path.split("?", 1)[0]
         if path == "/cancel":
-            server.cancelled = True
+            server.settle(ComposerOutcome.CANCELLED)
             self._send_html(200, render_cancelled_html())
             return
         preview_match = _PREVIEW_PATH.fullmatch(path)
@@ -592,7 +648,7 @@ class ComposerHandler(BaseHTTPRequestHandler):
         body = self.rfile.read(length).decode("utf-8") if length else ""
         form = flatten_form(parse_qs(body, keep_blank_values=True))
         if form.get("action") == "cancel":
-            server.cancelled = True
+            server.settle(ComposerOutcome.CANCELLED)
             self._send_html(200, render_cancelled_html())
             return
         try:
@@ -603,7 +659,7 @@ class ComposerHandler(BaseHTTPRequestHandler):
             return
         server.csrf_token = ""
         self._send_html(200, render_processing_html())
-        server.payload = payload
+        server.settle(ComposerOutcome.CONFIRMED, payload=payload)
 
     def _serve_preview(self, server: ComposerHTTPServer, index: int) -> None:
         """Serve an allowlisted local preview file (loopback Host already checked)."""
@@ -695,11 +751,11 @@ def run_composer(
     """
     server = bind_composer_server()
     preview_urls, preview_files = bind_preview_assets(request.preview_urls, server.server_port)
-    server.composer_request = replace(request, preview_urls=preview_urls)
-    server.preview_files = preview_files
-    server.csrf_token = secrets.token_urlsafe(32)
-    server.payload = None
-    server.cancelled = False
+    server.reset(
+        replace(request, preview_urls=preview_urls),
+        csrf_token=secrets.token_urlsafe(32),
+        preview_files=preview_files,
+    )
     url = f"http://127.0.0.1:{server.server_port}/"
     print(f"Share to TikTok: {url}", file=sys.stderr)
     print("Open that URL if your browser does not.", file=sys.stderr)
@@ -710,14 +766,12 @@ def run_composer(
             pass
     start = time.time()
     try:
-        while True:
+        while server.outcome is ComposerOutcome.OPEN:
             if time.time() - start >= timeout:
-                return None
+                raise ProcessingTimeoutError(f"TikTok composer idle for {timeout}s; nothing was confirmed or cancelled")
             remaining = timeout - (time.time() - start)
             server.timeout = min(remaining, 1.0)
             server.handle_request()
-            if server.payload is not None or server.cancelled:
-                break
         return server.payload
     finally:
         server.server_close()

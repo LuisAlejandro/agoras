@@ -23,6 +23,7 @@ This module provides the LinkedIn command parser for the new CLI structure.
 
 from argparse import ArgumentParser, Namespace, _SubParsersAction
 
+from agoras.platforms.linkedin.auth import LINKEDIN_OAUTH_DEFAULT_SCOPES
 from agoras.platforms.linkedin.wrapper import main as linkedin_main
 
 from ..base import (
@@ -31,6 +32,10 @@ from ..base import (
     add_video_options,
     run_platform_command,
 )
+
+# CLI --scope is comma-separated; render the auth manager's space-separated
+# default set in that form so the help text cannot drift from the constant.
+DEFAULT_SCOPES_CSV = ",".join(LINKEDIN_OAUTH_DEFAULT_SCOPES.split())
 
 
 def create_linkedin_parser(subparsers: _SubParsersAction) -> ArgumentParser:
@@ -152,7 +157,7 @@ def _add_linkedin_authorize_options(parser: ArgumentParser):
         metavar="<scopes>",
         help=(
             "Comma-separated scopes that REPLACE the default "
-            "'openid,profile,email,w_member_social' for this authorize run. "
+            f"'{DEFAULT_SCOPES_CSV}' for this authorize run. "
             "Add w_member_social_feed (e.g. openid,profile,email,w_member_social_feed) "
             "on apps that hold it to enable comment/reply actions."
         ),

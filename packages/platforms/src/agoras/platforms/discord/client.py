@@ -22,8 +22,10 @@ from typing import Any, Dict, List, Optional
 
 import discord
 
+from agoras.core.api_base import AuthLifecycle, AuthState
 
-class DiscordAPIClient:
+
+class DiscordAPIClient(AuthLifecycle):
     """
     Discord API client that centralizes Discord operations.
 
@@ -44,8 +46,9 @@ class DiscordAPIClient:
         self.server_name = server_name
         self.channel_name = channel_name
         self.client: Optional[discord.Client] = None
-        self._authenticated = False
         self._fetched_channels = {}  # Store fetched channels by guild name
+        # Declared default: populated only by the manual-fetch fallback below.
+        self._fetched_guilds: List[discord.Guild] = []
 
     async def authenticate(self) -> bool:
         """
@@ -67,7 +70,7 @@ class DiscordAPIClient:
             await self._create_client()
             await self._login_with_timeout()
             await self._wait_until_ready_with_fallback()
-            self._authenticated = True
+            self._set_auth_state(AuthState.AUTHENTICATED)
             return True
         except Exception as e:
             raise Exception(f"Discord authentication failed: {str(e)}") from e
@@ -122,7 +125,8 @@ class DiscordAPIClient:
 
             if len(fetched_guilds) > 0:
                 await self._process_fetched_guilds(fetched_guilds)
-                # Mark as ready since we have guilds
+                # ponytail: discord.py keeps readiness on a private Event; the
+                # manual fetch is equivalent to READY, so set it and stop there.
                 client._ready.set()
             else:
                 raise Exception(
@@ -140,15 +144,16 @@ class DiscordAPIClient:
         client = self.client
         if client is None:
             raise Exception("Discord client not available")
-        self._fetched_guilds = []
+        guilds: List[discord.Guild] = []
         for guild in fetched_guilds:
             try:
                 full_guild = await client.fetch_guild(guild.id)
                 await self._fetch_channels_if_needed(full_guild)
-                self._fetched_guilds.append(full_guild)
+                guilds.append(full_guild)
             except Exception:
                 # Use the basic guild if full fetch fails
-                self._fetched_guilds.append(guild)
+                guilds.append(guild)
+        self._fetched_guilds = guilds
 
     async def _fetch_channels_if_needed(self, guild):
         """Fetch channels for a guild if none are loaded."""
@@ -178,7 +183,7 @@ class DiscordAPIClient:
                 pass
 
         self.client = None
-        self._authenticated = False
+        self._set_auth_state(AuthState.UNAUTHENTICATED)
 
     def _get_guild(self) -> discord.Guild:
         """
@@ -202,10 +207,9 @@ class DiscordAPIClient:
                 return guild
 
         # If not found, try the fetched guilds (for when wait_until_ready timed out)
-        if hasattr(self, "_fetched_guilds"):
-            for guild in self._fetched_guilds:
-                if guild.name == self.server_name:
-                    return guild
+        for guild in self._fetched_guilds:
+            if guild.name == self.server_name:
+                return guild
 
         raise Exception(f"Guild {self.server_name} not found.")
 

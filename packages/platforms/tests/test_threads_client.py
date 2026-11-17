@@ -318,7 +318,7 @@ def test_threads_client_create_post_reply_to_id(mock_requests_post, mock_sleep):
 @patch('agoras.platforms.threads.client.requests.post')
 def test_threads_client_video_poll_timeout(mock_post, mock_get, mock_sleep, mock_monotonic):
     """Test create_video_post raises uncertain timeout when poll budget expires."""
-    from agoras.platforms.threads.client import ThreadsContainerTimeoutError
+    from agoras.core.polling import ProcessingTimeoutError
 
     mock_container = MagicMock()
     mock_container.status_code = 200
@@ -335,7 +335,7 @@ def test_threads_client_video_poll_timeout(mock_post, mock_get, mock_sleep, mock
     mock_monotonic.side_effect = [0, 301]
 
     client = ThreadsAPIClient('access_token', 'user_id')
-    with pytest.raises(ThreadsContainerTimeoutError, match='not ready after'):
+    with pytest.raises(ProcessingTimeoutError, match='not ready after'):
         client.create_video_post('caption', 'http://video.mp4')
 
 

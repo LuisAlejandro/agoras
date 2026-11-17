@@ -18,7 +18,6 @@
 """agoras.platforms.linkedin.client module."""
 
 import asyncio
-import time
 import urllib.parse
 from typing import Any, Dict, List, Optional
 
@@ -27,6 +26,9 @@ from linkedin_api.clients.restli.client import RestliClient
 from linkedin_api.clients.restli.utils import api as apiutils
 from linkedin_api.clients.restli.utils.query_tunneling import maybe_apply_query_tunneling_requests_with_body
 from linkedin_api.common.constants import RESTLI_METHODS
+
+from agoras.core.api_base import AuthLifecycle, AuthState
+from agoras.core.polling import poll_status
 
 
 def _reject_activity_urn(urn: str, action: str) -> None:
@@ -38,7 +40,7 @@ def _reject_activity_urn(urn: str, action: str) -> None:
         )
 
 
-class LinkedInAPIClient:
+class LinkedInAPIClient(AuthLifecycle):
     """
     LinkedIn API client that centralizes LinkedIn operations.
 
@@ -56,7 +58,6 @@ class LinkedInAPIClient:
         self.access_token = access_token
         self.restli_client: Optional[RestliClient] = None
         self.api_version = "202503"
-        self._authenticated = False
 
     async def authenticate(self) -> bool:
         """
@@ -76,7 +77,7 @@ class LinkedInAPIClient:
 
         try:
             self.restli_client = RestliClient()
-            self._authenticated = True
+            self._set_auth_state(AuthState.AUTHENTICATED)
             return True
         except Exception as e:
             raise Exception(f"LinkedIn client authentication failed: {str(e)}")
@@ -86,7 +87,7 @@ class LinkedInAPIClient:
         Disconnect and clean up client resources.
         """
         self.restli_client = None
-        self._authenticated = False
+        self._set_auth_state(AuthState.UNAUTHENTICATED)
 
     def _post_restli_action(
         self,
@@ -272,25 +273,26 @@ class LinkedInAPIClient:
 
     def _wait_for_video_available(self, video_urn: str, timeout_s: int = 120) -> None:
         """Poll LinkedIn until the uploaded video is AVAILABLE."""
-        if not self.restli_client:
+        client = self.restli_client
+        if not client:
             raise Exception("LinkedIn RestliClient not initialized")
 
         encoded_urn = urllib.parse.quote(video_urn, safe="")
-        deadline = time.monotonic() + timeout_s
 
-        while time.monotonic() < deadline:
-            request = self.restli_client.get(
+        def _status() -> str:
+            request = client.get(
                 resource_path=f"/videos/{encoded_urn}", version_string=self.api_version, access_token=self.access_token
             )
-            status = request.response.json().get("status", "")
-            if status == "AVAILABLE":
-                return
-            if status == "PROCESSING_FAILED":
-                raise Exception("LinkedIn video processing failed")
+            return request.response.json().get("status", "")
 
-            time.sleep(2)
-
-        raise Exception("Timed out waiting for LinkedIn video to become available")
+        poll_status(
+            _status,
+            ready={"AVAILABLE"},
+            failed={"PROCESSING_FAILED"},
+            subject=f"LinkedIn video {video_urn}",
+            timeout_s=timeout_s,
+            interval_s=2.0,
+        )
 
     @staticmethod
     def _build_post_content(

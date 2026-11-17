@@ -30,6 +30,7 @@ Available Actions
 * ``share`` - Share posts to your profile
 * ``delete`` - Delete your own posts
 * ``delete-reply`` - Delete a comment you posted
+* ``reply`` - Comment on a post
 * ``get-post`` - Read a post/message by ID
 * ``get-reply`` - Read a reply/comment by ID
 * ``list-posts`` - List recent posts from a page/profile (requires ``--object-id``)
@@ -65,7 +66,6 @@ Post to Facebook
 **New format**::
 
     agoras facebook post \
-      --object-id "${FACEBOOK_OBJECT_ID}" \
       --text "${STATUS_TEXT}" \
       --link "${STATUS_LINK}" \
       --image-1 "${IMAGE_URL_1}" \
@@ -86,10 +86,16 @@ Upload a Video
 **New format**::
 
     agoras facebook video \
-      --object-id "${FACEBOOK_OBJECT_ID}" \
       --video-url "${VIDEO_URL}" \
       --video-title "${VIDEO_TITLE}" \
       --video-description "${VIDEO_DESCRIPTION}"
+
+**Parameters**:
+
+* ``--video-url`` (required): Local file path or public URL of the video to upload.
+* ``--video-title`` (optional): Title of the video.
+* ``--video-description`` (optional): Description of the video.
+* ``--video-type`` (optional): Type of video, one of ``regular``, ``reel``, or ``story``.
 
 .. note::
    You must run ``agoras facebook authorize`` first before using this command.
@@ -110,7 +116,7 @@ This command will "like" a post identified by ``--post-id`` (read about how to g
 Share a Post
 ------------
 
-This command will grab a post identified by ``--post-id`` that is currently published on ``--object-id`` (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`), and share it on a ``--profile-id``.
+This command will grab a post identified by ``--post-id`` that is currently published on the account configured via the ``FACEBOOK_OBJECT_ID`` environment variable or stored credentials (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`), and share it on a ``--profile-id``.
 
 .. note::
    You must run ``agoras facebook authorize`` first before using this command.
@@ -118,7 +124,6 @@ This command will grab a post identified by ``--post-id`` that is currently publ
 **New format**::
 
     agoras facebook share \
-      --object-id "${FACEBOOK_OBJECT_ID}" \
       --post-id "${FACEBOOK_POST_ID}" \
       --profile-id "${FACEBOOK_PROFILE_ID}"
 
@@ -127,7 +132,7 @@ This command will grab a post identified by ``--post-id`` that is currently publ
 Delete a Facebook post
 ----------------------
 
-This command will delete a post identified by ``--post-id`` that is currently published on ``--object-id`` (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`).
+This command will delete a post identified by ``--post-id`` that is currently published on the account configured via the ``FACEBOOK_OBJECT_ID`` environment variable or stored credentials (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`).
 
 .. note::
    You must run ``agoras facebook authorize`` first before using this command.
@@ -135,7 +140,6 @@ This command will delete a post identified by ``--post-id`` that is currently pu
 **New format**::
 
     agoras facebook delete \
-      --object-id "${FACEBOOK_OBJECT_ID}" \
       --post-id "${FACEBOOK_POST_ID}"
 
 
@@ -143,7 +147,7 @@ This command will delete a post identified by ``--post-id`` that is currently pu
 Post the last URL from an RSS feed into Facebook
 -------------------------------------------------
 
-This command will parse an RSS feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published on ``--facebook-object-id`` (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`).
+This command will parse an RSS feed located at ``--feed-url``, and publish the last ``--max-count`` number of entries published in the last ``--post-lookback`` number of seconds. The post content will consist of the title and the link of the feed entry. The post will be published to the Facebook account configured via the ``FACEBOOK_OBJECT_ID`` environment variable or stored credentials (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`).
 
 .. note::
    You must run ``agoras facebook authorize`` first before using this command.
@@ -163,7 +167,7 @@ Please read about how the RSS feed should be structured in the :doc:`RSS feed se
 Post a random URL from an RSS feed into Facebook
 -------------------------------------------------
 
-This command will parse an RSS feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published on ``--facebook-object-id`` (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`).
+This command will parse an RSS feed at ``--feed-url`` and publish one random entry that's not older than ``--max-post-age``. The post content will consist of the title and the link of the feed entry. The post will be published to the Facebook account configured via the ``FACEBOOK_OBJECT_ID`` environment variable or stored credentials (read about how to get the id of an account :ref:`here <how-to-get-facebook-account-id>`).
 
 .. note::
    You must run ``agoras facebook authorize`` first before using this command.
@@ -232,8 +236,8 @@ Scheduling Logic
 
 .. _how-to-get-facebook-account-id:
 
-How to get ``--facebook-object-id`` parameter
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+How to get the Facebook account ID
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 With Agoras you can use the facebook network to post to pages, profiles and groups, but for simplicity sake we're going to only explain how to get the object ID of a page.
 
@@ -290,7 +294,6 @@ Using Agoras
 When you create a facebook post with Agoras, it will print the post ID (in json format) in the console. You can copy it from there and use it in other commands. For example::
 
       $ agoras facebook post \
-            --object-id XXXXX \
             --text "This is a test post"
       $ {"id":"NNNNNNNNNNN"}
 

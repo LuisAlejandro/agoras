@@ -59,7 +59,7 @@ setup(
     install_requires=[
         # From agoras-common
         'requests==2.34.2',
-        'urllib3>=1.26,<3',
+        'urllib3>=2.8.0,<3',
         # From agoras-media
         'filetype==1.2.0',
         'opencv-python-headless==5.0.0.93',
@@ -72,10 +72,10 @@ setup(
         'python-facebook-api==0.24.0',
         'linkedin-api-client==0.3.0',
         'discord.py==2.7.1',
-        'google-api-python-client==2.198.0',
+        'google-api-python-client==2.200.0',
         'google-auth-httplib2==0.4.1',
         'authlib==1.7.2',
-        'cryptography>=50.0.0',
+        'cryptography>=50.0.1',
         'python-telegram-bot>=22.1',
         # From agoras
         'PyYAML==6.0.3',

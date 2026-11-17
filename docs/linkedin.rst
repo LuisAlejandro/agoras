@@ -18,10 +18,12 @@ Available Actions
 ~~~~~~~~~~~~~~~~~
 
 * ``authorize`` - Set up OAuth 2.0 authentication (required first step)
-* ``post`` - Create text and image posts (up to 4 images)
+* ``post`` - Create text and image posts (up to 1 image)
+* ``video`` - Upload videos
 * ``like`` - Like posts
 * ``share`` - Share posts
 * ``delete`` - Delete your own posts
+* ``reply`` - Comment on a post
 * ``delete-reply`` - Delete a comment you posted (requires ``--post-id`` and ``--parent-post-id``)
 * ``get-post`` - Read a post by URN (``--post-id``)
 * ``get-reply`` - Read a comment by ID (``--post-id`` comment ID plus required ``--parent-post-id`` parent post URN)
@@ -61,7 +63,7 @@ For CI/CD environments, see :doc:`credentials/linkedin` for unattended execution
 Publish a LinkedIn post
 -----------------------
 
-This command will publish a post on your LinkedIn account. ``--text`` is the text of your post and can contain URLs that are going to be formatted into clickable links. A LinkedIn post can have a maximum of 3000 characters, so be careful not to exceed it. You can also add up to 4 images in your post using ``--image-1``, ``--image-2``, ``--image-3`` and ``--image-4``, which must be URLs that point to downloadable images.
+This command will publish a post on your LinkedIn account. ``--text`` is the text of your post and can contain URLs that are going to be formatted into clickable links. A LinkedIn post can have a maximum of 3000 characters, so be careful not to exceed it. You can also add a single image in your post using ``--image-1``, which must be a URL that points to a downloadable image.
 
 .. versionchanged:: 1.1.1
    Added support for ``--link`` parameter. If you want to add a link to your post, you can use this parameter. A preview of the link will be embedded in the post. If you want to add a link without a preview, you can add it to the ``--text`` parameter. Warning: if you add a link using ``--link`` and also add images using any of the ``--image-X`` parameters, the images will be ignored.
@@ -74,10 +76,7 @@ This command will publish a post on your LinkedIn account. ``--text`` is the tex
     agoras linkedin post \
       --text "${STATUS_TEXT}" \
       --link "${STATUS_LINK}" \
-      --image-1 "${IMAGE_URL_1}" \
-      --image-2 "${IMAGE_URL_2}" \
-      --image-3 "${IMAGE_URL_3}" \
-      --image-4 "${IMAGE_URL_4}"
+      --image-1 "${IMAGE_URL_1}"
 
 
 Like a LinkedIn post

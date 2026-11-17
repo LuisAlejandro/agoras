@@ -28,6 +28,7 @@ Available Actions
 * ``video`` - Upload and publish a video to YouTube
 * ``like`` - Like a YouTube video
 * ``delete`` - Delete a YouTube video
+* ``reply`` - Reply to a comment
 * ``delete-reply`` - Delete a YouTube comment
 * ``get-post`` - Read a post/message by ID
 * ``get-reply`` - Read a reply/comment by ID
@@ -76,7 +77,7 @@ This command uploads a video file from a local path or a remote URL to your YouT
 **Parameters**:
 
 * ``--video-url`` (required): Local file path or public URL of the video to upload.
-* ``--title`` (optional): The title of the video.
+* ``--title`` (required): The title of the video.
 * ``--description`` (optional): The description of the video.
 * ``--category-id`` (optional): The numeric YouTube category ID (e.g., ``22`` for People & Blogs, ``28`` for Science & Technology).
 * ``--privacy`` (optional): Video privacy status. Choices are ``public``, ``private``, or ``unlisted`` (default: ``private``).
@@ -141,8 +142,9 @@ You can schedule video publishing from a Google Sheet that contains video paths/
 See :doc:`usage` and :doc:`credentials/google` for how to configure and authorize Google Sheets.
 ::
 
-      agoras utils schedule \
-            --spreadsheet-id "${SPREADSHEET_ID}" \
-            --sheet-name "${SHEET_NAME}" \
-            --youtube-client-id "${YOUTUBE_CLIENT_ID}" \
-            --youtube-client-secret "${YOUTUBE_CLIENT_SECRET}"
+      agoras utils schedule-run \
+            --network youtube \
+            --sheets-id "${GOOGLE_SHEETS_ID}" \
+            --sheets-name "${SHEET_NAME}" \
+            --sheets-client-email "${GOOGLE_SHEETS_CLIENT_EMAIL}" \
+            --sheets-private-key "${GOOGLE_SHEETS_PRIVATE_KEY}"
