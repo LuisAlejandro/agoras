@@ -251,6 +251,6 @@ Common Issues
 Getting Help
 ------------
 
-- **Documentation**: https://agoras.luisalejandro.org
+- **Documentation**: https://agoras.dev
 - **Issues**: https://github.com/LuisAlejandro/agoras/issues
 - **Discord**: https://discord.gg/4UCXWhYEhR
