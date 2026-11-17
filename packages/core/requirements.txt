@@ -2,4 +2,4 @@
 agoras-common==3.0.0
 agoras-media==3.0.0
 gspread==6.2.1
-google-auth==2.56.3
+google-auth==2.58.0

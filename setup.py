@@ -66,7 +66,7 @@ setup(
         'Pillow>=12.3.0',
         # From agoras-core
         'gspread==6.2.1',
-        'google-auth==2.56.3',
+        'google-auth==2.58.0',
         # From agoras-platforms
         'tweepy==4.17.0',
         'python-facebook-api==0.24.0',
