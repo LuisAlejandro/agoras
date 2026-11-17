@@ -44,7 +44,7 @@ setup(
         'google-auth-httplib2==0.4.1',
         'authlib==1.9.1',
         'cryptography>=50.0.1',
-        'python-telegram-bot>=22.1',
+        'python-telegram-bot>=22.8',
     ],
 
     classifiers=[
