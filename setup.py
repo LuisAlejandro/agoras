@@ -74,7 +74,7 @@ setup(
         'discord.py==2.7.1',
         'google-api-python-client==2.200.0',
         'google-auth-httplib2==0.4.1',
-        'authlib==1.7.2',
+        'authlib==1.9.1',
         'cryptography>=50.0.1',
         'python-telegram-bot>=22.1',
         # From agoras
