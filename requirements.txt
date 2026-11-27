@@ -1,5 +1,4 @@
 # Auto-generated from setup.py by scripts/sync_package_deps.py — do not edit.
-winston-pr-maintenance-probe==0.0.0
 requests==2.34.2
 urllib3>=2.8.0,<3
 filetype==1.2.0
