@@ -16,5 +16,3 @@ authlib==1.9.1
 cryptography>=50.0.1
 python-telegram-bot>=22.8
 PyYAML==6.0.3
-
-!winston-direct-repair-probe
